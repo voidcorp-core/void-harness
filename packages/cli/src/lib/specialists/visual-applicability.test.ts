@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { routeSpecialists } from '@voidcorp/mission-engine';
 import { describe, expect, it } from 'vitest';
+import { compileClaudeSpecialist } from './compile-claude.js';
 import { parseSpecialistYaml } from './load.js';
 import { parseSpecialistCompletion } from './schema.js';
 
@@ -38,6 +39,11 @@ describe('visual applicability contract isolation', () => {
       });
     },
   );
+
+  it('ships the current contract through the versioned native agent projection', () => {
+    const agent = resolve(DIRECTORY, '../../../../core/agents/visual-craft-director.md');
+    expect(readFileSync(agent, 'utf8')).toBe(compileClaudeSpecialist(current).content);
+  });
 
   it('keeps a v3 applicability completion out of a frozen v2 contract', () => {
     const completion = JSON.stringify({

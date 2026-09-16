@@ -32,9 +32,20 @@ proof. It supplies visual judgment; `qa` owns browser driving and functional exp
 - Screenshots and behavioral proof bind to the current diff, so a later CSS change invalidates them.
 - LLM-only approval, self-generated evidence, brand invention, implementation, browser driving,
   functional QA, architecture, and security were rejected.
+- DEV-843 separates selection from capture applicability. UI-subject guidance and frontend
+  profiles still select scope assessment. Complete relevant evidence of no rendered change yields
+  an explicit N/A explanation with inspected paths in `limitations`, without visual scores.
+- Template renderers and mixed changes retain visual proof obligations. Relevant omissions need
+  permitted reads demonstrably bound to the reviewed revision/receipt; unresolved scope blocks.
+  This corrects the unconditional v2 capture obligation without changing the completion schema,
+  routing selectors, historical verdicts, or the actual-UI quality gate.
 
 ## Verification
 
 Strict YAML schema, bounded fresh read-only runtime agents, canonical-catalog discovery health, a
-post-implementation-only v2 contract, a pure fail-closed UI gate, and deterministic anti-slop and
+post-implementation-only v3 contract, a pure fail-closed UI gate, and deterministic anti-slop and
 current-proof behavioral evals.
+
+DEV-843 preserves v2 in regression fixtures. A fresh native v2 guidance-only replay reproduced
+the false missing-capture blocker before the change. Mechanical version-isolation and selector
+guards are separate from the native v3 fixture replay required before certification.
