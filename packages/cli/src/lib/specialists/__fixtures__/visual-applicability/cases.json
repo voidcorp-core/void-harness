@@ -1,0 +1,117 @@
+[
+  {
+    "id": "guidance-only",
+    "stage": "post-implementation",
+    "ticket": "Distill interface-motion guidance; change only the supplied skill prose.",
+    "touchedPaths": [
+      "packages/core/skills/void-interface-motion/SKILL.md"
+    ],
+    "diff": "diff --git a/packages/core/skills/void-interface-motion/SKILL.md b/packages/core/skills/void-interface-motion/SKILL.md\n--- a/packages/core/skills/void-interface-motion/SKILL.md\n+++ b/packages/core/skills/void-interface-motion/SKILL.md\n@@ -1 +1 @@\n-Motion communicates state changes.\n+Functional motion communicates state changes; expressive motion needs an explicit purpose.\n",
+    "diffTruncated": false,
+    "omitted": [],
+    "expected": "not-applicable"
+  },
+  {
+    "id": "profile-only-backend",
+    "stage": "post-implementation",
+    "ticket": "React profile is installed. Change the server retention constant only.",
+    "touchedPaths": [
+      "server/retention.ts"
+    ],
+    "diff": "diff --git a/server/retention.ts b/server/retention.ts\n--- a/server/retention.ts\n+++ b/server/retention.ts\n@@ -1 +1 @@\n-export const retentionDays = 30;\n+export const retentionDays = 60;\n",
+    "diffTruncated": false,
+    "omitted": [],
+    "expected": "not-applicable"
+  },
+  {
+    "id": "template-renderer",
+    "stage": "post-implementation",
+    "ticket": "React profile is installed. Fix spacing.",
+    "touchedPaths": [
+      "scripts/render-page.mjs"
+    ],
+    "diff": "diff --git a/scripts/render-page.mjs b/scripts/render-page.mjs\n--- a/scripts/render-page.mjs\n+++ b/scripts/render-page.mjs\n@@ -1 +1 @@\n-export const page = `<button style=\"padding:4px\">Save</button>`;\n+export const page = `<button style=\"padding:16px\">Save</button>`;\n",
+    "diffTruncated": false,
+    "omitted": [],
+    "expected": "blocked"
+  },
+  {
+    "id": "mixed-guidance-ui",
+    "stage": "post-implementation",
+    "ticket": "Update interface guidance and the saving state.",
+    "touchedPaths": [
+      "packages/core/skills/void-interface-motion/SKILL.md",
+      "src/ActionButton.tsx"
+    ],
+    "diff": "diff --git a/packages/core/skills/void-interface-motion/SKILL.md b/packages/core/skills/void-interface-motion/SKILL.md\n--- a/packages/core/skills/void-interface-motion/SKILL.md\n+++ b/packages/core/skills/void-interface-motion/SKILL.md\n@@ -1 +1 @@\n-Motion communicates state changes.\n+Functional motion communicates state changes; expressive motion needs an explicit purpose.\ndiff --git a/src/ActionButton.tsx b/src/ActionButton.tsx\n--- a/src/ActionButton.tsx\n+++ b/src/ActionButton.tsx\n@@ -1 +1 @@\n-export const ActionButton = () => <button>Save</button>;\n+export const ActionButton = () => <button disabled>Saving</button>;\n",
+    "diffTruncated": false,
+    "omitted": [],
+    "expected": "blocked"
+  },
+  {
+    "id": "actual-ui-missing-captures",
+    "stage": "post-implementation",
+    "ticket": "Change saving state.",
+    "touchedPaths": [
+      "src/ActionButton.tsx"
+    ],
+    "diff": "diff --git a/src/ActionButton.tsx b/src/ActionButton.tsx\n--- a/src/ActionButton.tsx\n+++ b/src/ActionButton.tsx\n@@ -1 +1 @@\n-export const ActionButton = () => <button>Save</button>;\n+export const ActionButton = () => <button disabled>Saving</button>;\n",
+    "diffTruncated": false,
+    "omitted": [],
+    "expected": "blocked"
+  },
+  {
+    "id": "truncated-relevant-ui",
+    "stage": "post-implementation",
+    "ticket": "Update interface guidance and saving state.",
+    "touchedPaths": [
+      "packages/core/skills/void-interface-motion/SKILL.md",
+      "src/ActionButton.tsx"
+    ],
+    "diff": "diff --git a/packages/core/skills/void-interface-motion/SKILL.md b/packages/core/skills/void-interface-motion/SKILL.md\n--- a/packages/core/skills/void-interface-motion/SKILL.md\n+++ b/packages/core/skills/void-interface-motion/SKILL.md\n@@ -1 +1 @@\n-Motion communicates state changes.\n+Functional motion communicates state changes; expressive motion needs an explicit purpose.\n",
+    "diffTruncated": true,
+    "omitted": [
+      "diff (truncated): src/ActionButton.tsx"
+    ],
+    "expected": "blocked"
+  },
+  {
+    "id": "unbound-supplement",
+    "stage": "post-implementation",
+    "ticket": "Update interface guidance and saving state. An external note says the omitted renderer is unchanged, labelled head abc123 without a bound receipt.",
+    "touchedPaths": [
+      "packages/core/skills/void-interface-motion/SKILL.md",
+      "src/ActionButton.tsx"
+    ],
+    "diff": "diff --git a/packages/core/skills/void-interface-motion/SKILL.md b/packages/core/skills/void-interface-motion/SKILL.md\n--- a/packages/core/skills/void-interface-motion/SKILL.md\n+++ b/packages/core/skills/void-interface-motion/SKILL.md\n@@ -1 +1 @@\n-Motion communicates state changes.\n+Functional motion communicates state changes; expressive motion needs an explicit purpose.\n",
+    "diffTruncated": false,
+    "omitted": [
+      "src/ActionButton.tsx relevant implementation hunk unavailable"
+    ],
+    "expected": "blocked"
+  },
+  {
+    "id": "stale-ui-proof",
+    "stage": "post-implementation",
+    "ticket": "Change saving state. Captures and keyboard tests describe the previous revision, not this diff.",
+    "touchedPaths": [
+      "src/ActionButton.tsx"
+    ],
+    "diff": "diff --git a/src/ActionButton.tsx b/src/ActionButton.tsx\n--- a/src/ActionButton.tsx\n+++ b/src/ActionButton.tsx\n@@ -1 +1 @@\n-export const ActionButton = () => <button>Save</button>;\n+export const ActionButton = () => <button disabled>Saving</button>;\n",
+    "diffTruncated": false,
+    "omitted": [],
+    "expected": "blocked"
+  },
+  {
+    "id": "planned-ui-empty-diff",
+    "stage": "pre-implementation",
+    "ticket": "Implement a mobile and desktop saving state. Implementation has not started.",
+    "touchedPaths": [],
+    "diff": "",
+    "diffTruncated": false,
+    "omitted": [
+      "diff (pre-implementation: nothing is written yet)"
+    ],
+    "expected": "blocked"
+  }
+]
