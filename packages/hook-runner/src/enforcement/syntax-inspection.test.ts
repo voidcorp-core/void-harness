@@ -1,9 +1,10 @@
 // @test-resource subprocess
-// evaluateRule invokes the bounded compiler child; filesystem-only routing hides that cost.
+// Real isolated parser execution and consumer independence.
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, realpathSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
 import { build } from 'esbuild';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -11,6 +12,8 @@ import type { inspectSourceSyntax } from './syntax-inspection.js';
 import { evaluateRule } from './runner.js';
 
 let bundledInspect: typeof inspectSourceSyntax;
+let corruptInspect: typeof inspectSourceSyntax;
+let stalledInspect: typeof inspectSourceSyntax;
 let bundleDirectory: string;
 beforeAll(async () => {
   bundleDirectory = mkdtempSync(join(tmpdir(), 'hook-syntax-bundle-'));
@@ -18,8 +21,28 @@ beforeAll(async () => {
   await build({
     entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
     bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile,
+    define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify(new URL('../../../core/hooks/_syntax-worker.cjs', import.meta.url).href) },
   });
   bundledInspect = (await import(pathToFileURL(outfile).href)).inspectSourceSyntax;
+  // Real child failures from damaged or non-cooperative worker artifacts.
+  for (const [name, code] of [
+    ['corrupt', 'this is invalid javascript'],
+    ['stalled', 'process.on("SIGTERM", () => {}); while (true) {}'],
+  ] as const) {
+    const variant = join(bundleDirectory, `${name}.mjs`);
+    const worker = join(bundleDirectory, `${name}.cjs`);
+    writeFileSync(worker, code);
+    await build({
+      entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
+      bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile: variant,
+      define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify(pathToFileURL(worker).href),
+        __VOID_SYNTAX_WORKER_IDENTITY__: JSON.stringify({ bytes: Buffer.byteLength(code),
+          sha256: createHash('sha256').update(code).digest('hex') }) },
+    });
+    const inspect = (await import(pathToFileURL(variant).href)).inspectSourceSyntax;
+    if (name === 'corrupt') corruptInspect = inspect;
+    else stalledInspect = inspect;
+  }
 });
 afterAll(() => { rmSync(bundleDirectory, { recursive: true, force: true }); });
 
@@ -34,12 +57,43 @@ function project() {
   return root;
 }
 
+function linkCompiler(root: string, name: string, dependency: string): void {
+  const target = join(root, 'node_modules', name);
+  mkdirSync(join(target, '..'), { recursive: true });
+  const manifest = createRequire(import.meta.url).resolve(`${dependency}/package.json`);
+  symlinkSync(manifest.slice(0, -'/package.json'.length), target, 'junction');
+}
+
 describe('isolated syntax inspection', () => {
+  it('refuses a corrupt harness parser without using the available consumer compiler', () => {
+    const verdict = corruptInspect(project(), 'view.test.ts', '// test.skip');
+    expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(verdict.message).toContain('repair the harness installation');
+  });
+
+  it('kills a non-cooperative harness parser at the remaining operation deadline', () => {
+    const verdict = stalledInspect(project(), 'view.test.ts', '// test.skip', 100);
+    expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(verdict.message).toContain('resource limit');
+  });
+
+  it.each([
+    ['focused-tests', 'view.test.tsx', 'const view = <div>{test.only("case", () => {})}</div>;', 'FOCUSED_OR_SKIPPED_TEST'],
+    ['focused-tests', 'view.test.ts', '// test.skip is documentation\ntest("case", () => {});', 'OK'],
+    ['declarations', 'view.tsx', 'const view = <div>\n// tdd-cover: example\n</div>;', 'TDD_DECLARATION_NONE'],
+    ['declarations', 'view.tsx', 'const view = 1;\n// tdd-cover: e2e missing.spec.ts', 'TDD_DECLARATION_INVALID'],
+    ['focused-tests', 'view.test.ts', '// test.skip\nconst = ;', 'TEST_SYNTAX_UNVERIFIED'],
+  ] as const)('inspects %s in a TypeScript 7 project without a consumer parser API', (purpose, path, source, code) => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-native-')));
+    linkCompiler(root, 'typescript', '@typescript/native');
+    expect(bundledInspect(root, path, source, 5_000, purpose).code).toBe(code);
+  });
+
   it.each([
     ['focused-tests', 'view.test.tsx', 'const view = <div>{test.only("case", () => {})}</div>;', 'FOCUSED_OR_SKIPPED_TEST'],
     ['declarations', 'view.tsx', 'const view = 1;\n// tdd-cover: e2e missing.spec.ts', 'TDD_DECLARATION_INVALID'],
-  ] as const)('runs the serialized bundled AST for %s', (purpose, path, source, code) => {
-    const verdict = bundledInspect(project(), path, source, 1_000, purpose);
+  ] as const)('runs the delivered TypeScript worker for %s', (purpose, path, source, code) => {
+    const verdict = bundledInspect(project(), path, source, 5_000, purpose);
     expect(verdict.code).toBe(code);
     expect(verdict.allow).toBe(false);
     expect(verdict.evidence).toEqual([purpose === 'focused-tests' ? `${path}:1` : path]);
@@ -49,7 +103,7 @@ describe('isolated syntax inspection', () => {
     const root = project();
     writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0)
-      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(5_000);
     try {
       const verdict = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
         file_path: join(root, 'apps/web/src/page.tsx'),
@@ -65,7 +119,7 @@ describe('isolated syntax inspection', () => {
   it('refuses focused-test success after syntax inspection exhausts the shared budget', () => {
     const root = project();
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0)
-      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(5_000);
     try {
       const verdict = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
         file_path: 'page.test.ts', content: '// test.only is prose\ntest("page", () => {});',
@@ -77,42 +131,9 @@ describe('isolated syntax inspection', () => {
     }
   });
 
-  it('finds a workspace-only compiler and recovers after installation in the same project', () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-workspace-')));
-    const directory = join(root, 'apps/web/node_modules');
-    mkdirSync(directory, { recursive: true });
-    const check = () => evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
-      file_path: join(root, 'apps/web/src/view.test.ts'), content: '// Explain test.skip\ntest("renders", () => {});',
-    } }, { root });
-    expect(check().code).toBe('TEST_SYNTAX_UNVERIFIED');
-    const compiler = createRequire(import.meta.url).resolve('typescript/package.json');
-    symlinkSync(compiler.slice(0, -'/package.json'.length), join(directory, 'typescript'), 'junction');
-    expect(check().code).toBe('ALLOW');
-  });
-
-  it.each(['module.exports = { version: "6.0.0" };', 'throw new Error("PRIVATE_ERROR");'])(
-    'does not fall back from a broken nearest compiler to the root compiler', (code) => {
-      const root = project();
-      const directory = join(root, 'apps/web/node_modules/typescript');
-      mkdirSync(directory, { recursive: true });
-      writeFileSync(join(directory, 'package.json'), JSON.stringify({ main: 'index.cjs' }));
-      writeFileSync(join(directory, 'index.cjs'), code);
-      const result = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
-        file_path: join(root, 'apps/web/src/view.test.ts'), content: '// Explain test.skip',
-      } }, { root });
-      expect(result.code).toBe('TEST_SYNTAX_UNVERIFIED');
-      expect(result.message).not.toContain('PRIVATE_ERROR');
-    },
-  );
-
-  it('uses no compiler on a plain test and names missing compiler when syntax needs one', () => {
+  it('inspects syntax without installing any consumer compiler', () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-no-compiler-')));
-    const check = (content: string) => evaluateRule('no-focused-test', { tool_name: 'Write',
-      tool_input: { file_path: join(root, 'view.test.ts'), content } }, { root });
-    expect(check('test("renders", () => {});').allow).toBe(true);
-    const result = check('// Explain test.skip');
-    expect(result.code).toBe('TEST_SYNTAX_UNVERIFIED');
-    expect(result.message).toContain('compiler');
+    expect(bundledInspect(root, 'view.test.ts', '// Explain test.skip').code).toBe('OK');
   });
 
   it('does not execute inspected source or expose its contents in failures', () => {
@@ -130,7 +151,7 @@ describe('isolated syntax inspection', () => {
     'module.exports = { version: "6.0.0" };',
     'process.stdout.write(JSON.stringify({unavailable:"PRIVATE_COMPILER_ERROR"})); process.exit(0);',
     'process.on("SIGTERM", () => {}); while (true) {}',
-  ])('bounds a broken compiler and redacts its output', (code) => {
+  ])('never loads a consumer compiler, even if it throws, forges output or loops', (code) => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-broken-compiler-')));
     const directory = join(root, 'node_modules/typescript');
     mkdirSync(directory, { recursive: true });
@@ -138,7 +159,7 @@ describe('isolated syntax inspection', () => {
     writeFileSync(join(directory, 'index.cjs'), code);
     const result = evaluateRule('no-focused-test', { tool_name: 'Write',
       tool_input: { file_path: join(root, 'view.test.ts'), content: '// test.skip prose' } }, { root });
-    expect(result.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(result.code).toBe('ALLOW');
     expect(result.message).not.toContain('PRIVATE_COMPILER_ERROR');
   });
 

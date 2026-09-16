@@ -12,19 +12,21 @@ Internal symbolic paths retain the tool's original spelling for reconstruction;
 physical paths own containment and evidence. Multiple sections naming the same
 physical file refuse, including sections using different internal aliases.
 
-When syntax is needed, Node resolves TypeScript from the edited file's location.
-Workspace-local node_modules takes precedence over an ancestor's hoisted dependency.
-The hook never falls back to a harness compiler, nor retries another compiler when
-the nearest one is broken or unsupported. Supported API: TypeScript 5, checked
-against 5.9.3. To recover, restore TypeScript 5 in the owning workspace or its
-ancestor dependency installation, then retry the same edit. Each invocation loads
-it afresh, so failure is not cached across edits.
+When syntax is needed, the harness uses its own official TypeScript 6 API:
+`@typescript/typescript6` 6.0.2, resolving to TypeScript 6.0.3 in the lockfile.
+The API and traversal are bundled into an ordinary companion worker. The parent
+verifies its size and SHA-256 identity, then starts the isolated child. The
+versioned JSON protocol carries source as data and returns syntax facts.
+There is no consumer package lookup, dependency installation,
+network request or fallback to the project's compiler. TypeScript 7 projects and
+projects without TypeScript use the same parser. Ordinary unambiguous cases
+retain their inexpensive paths without starting it.
 
-This uses Node's native node_modules resolution, including package-manager symlinks
-and junctions. Custom-loader layouts such as loader-dependent PnP are not verified:
-the child receives neither loader arguments nor the parent's environment. A plain
-test with no suspicious tokens and a prohibited call at the start of the complete
-file do not need a compiler. This preserves the inexpensive common paths.
+The parser supports the syntax understood by the pinned release, including TSX.
+Unsupported or malformed syntax refuses rather than being silently accepted.
+A broken bundled parser asks to repair the harness installation, never to
+downgrade the consumer compiler. This syntax-only ownership does not change
+project graph module resolution or claim native TypeScript 7 API support.
 
 The parser traverses syntax, including template substitutions and JSX expressions.
 Comments, ordinary strings and regular-expression text are not executable calls.
@@ -33,12 +35,13 @@ tagged tables, computed member access and TypeScript expression wrappers. The
 callee walk shares the existing syntax-operation budget. See the
 [Jest API](https://jestjs.io/docs/api).
 It does not execute the inspected source, resolve its imports, read tsconfig,
-load config plugins or run tests. The compiler package itself is trusted executable
-project tooling, like the compiler used by the project graph; process isolation
-here bounds resources, not that package's filesystem or network authority.
+load config plugins or run tests. The parser is trusted, versioned harness code; process isolation bounds resources.
+The worker bundles its compiler dependency and never imports consumer packages.
+It uses public `createSourceFile` and `getSyntacticDiagnostics` APIs with a
+source-only virtual compiler host; no semantic type checking is performed.
 
 Limits: 64 KiB per proposed file, 128 patch hunks, one million context comparisons,
-32 inspected test files per operation, one second cooperative operation budget,
+32 inspected test files per operation, five seconds cooperative operation budget,
 128 MiB child V8 old-space limit, 64 KiB child output and 20,000 syntax nodes. The child
 inherits no environment variables. Timeout uses SIGKILL; a compiler trapping
 SIGTERM cannot keep the synchronous hook waiting. Errors are fixed diagnostics,
@@ -68,7 +71,7 @@ supply exact context for bounded edits. An oversized original cannot be recovere
 by a smaller Edit: provide a complete replacement within 64 KiB or restructure
 into supported files. Exempt paths stay exempt.
 
-Declaration-shaped lines elsewhere require the same bounded project compiler to
+Declaration-shaped lines elsewhere require the same bounded harness parser to
 identify actual comments. Template/JSX text and block-comment examples are not
 declarations; actual misplaced or duplicate line comments still refuse, including
 trailing comments after code. Declaration-token discovery conservatively requests
@@ -81,7 +84,7 @@ this property; neither uncommenting behavior nor removing behavior bypasses the 
 
 Before source reads or reconstruction, an operation admits at most 32 governed
 production edits. Content-based barrel exemptions count; path-exempt files and
-explicit deletions do not. A shared one-second budget is checked before and after
+explicit deletions do not. A shared five-second budget is checked before and after
 each reconstruction, after syntax inspection, and before returning the rule result.
 Exhaustion refuses with TDD_DECLARATION_UNVERIFIED and asks to split the operation.
 This is a cooperative deadline, not interruption of synchronous filesystem work;
@@ -114,20 +117,25 @@ does not skip the TDD check. A diff fragment cannot establish a current
 coverage declaration. The source choice is an adapter option, never a tool-payload
 override. Missing or oversized final source refuses; path exemptions are unchanged.
 
-Compiler-backed inspection requires the project's dependencies in the CI workspace.
-The composite does not install consumer tooling. Run it after your normal frozen
-dependency install when source needs syntax inspection; the source repository's
-own enforcement job provisions its existing dependencies with lifecycle scripts
-disabled. A reusable workflow with no dependency provisioning refuses ambiguous
-syntax rather than claiming it was verified.
+Syntax inspection in CI uses the same bundled parser without provisioning consumer
+dependencies. Missing or invalid complete source and exhausted budgets still
+refuse; parser ownership does not change the CI adapter's evidence requirements.
+
+## CI content boundary
+
+`enforce-ci` receives complete added artifact content, not a runtime tool payload.
+Its input is capped at 8 MiB so the shipped compiler worker remains fully scanned.
+Runtime hook payloads retain their independent 1 MiB cap; syntax source retains
+its 64 KiB cap and the shared five-second operation deadline. Both content readers
+reject invalid UTF-8 and NUL bytes. CI refuses oversized input without truncation,
+and every enforcement input failure returns a nonzero exit code. No generated
+artifact exemption or line splitting is used to bypass the secret scanner.
 
 ## Sources
 
-- [TypeScript Compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API),
-  plus the installed 5.9.3 declaration file for createSourceFile, createProgram
-  and getSyntacticDiagnostics.
-- [Node 22 builtin module access](https://nodejs.org/docs/latest-v22.x/api/process.html#processgetbuiltinmoduleid),
-  available since 22.3 and within the package's Node 22.12 minimum.
-
-- [Node createRequire](https://nodejs.org/api/module.html#modulecreaterequirefilename)
-  and [native node_modules resolution](https://nodejs.org/docs/latest-v22.x/api/modules.html#loading-from-node_modules-folders).
+- [Microsoft's TypeScript 7 guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0):
+  tooling using the JavaScript compiler API can use the official TypeScript 6 package.
+- [Official Compiler API examples](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API):
+  source files, compiler hosts and syntax traversal.
+- [Native API roadmap](https://github.com/microsoft/TypeScript/issues/63875):
+  future native APIs do not constitute the current worker contract.

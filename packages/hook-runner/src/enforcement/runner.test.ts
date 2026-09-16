@@ -55,7 +55,7 @@ describe('complete TDD evidence and operation bounds', () => {
     const root = mkdtempSync(join(tmpdir(), 'void-focused-clock-'));
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0);
     if (point === 'after') clock.mockReturnValueOnce(0);
-    clock.mockReturnValue(1_000);
+    clock.mockReturnValue(5_000);
     try {
       const verdict = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
         file_path: 'page.test.ts', content: 'test("page", () => {});',
@@ -139,7 +139,7 @@ describe('complete TDD evidence and operation bounds', () => {
     write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0);
     if (point === 'after') clock.mockReturnValueOnce(0);
-    clock.mockReturnValue(1_000);
+    clock.mockReturnValue(5_000);
     try {
       const result = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
         file_path: 'apps/web/src/page.ts', content: 'export const page = 1;',
@@ -155,7 +155,7 @@ describe('complete TDD evidence and operation bounds', () => {
     const root = mkdtempSync(join(tmpdir(), 'void-tdd-shared-clock-'));
     for (const name of ['first', 'second']) write(root, `apps/web/src/${name}.test.ts`, 'test("page", () => {});');
     const clock = vi.spyOn(performance, 'now')
-      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(5_000);
     try {
       const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
         patch: '*** Begin Patch\n*** Add File: apps/web/src/first.ts\n+export const first = 1;\n*** Add File: apps/web/src/second.ts\n+export const second = 2;\n*** End Patch',

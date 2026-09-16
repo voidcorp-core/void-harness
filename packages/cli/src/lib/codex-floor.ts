@@ -14,6 +14,7 @@
 
 import { chmod, cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { syntaxWorkerHealth } from './syntax-worker-health.js';
 
 async function readOrUndefined(path: string): Promise<string | undefined> {
   try {
@@ -31,11 +32,12 @@ async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
-// Codex stages one self-contained Node runner. Compatibility shell adapters stay
+// Codex stages the Node runner and its isolated TypeScript worker. Shell adapters stay
 // in the source package for older installs, but native manifests never reference
 // or copy them into a consumer project.
 export const CODEX_FLOOR_SCRIPTS = [
   '_void-hook.mjs',
+  '_syntax-worker.cjs',
 ] as const;
 
 // Project-relative directory the scripts are staged into on disk (mkdir/cp/chmod
@@ -251,9 +253,12 @@ export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorH
     return { ok: false, detail: `staged hooks not executable: ${notExecutable.join(', ')}` };
   }
 
+  const syntaxIssue = syntaxWorkerHealth(hooksDir);
+  if (syntaxIssue !== undefined) return { ok: false, detail: syntaxIssue };
+
   return {
     ok: true,
-    detail: `wired: ${CODEX_FLOOR_SCRIPTS.length} portable runner staged in ${CODEX_HOOKS_DIR}/`,
+    detail: `wired: ${CODEX_FLOOR_SCRIPTS.length} runtime assets staged in ${CODEX_HOOKS_DIR}/`,
   };
 }
 

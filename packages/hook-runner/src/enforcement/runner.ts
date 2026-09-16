@@ -23,6 +23,7 @@ import { noFocusedTest } from '../rules/no-focused-test.js';
 import { noNull } from '../rules/no-null.js';
 import { protectedFile } from '../rules/protected-file.js';
 import { secretContent } from '../rules/secret-content.js';
+import { isTestPath } from '../rules/source-helpers.js';
 import {
   type TddMode,
   tddApplies,
@@ -31,16 +32,19 @@ import {
 import { testName } from '../rules/test-name.js';
 import { allow } from '../rules/verdict.js';
 import { normalizeToolCall } from './normalize.js';
-import { proposedSource } from './proposed-source.js';
 import { readOriginalSource } from './original-source.js';
+import { proposedSource } from './proposed-source.js';
+import { SYNTAX_OPERATION_BUDGET_MS } from './syntax-contract.js';
 import { inspectSourceSyntax, unavailableSyntax } from './syntax-inspection.js';
-import { isTestPath } from '../rules/source-helpers.js';
 import type {
   NormalizedEdit,
   RuleVerdict,
 } from './types.js';
 
 export const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+// CI scans complete added artifacts, including the bundled compiler. This is
+// separate from runtime tool payloads and never permits truncating a scan.
+export const MAX_CI_CONTENT_BYTES = 8 * 1024 * 1024;
 
 export type RuleName =
   | 'control-character'
@@ -92,6 +96,15 @@ export function parseHookText(input: Uint8Array): string {
   if (input.byteLength > MAX_HOOK_INPUT_BYTES) {
     throw new Error('HOOK_INPUT_TOO_LARGE');
   }
+  return decodeText(input);
+}
+
+export function parseCiContent(input: Uint8Array): string {
+  if (input.byteLength > MAX_CI_CONTENT_BYTES) throw new Error('CI_CONTENT_TOO_LARGE');
+  return decodeText(input);
+}
+
+function decodeText(input: Uint8Array): string {
   const text = new TextDecoder('utf-8', { fatal: true }).decode(input);
   if (text.includes('\u0000')) throw new Error(BINARY_INPUT_MESSAGE);
   return text;
@@ -221,9 +234,9 @@ function readTddConfig(root: string): TddConfig {
 
 function focusedVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown,
   syntaxInspector: typeof inspectSourceSyntax): RuleVerdict {
-  const deadline = performance.now() + 1_000;
+  const deadline = performance.now() + SYNTAX_OPERATION_BUDGET_MS;
   const governed = projectEdits(root, edits).filter((edit) => isTestPath(edit.path) && edit.operation !== 'delete');
-  const limit = () => unavailableSyntax('operation exceeds its file or one-second work budget', '',
+  const limit = () => unavailableSyntax('operation exceeds its file or five-second work budget', '',
     'split the operation into smaller edits');
   if (governed.length > 32) return limit();
   if (new Set(governed.map((edit) => edit.path)).size !== governed.length) {
@@ -283,7 +296,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
   const siblingTests = new Set<string>();
   const declaredTests: Record<string, string> = {};
   const proposedSources: Record<string, string> = {};
-  const deadline = performance.now() + 1_000;
+  const deadline = performance.now() + SYNTAX_OPERATION_BUDGET_MS;
   const governed = projectChanges.filter((edit) => !(edit.operation === 'delete' && edit.addedContent === '')
     && tddApplies(edit.path, config.businessGlobs, [config.spikesGlob]));
   if (governed.length > 32) return tddOperationLimit('operation exceeds 32 governed production files');
@@ -291,7 +304,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     return tddOperationLimit('patch must name each physical file exactly once');
   }
   for (const edit of governed) {
-    if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
+    if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its five-second work budget');
     const original = readOriginalSource(join(physicalRoot, edit.path));
     if (original.kind === 'unavailable') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: 'cannot read original TDD mode; restore readable regular source before editing', evidence: [edit.path] };
@@ -301,7 +314,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
         ? { kind: 'unresolved' as const, reason: 'checked-out source is absent or exceeds 64 KiB' }
         : { kind: 'source' as const, content: existing }
       : proposedSource(raw, physicalRoot, edit.originalPath, existing);
-    if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
+    if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its five-second work budget');
     if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`, evidence: [edit.path] };
     const [header = '', ...body] = proposed.content.split(/\r?\n/);
@@ -310,7 +323,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
       || (header.includes('tdd-cover:') && !startsWithDeclaration)) {
       const syntax = syntaxInspector(physicalRoot, edit.path, proposed.content,
         deadline - performance.now(), 'declarations');
-      if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
+      if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its five-second work budget');
       if (syntax.code === 'TDD_DECLARATION_HEADER' && !startsWithDeclaration) {
         return { allow: false, code: 'TDD_DECLARATION_INVALID',
           message: 'put the E2E declaration on its own first line before code', evidence: [edit.path] };
@@ -352,7 +365,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     proposedSources,
   });
   return governed.length > 0 && performance.now() >= deadline
-    ? tddOperationLimit('operation exhausted its one-second work budget') : verdict;
+    ? tddOperationLimit('operation exhausted its five-second work budget') : verdict;
 }
 
 export function evaluateRule(
@@ -360,7 +373,8 @@ export function evaluateRule(
   rawInput: unknown,
   options: EvaluateRuleOptions,
 ): RuleVerdict {
-  const call = normalizeToolCall(rawInput);
+  const call = normalizeToolCall(rawInput,
+    options.source === 'checked-out' ? MAX_CI_CONTENT_BYTES : MAX_HOOK_INPUT_BYTES);
   const env = options.env ?? process.env;
   if (rule === 'dangerous-command') {
     if (call.tool !== 'Bash' && call.tool !== 'shell') return allow();
