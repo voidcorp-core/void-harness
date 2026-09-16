@@ -1,7 +1,7 @@
 ---
 title: Deliver isolated official TypeScript syntax inspection
 date: 2026-09-16
-status: executing
+status: completed
 spec: docs/specs/2026-09-16-owned-typescript-syntax.md
 ticket: ""
 author: folpe + Codex
@@ -87,8 +87,12 @@ The requested [test audit](../audits/2026-09-16-test-performance.md) covers all
 proposals. It preserves the red measurement and distinguishes it from the final
 green suite. Audit proposals have not silently changed the testing architecture.
 
-Next: finish the generated-artifact gate, commit the correction, verify offline
-packed installation from that clean tree and update PR386. No merge or npm release.
+The generated-artifact gate and normal commit hooks pass. Correction commit
+`44c15121` passes offline packed installation for Claude, Codex and both runtimes,
+updates and receipt recovery, plus 150/150 inspections of the installed worker.
+The actual 1,954,726-byte tarball passes its 2,000,000-byte ceiling.
+Implementation and local verification are complete. PR386 is the review handoff;
+cross-platform CI remains its own gate. No merge or npm release.
 The source floor and Cortex installations remain untouched. The installed
 one-second floor initially refused edits under load; smaller supported edits
 subsequently passed without bypass or installation modification.

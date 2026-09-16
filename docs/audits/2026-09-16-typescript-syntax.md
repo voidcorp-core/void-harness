@@ -72,6 +72,13 @@ output paths. The failed observation is not treated as a passing run.
 
 ## Reproduction
 
+Offline packed installation passes for Claude, Codex and both runtimes at
+`44c151218b1fb28124b4411cd69ba7af635518c9`, including updates and recovery without
+a machine receipt. The installed worker passes another 150/150 cold inspections.
+The immutable packed artifact measures **1,954,726 bytes** and passes the
+2,000,000-byte ceiling. Subsequent documentation-only changes do not constitute
+a new packed-artifact verification. No release, merge or consumer update was made.
+
 Build with `pnpm hooks:build`, then run
 `node packages/hook-runner/benchmarks/syntax-worker.mjs` with a unique output file.
 An optional source filename adds a local case without reporting its contents.
