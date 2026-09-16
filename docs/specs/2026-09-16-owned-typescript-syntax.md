@@ -1,7 +1,7 @@
 ---
 title: Harness-owned TypeScript syntax inspection
 date: 2026-09-16
-status: in-design
+status: approved
 author: folpe + Codex
 ticket: ""
 related:
@@ -172,4 +172,5 @@ claim to make knowledge/why compatible with TypeScript 7.
 Scope is syntax enforcement and its complete delivery chain. The API choice,
 fact boundary, failure semantics and unchanged budgets are explicit. Worker
 latency and tarball size remain measured acceptance gates, not assumed claims.
-No implementation or approved status is implied by this in-design document.
+Approved by folpe on 2026-09-16: use the TypeScript 6 API and demonstrate
+performance, optimizing each layer from measurements.
