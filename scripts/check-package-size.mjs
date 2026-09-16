@@ -52,9 +52,10 @@ export const PACKAGE_LIMITS = Object.freeze({
   // DEV-843 measured 922,113 bytes with the rendered-scope contract and native
   // agent projection. Packed contents contain no eval fixtures or local receipts.
   // Keep the complete review contract with bounded headroom; no payload omitted.
-  // The harness-owned Babel parser measures 1004.2 kB, replacing the consumer
-  // compiler dependency with an offline payload. Keep about 20 kB of headroom.
-  voidharness: 1_025_000,
+  // The official TypeScript 6 worker measures 1954.7 kB in the real pnpm pack
+  // on 2026-09-16. Both runtime assets and upstream licenses are included.
+  // Own the supported compiler API offline with about 45 kB of headroom.
+  voidharness: 2_000_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

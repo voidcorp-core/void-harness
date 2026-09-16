@@ -12,10 +12,12 @@ Internal symbolic paths retain the tool's original spelling for reconstruction;
 physical paths own containment and evidence. Multiple sections naming the same
 physical file refuse, including sections using different internal aliases.
 
-When syntax is needed, the harness uses its own pinned Babel 7.29.8 parser.
-The parser payload is bundled, compressed and carried inside the single hook
-asset. Only the isolated child decompresses and loads it; the parent transports
-inert bytes. There is no consumer package lookup, dependency installation,
+When syntax is needed, the harness uses its own official TypeScript 6 API:
+`@typescript/typescript6` 6.0.2, resolving to TypeScript 6.0.3 in the lockfile.
+The API and traversal are bundled into an ordinary companion worker. The parent
+verifies its size and SHA-256 identity, then starts the isolated child. The
+versioned JSON protocol carries source as data and returns syntax facts.
+There is no consumer package lookup, dependency installation,
 network request or fallback to the project's compiler. TypeScript 7 projects and
 projects without TypeScript use the same parser. Ordinary unambiguous cases
 retain their inexpensive paths without starting it.
@@ -34,10 +36,12 @@ callee walk shares the existing syntax-operation budget. See the
 [Jest API](https://jestjs.io/docs/api).
 It does not execute the inspected source, resolve its imports, read tsconfig,
 load config plugins or run tests. The parser is trusted, versioned harness code; process isolation bounds resources.
-Its loader exposes Node builtins only and never imports consumer packages.
+The worker bundles its compiler dependency and never imports consumer packages.
+It uses public `createSourceFile` and `getSyntacticDiagnostics` APIs with a
+source-only virtual compiler host; no semantic type checking is performed.
 
 Limits: 64 KiB per proposed file, 128 patch hunks, one million context comparisons,
-32 inspected test files per operation, one second cooperative operation budget,
+32 inspected test files per operation, five seconds cooperative operation budget,
 128 MiB child V8 old-space limit, 64 KiB child output and 20,000 syntax nodes. The child
 inherits no environment variables. Timeout uses SIGKILL; a compiler trapping
 SIGTERM cannot keep the synchronous hook waiting. Errors are fixed diagnostics,
@@ -80,7 +84,7 @@ this property; neither uncommenting behavior nor removing behavior bypasses the 
 
 Before source reads or reconstruction, an operation admits at most 32 governed
 production edits. Content-based barrel exemptions count; path-exempt files and
-explicit deletions do not. A shared one-second budget is checked before and after
+explicit deletions do not. A shared five-second budget is checked before and after
 each reconstruction, after syntax inspection, and before returning the rule result.
 Exhaustion refuses with TDD_DECLARATION_UNVERIFIED and asks to split the operation.
 This is a cooperative deadline, not interruption of synchronous filesystem work;
@@ -119,11 +123,9 @@ refuse; parser ownership does not change the CI adapter's evidence requirements.
 
 ## Sources
 
-- [Babel parser API and AST format](https://babeljs.io/docs/babel-parser), pinned
-  to 7.29.8: TypeScript/JSX plugins, strict parsing without error recovery,
-  comment ranges and expression nodes. No Babel configuration is loaded.
-- [Node 22 builtin module access](https://nodejs.org/docs/latest-v22.x/api/process.html#processgetbuiltinmoduleid),
-  available since 22.3 and within the package's Node 22.12 minimum.
-
-- [Node createRequire](https://nodejs.org/api/module.html#modulecreaterequirefilename)
-  and [native node_modules resolution](https://nodejs.org/docs/latest-v22.x/api/modules.html#loading-from-node_modules-folders).
+- [Microsoft's TypeScript 7 guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0):
+  tooling using the JavaScript compiler API can use the official TypeScript 6 package.
+- [Official Compiler API examples](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API):
+  source files, compiler hosts and syntax traversal.
+- [Native API roadmap](https://github.com/microsoft/TypeScript/issues/63875):
+  future native APIs do not constitute the current worker contract.

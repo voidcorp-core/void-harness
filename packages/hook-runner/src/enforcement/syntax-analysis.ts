@@ -1,76 +1,81 @@
-import { parse, type ParserPlugin } from '@babel/parser';
-import type { Node } from '@babel/types';
+import * as ts from '@typescript/typescript6';
 
-export type SyntaxPurpose = 'focused-tests' | 'declarations';
+import type { SyntaxInput } from './syntax-contract.js';
+export type { SyntaxPurpose } from './syntax-contract.js';
 
-interface SyntaxInput {
-  readonly path: string;
-  readonly source: string;
-  readonly purpose: SyntaxPurpose;
-}
-
-function isNode(value: unknown): value is Node {
-  return typeof value === 'object' && value !== null
-    && 'type' in value && typeof value.type === 'string';
-}
-
-function lineOf(node: Node): number {
-  if (node.loc === undefined || node.loc === null) throw new Error();
-  return node.loc.start.line;
-}
-
-/** Syntax only: no configuration, imports, plugins from disk or source execution.
- * https://babeljs.io/docs/babel-parser (7.29.8 options and AST format).
- * The complete parser and traversal are bundled into the isolated child payload.
+/** Pure official TypeScript 6.0.3 AST adapter, bundled only into the child.
+ * Public Compiler API: createSourceFile + virtual CompilerHost. No config,
+ * project imports, plugins, type checking or inspected-source execution.
+ * https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
  */
 export function analyzeSyntax(input: SyntaxInput): { readonly lines: readonly number[] } {
-  const plugins: ParserPlugin[] = ['decorators-legacy'];
-  if (/\.[cm]?tsx?$/.test(input.path)) plugins.push('typescript');
-  if (/\.(?:[cm]?jsx?|tsx)$/.test(input.path)) plugins.push('jsx');
-  const file = parse(input.source, { sourceType: 'module', plugins,
-    attachComment: false, errorRecovery: false, allowUndeclaredExports: true,
-    allowReturnOutsideFunction: true, createParenthesizedExpressions: true });
-  const pending: Node[] = [file.program];
+  const kind = /\.tsx$/.test(input.path) ? ts.ScriptKind.TSX
+    : /\.jsx$/.test(input.path) ? ts.ScriptKind.JSX
+    : /\.[cm]?js$/.test(input.path) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+  // Traversal uses the explicit SourceFile; parent back-references are unused.
+  const file = ts.createSourceFile(input.path, input.source, ts.ScriptTarget.Latest, false, kind);
+  const host: import('@typescript/typescript6').CompilerHost = {
+    getSourceFile: (name) => name === input.path ? file : undefined,
+    getDefaultLibFileName: () => '', writeFile: () => {},
+    getCurrentDirectory: () => '', getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true, getNewLine: () => '\n',
+    fileExists: (name) => name === input.path,
+    readFile: (name) => name === input.path ? input.source : undefined,
+  };
+  const program = ts.createProgram([input.path], { noResolve: true, noLib: true }, host);
+  if (program.getSyntacticDiagnostics(file).length > 0) throw new SyntaxError();
+  const pending: import('@typescript/typescript6').Node[] = [file];
   const lines = new Set<number>();
+  const commentPositions = new Set<number>();
+  const jsxTextRanges: { start: number; end: number }[] = [];
   let visited = 0;
   while (pending.length > 0) {
-    if (++visited > 20_000) throw new Error();
+    if (++visited > 20_000) throw new RangeError();
     const node = pending.pop();
     if (node === undefined) break;
-    if (input.purpose === 'focused-tests') {
-      if ((node.type === 'MemberExpression' || node.type === 'OptionalMemberExpression')
-        && !node.computed && node.object.type === 'Identifier' && node.property.type === 'Identifier') {
-        const owner = node.object.name;
-        if ((['it', 'test', 'describe'].includes(owner) && node.property.name === 'only')
-          || (['it', 'test'].includes(owner) && node.property.name === 'skip')) lines.add(lineOf(node));
+    if (input.purpose === 'declarations') {
+      // JSX text is a literal token: its whitespace is not JavaScript trivia.
+      if (node.kind === ts.SyntaxKind.JsxText) {
+        jsxTextRanges.push({ start: node.pos, end: node.end });
+        continue;
       }
-      if (node.type === 'CallExpression' || node.type === 'OptionalCallExpression'
-        || node.type === 'TaggedTemplateExpression') {
-        let target: Node = node.type === 'TaggedTemplateExpression' ? node.tag : node.callee;
-        while (target.type === 'MemberExpression' || target.type === 'OptionalMemberExpression'
-          || target.type === 'ParenthesizedExpression' || target.type === 'TSAsExpression'
-          || target.type === 'TSTypeAssertion' || target.type === 'TSNonNullExpression'
-          || target.type === 'TSSatisfiesExpression' || target.type === 'TSInstantiationExpression') {
-          if (++visited > 20_000) throw new Error();
-          target = target.type === 'MemberExpression' || target.type === 'OptionalMemberExpression'
-            ? target.object : target.expression;
-        }
-        if (target.type === 'Identifier' && ['xit', 'xdescribe'].includes(target.name)) lines.add(lineOf(node));
+      const comments = [...(ts.getLeadingCommentRanges(input.source, node.pos) ?? []),
+        ...(ts.getTrailingCommentRanges(input.source, node.end) ?? [])];
+      for (const comment of comments) {
+        if (!/^\/\/\s*tdd-cover:/.test(input.source.slice(comment.pos, comment.end))) continue;
+        commentPositions.add(comment.pos);
+      }
+      pending.push(...node.getChildren(file));
+      continue;
+    }
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+      const owner = node.expression.text;
+      if ((['it', 'test', 'describe'].includes(owner) && node.name.text === 'only')
+        || (['it', 'test'].includes(owner) && node.name.text === 'skip')) {
+        lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
       }
     }
-    for (const value of Object.values(node)) {
-      if (Array.isArray(value)) {
-        for (const child of value) if (isNode(child)) pending.push(child);
-      } else if (isNode(value)) pending.push(value);
+    if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) {
+      let target: import('@typescript/typescript6').Expression = ts.isCallExpression(node)
+        ? node.expression : node.tag;
+      // Jest's skipped aliases also own parameterized calls and tagged tables.
+      // https://jestjs.io/docs/api
+      while (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target)
+        || ts.isParenthesizedExpression(target) || ts.isAsExpression(target)
+        || ts.isTypeAssertionExpression(target) || ts.isNonNullExpression(target)
+        || ts.isSatisfiesExpression(target)) {
+        if (++visited > 20_000) throw new RangeError();
+        target = target.expression;
+      }
+      if (ts.isIdentifier(target) && ['xit', 'xdescribe'].includes(target.text)) {
+        lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+      }
     }
+    ts.forEachChild(node, (child) => { pending.push(child); });
   }
-  if (input.purpose === 'declarations') {
-    for (const comment of file.comments ?? []) {
-      if (++visited > 20_000) throw new Error();
-      if (comment.type === 'CommentLine' && /^\s*tdd-cover:/.test(comment.value)) {
-        if (comment.loc === undefined || comment.loc === null) throw new Error();
-        lines.add(comment.loc.start.line);
-      }
+  for (const position of commentPositions) {
+    if (!jsxTextRanges.some((range) => position >= range.start && position < range.end)) {
+      lines.add(file.getLineAndCharacterOfPosition(position).line + 1);
     }
   }
   return { lines: [...lines].sort((a, b) => a - b) };

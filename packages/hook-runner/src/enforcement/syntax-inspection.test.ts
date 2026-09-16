@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, realpathSync, exist
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
 import { build } from 'esbuild';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -21,23 +21,23 @@ beforeAll(async () => {
   await build({
     entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
     bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile,
+    define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify(new URL('../../../core/hooks/_syntax-worker.cjs', import.meta.url).href) },
   });
   bundledInspect = (await import(pathToFileURL(outfile).href)).inspectSourceSyntax;
-  // Real child failures, not manufactured verdicts: corrupt payload and a
-  // non-cooperative parser stand in for damaged harness-owned artifacts.
-  for (const [name, payload] of [
-    ['corrupt', 'invalid-gzip'],
-    ['stalled', gzipSync('process.on("SIGTERM", () => {}); while (true) {}').toString('base64')],
-  ]) {
+  // Real child failures from damaged or non-cooperative worker artifacts.
+  for (const [name, code] of [
+    ['corrupt', 'this is invalid javascript'],
+    ['stalled', 'process.on("SIGTERM", () => {}); while (true) {}'],
+  ] as const) {
     const variant = join(bundleDirectory, `${name}.mjs`);
+    const worker = join(bundleDirectory, `${name}.cjs`);
+    writeFileSync(worker, code);
     await build({
       entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
       bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile: variant,
-      plugins: [{ name: 'damaged-parser-fixture', setup(builder) {
-        builder.onLoad({ filter: /syntax-parser\.generated\.ts$/ }, () => ({
-          contents: `export const SYNTAX_PARSER_GZIP = ${JSON.stringify(payload)};`, loader: 'ts',
-        }));
-      } }],
+      define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify(pathToFileURL(worker).href),
+        __VOID_SYNTAX_WORKER_IDENTITY__: JSON.stringify({ bytes: Buffer.byteLength(code),
+          sha256: createHash('sha256').update(code).digest('hex') }) },
     });
     const inspect = (await import(pathToFileURL(variant).href)).inspectSourceSyntax;
     if (name === 'corrupt') corruptInspect = inspect;
@@ -71,8 +71,8 @@ describe('isolated syntax inspection', () => {
     expect(verdict.message).toContain('repair the harness installation');
   });
 
-  it('kills a non-cooperative harness parser at the existing deadline', () => {
-    const verdict = stalledInspect(project(), 'view.test.ts', '// test.skip');
+  it('kills a non-cooperative harness parser at the remaining operation deadline', () => {
+    const verdict = stalledInspect(project(), 'view.test.ts', '// test.skip', 100);
     expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
     expect(verdict.message).toContain('resource limit');
   });
@@ -86,14 +86,14 @@ describe('isolated syntax inspection', () => {
   ] as const)('inspects %s in a TypeScript 7 project without a consumer parser API', (purpose, path, source, code) => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-native-')));
     linkCompiler(root, 'typescript', '@typescript/native');
-    expect(bundledInspect(root, path, source, 1_000, purpose).code).toBe(code);
+    expect(bundledInspect(root, path, source, 5_000, purpose).code).toBe(code);
   });
 
   it.each([
     ['focused-tests', 'view.test.tsx', 'const view = <div>{test.only("case", () => {})}</div>;', 'FOCUSED_OR_SKIPPED_TEST'],
     ['declarations', 'view.tsx', 'const view = 1;\n// tdd-cover: e2e missing.spec.ts', 'TDD_DECLARATION_INVALID'],
-  ] as const)('runs the serialized bundled AST for %s', (purpose, path, source, code) => {
-    const verdict = bundledInspect(project(), path, source, 1_000, purpose);
+  ] as const)('runs the delivered TypeScript worker for %s', (purpose, path, source, code) => {
+    const verdict = bundledInspect(project(), path, source, 5_000, purpose);
     expect(verdict.code).toBe(code);
     expect(verdict.allow).toBe(false);
     expect(verdict.evidence).toEqual([purpose === 'focused-tests' ? `${path}:1` : path]);
@@ -103,7 +103,7 @@ describe('isolated syntax inspection', () => {
     const root = project();
     writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0)
-      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(5_000);
     try {
       const verdict = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
         file_path: join(root, 'apps/web/src/page.tsx'),
@@ -119,7 +119,7 @@ describe('isolated syntax inspection', () => {
   it('refuses focused-test success after syntax inspection exhausts the shared budget', () => {
     const root = project();
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0)
-      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(5_000);
     try {
       const verdict = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
         file_path: 'page.test.ts', content: '// test.only is prose\ntest("page", () => {});',

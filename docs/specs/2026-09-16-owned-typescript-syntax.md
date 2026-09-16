@@ -105,7 +105,7 @@ limits and unavailable worker/protocol. Both ends validate input/output.
 The parent alone maps those results to existing TEST_SYNTAX_UNVERIFIED and
 TDD declaration refusal contracts. Errors must not include source or secrets.
 
-Retain the one-second shared operation budget, 64 KiB per source, 20,000
+Use the user-approved five-second shared operation budget, 64 KiB per source, 20,000
 syntax operations, 64 KiB child output limit, empty environment and forced
 termination. Retain the 128 MiB V8 old-space setting; it is not an OS-level
 total-process memory guarantee. Process isolation bounds execution and crash
@@ -125,8 +125,13 @@ cold p50/p95/p99, failures and peak memory across supported CI operating systems
 and the minimum supported Node version. Run under representative suite load.
 Keep all failed samples; rerunning unchanged code until green is not evidence.
 
-Acceptance requires existing timeout/memory/output tests, full suite and hook
-benchmark budgets to pass without increasing them. Distribution size must be
+The user approved recalibrating only the shared syntax-operation ceiling to
+5,000 ms after the one-second run failed 3 of 180 inspections and the diagnostic
+run observed a maximum of 3,732 ms. This is a bounded failure deadline, not a
+latency target. Preserve the failed evidence and do not introduce retries.
+Acceptance requires the updated exact-boundary and termination tests, existing
+memory/output limits, full suite and unrelated hook benchmark budgets to pass.
+Distribution size must be
 measured from the actual packed artifact, including both files and licenses.
 Do not reuse the Babel tarball measurement or its ceiling as TypeScript proof.
 If the ordinary worker cannot meet the constraints, present the measured

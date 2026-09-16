@@ -70,5 +70,25 @@ review evidence is not canonical mission certification.
 
 ## Resume point
 
-Next: step 1. Approved design; production sources still contain rejected Babel
-implementation. Source-floor and Cortex installations remain untouched.
+Steps 1–3 are implemented and verified. The user approved the shared five-second
+operation ceiling after the one-second cold run failed 3/180 inspections. The
+final worker passes 180/180 inspections on Node 24 and 150/150 on Node 22.12.
+No retries, cache, persistent process or consumer compiler fallback were added.
+
+Step 4: final pnpm test passes 5,344 tests across 485 files. Workspace typecheck,
+targeted lint, parent-hook benchmark, deterministic rebuild, actual isolated
+self-host compilation and read-only Cortex dogfood pass. Native independent
+static review has no remaining finding; reported health/lifecycle defects were
+fixed with observed regressions. Details and evidence limitations are in
+[worker measurements](../audits/2026-09-16-typescript-syntax.md).
+
+The requested [test audit](../audits/2026-09-16-test-performance.md) covers all
+485 files with a complete cost CSV and ranked, evidence-backed optimization
+proposals. It preserves the red measurement and distinguishes it from the final
+green suite. Audit proposals have not silently changed the testing architecture.
+
+Next: finish the generated-artifact gate, commit the correction, verify offline
+packed installation from that clean tree and update PR386. No merge or npm release.
+The source floor and Cortex installations remain untouched. The installed
+one-second floor initially refused edits under load; smaller supported edits
+subsequently passed without bypass or installation modification.

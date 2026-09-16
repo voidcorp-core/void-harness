@@ -20,48 +20,58 @@ https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/
 
 ## Decision
 
-Bundle the pinned Babel 7.29.8 parser and the hook AST traversal as a compressed, inert program in the hook
-asset and load it only inside the existing bounded syntax child.
+Bundle the official `@typescript/typescript6` API and AST traversal into a
+separate ordinary worker owned and delivered by the harness. The pinned wrapper
+is 6.0.2; the package-manager lock resolves its official compiler to 6.0.3.
+The consumer keeps its own compiler, including native TypeScript 7.
 
 This supersedes only the project-compiler ownership and no-bundled-parser parts
 of the proposed-source inspection decision. Complete-source reconstruction,
-structural E2E declarations, refusals and resource limits remain unchanged.
+structural E2E declarations and fail-closed refusals remain unchanged.
 Project graph module resolution remains owned by its separate adapter.
 
-The generated payload comes from the locked dependency and AST traversal through
-esbuild. Builds retain the upstream MIT license and verify the generated file.
-Babel 7.29.8 supports the harness Node 22.12 floor; Babel 8 requires a newer Node.
-Parser options and AST node shapes follow https://babeljs.io/docs/babel-parser. Its contents are
-not user input. The child decodes it with an 8 MiB decompression ceiling and
-builtin-only require, then gives proposed source to the existing AST analysis
-as data. The parent never loads parser code. A corrupt payload refuses.
+Separate reconstruction and policy from the TypeScript adapter and process
+boundary. The adapter uses public source-file, virtual-host and syntactic
+diagnostic APIs. Its input is proposed source; its output is syntax facts, not
+authorization. The parent validates the versioned protocol and decides verdicts.
+
+One shared esbuild builder creates the parent and worker for published and
+source-self-host artifacts. Preserve upstream license notices. The parent
+checks the worker's size and SHA-256 identity before execution; health checks
+also refuse a missing or incompatible companion. No decompression, evaluation,
+extraction cache or persistent worker is needed.
 
 ## Consequences
 
 - TypeScript 7 and compiler-free consumers need no additional dependencies.
 - Consumer compiler code cannot execute in either parent or child.
-- Offline single-file installation continues to work for both runtimes.
-- The distributed artifact grows by the compressed parser payload. The syntax
+- Offline installation delivers the paired assets for both runtimes.
+- The distributed artifact grows by the bundled official compiler. The syntax
   vocabulary is pinned to the harness release, not the consumer compiler.
-- The measured `voidharness` tarball is 1,004.2 kB. Its ceiling rises from
-  930 kB to 1,025 kB, retaining about 20 kB of bounded headroom.
-- Time, memory, source-size, output-size and AST-node budgets are unchanged.
+- Final packed size and its justified ceiling remain a release verification gate.
+- Memory, source-size, output-size and AST-node budgets are unchanged.
+- A one-second benchmark failed 3 of 180 cold inspections. An uncensored
+  diagnostic run completed 180 inspections with a maximum of 3,732 ms. A fixed
+  five-second shared operation budget was explicitly approved by the user.
+  Stop the child and refuse at exhaustion, without retry. This does not erase
+  the failed measurements or establish a five-second performance target.
 
 ## Alternatives considered
 
 - Widen the version regex to 7: rejected because the required API is absent.
 - Require a consumer compatibility package: rejected by the user; enforcement
   must own its parser instead of constraining the consumer's compiler setup.
-- A separate worker file: rejected because it adds a mandatory companion to
-  every installation and health path; compressed inert data keeps one asset
-  without eagerly loading the parser in the parent.
-- Bundle the complete TypeScript compiler: rejected after the full subprocess
-  suite exceeded the unchanged one-second cap (declaration case, 1095 ms). Its
-  compressed payload was 1,367,908 bytes. The dedicated AST parser payload is
-  about 107 kB, with the same semantic regression corpus preserved. No deadline
-  increase, retry or removed assertion makes that failed measurement green.
+- Babel: rejected by the user. Official TypeScript syntax and its supported
+  compatibility API own this boundary.
+- Future native parsing API: not the current stable contract. Revisit when
+  Microsoft publishes a supported programmatic API with the required behavior.
+- A compressed embedded compiler: unnecessary loader complexity. A companion
+  worker makes the process and distribution boundaries explicit and verifiable.
+- Node compile cache: a disposable experiment timed out in 23 of 31 runs on
+  this machine. It is not part of the implementation.
 
 ## Reversal cost
 
-Medium. The generated payload and loader can be replaced behind the verdict
-contract. Parser changes must pass the existing semantic and isolation suite.
+Medium. A future supported compiler API can replace the TypeScript adapter
+behind the syntax-facts contract. Parser changes must pass the semantic,
+isolation, delivery and measured performance gates.
