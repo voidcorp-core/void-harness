@@ -50,6 +50,9 @@ extraction cache or persistent worker is needed.
   vocabulary is pinned to the harness release, not the consumer compiler.
 - Final packed size and its justified ceiling remain a release verification gate.
 - Memory, source-size, output-size and AST-node budgets are unchanged.
+- CI content transport has its own 8 MiB bound to scan complete added artifacts,
+  including the compiler bundle. Runtime tool payloads stay at 1 MiB. Both
+  reject invalid text and overflow; scanning never truncates or exempts the worker.
 - A one-second benchmark failed 3 of 180 cold inspections. An uncensored
   diagnostic run completed 180 inspections with a maximum of 3,732 ms. A fixed
   five-second shared operation budget was explicitly approved by the user.
@@ -67,6 +70,9 @@ extraction cache or persistent worker is needed.
   Microsoft publishes a supported programmatic API with the required behavior.
 - A compressed embedded compiler: unnecessary loader complexity. A companion
   worker makes the process and distribution boundaries explicit and verifiable.
+- Splitting minified CI input to satisfy the runtime payload limit: rejected
+  because line-level secret matching must retain whole-line semantics. A distinct
+  bounded CI adapter preserves the existing scanner and runtime limits.
 - Node compile cache: a disposable experiment timed out in 23 of 31 runs on
   this machine. It is not part of the implementation.
 

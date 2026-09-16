@@ -72,6 +72,16 @@ output paths. The failed observation is not treated as a passing run.
 
 ## Reproduction
 
+The first PR CI run at `e4d8eb1d` passed validation and the three-platform doctor,
+graph and packed-install matrices, but enforcement refused the 3.59 MB worker:
+CI content was incorrectly subject to the 1 MiB runtime payload limit. The generated
+identity also needed an explicit declaration of its existing inspection coverage.
+Regression commit `94ce08c1` records four failing cases. A distinct 8 MiB CI
+content bound now preserves full scanning, strict text validation and nonzero
+failure exits; runtime and syntax limits remain unchanged. The targeted CLI,
+normalization, runner and real CI-driver suite passes 115 tests. These seven new
+CLI cases postdate the cost campaign; they are not included in its measurements.
+
 Offline packed installation passes for Claude, Codex and both runtimes at
 `44c151218b1fb28124b4411cd69ba7af635518c9`, including updates and recovery without
 a machine receipt. The installed worker passes another 150/150 cold inspections.

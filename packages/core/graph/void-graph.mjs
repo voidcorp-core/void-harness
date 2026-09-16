@@ -16506,6 +16506,7 @@ var MAX_FIELD_BYTES = 1024 * 1024;
 
 // ../hook-runner/src/enforcement/runner.ts
 var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+var MAX_CI_CONTENT_BYTES = 8 * 1024 * 1024;
 
 // ../hook-runner/src/invocation.ts
 var LIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1e3;

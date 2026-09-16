@@ -7,6 +7,10 @@ pas une certification d'un commit immuable.
 
 ## Résultat principal
 
+Périmètre temporel : sept cas de régression CLI ont été ajoutés après cette
+campagne pour le transport des artefacts en CI. Ils passent dans la vérification
+ciblée de 115 tests ; leurs coûts ne sont pas attribués rétroactivement au relevé.
+
 La campagne prend **299,4 secondes**, soit environ **5 minutes**. La tranche
 des sous-processus représente **66,5 %** du temps. Le pic échantillonné de RSS
 cumulée de l'arbre de tests atteint **889 Mio**, avec jusqu'à **19 processus**.

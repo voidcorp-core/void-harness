@@ -93,6 +93,12 @@ updates and receipt recovery, plus 150/150 inspections of the installed worker.
 The actual 1,954,726-byte tarball passes its 2,000,000-byte ceiling.
 Implementation and local verification are complete. PR386 is the review handoff;
 cross-platform CI remains its own gate. No merge or npm release.
+The first CI run passes validation, browser conformance and all three-platform
+doctor, graph and packed-install checks. Its enforcement failure exposed a CI
+content/runtime payload limit conflation and missing generated-identity coverage
+declaration. Four RED cases precede the correction in `94ce08c1`; the corrected
+adapter passes 115 targeted tests with runtime limits unchanged. The final PR
+revision must pass the CI gate again.
 The source floor and Cortex installations remain untouched. The installed
 one-second floor initially refused edits under load; smaller supported edits
 subsequently passed without bypass or installation modification.

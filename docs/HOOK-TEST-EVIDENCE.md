@@ -121,6 +121,16 @@ Syntax inspection in CI uses the same bundled parser without provisioning consum
 dependencies. Missing or invalid complete source and exhausted budgets still
 refuse; parser ownership does not change the CI adapter's evidence requirements.
 
+## CI content boundary
+
+`enforce-ci` receives complete added artifact content, not a runtime tool payload.
+Its input is capped at 8 MiB so the shipped compiler worker remains fully scanned.
+Runtime hook payloads retain their independent 1 MiB cap; syntax source retains
+its 64 KiB cap and the shared five-second operation deadline. Both content readers
+reject invalid UTF-8 and NUL bytes. CI refuses oversized input without truncation,
+and every enforcement input failure returns a nonzero exit code. No generated
+artifact exemption or line splitting is used to bypass the secret scanner.
+
 ## Sources
 
 - [Microsoft's TypeScript 7 guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0):

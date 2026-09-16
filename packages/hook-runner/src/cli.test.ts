@@ -15,8 +15,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
 import { replayEventLog } from '@voidcorp/mission-engine';
+import { build } from 'esbuild';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // The entrypoint runs on import, so it is exercised the way a hook actually runs
