@@ -52,7 +52,9 @@ export const PACKAGE_LIMITS = Object.freeze({
   // DEV-843 measured 922,113 bytes with the rendered-scope contract and native
   // agent projection. Packed contents contain no eval fixtures or local receipts.
   // Keep the complete review contract with bounded headroom; no payload omitted.
-  voidharness: 930_000,
+  // The harness-owned Babel parser measures 1004.2 kB, replacing the consumer
+  // compiler dependency with an offline payload. Keep about 20 kB of headroom.
+  voidharness: 1_025_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

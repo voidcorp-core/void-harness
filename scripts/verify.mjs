@@ -64,7 +64,7 @@ export const GATES = Object.freeze([
     {
       artifact: true,
       fix: ['pnpm', 'hooks:build'],
-      drift: ['packages/core/hooks/_void-hook.mjs'],
+      drift: ['packages/core/hooks/_void-hook.mjs', 'packages/hook-runner/src/enforcement/syntax-parser.generated.ts'],
     },
   ),
   gate(

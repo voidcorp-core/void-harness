@@ -12,19 +12,19 @@ Internal symbolic paths retain the tool's original spelling for reconstruction;
 physical paths own containment and evidence. Multiple sections naming the same
 physical file refuse, including sections using different internal aliases.
 
-When syntax is needed, Node resolves TypeScript from the edited file's location.
-Workspace-local node_modules takes precedence over an ancestor's hoisted dependency.
-The hook never falls back to a harness compiler, nor retries another compiler when
-the nearest one is broken or unsupported. Supported API: TypeScript 5, checked
-against 5.9.3. To recover, restore TypeScript 5 in the owning workspace or its
-ancestor dependency installation, then retry the same edit. Each invocation loads
-it afresh, so failure is not cached across edits.
+When syntax is needed, the harness uses its own pinned Babel 7.29.8 parser.
+The parser payload is bundled, compressed and carried inside the single hook
+asset. Only the isolated child decompresses and loads it; the parent transports
+inert bytes. There is no consumer package lookup, dependency installation,
+network request or fallback to the project's compiler. TypeScript 7 projects and
+projects without TypeScript use the same parser. Ordinary unambiguous cases
+retain their inexpensive paths without starting it.
 
-This uses Node's native node_modules resolution, including package-manager symlinks
-and junctions. Custom-loader layouts such as loader-dependent PnP are not verified:
-the child receives neither loader arguments nor the parent's environment. A plain
-test with no suspicious tokens and a prohibited call at the start of the complete
-file do not need a compiler. This preserves the inexpensive common paths.
+The parser supports the syntax understood by the pinned release, including TSX.
+Unsupported or malformed syntax refuses rather than being silently accepted.
+A broken bundled parser asks to repair the harness installation, never to
+downgrade the consumer compiler. This syntax-only ownership does not change
+project graph module resolution or claim native TypeScript 7 API support.
 
 The parser traverses syntax, including template substitutions and JSX expressions.
 Comments, ordinary strings and regular-expression text are not executable calls.
@@ -33,9 +33,8 @@ tagged tables, computed member access and TypeScript expression wrappers. The
 callee walk shares the existing syntax-operation budget. See the
 [Jest API](https://jestjs.io/docs/api).
 It does not execute the inspected source, resolve its imports, read tsconfig,
-load config plugins or run tests. The compiler package itself is trusted executable
-project tooling, like the compiler used by the project graph; process isolation
-here bounds resources, not that package's filesystem or network authority.
+load config plugins or run tests. The parser is trusted, versioned harness code; process isolation bounds resources.
+Its loader exposes Node builtins only and never imports consumer packages.
 
 Limits: 64 KiB per proposed file, 128 patch hunks, one million context comparisons,
 32 inspected test files per operation, one second cooperative operation budget,
@@ -68,7 +67,7 @@ supply exact context for bounded edits. An oversized original cannot be recovere
 by a smaller Edit: provide a complete replacement within 64 KiB or restructure
 into supported files. Exempt paths stay exempt.
 
-Declaration-shaped lines elsewhere require the same bounded project compiler to
+Declaration-shaped lines elsewhere require the same bounded harness parser to
 identify actual comments. Template/JSX text and block-comment examples are not
 declarations; actual misplaced or duplicate line comments still refuse, including
 trailing comments after code. Declaration-token discovery conservatively requests
@@ -114,18 +113,15 @@ does not skip the TDD check. A diff fragment cannot establish a current
 coverage declaration. The source choice is an adapter option, never a tool-payload
 override. Missing or oversized final source refuses; path exemptions are unchanged.
 
-Compiler-backed inspection requires the project's dependencies in the CI workspace.
-The composite does not install consumer tooling. Run it after your normal frozen
-dependency install when source needs syntax inspection; the source repository's
-own enforcement job provisions its existing dependencies with lifecycle scripts
-disabled. A reusable workflow with no dependency provisioning refuses ambiguous
-syntax rather than claiming it was verified.
+Syntax inspection in CI uses the same bundled parser without provisioning consumer
+dependencies. Missing or invalid complete source and exhausted budgets still
+refuse; parser ownership does not change the CI adapter's evidence requirements.
 
 ## Sources
 
-- [TypeScript Compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API),
-  plus the installed 5.9.3 declaration file for createSourceFile, createProgram
-  and getSyntacticDiagnostics.
+- [Babel parser API and AST format](https://babeljs.io/docs/babel-parser), pinned
+  to 7.29.8: TypeScript/JSX plugins, strict parsing without error recovery,
+  comment ranges and expression nodes. No Babel configuration is loaded.
 - [Node 22 builtin module access](https://nodejs.org/docs/latest-v22.x/api/process.html#processgetbuiltinmoduleid),
   available since 22.3 and within the package's Node 22.12 minimum.
 

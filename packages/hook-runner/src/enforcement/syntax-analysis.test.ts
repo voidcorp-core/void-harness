@@ -1,9 +1,8 @@
 // @test-resource filesystem
-// Real AST semantics run against the trusted harness compiler without spawning a parser.
+// Real AST semantics run against the trusted harness parser without spawning a parser.
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import * as ts from 'typescript';
 import { analyzeSyntax } from './syntax-analysis.js';
 import { syntaxVerdict, type inspectSourceSyntax } from './syntax-inspection.js';
 import { describe, expect, it } from 'vitest';
@@ -11,7 +10,7 @@ import { evaluateRule as runRule } from './runner.js';
 
 const syntaxInspector: typeof inspectSourceSyntax = (_root, path, source, _remaining, purpose = 'focused-tests') => {
   try {
-    return syntaxVerdict(analyzeSyntax(ts, { path, source, purpose }), path, purpose);
+    return syntaxVerdict(analyzeSyntax({ path, source, purpose }), path, purpose);
   } catch {
     return syntaxVerdict({ unavailable: 'source could not be parsed within the supported limits' }, path, purpose);
   }
@@ -31,6 +30,15 @@ function project() {
 }
 
 describe('evidence-aware hooks', () => {
+  it.each(['js', 'jsx', 'tsx'])('distinguishes JSX prose from calls in %s tests', (extension) => {
+    const root = project();
+    const check = (content: string) => evaluateRule('no-focused-test', { tool_name: 'Write',
+      tool_input: { file_path: `view.test.${extension}`, content } }, { root });
+    expect(check('const view = <div>test.skip is documentation</div>;').allow).toBe(true);
+    expect(check('const view = <div>{test.only("case", () => {})}</div>;').code)
+      .toBe('FOCUSED_OR_SKIPPED_TEST');
+  });
+
   it.each(['xit', 'xdescribe'].flatMap((alias) => [
     `${alias}.each([1])("case %s", () => {});`,
     `${alias}.each\`value\n${1}\`("case", () => {});`,

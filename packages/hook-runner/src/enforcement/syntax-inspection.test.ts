@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, realpathSync, exist
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { gzipSync } from 'node:zlib';
 import { describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
 import { build } from 'esbuild';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -11,6 +12,8 @@ import type { inspectSourceSyntax } from './syntax-inspection.js';
 import { evaluateRule } from './runner.js';
 
 let bundledInspect: typeof inspectSourceSyntax;
+let corruptInspect: typeof inspectSourceSyntax;
+let stalledInspect: typeof inspectSourceSyntax;
 let bundleDirectory: string;
 beforeAll(async () => {
   bundleDirectory = mkdtempSync(join(tmpdir(), 'hook-syntax-bundle-'));
@@ -20,6 +23,26 @@ beforeAll(async () => {
     bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile,
   });
   bundledInspect = (await import(pathToFileURL(outfile).href)).inspectSourceSyntax;
+  // Real child failures, not manufactured verdicts: corrupt payload and a
+  // non-cooperative parser stand in for damaged harness-owned artifacts.
+  for (const [name, payload] of [
+    ['corrupt', 'invalid-gzip'],
+    ['stalled', gzipSync('process.on("SIGTERM", () => {}); while (true) {}').toString('base64')],
+  ]) {
+    const variant = join(bundleDirectory, `${name}.mjs`);
+    await build({
+      entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
+      bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile: variant,
+      plugins: [{ name: 'damaged-parser-fixture', setup(builder) {
+        builder.onLoad({ filter: /syntax-parser\.generated\.ts$/ }, () => ({
+          contents: `export const SYNTAX_PARSER_GZIP = ${JSON.stringify(payload)};`, loader: 'ts',
+        }));
+      } }],
+    });
+    const inspect = (await import(pathToFileURL(variant).href)).inspectSourceSyntax;
+    if (name === 'corrupt') corruptInspect = inspect;
+    else stalledInspect = inspect;
+  }
 });
 afterAll(() => { rmSync(bundleDirectory, { recursive: true, force: true }); });
 
@@ -42,6 +65,18 @@ function linkCompiler(root: string, name: string, dependency: string): void {
 }
 
 describe('isolated syntax inspection', () => {
+  it('refuses a corrupt harness parser without using the available consumer compiler', () => {
+    const verdict = corruptInspect(project(), 'view.test.ts', '// test.skip');
+    expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(verdict.message).toContain('repair the harness installation');
+  });
+
+  it('kills a non-cooperative harness parser at the existing deadline', () => {
+    const verdict = stalledInspect(project(), 'view.test.ts', '// test.skip');
+    expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(verdict.message).toContain('resource limit');
+  });
+
   it.each([
     ['focused-tests', 'view.test.tsx', 'const view = <div>{test.only("case", () => {})}</div>;', 'FOCUSED_OR_SKIPPED_TEST'],
     ['focused-tests', 'view.test.ts', '// test.skip is documentation\ntest("case", () => {});', 'OK'],
