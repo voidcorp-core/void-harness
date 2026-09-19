@@ -233,7 +233,7 @@ describe('lifecycle context', () => {
       `${JSON.stringify({
         kind: 'runtime.tool.started',
         subject: `skill:${recorded}`,
-        ts: '2026-08-19T10:00:00.000Z',
+        ts: new Date().toISOString(),
         payload: { category: 'skill', tool: 'Skill' },
       })}\n`,
     );
