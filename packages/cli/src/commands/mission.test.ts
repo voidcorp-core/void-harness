@@ -1,3 +1,4 @@
+import { recordStoppedMissionRecovery } from '../lib/runs/mission-recovery.js';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -5,12 +6,14 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonicalJsonHash } from '@voidcorp/mission-engine';
 import type { MissionSpecialistPlan } from '@voidcorp/mission-engine';
 import { describe, expect, it } from 'vitest';
 import { writeExcludeBlock } from '../lib/git-exclude.js';
 import { resolveProjectRoots } from '../lib/project-roots.js';
 import { recordSpecialistLifecycle } from '../lib/runs/specialist-lifecycle.js';
 import {
+  appendMissionEvent,
   createMission,
   inspectMission,
   missionControllerRoutingHash,
@@ -305,7 +308,7 @@ describe('parseMissionArgs', () => {
     expect(first.specialists.every((item) => item.proof.inputHash === first.inputHash)).toBe(true);
   });
 
-  it('dispatches a TypeScript 7 mission and records each request once', async () => {
+  it.each(['ordinary', 'current evidence'] as const)('dispatches a TypeScript 7 mission: %s', async (scenario) => {
     const root = await mkdtemp(join(tmpdir(), 'void-mission-dispatch-'));
     const missionId = 'mis_0123456789abcdef0123456789abcdef';
     await writeFile(join(root, 'package.json'), JSON.stringify({
@@ -420,9 +423,9 @@ describe('parseMissionArgs', () => {
       stage: 'pre-implementation',
     });
     for (const envelope of first.envelopes) {
-      const frozen = controllerPlan.specialists.find((specialist) =>
+      const observed = changedPlan.specialists.find((specialist) =>
         specialist.specialistId === envelope.specialistId);
-      expect(envelope.inputHash).toBe(frozen?.inputHash);
+      expect(envelope.inputHash).toBe(observed?.proof.inputHash);
     }
     expect(second.envelopes).toEqual(first.envelopes);
     expect(requested).toHaveLength(first.envelopes.length);
@@ -453,7 +456,7 @@ describe('parseMissionArgs', () => {
           completionId: `cmp_dispatch_1_${index}_${envelope.agentName}`,
           verdict: 'pass',
           findings: [],
-          evidenceRequests: index === 0
+          evidenceRequests: scenario === 'current evidence' && index === 0
             ? ['Explain how corrected preparation invalidates old reviews.'] : [],
           limitations: [],
         },
@@ -465,20 +468,15 @@ describe('parseMissionArgs', () => {
       '2026-08-21T12:00:00.000Z',
       capability,
     );
-    expect(correction.action.kind).toBe('run-preparation-correction');
-    const productionBeforeCorrection = await readFile(join(root, 'package.json'), 'utf8');
-    const correctedPreparation = 'Corrected preparation: changing inputs invalidates earlier reviews.\n';
-    await writeFile(join(root, 'docs/preparation.md'), correctedPreparation);
-    await recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true });
-    const writerAction = await dispatchMissionSpecialists(
-      resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
-    );
-    expect(writerAction).toMatchObject({
-      planHash: plan.planHash,
-      action: { kind: 'run-lead-writer', writerId: 'writer:primary' },
-      nextWriterRound: 2,
-    });
-    expect(await readFile(join(root, 'package.json'), 'utf8')).toBe(productionBeforeCorrection);
+    if (scenario === 'current evidence') {
+      expect(correction.action).toMatchObject({ kind: 'stop' });
+      expect(correction.action.kind === 'stop' ? correction.action.reasons.length : 0).toBeGreaterThan(0);
+      await expect(recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true }))
+        .rejects.toThrow('MISSION_CLOSED');
+      return;
+    }
+    expect(correction).toMatchObject({ planHash: plan.planHash,
+      action: { kind: 'run-lead-writer', writerId: 'writer:primary' }, nextWriterRound: 1 });
     expect(await readFile(join(root, 'DEV-500.md'), 'utf8')).toBe(ticketBody);
     await recordLeadWriterCompletion(root, {
       kind: 'writer-event',
@@ -489,7 +487,7 @@ describe('parseMissionArgs', () => {
     const writerCompletions = (await inspectMission(root, missionId, {
       dependencies: {},
     })).stream.events.filter((event) => event.kind === 'lead-writer.completed');
-    expect(writerCompletions).toHaveLength(2);
+    expect(writerCompletions).toHaveLength(1);
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
       devDependencies: { typescript: '7.0.2', next: '99.0.0' },
@@ -501,6 +499,8 @@ describe('parseMissionArgs', () => {
       '-c', 'user.email=void@example.test',
       'commit', '--quiet', '-m', 'test: commit implementation fixture',
     ], { cwd: root });
+    await writeFile(join(root, 'docs/preparation.md'),
+      'Preparation: review identity follows bytes across staging and commits.\n');
     const post = await dispatchMissionSpecialists(
       resolveProjectRoots(root),
       input,
@@ -573,10 +573,8 @@ describe('parseMissionArgs', () => {
     const stale = await dispatchMissionSpecialists(
       resolveProjectRoots(root), input, '2026-08-21T12:01:35.000Z', capability,
     );
-    expect(stale.action).toMatchObject({
-      kind: 'invoke-specialists', stage: 'post-implementation', reviewRound: 2,
-    });
-    expect(stale.envelopes[0]?.inputHash).not.toBe(post.envelopes[0]?.inputHash);
+    expect(stale.action).toMatchObject({ kind: 'run-correction' });
+    expect(stale.envelopes).toEqual([]);
 
     // A file absent from Git's diff cannot silently receive a review proof.
     await writeFile(join(root, 'new-module.ts'), 'export const answer = 42;\n');
@@ -592,9 +590,12 @@ describe('parseMissionArgs', () => {
 
     await writeFile(join(root, '.void', 'program.md'), 'authorized base: develop\n');
     execFileSync('git', ['add', '.void/program.md'], { cwd: root });
+    await recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true });
     const policy = await dispatchMissionSpecialists(
       resolveProjectRoots(root), input, '2026-08-21T12:01:45.000Z', capability,
     );
+    expect(policy.action).toMatchObject({ kind: 'invoke-specialists', stage: 'post-implementation', reviewRound: 2 });
+    expect(policy.envelopes[0]?.inputHash).not.toBe(post.envelopes[0]?.inputHash);
     expect.soft(policy.envelopes[0]?.contextPack.touchedPaths).toContain('.void/program.md');
     expect.soft(policy.envelopes[0]?.contextPack.diff).toContain('authorized base: develop');
 
@@ -772,7 +773,7 @@ describe('parseMissionArgs', () => {
     const inspected = await inspectMission(root, missionId, { dependencies: {} });
     expect(inspected.stream.events).toContainEqual(expect.objectContaining({
       kind: 'mission.closed',
-      payload: { reason: 'controller-stop' },
+      payload: { reason: 'controller-stop', episodeId: inspected.stream.events[0]?.eventId },
     }));
     await expect(dispatchMissionSpecialists(resolveProjectRoots(root), {
       kind: 'dispatch',
@@ -851,5 +852,52 @@ describe('parseMissionArgs', () => {
         fix: 'correct the reported input or policy and retry',
       },
     });
+  });
+});
+
+
+describe('explicit mission recovery CLI boundary', () => {
+  it('parses an explicit recovery request without runtime or budget overrides', () => {
+    expect(parseMissionArgs(['recover', '--id', 'mis_0123456789abcdef0123456789abcdef',
+      '--input', 'recovery-request.json', '--json'])).toEqual({ kind: 'recover',
+      missionId: 'mis_0123456789abcdef0123456789abcdef',
+      inputPath: 'recovery-request.json', json: true });
+  });
+  it('rejects duplicate recovery request options explicitly', () => {
+    expect(parseMissionArgs(['recover', '--id', 'mis_0123456789abcdef0123456789abcdef',
+      '--input', 'one.json', '--input', 'other.json'])).toMatchObject({
+      kind: 'invalid', problem: expect.stringContaining('duplicate'),
+    });
+  });
+  it('closes the recovered episode without confusing its historical closure', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'void-mission-recovered-close-'));
+    const missionId = 'mis_0123456789abcdef0123456789abcdef';
+    await createMission(root, { missionId, title: 'Recovered episode closure', mode: 'team' });
+    const completed = await appendMissionEvent(root, missionId, { source: 'runtime:codex',
+      kind: 'specialist.completed', subject: 'core:test-qa-engineer', correlationId: missionId, payload: {
+        stage: 'pre-implementation', reviewRound: 1, inputHash: `sha256:${'a'.repeat(64)}`,
+        contextId: 'context_recovery_fixture', completion: { schemaVersion: 1,
+          specialistId: 'core:test-qa-engineer', contractVersion: 2, completionId: 'completion_fixture',
+          verdict: 'degraded', findings: [], evidenceRequests: ['Clarify proof timing.'],
+          limitations: ['Proof timing unresolved.'] },
+      } });
+    await appendMissionEvent(root, missionId, { source: 'void-harness:mission.close',
+      kind: 'mission.closed', subject: 'mission', correlationId: missionId, payload: { reason: 'controller-stop' } });
+    const prior = (await inspectMission(root, missionId, { dependencies: {} })).stream.events;
+    const closure = prior.at(-1);
+    if (!closure) throw new Error('Expected original closure.');
+    const artifact = { path: 'docs/clarification.md', sha256: `sha256:${'a'.repeat(64)}` };
+    const recovered = await recordStoppedMissionRecovery(root, missionId, { schemaVersion: 1,
+      closureEventId: closure.eventId, expectedJournalHash: canonicalJsonHash(prior),
+      disposition: { kind: 'review-blocker', completionEventIds: [completed.eventId], resolutionArtifact: artifact },
+    }, { stage: 'pre-implementation', expectedSource: 'runtime:codex', maxRounds: 2,
+      currentInputHashes: { 'core:test-qa-engineer': artifact.sha256 },
+      contractVersions: { 'core:test-qa-engineer': 2 }, resolutionArtifact: artifact });
+    await recordMissionClosure(root, missionId, 'completed');
+    await recordMissionClosure(root, missionId, 'completed');
+    const current = (await inspectMission(root, missionId, { dependencies: {} })).stream.events;
+    const closures = current.filter(value => value.kind === 'mission.closed');
+    expect(closures).toHaveLength(2);
+    expect(closures[1]?.payload).toMatchObject({ reason: 'completed', episodeId: recovered.recoveryEventId });
   });
 });

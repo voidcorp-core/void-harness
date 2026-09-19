@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { replayEventLog, serializeEvent } from '../events/index.js';
+import { parseEvent, replayEventLog, serializeEvent } from '../events/index.js';
+import { planStoppedMissionRecovery } from './mission-recovery.js';
 import { sealEvidence } from '../evidence/schema.js';
+import { canonicalJsonHash } from '../evidence/canonical-json.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import type { MissionPlan } from '../mission/plan.js';
 import type { SpecialistId } from '../specialist/routing.js';
@@ -73,12 +75,13 @@ function writer(
 function completion(
   specialistId: SpecialistId,
   seq: number,
-  verdict: 'pass' | 'changes-requested' = 'pass',
+  verdict: 'pass' | 'changes-requested' | 'degraded' = 'pass',
   stage: 'pre-implementation' | 'post-implementation' = 'post-implementation',
   inputHash = HASH,
   reviewRound = 1,
   identitySuffix = String(reviewRound),
   evidenceRequests: readonly string[] = [],
+  limitations: readonly string[] = [],
 ): CanonicalEvent {
   return event({
     seq,
@@ -97,15 +100,15 @@ function completion(
         contractVersion: 1,
         completionId: `cmp_${stage}_${identitySuffix}_${specialistId.slice(5)}`,
         verdict,
-        findings: verdict === 'pass' ? [] : [{
+        findings: verdict === 'changes-requested' ? [{
           id: 'auth-bypass',
           severity: 'high',
           summary: 'Authorization can be bypassed.',
           evidence: [{ path: 'src/auth.ts', line: 8, detail: 'Role comes from input.' }],
           recommendation: 'Derive authorization from the authenticated principal.',
-        }],
+        }] : [],
         evidenceRequests,
-        limitations: [],
+        limitations,
       },
     },
   });
@@ -211,24 +214,158 @@ function preparationReviews(round: number, firstSeq: number, needsEvidence = fal
   ));
 }
 
+const PROOF_REQUEST = 'Provide observed packaged installation evidence.';
+
+function jsonRecord(value: JsonValue): value is { readonly [key: string]: JsonValue } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function classifyEvidence(
+  origin: CanonicalEvent,
+  seq: number,
+  due: 'post-implementation' | 'completion',
+): readonly CanonicalEvent[] {
+  if (!jsonRecord(origin.payload)) throw new Error('Expected a completion payload');
+  const binding = {
+    completionEventId: origin.eventId,
+    completionHash: canonicalJsonHash(origin.payload['completion']),
+    specialistId: origin.subject,
+    nativeContextId: `ctx_classification_${seq}`,
+    requestId: `request_classification_${seq}`,
+  };
+  const request = event({
+    seq, eventId: `evt_classification_request_${seq}`,
+    source: 'void-harness:mission.dispatch', subject: origin.subject,
+    kind: 'specialist.evidence-classification-requested', payload: binding,
+  });
+  return [request, event({
+    seq: seq + 1, eventId: `evt_classification_response_${seq}`,
+    causationId: request.eventId, subject: origin.subject,
+    kind: 'specialist.evidence-classified', payload: {
+      ...binding, items: [{ requestIndex: 0, requestText: PROOF_REQUEST,
+        requestTextHash: canonicalJsonHash(PROOF_REQUEST), due,
+        reason: 'The executable implementation must exist before its package can be verified.' }],
+    },
+  })];
+}
+
 describe('mission team controller', () => {
-  it.each(['finding', 'evidence'] as const)(
-    'starts implementation after a %s preparation correction without replaying the panel',
-    (reason) => {
-      const initial = reason === 'finding'
-        ? [completion(TEST_SPECIALIST_IDS[0], 2, 'changes-requested', 'pre-implementation'),
-          ...preReviews().slice(1)]
-        : preparationReviews(1, 2, true);
-      const events = [started(true), ...initial];
-      expect(decide(events).action.kind).toBe('run-preparation-correction');
-      const corrected = [...events, ...preparationReceipt()];
-      expect(decide(corrected).action).toMatchObject({
-        kind: 'run-lead-writer', writerId: 'writer:primary',
-      });
-      expect(decide([...corrected, ...preparationReviews(2, 7)]).action.kind)
-        .toBe('stop');
+  it('starts implementation after a finding preparation correction without replaying the panel', () => {
+    const initial = [completion(TEST_SPECIALIST_IDS[0], 2, 'changes-requested', 'pre-implementation'),
+      ...preReviews().slice(1)];
+    const events = [started(true), ...initial];
+    expect(decide(events).action.kind).toBe('run-preparation-correction');
+    const corrected = [...events, ...preparationReceipt()];
+    expect(decide(corrected).action).toMatchObject({
+      kind: 'run-lead-writer', writerId: 'writer:primary',
+    });
+    expect(decide([...corrected, ...preparationReviews(2, 7)]).action.kind).toBe('stop');
+  });
+
+  it('collects every missing preparation review after correcting changed partial panel inputs', () => {
+    const initial = [started(true),
+      completion('core:solution-architect', 2, 'pass', 'pre-implementation')];
+    const changedInputs = Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, HASH_B]));
+    expect(decide(initial, PLAN, INPUTS, changedInputs).action.kind)
+      .toBe('run-preparation-correction');
+
+    const corrected = [...initial, ...preparationReceipt(4)];
+    expect(decide(corrected, PLAN, INPUTS, changedInputs).action).toMatchObject({
+      kind: 'invoke-specialists', specialistIds: TEST_SPECIALIST_IDS,
+      stage: 'pre-implementation', reviewRound: 2,
+    });
+    const reviewed = [...corrected, ...TEST_SPECIALIST_IDS.map((id, index) => completion(
+      id, index + 5, 'pass', 'pre-implementation', HASH_B, 2,
+    ))];
+    expect(decide(reviewed, PLAN, INPUTS, changedInputs).action.kind).toBe('run-lead-writer');
+  });
+
+  it.each([HASH, HASH_B])('requires a fresh targeted review after recovered preparation clarification with input %s', (architectureHash) => {
+    const degraded = completion('core:test-qa-engineer', 4, 'degraded', 'pre-implementation',
+      HASH, 1, 'limited', [], ['The package execution contract needs clarification.']);
+    const closed = [started(), ...preReviews().slice(0, 2), degraded,
+      event({ seq: 5, eventId: 'evt_recovery_closed', kind: 'mission.closed',
+        payload: { reason: 'controller-stop' } })];
+    const artifact = { path: 'docs/clarification.md', sha256: HASH };
+    const recovery = planStoppedMissionRecovery({
+      stream: stream(closed), request: {
+        schemaVersion: 1, closureEventId: 'evt_recovery_closed',
+        expectedJournalHash: canonicalJsonHash(closed), disposition: {
+          kind: 'review-blocker', completionEventIds: [degraded.eventId],
+          resolutionArtifact: artifact,
+        },
+      }, observation: {
+        stage: 'pre-implementation', currentInputHashes: INPUTS, maxRounds: 2,
+        contractVersions: Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, 1])),
+        expectedSource: 'runtime:codex', resolutionArtifact: artifact,
+      },
+    });
+    expect(recovery.kind).toBe('recover');
+    if (recovery.kind !== 'recover') throw new Error('Expected supported recovery admission');
+    const resumed = parseEvent({
+      ...event({ seq: 6, eventId: 'evt_recovered', kind: 'mission.recovered',
+        source: 'void-harness:mission.recover' }), payload: recovery.receipt,
+    });
+    if (!resumed.ok) throw new Error('Expected a canonical recovery receipt');
+    const recovered = [...closed, resumed.value];
+    expect(decide(recovered).action.kind).toBe('run-preparation-correction');
+    const corrected = [...recovered, ...preparationReceipt(8)];
+    const inputs = { ...INPUTS, 'core:solution-architect': architectureHash };
+    const specialistIds = architectureHash === HASH
+      ? ['core:test-qa-engineer'] : ['core:solution-architect', 'core:test-qa-engineer'];
+    expect(decide(corrected, PLAN, INPUTS, inputs).action).toMatchObject({
+      kind: 'invoke-specialists', specialistIds,
+      stage: 'pre-implementation', reviewRound: 2,
+    });
+    const reviewed = [...corrected, completion('core:test-qa-engineer', 9, 'pass',
+      'pre-implementation', HASH, 2, 'clarified'),
+      ...(architectureHash === HASH ? [] : [completion('core:solution-architect', 10, 'pass',
+        'pre-implementation', architectureHash, 2, 'changed')])];
+    expect(decide(reviewed, PLAN, INPUTS, inputs).action.kind).toBe('run-lead-writer');
+    expect(reviewed.filter((item) => item.kind === 'specialist.completed'))
+      .toHaveLength(architectureHash === HASH ? 4 : 5);
+  });
+
+  it('keeps a current evidence obligation blocking after a preparation writer receipt', () => {
+    const events = [started(true), ...preparationReviews(1, 2, true), ...preparationReceipt()];
+    const decision = decide(events);
+
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.reasons.join(' ')).toContain('Explain the preparation correction boundary.');
+    expect(decision.reasons.join(' ')).toMatch(/classify|discharge/i);
+  });
+
+  it.each(['post-implementation', 'completion'] as const)(
+    'defers classified %s evidence during preparation and gates it when due', (due) => {
+      const origin = completion('core:test-qa-engineer', 4, 'pass', 'pre-implementation',
+        HASH, 1, 'future', [PROOF_REQUEST]);
+      const prepared = [started(), ...preReviews().slice(0, 2), origin,
+        ...classifyEvidence(origin, 5, due)];
+      expect(decide(prepared).action.kind).toBe('run-lead-writer');
+      const implemented = [...prepared, writer(7)];
+      if (due === 'completion') {
+        expect(decide(implemented).action.kind).toBe('invoke-specialists');
+      }
+      const reviews = TEST_SPECIALIST_IDS.map((id, index) => completion(id, index + 8));
+      const decision = decide(due === 'completion' ? [...implemented, ...reviews] : implemented);
+      expect(decision.action.kind).toBe('stop');
+      expect(decision.reasons.join(' ')).toContain(PROOF_REQUEST);
     },
   );
+
+  it('retains original evidence obligations after writer correction invalidates their review window', () => {
+    const origin = completion('core:test-qa-engineer', 8, 'pass', 'post-implementation',
+      HASH, 1, 'original', [PROOF_REQUEST]);
+    const events = [started(), ...preReviews(), writer(),
+      completion('core:solution-architect', 6), completion('core:security-engineer', 7), origin,
+      ...classifyEvidence(origin, 9, 'completion'), writer(11, 'writer:primary', 'run-correction'),
+      ...TEST_SPECIALIST_IDS.map((id, index) => completion(
+        id, index + 12, 'pass', 'post-implementation', HASH, 2,
+      ))];
+    const decision = decide(events);
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.reasons.join(' ')).toContain(PROOF_REQUEST);
+  });
 
   it('rejects a preparation receipt whose action differs from its request', () => {
     const [request, receipt] = preparationReceipt();
@@ -356,6 +493,47 @@ describe('mission team controller', () => {
     expect(finished.action).toMatchObject({ kind: 'complete' });
     expect(finished.verdict.status).toBe('degraded');
     expect(finished.reasons).toContain(`specialist runtime: ${limitation}`);
+  });
+
+  it('names the unavailable runtime cause and the capability needed to resume', () => {
+    const decision = decide([started()], PLAN, INPUTS, INPUTS, {
+      status: 'unavailable', limitations: ['fresh contexts cannot be created'],
+    });
+
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.reasons.join(' ')).toContain('fresh contexts cannot be created');
+    expect(decision.reasons.join(' ')).toMatch(/(restore|provide|configure).*runtime/i);
+    expect(decision.action).toMatchObject({ reasons: decision.reasons });
+  });
+
+  it('explains exhausted real corrections without suggesting a budget reset', () => {
+    const initial = TEST_SPECIALIST_IDS.map((id, index) => completion(
+      id, index + 6, id === 'core:security-engineer' ? 'changes-requested' : 'pass',
+    ));
+    const final = TEST_SPECIALIST_IDS.map((id, index) => completion(
+      id, index + 10, id === 'core:security-engineer' ? 'changes-requested' : 'pass',
+      'post-implementation', HASH, 2,
+    ));
+    const decision = decide([started(), ...preReviews(), writer(), ...initial,
+      writer(9, 'writer:primary', 'run-correction'), ...final,
+    ]);
+
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.phase).toBe('blocked');
+    expect(decision.reasons.join(' ')).toMatch(/(round|budget|bounded)/i);
+    expect(decision.reasons.join(' ')).toMatch(/(escalate|arbitrat|operator|human)/i);
+    expect(decision.review.readyForVerdict).toBe(false);
+  });
+
+  it('explains inconsistent empty degradation instead of returning an empty stop', () => {
+    const decision = decide([started()], {
+      ...PLAN, context: { status: 'degraded', issues: [] },
+    });
+
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.reasons.join(' ')).toMatch(/context/i);
+    expect(decision.reasons.join(' ')).toMatch(/(rebuild|restore|provide|resolve)/i);
+    expect(decision.action).toMatchObject({ reasons: decision.reasons });
   });
 
   it('still blocks before dispatch when the specialist runtime is unavailable', () => {
@@ -709,7 +887,7 @@ describe('mission team controller', () => {
     ]));
   });
 
-  it('accepts a bounded retry without inventing another writer correction', () => {
+  it('resumes missing peers without inventing a correction or consuming another round', () => {
     const partialReviews = [
       completion('core:solution-architect', 6),
       completion('core:security-engineer', 7),
@@ -717,7 +895,8 @@ describe('mission team controller', () => {
     const retry = decide([started(), ...preReviews(), writer(), ...partialReviews]);
 
     expect(retry.phase).toBe('review');
-    expect(retry.review.reviewRound).toBe(2);
+    expect(retry.review.reviewRound).toBe(1);
+    expect(decide([started(), ...preReviews(), writer(), ...partialReviews])).toEqual(retry);
     expect(retry.review.specialistsToRun).toEqual(['core:test-qa-engineer']);
 
     const reconciled = decide([
@@ -725,15 +904,86 @@ describe('mission team controller', () => {
       ...preReviews(),
       writer(),
       ...partialReviews,
-      completion('core:test-qa-engineer', 8, 'pass', 'post-implementation', HASH, 2),
+      completion('core:test-qa-engineer', 8, 'pass', 'post-implementation', HASH, 1),
     ]);
 
     expect(reconciled.phase).toBe('verification');
     expect(reconciled.review).toMatchObject({
-      reviewRound: 2,
+      reviewRound: 1,
       readyForVerdict: true,
       issues: [],
     });
+  });
+
+  it('rejects an unrequested extra round for a peer with no failure or correction', () => {
+    const decision = decide([started(), ...preReviews(), writer(),
+      completion('core:solution-architect', 6),
+      completion('core:security-engineer', 7),
+      completion('core:test-qa-engineer', 8, 'pass', 'post-implementation', HASH, 2),
+    ]);
+
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.review.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'wrong-review-round' }),
+    ]));
+  });
+
+  it('finishes collecting a corrected panel in the last legal round', () => {
+    const initial = [started(), ...preReviews(), writer(),
+      ...TEST_SPECIALIST_IDS.map((id, index) => completion(
+        id, index + 6, id === 'core:security-engineer' ? 'changes-requested' : 'pass',
+      )),
+      writer(9, 'writer:primary', 'run-correction'),
+      completion('core:solution-architect', 10, 'pass', 'post-implementation', HASH, 2),
+    ];
+    expect(decide(initial).action).toMatchObject({
+      kind: 'invoke-specialists',
+      specialistIds: ['core:security-engineer', 'core:test-qa-engineer'],
+      reviewRound: 2,
+    });
+    const completed = [...initial,
+      completion('core:security-engineer', 11, 'pass', 'post-implementation', HASH, 2),
+      completion('core:test-qa-engineer', 12, 'pass', 'post-implementation', HASH, 2),
+    ];
+    expect(decide(completed).phase).toBe('verification');
+  });
+
+  it('requires a writer correction before reviewing changed completed inputs', () => {
+    const initial = [started(), ...preReviews(), writer(),
+      ...TEST_SPECIALIST_IDS.map((id, index) => completion(id, index + 6))];
+    const changedInputs: Readonly<Record<string, string>> = {
+      ...INPUTS, 'core:security-engineer': HASH_B,
+    };
+    const next = decide(initial, PLAN, changedInputs);
+
+    expect(next.action).toMatchObject({ kind: 'run-correction', writerId: 'writer:primary' });
+    const corrected = [...initial, writer(9, 'writer:primary', 'run-correction')];
+    expect(decide(corrected, PLAN, changedInputs).action).toMatchObject({
+      kind: 'invoke-specialists',
+      specialistIds: TEST_SPECIALIST_IDS,
+      reviewRound: 2,
+    });
+    const reviewed = decide([...corrected,
+      ...TEST_SPECIALIST_IDS.map((id, index) => completion(
+        id, index + 10, 'pass', 'post-implementation', changedInputs[id], 2,
+      )),
+    ], PLAN, changedInputs);
+
+    expect(reviewed.phase).toBe('verification');
+    expect(reviewed.review).toMatchObject({ readyForVerdict: true, issues: [] });
+  });
+
+  it('explains a degraded specialist stop with its limitation and recovery action', () => {
+    const limitation = 'The native runtime cannot prove fresh-context isolation.';
+    const decision = decide([started(), ...preReviews().slice(0, 2),
+      completion('core:test-qa-engineer', 4, 'degraded', 'pre-implementation',
+        HASH, 1, 'degraded', [], [limitation]),
+    ]);
+
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.phase).toBe('degraded');
+    expect(decision.reasons.join(' ')).toContain(limitation);
+    expect(decision.reasons.join(' ')).toMatch(/(resolve|restore|provide|rerun|retry|resume)/i);
   });
 
   it('cannot erase findings with a higher review round before writer correction', () => {
