@@ -35,6 +35,9 @@ function productionFiles(directory: string): readonly string[] {
   });
 }
 
+// Shared test observations live beside the planner but are not CLI mechanisms.
+// Keep them in the import graph so a production import still fails below.
+const TEST_SUPPORT = new Set([join(SRC, 'lib', 'autopilot', 'worktree-fixtures.ts')]);
 const files = productionFiles(SRC);
 const source = new Map(files.map((file) => [file, readFileSync(file, 'utf8')]));
 
@@ -69,6 +72,7 @@ const reached = reachableFiles();
 function unreachableExports(): readonly string[] {
   const orphans: string[] = [];
   for (const file of files.filter((candidate) => candidate.includes(join('lib', 'autopilot')))) {
+    if (TEST_SUPPORT.has(file)) continue;
     const text = source.get(file) ?? '';
     for (const match of text.matchAll(/^export (?:async )?function ([A-Za-z0-9_]+)/gm)) {
       const name = match[1] ?? '';
@@ -87,6 +91,7 @@ function unreachableExports(): readonly string[] {
 describe('every declared autopilot mechanism has a caller', () => {
   it('names no exported function the CLI cannot reach', () => {
     expect(unreachableExports()).toEqual([]);
+    expect([...TEST_SUPPORT].filter((file) => reached.has(file))).toEqual([]);
   });
 
   // The control. A walk that reached nothing would pass the assertion above by
