@@ -31,13 +31,13 @@ function writer(seq: number, actionKind: 'run-lead-writer' | 'run-correction'): 
   return event({ seq, eventId: `evt_writer_${seq}`, kind: 'lead-writer.completed',
     subject: 'writer:primary', payload: { writerId: 'writer:primary', actionKind } });
 }
-function reduce(events: readonly CanonicalEvent[], hash = HASH) {
+function reduce(events: readonly CanonicalEvent[], hash = HASH, validProofIds: readonly string[] = []) {
   const boundary = events.filter(item => item.kind === 'lead-writer.completed').at(-1)?.seq ?? 1;
   return reduceReviewLoop({ stage: 'post-implementation', expectedSource: 'runtime:codex',
     stageStartSeqExclusive: 1, afterSeqExclusive: boundary, events,
     requiredSpecialists: [REVIEWER], contractVersions: { [REVIEWER]: 1 },
     currentInputHashes: { [REVIEWER]: hash }, maxRounds: 3,
-    maxCorrectionBatches: 2,
+    maxCorrectionBatches: 2, validProofIds,
   });
 }
 describe('bounded correction batches', () => {
@@ -124,6 +124,35 @@ describe('bounded controller routing', () => {
 });
 
 describe('retained review conclusions', () => {
+  it('retains an unaffected resolution across the second correction batch', () => {
+    const resolved = (seq: number, round: number, id: string, findings: readonly JsonValue[], hash: string) =>
+      event({ seq, eventId: `evt_review_${seq}`, kind: 'specialist.completed', subject: REVIEWER,
+        payload: { stage: 'post-implementation', reviewRound: round, inputHash: hash,
+          contextId: `ctx_review_${seq}`, completion: {
+            schemaVersion: 1, specialistId: REVIEWER, contractVersion: 1,
+            completionId: `cmp_review_${seq}`, verdict: findings.length > 0 ? 'changes-requested' : 'pass',
+            findings, evidenceRequests: [], limitations: [],
+            review: { taskId: event().missionId, reviewerId: 'reviewer:independent',
+              writerId: 'writer:primary', baseCommit: 'a'.repeat(40), reviewedCommit: 'b'.repeat(40),
+              acceptanceCriteriaHash: HASH, readOnly: true,
+              scope: { kind: 'targeted', findingIds: [id], affectedPaths: ['src/auth.ts'] },
+              proofIds: [`proof-${id}`],
+              resolutions: [{ findingId: id, status: 'resolved', proofIds: [`proof-${id}`] }],
+              provenance: { kind: 'native-context', contextId: `ctx_review_${seq}` },
+            },
+          } },
+      });
+    const firstBatch = [writer(1, 'run-lead-writer'), completed(2, 1, [finding('blocking', 'defect-a')]),
+      writer(3, 'run-correction'), resolved(4, 2, 'defect-a', [finding('blocking', 'defect-b')], HASH)];
+    expect(reduce(firstBatch, HASH, ['proof-defect-a']).findings.map(item => item.sourceId))
+      .toEqual(['defect-b']);
+    const secondBatch = [...firstBatch, writer(5, 'run-correction'), resolved(6, 3, 'defect-b', [], OTHER_HASH)];
+    expect(reduce(secondBatch, OTHER_HASH, ['proof-defect-a', 'proof-defect-b']))
+      .toMatchObject({ status: 'ready-for-verdict', readyForVerdict: true, findings: [] });
+    const expiredProof = reduce(secondBatch, OTHER_HASH, ['proof-defect-b']);
+    expect(expiredProof).toMatchObject({ status: 'blocked', readyForVerdict: false });
+    expect(expiredProof.findings.map(item => item.sourceId)).toEqual(['defect-a']);
+  });
   it('does not silently drop an original blocker when targeted verification says pass', () => {
     expect(reduce([writer(1, 'run-lead-writer'), completed(2, 1, [finding('blocking')]),
       writer(3, 'run-correction'), completed(4, 2)]))

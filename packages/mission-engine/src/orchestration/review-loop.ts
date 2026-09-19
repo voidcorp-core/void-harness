@@ -547,7 +547,7 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     ? Math.max(collected.nextRound, input.contractMigration?.reviewRound ?? 1) : collected.nextRound;
   const history = input.maxCorrectionBatches === undefined ? [] : collected.history.filter(item =>
     input.requiredSpecialists.includes(item.completion.specialistId));
-  const resolved = new Set(current.flatMap(item => item.completion.review?.resolutions ?? [])
+  const resolved = new Set([...history, ...current].flatMap(item => item.completion.review?.resolutions ?? [])
     .filter(resolution => resolution.status === 'resolved' && resolution.proofIds.length > 0
       && resolution.proofIds.every(id => input.validProofIds?.includes(id)))
     .map(resolution => resolution.findingId));
