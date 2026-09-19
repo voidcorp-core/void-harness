@@ -110,10 +110,11 @@ worker jamais poussées.
 
 Les noms Git sont fixes :
 
-- worker local : `autopilot-worker/<clusterId>/<ticketId>` ;
+- worker local : `autopilot-worker/<ticketId>` ; une affectation existante conserve
+  sa branche explicite, même si elle porte un ancien identifiant de cluster ;
 - intégration distante : `autopilot/<clusterId>` ;
 - worktrees :
-  `.void/autopilot/<runId>/worktrees/<ticketId|reconcile>`.
+  `${VOID_WORKTREES:-${XDG_DATA_HOME:-$HOME/.local/share}/git-worktrees}/<depot>/<branche>` (contrat courant : `docs/WORKTREES.md`).
 
 Ils sont dérivés d'identifiants slug-validés, jamais d'un titre libre.
 

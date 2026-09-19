@@ -35,6 +35,8 @@ export interface InstallManifest {
   readonly schemaVersion: 1;
   /** An exact version. A range here would defeat the entire point. */
   readonly version: string;
+  /** Digest of the delivered template, never the preserved project's bytes. */
+  readonly projectDoctrineTemplateSha256?: string;
   readonly files: readonly ManifestFile[];
 }
 
@@ -68,12 +70,14 @@ export function sha256Of(content: Uint8Array | string): string {
  * the same bytes, and never listing the manifest itself — a file cannot carry the
  * hash of contents that include that hash.
  */
-export function buildInstallManifest(version: string, files: readonly ManifestFile[]): InstallManifest {
+export function buildInstallManifest(version: string, files: readonly ManifestFile[], projectDoctrineTemplateSha256?: string): InstallManifest {
   const kept = files
     .filter((file) => file.path !== INSTALL_MANIFEST_PATH)
     .map((file) => ({ path: file.path, sha256: file.sha256 }))
     .sort((a, b) => a.path.localeCompare(b.path));
-  return { schemaVersion: 1, version, files: Object.freeze(kept) };
+  return { schemaVersion: 1, version, files: Object.freeze(kept),
+    ...(projectDoctrineTemplateSha256 === undefined ? {} : { projectDoctrineTemplateSha256 }),
+  };
 }
 
 function isManifestFile(value: unknown): value is ManifestFile {
@@ -105,10 +109,15 @@ export function parseInstallManifest(body: string): InstallManifest | undefined 
     || manifest.version === ''
     || !Array.isArray(files)
     || !files.every(isManifestFile)
+    || (manifest.projectDoctrineTemplateSha256 !== undefined
+      && (typeof manifest.projectDoctrineTemplateSha256 !== 'string' || !HEX_64.test(manifest.projectDoctrineTemplateSha256)))
   ) {
     return undefined;
   }
-  return { schemaVersion: 1, version: manifest.version, files: files as ManifestFile[] };
+  return { schemaVersion: 1, version: manifest.version, files: files as ManifestFile[],
+    ...(typeof manifest.projectDoctrineTemplateSha256 === 'string'
+      ? { projectDoctrineTemplateSha256: manifest.projectDoctrineTemplateSha256 } : {}),
+  };
 }
 
 /**
@@ -125,15 +134,15 @@ export function readInstallManifest(root: string): InstallManifest | undefined {
 }
 
 /**
- * Has this path still got the exact bytes the harness wrote into it?
+ * Has this path still got the exact bytes observed at the last install?
  *
  * The mirror image of the `coEdited` verdict below, asked of a single file. A
  * co-owned file that differs is the project writing into it as invited; a
- * co-owned file that does NOT differ has never been used, and that is the only
- * state in which the harness may replace it rather than preserve it.
+ * matching co-owned file may already have been customized before that install.
+ * Equality alone grants no replacement authority; callers also need provenance.
  *
  * Decidable, never guessed: the manifest is the committed record of what an
- * install actually put there, whatever version wrote it. A path the manifest
+ * install observed there, including content it preserved. A path the manifest
  * cannot attest -- an install predating the manifest, a file we never wrote --
  * answers `false`, because silence is not proof that nobody edited it.
  */

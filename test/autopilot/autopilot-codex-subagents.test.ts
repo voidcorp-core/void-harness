@@ -13,8 +13,10 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildOrchestrationPlan } from '../../packages/cli/src/lib/autopilot/orchestration-plan.js';
+import { WORKTREE_ROOT, worktreeObservation } from '../../packages/cli/src/lib/autopilot/worktree-fixtures.js';
 
 const WORKFLOW = readFileSync(
   new URL('../../packages/core/skills/void-autopilot/workflows/autopilot.workflow.js', import.meta.url),
@@ -34,7 +36,9 @@ const FIXTURES = {
 } as const;
 
 function planFor(fixture: { parallel: readonly string[]; sequential: readonly string[] }) {
+  const ids = [...fixture.parallel, ...fixture.sequential];
   return buildOrchestrationPlan({
+    schemaVersion: 2,
     runId: 'run-a',
     clusterId: 'cluster-1',
     base: { branch: 'main', sha: SHA },
@@ -43,6 +47,11 @@ function planFor(fixture: { parallel: readonly string[]; sequential: readonly st
     clusterSize: 4,
     planPath: 'plans/p.md',
     specPath: 'docs/specs/s.md',
+    ticketBranches: ids.map((ticketId) => ({ ticketId, branch: `autopilot-worker/${ticketId}` })),
+    worktrees: worktreeObservation({ destinations: ids.map((ticketId) => {
+      const path = join(WORKTREE_ROOT, 'example', 'autopilot-worker', ticketId);
+      return { path, canonicalPath: path, exists: false };
+    }) }),
   });
 }
 
@@ -73,7 +82,12 @@ describe('one plan, two adapters', () => {
 
       expect(paths.size).toBe(plan.assignments.length);
       expect(branches.size).toBe(plan.assignments.length);
-      expect([...paths].every((path) => path.startsWith('.void/autopilot/run-a/worktrees/'))).toBe(true);
+      for (const assignment of plan.assignments) {
+        expect(assignment.worktreePath).toBe(
+          join(WORKTREE_ROOT, 'example', 'autopilot-worker', assignment.ticketId),
+        );
+        expect(assignment.branch).toBe(`autopilot-worker/${assignment.ticketId}`);
+      }
     }
   });
 });

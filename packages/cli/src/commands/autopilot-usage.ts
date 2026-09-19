@@ -21,6 +21,7 @@ git, and it spawns no agent.
 Usage:
   void-harness autopilot scaffold <plan|start|status|marker> [--json]
   echo '<CandidateObservation>'  | void-harness autopilot plan   [--json]
+  void-harness autopilot orchestrate [--json] < worktree-observation.json
   echo '<ChainObservation>'      | void-harness autopilot chain  [--for <2h|90m>] [--json]
   echo '<ReservationReceipt>'    | void-harness autopilot start  [--json]
   echo '<RemoteObservation>'     | void-harness autopilot status [--run <id>] [--json]
@@ -29,6 +30,14 @@ Usage:
 
 --run is optional everywhere. With no run, a single non-terminal run is resumed;
 several return competing-runs and nothing is touched.
+
+orchestrate accepts schemaVersion 2 with action prepare or cleanup. Prepare needs
+explicit ticketBranches and a complete worktrees observation (environment,
+physical destinations, Git refs, caseSensitive and localData). Paths are absolute.
+Cleanup after a later human merge needs the saved plan, verified integration,
+actual merge ticket IDs/SHA and fresh inventory. Version 1 is refused, never guessed.
+Both actions PLAN argv; they do not execute Git. Preserve argv and use shell:false.
+Full examples and safe recovery: docs/WORKTREES.md.
 
 stdin JSON (CandidateObservation):
   {

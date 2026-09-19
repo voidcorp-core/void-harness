@@ -1,58 +1,54 @@
-import { type AutopilotSubcommand, readsStdin, subcommandWord, SUBCOMMANDS, USAGE } from './autopilot-usage.js';
+import { renderPlan, renderRun } from './autopilot-render.js';
+import { type AutopilotSubcommand, readsStdin, SUBCOMMANDS, subcommandWord, USAGE } from './autopilot-usage.js';
+
 export { type AutopilotSubcommand, readsStdin, SUBCOMMANDS } from './autopilot-usage.js';
 
 import { join } from 'node:path';
-import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
-import { type MergedUnit, renderMergeJournal } from '../lib/autopilot/chain.js';
-import { buildMergePlan } from '../lib/autopilot/merge-plan.js';
-import { selectBase, type BaseObservation, type BaseSelection } from '../lib/autopilot/base-selection.js';
+import { type BaseObservation, type BaseSelection, selectBase } from '../lib/autopilot/base-selection.js';
 import {
   decideBranchProtection,
   interpretProtectionResponse,
   type ProtectionResponse,
 } from '../lib/autopilot/branch-protection.js';
-import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
-import { judgeLiveness, renderRunProgress, type RunBeat } from '../lib/autopilot/run-progress.js';
+import { type MergedUnit, renderMergeJournal } from '../lib/autopilot/chain.js';
+import { type ChainObservation, decideChainStep } from '../lib/autopilot/chain-step.js';
+import { type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import {
-  buildUnionReviewRequest,
-  judgeMergeGrant,
-  planPostCheckAction,
-  type CheckStand,
-  type MergeGrant,
-  type UnionReview,
-} from '../lib/autopilot/union-review.js';
+  type ConfirmationInput,
+  confirmReservation,
+  planReservation,
+  type ReservationRequest,
+} from '../lib/autopilot/cluster-reservation.js';
+import { createDurableRun, openDurableRunStore } from '../lib/autopilot/durable-run.js';
+import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
+import { normaliseArea } from '../lib/autopilot/footprint-area.js';
+import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
+import { type RangeObservation, verifyRange } from '../lib/autopilot/git-observation.js';
+import {
+  type AutopilotInputStep,
+  INPUT_SHAPES,
+  markerTemplate,
+  scaffoldFor,
+  validateAgainstShape,
+} from '../lib/autopilot/input-shape.js';
+import { buildMergePlan } from '../lib/autopilot/merge-plan.js';
+import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
 import { judgePanelBeforeWriting, type PanelEvent, type PanelOutcome } from '../lib/autopilot/panel-proof.js';
+import { type ClusterOutcome, resolveClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
 import {
-  renderPullRequestBody,
   type ExcludedTicket,
   type ReconciliationDecision,
+  renderPullRequestBody,
   type TicketProvenance,
 } from '../lib/autopilot/pr-body.js';
+import { readProgramDescriptor } from '../lib/autopilot/program.js';
+import { assessProofs, type ProofAssessment, type ProofContext, type VerificationProof } from '../lib/autopilot/proof-invalidation.js';
 import {
   accountCiRuns,
   buildPublishPlan,
   type ExistingPullRequest,
   type PublishPlan,
 } from '../lib/autopilot/publish-plan.js';
-import { assessProofs, type ProofAssessment, type ProofContext, type VerificationProof } from '../lib/autopilot/proof-invalidation.js';
-import {
-  judgeRangeProofs,
-  type ProofEvidence,
-  type RangeVerdict as ProofRangeVerdict,
-  type RequiredProof,
-} from '../lib/autopilot/required-proof.js';
-import { judgeUnitBudget, type UnitBudgetVerdict, type UnitCeilings, type UnitSpend } from '../lib/autopilot/unit-budget.js';
-import {
-  buildVerificationPlan,
-  judgeVerification,
-  type CommandOutcome,
-  type VerificationPlan,
-  type VerificationVerdict,
-} from '../lib/autopilot/verification-plan.js';
-import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
-import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
-import { normaliseArea } from '../lib/autopilot/footprint-area.js';
-import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
 import {
   alignOutcomeWithPlan,
   buildReconcilePlan,
@@ -60,39 +56,26 @@ import {
   type SettledOutcome,
   type VerifiedRange,
 } from '../lib/autopilot/reconcile-plan.js';
-import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
+import {
+  type PullRequestObservation,
+  type RecoveryExpectation,
+  type RecoveryVerdict,
+  recoverRemote,
+} from '../lib/autopilot/remote-recovery.js';
+import {
+  judgeRangeProofs,
+  type ProofEvidence,
+  type RangeVerdict as ProofRangeVerdict,
+  type RequiredProof,
+} from '../lib/autopilot/required-proof.js';
 import {
   judgeReviewProvenance,
   type ReviewOutcome,
   type UnitReview,
 } from '../lib/autopilot/review-provenance.js';
-import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
-import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
-import {
-  type ConfirmationInput,
-  confirmReservation,
-  planReservation,
-  type ReservationRequest,
-} from '../lib/autopilot/cluster-reservation.js';
-import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
-import { decideChainStep, type ChainObservation } from '../lib/autopilot/chain-step.js';
-import { readProgramDescriptor } from '../lib/autopilot/program.js';
-import {
-  INPUT_SHAPES,
-  markerTemplate,
-  scaffoldFor,
-  validateAgainstShape,
-  type AutopilotInputStep,
-} from '../lib/autopilot/input-shape.js';
-import {
-  type PullRequestObservation,
-  recoverRemote,
-  type RecoveryExpectation,
-  type RecoveryVerdict,
-} from '../lib/autopilot/remote-recovery.js';
+import { judgeLiveness, type RunBeat, renderRunProgress } from '../lib/autopilot/run-progress.js';
 import type { RunState, TicketRunState } from '../lib/autopilot/run-state.js';
 import { listRunIds, readRun, writeRun } from '../lib/autopilot/state-store.js';
-import { createDurableRun, openDurableRunStore } from '../lib/autopilot/durable-run.js';
 import {
   type ActionReceipt,
   type LifecycleInput,
@@ -107,10 +90,30 @@ import {
   nextAction,
   type PullRequestReading,
   type RawReading,
-  readBoundary,
   type RunSituation,
+  readBoundary,
   type TrackerReading,
 } from '../lib/autopilot/transition-oracle.js';
+import {
+  buildUnionReviewRequest,
+  type CheckStand,
+  judgeMergeGrant,
+  type MergeGrant,
+  planPostCheckAction,
+  type UnionReview,
+} from '../lib/autopilot/union-review.js';
+import { judgeUnitBudget, type UnitBudgetVerdict, type UnitCeilings, type UnitSpend } from '../lib/autopilot/unit-budget.js';
+import {
+  buildVerificationPlan,
+  type CommandOutcome,
+  judgeVerification,
+  type VerificationPlan,
+  type VerificationVerdict,
+} from '../lib/autopilot/verification-plan.js';
+import { type OrderFootprint, orderWorkers } from '../lib/autopilot/worker-order.js';
+import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
+import { type PrepareRequest, readWorktreeRequest, type WorktreeObservation, worktreeRecovery } from '../lib/autopilot/worktree-contract.js';
+import { planWorktreeCleanup, planWorktreePreparation, planWorktreeSetup, planWorktreeTeardown, type WorktreeDisposition } from '../lib/autopilot/worktree-lifecycle.js';
 
 export interface AutopilotCommandResult {
   readonly stdout: string;
@@ -366,52 +369,6 @@ function situationFrom(state: RunState, stdin: string): Resolved {
   };
 }
 
-function renderPlan(plan: ClusterPlan): string {
-  const lines: string[] = [];
-  lines.push(`cluster (${plan.cluster.length}): ${plan.cluster.join(', ') || 'none'}`);
-  lines.push(`  parallel:   ${plan.parallel.join(', ') || 'none'}`);
-  lines.push(
-    `  sequential: ${
-      plan.sequential.map((t) => `${t.id} (${t.reasons.join(', ')})`).join(', ') || 'none'
-    }`,
-  );
-
-  const budget = plan.reviewBudget;
-  lines.push(
-    `review budget: ${budget.spent}/${budget.capacity} units, tracker estimate ${budget.totalEstimate} point(s)${
-      budget.unestimated.length > 0 ? ` (unestimated: ${budget.unestimated.join(', ')})` : ''
-    }`,
-  );
-
-  if (plan.excluded.length > 0) {
-    lines.push('excluded:');
-    for (const excluded of plan.excluded) lines.push(`  ${excluded.id}: ${excluded.cause}`);
-  }
-  return `${lines.join('\n')}\n`;
-}
-
-function renderRun(state: RunState, action: NextAction | undefined, recovery?: RecoveryVerdict): string {
-  const lines: string[] = [];
-  lines.push(`run ${state.runId} — cluster ${state.clusterId} on ${state.base.branch}@${state.base.sha.slice(0, 7)}`);
-  // Dated, because `start` is the only command that writes this file: nothing a
-  // worker, a publication or a merge does afterwards reaches it. Printing these
-  // phases undated reads as the run's current position, and across three real
-  // runs the file was edited by hand at every step to make that reading true.
-  lines.push(`cursor: state at the lease, taken ${state.startedAt}; no command advances it (DEV-798)`);
-  for (const ticket of state.tickets) {
-    const commits = ticket.commits.length === 0 ? 'no commit' : `${ticket.commits.length} commit(s)`;
-    lines.push(`  ${ticket.id}: ${ticket.phase} (${commits})${ticket.blocker === null ? '' : ` — ${ticket.blocker}`}`);
-  }
-  lines.push(
-    `integration: ${state.integration.branch ?? 'none'} · pull request ${state.integration.prState}${
-      state.integration.prUrl === null ? '' : ` (${state.integration.prUrl})`
-    }`,
-  );
-  if (recovery !== undefined) lines.push(`recovery: ${recovery.kind} — ${recovery.detail}`);
-  if (action !== undefined) lines.push(`next: ${action.kind} — ${action.detail}`);
-  return `${lines.join('\n')}\n`;
-}
-
 function emit(json: boolean, value: unknown, human: string): AutopilotCommandResult {
   return ok(json ? `${JSON.stringify(value, null, 2)}\n` : human);
 }
@@ -499,6 +456,9 @@ function chainCommand(
  * the step stays testable without a git tree and the executor stays visible.
  */
 interface OrchestrationObservation {
+  readonly schemaVersion: 2;
+  readonly worktrees: WorktreeObservation;
+  readonly ticketBranches: readonly { readonly ticketId: string; readonly branch: string }[];
   readonly runId: string;
   readonly clusterId: string;
   readonly base: { readonly branch: string; readonly sha: string };
@@ -512,7 +472,10 @@ interface OrchestrationObservation {
 }
 
 interface OrchestrationOutcome {
-  readonly schemaVersion: 1;
+  readonly prepareInput: PrepareRequest;
+  readonly schemaVersion: 2;
+  readonly action: 'prepare';
+  readonly dispositions: readonly WorktreeDisposition[];
   readonly plan: OrchestrationPlan;
   /**
    * What each ticket claimed, in one spelling, on the way out.
@@ -545,7 +508,7 @@ interface OrchestrationOutcome {
  * `orderWorkers` gives it `unknown-footprint` and a sequential lane, which is
  * the conservative reading, not a contract failure.
  */
-function requireFootprintsOfThisRun(observation: OrchestrationObservation): void {
+function requireFootprintsOfThisRun(observation: Pick<OrchestrationObservation, 'tickets' | 'footprints'>): void {
   const listed = new Set(observation.tickets);
   const strays = [...new Set(observation.footprints.map((entry) => entry.id).filter((id) => !listed.has(id)))];
   if (strays.length === 0) return;
@@ -557,8 +520,29 @@ function requireFootprintsOfThisRun(observation: OrchestrationObservation): void
   );
 }
 
-function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResult {
-  const observation = parseStdin<OrchestrationObservation>(stdin, 'orchestration observation');
+function renderWorktreeDispositions(dispositions: readonly WorktreeDisposition[]): string {
+  return `${dispositions.map((entry) =>
+    `${entry.ticketId} | ${entry.branch} | ${entry.worktreePath} | ${entry.state}: ${entry.reason}\n  Next: ${entry.nextAction}`,
+  ).join('\n')}\n`;
+}
+
+function orchestrateCommand(stdin: string, json: boolean, now?: string): AutopilotCommandResult {
+  const observation = readWorktreeRequest(parseStdin<unknown>(stdin, 'orchestration observation'));
+  if (observation.action === 'cleanup') {
+    let cleanup: ReturnType<typeof planWorktreeCleanup>;
+    try {
+      cleanup = planWorktreeCleanup(observation, now ?? '');
+    } catch (error) {
+      const failure = toAutopilotFailure(error);
+      throw autopilotFailure(failure.code, failure.problem, failure.cause, worktreeRecovery('cleanup'));
+    }
+    const outcome = { schemaVersion: 2, action: 'cleanup', plan: observation.plan,
+      setup: [], teardown: cleanup.steps, dispositions: cleanup.dispositions };
+    const human = [renderWorktreeDispositions(cleanup.dispositions), 'planned cleanup argv (not executed):',
+      ...cleanup.steps.map((step) => `  ${JSON.stringify(step.command)}`), '',
+    ].join('\n');
+    return ok(json ? `${JSON.stringify(outcome, undefined, 2)}\n` : human);
+  }
   requireFootprintsOfThisRun(observation);
   const order = orderWorkers({
     tickets: observation.tickets,
@@ -567,6 +551,7 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
     ...(observation.minConfidence === undefined ? {} : { minConfidence: observation.minConfidence }),
   });
   const plan = buildOrchestrationPlan({
+    schemaVersion: 2, worktrees: observation.worktrees, ticketBranches: observation.ticketBranches,
     runId: observation.runId,
     clusterId: observation.clusterId,
     base: observation.base,
@@ -577,7 +562,8 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
     specPath: observation.specPath,
   });
   const outcome: OrchestrationOutcome = {
-    schemaVersion: 1,
+    prepareInput: observation,
+    schemaVersion: 2, action: 'prepare', dispositions: planWorktreePreparation(plan).dispositions,
     plan,
     // Normalised through the one reading, so ordering and the reconciliation
     // audit cannot disagree about what an area claims.
@@ -598,10 +584,10 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
     }),
     '',
     'before any worker:',
-    ...outcome.setup.map((step) => `  ${step.command.join(' ')}`),
+    ...outcome.setup.map((step) => `  ${JSON.stringify(step.command)}`),
     '',
-    'once the run is done with them:',
-    ...outcome.teardown.map((step) => `  ${step.command.join(' ')}`),
+    'retained until ticket-specific merge evidence; later submit action cleanup with fresh inventory:',
+    renderWorktreeDispositions(outcome.dispositions),
     '',
   ].join('\n');
   return emit(json, outcome, human);
@@ -1467,7 +1453,7 @@ export function runAutopilotCommand(
     const subcommand: AutopilotSubcommand = word as AutopilotSubcommand;
 
     if (subcommand === 'plan') return planCommand(stdin, json);
-    if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
+    if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json, context?.now);
     if (subcommand === 'reconcile') return reconcileCommand(stdin, json);
     if (subcommand === 'verify') return verifyCommand(stdin, json);
     if (subcommand === 'gate') return gateCommand(stdin, json);
