@@ -1,13 +1,14 @@
-import { parseEvidence } from '../evidence/schema.js';
-import { reduceEvidenceObligations } from '../specialist/evidence-obligations.js';
-import { validatedSpecialistContractMigrationBoundary } from './specialist-contract-migration.js';
-import { initialEventStream, reduceEventStream, type EventStreamState } from '../events/reducer.js';
+import { type EventStreamState, initialEventStream, reduceEventStream } from '../events/reducer.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import { canonicalJson, canonicalJsonHash } from '../evidence/canonical-json.js';
+import { parseEvidence } from '../evidence/schema.js';
 import { parseSpecialistCompletionValue, type SpecialistCompletion } from '../specialist/completion.js';
-import type { SpecialistInvocationStage, SpecialistId } from '../specialist/routing.js';
+import { reduceEvidenceObligations } from '../specialist/evidence-obligations.js';
+import { type IndependentReviewReceipt, isReviewSubject, parseReviewReceipt, type ReviewSubject, sameReviewSubject } from '../specialist/review-receipt.js';
+import type { SpecialistId, SpecialistInvocationStage } from '../specialist/routing.js';
 import { projectMissionLifecycle } from './mission-lifecycle.js';
 import { reduceReviewLoop } from './review-loop.js';
+import { validatedSpecialistContractMigrationBoundary } from './specialist-contract-migration.js';
 
 export interface RecoveryResolutionArtifact {
   readonly path: string;
@@ -19,10 +20,17 @@ export interface MissionRecoveryRequest {
   readonly expectedJournalHash: string;
   readonly disposition:
     | { readonly kind: 'controller-defect'; readonly defect: 'partial-fanout-round' | 'stale-input-dispatch' }
-    | { readonly kind: 'review-blocker'; readonly completionEventIds: readonly string[];
+    | { readonly kind: 'review-blocker' | 'review-provenance'; readonly completionEventIds: readonly string[];
         readonly resolutionArtifact: RecoveryResolutionArtifact };
 }
+export interface RecoveredReviewBinding {
+  readonly completionEventId: string;
+  readonly completionHash: string;
+  readonly review: IndependentReviewReceipt;
+}
 export interface MissionRecoveryObservation {
+  readonly reviewSubject?: ReviewSubject;
+  readonly reviewBindings?: readonly RecoveredReviewBinding[];
   readonly stage: SpecialistInvocationStage;
   readonly contractVersions: Readonly<Record<string, number>>;
   readonly resolutionArtifact?: RecoveryResolutionArtifact;
@@ -56,7 +64,9 @@ export interface MissionRecoveryReceipt {
   readonly roundCorrections: readonly RecoveryRoundCorrection[];
   readonly consumedRounds: number;
   readonly remainingRounds: number;
-  readonly nextAction: 'correction' | 'clarification';
+  readonly consumedCorrectionBatches?: number;
+  readonly remainingCorrectionBatches?: number;
+  readonly nextAction: 'correction' | 'clarification' | 'verification';
 }
 export type MissionRecoveryDecision =
   | { readonly kind: 'refused'; readonly code: string; readonly reasons: readonly string[] }
@@ -175,6 +185,45 @@ function specialistId(value: string): value is SpecialistId {
   return /^core:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 }
 
+function validProvenanceRecovery(input: MissionRecoveryInput, existing: readonly Completion[]): boolean {
+  const disposition = input.request.disposition;
+  const observation = input.observation;
+  const bindings = observation.reviewBindings;
+  if (disposition.kind !== 'review-provenance' || observation.stage !== 'post-implementation'
+    || observation.reviewSubject === undefined || bindings === undefined || bindings.length === 0
+    || bindings.length !== disposition.completionEventIds.length
+    || new Set(disposition.completionEventIds).size !== bindings.length
+    || observation.resolutionArtifact?.path !== disposition.resolutionArtifact.path
+    || observation.resolutionArtifact.sha256 !== disposition.resolutionArtifact.sha256) return false;
+  const events = input.stream.events;
+  const start = events[0];
+  if (start === undefined) return false;
+  const writerId = field(start, 'leadWriterId');
+  const observedSubject = observation.reviewSubject;
+  return bindings.every(binding => {
+    const original = existing.find(item => item.event.eventId === binding.completionEventId);
+    if (original === undefined || !disposition.completionEventIds.includes(binding.completionEventId)
+      || original.event.subject !== 'core:independent-code-reviewer'
+      || original.event.source !== observation.expectedSource || original.completion.verdict !== 'pass'
+      || original.completion.findings.some(finding => finding.classification !== 'advisory')
+      || original.completion.contractVersion !== observation.contractVersions[original.event.subject]
+      || field(original.event, 'inputHash') !== observation.currentInputHashes[original.event.subject]
+      || canonicalJsonHash(original.completion) !== binding.completionHash
+      || !sameReviewSubject(binding.review, observedSubject)
+      || binding.review.taskId !== original.event.missionId || binding.review.writerId !== writerId
+      || binding.review.provenance.kind !== 'native-context'
+      || binding.review.provenance.contextId !== field(original.event, 'contextId')) return false;
+    const requested = events.find(event => event.seq < original.event.seq && matchesRequest(original.event, event)
+      && field(event, 'contractVersion') === original.completion.contractVersion
+      && `runtime:${String(field(event, 'runtime'))}` === observation.expectedSource);
+    return requested !== undefined && events.some(event => event.kind === 'specialist.started'
+      && event.source === observation.expectedSource && event.subject === original.event.subject
+      && event.seq > requested.seq && event.seq < original.event.seq
+      && ['stage', 'reviewRound', 'inputHash', 'contextId'].every(key =>
+        field(event, key) === field(original.event, key)));
+  });
+}
+
 function admitStoppedMission(input: MissionRecoveryInput, projectedHistory = input.stream.events): MissionRecoveryDecision {
   const { stream, request, observation } = input;
   const events = stream.events;
@@ -203,6 +252,9 @@ function admitStoppedMission(input: MissionRecoveryInput, projectedHistory = inp
   if (disposition.kind === 'controller-defect' && (disposition.defect === 'partial-fanout-round'
     ? roundCorrections.length === 0 : inadmissible.length === 0)) {
     return refuse('unproven-controller-defect', 'The journal must prove the requested controller defect; do not reset its budget');
+  }
+  if (disposition.kind === 'review-provenance' && !validProvenanceRecovery(input, existing)) {
+    return refuse('invalid-review-provenance', 'Preserve the actual independent invocation, exact subject, original passing result and contract; provenance cannot upgrade degraded evidence');
   }
   if (disposition.kind === 'review-blocker') {
     let eligible = existing;
@@ -271,7 +323,12 @@ function admitStoppedMission(input: MissionRecoveryInput, projectedHistory = inp
   const consumedRounds = Math.max(0, ...projected.filter((event) =>
     ['specialist.completed', 'specialist.failed'].includes(event.kind)
       && field(event, 'stage') === observation.stage).map((event) => Number(field(event, 'reviewRound'))));
-  if (consumedRounds >= observation.maxRounds) return refuse('review-budget-exhausted', 'The real review budget is exhausted; recovery cannot reset it');
+  if (disposition.kind !== 'review-provenance' && consumedRounds >= observation.maxRounds) return refuse('review-budget-exhausted', 'The real review budget is exhausted; recovery cannot reset it');
+  const consumedCorrectionBatches = projected.filter(event => event.kind === 'lead-writer.completed'
+    && field(event, 'actionKind') === 'run-correction').length;
+  if (disposition.kind === 'review-provenance' && consumedCorrectionBatches > 2) {
+    return refuse('review-budget-exhausted', 'The real correction budget is exhausted; recovery cannot reset it');
+  }
   const preserved = existing.filter((item) => !inadmissible.includes(item.event.eventId)
     && item.completion.contractVersion === observation.contractVersions[item.event.subject]
     && field(item.event, 'inputHash') === observation.currentInputHashes[item.event.subject]);
@@ -282,8 +339,10 @@ function admitStoppedMission(input: MissionRecoveryInput, projectedHistory = inp
     requestHash: canonicalJsonHash(request), request, observation,
     preservedCompletionEventIds: [...preservedIds],
     invalidatedCompletionEventIds: existing.filter((item) => !preservedIds.has(item.event.eventId)).map((item) => item.event.eventId),
-    inadmissibleCompletionEventIds: inadmissible, roundCorrections, consumedRounds, remainingRounds: observation.maxRounds - consumedRounds,
-    nextAction: disposition.kind === 'review-blocker' ? 'clarification' : 'correction',
+    inadmissibleCompletionEventIds: inadmissible, roundCorrections, consumedRounds, remainingRounds: Math.max(0, observation.maxRounds - consumedRounds),
+    ...(disposition.kind !== 'review-provenance' ? {} : { consumedCorrectionBatches,
+      remainingCorrectionBatches: 2 - consumedCorrectionBatches }),
+    nextAction: disposition.kind === 'review-provenance' ? 'verification' : disposition.kind === 'review-blocker' ? 'clarification' : 'correction',
   };
   if (new TextEncoder().encode(canonicalJson(receipt)).length > 16_384) {
     return refuse('recovery-receipt-too-large', 'Narrow the recovery scope to the supported bounded incident');
@@ -313,16 +372,29 @@ function recoveryRequest(value: JsonValue | undefined): value is JsonValue & Mis
   return disposition['kind'] === 'controller-defect'
     ? exactKeys(disposition, ['kind', 'defect'])
       && ['partial-fanout-round', 'stale-input-dispatch'].includes(String(disposition['defect']))
-    : disposition['kind'] === 'review-blocker'
+    : (disposition['kind'] === 'review-blocker' || disposition['kind'] === 'review-provenance')
       && exactKeys(disposition, ['kind', 'completionEventIds', 'resolutionArtifact'])
       && Array.isArray(disposition['completionEventIds']) && disposition['completionEventIds'].length <= 64
       && disposition['completionEventIds'].every((item) => typeof item === 'string')
       && artifact(disposition['resolutionArtifact']);
 }
+function reviewBinding(value: unknown): value is RecoveredReviewBinding {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  return Object.keys(value).length === 3 && 'completionEventId' in value
+    && typeof value.completionEventId === 'string' && 'completionHash' in value
+    && typeof value.completionHash === 'string' && /^sha256:[a-f0-9]{64}$/.test(value.completionHash)
+    && 'review' in value && parseReviewReceipt(value.review) !== undefined;
+}
+export function parseRecoveredReviewBindings(value: unknown): readonly RecoveredReviewBinding[] | undefined {
+  return Array.isArray(value) && value.length > 0 && value.length <= 64 && value.every(reviewBinding)
+    ? value : undefined;
+}
 function recoveryObservation(value: JsonValue | undefined): value is JsonValue & MissionRecoveryObservation {
   if (value === undefined || !record(value)
     || !exactKeys(value, ['stage', 'contractVersions', 'currentInputHashes', 'maxRounds', 'expectedSource',
       ...(value['resolutionArtifact'] === undefined ? [] : ['resolutionArtifact']),
+      ...(value['reviewSubject'] === undefined ? [] : ['reviewSubject']),
+      ...(value['reviewBindings'] === undefined ? [] : ['reviewBindings']),
       ...(value['evidenceDependencies'] === undefined ? [] : ['evidenceDependencies'])])
     || !['pre-implementation', 'post-implementation'].includes(String(value['stage']))
     || !['runtime:codex', 'runtime:claude'].includes(String(value['expectedSource']))
@@ -334,6 +406,9 @@ function recoveryObservation(value: JsonValue | undefined): value is JsonValue &
       && typeof version === 'number' && Number.isSafeInteger(version) && version >= 1 && version <= 10_000)
     && Object.entries(value['currentInputHashes']).every(([key, hash]) => specialistId(key)
       && typeof hash === 'string' && /^sha256:[a-f0-9]{64}$/.test(hash))
+    && (value['reviewSubject'] === undefined || isReviewSubject(value['reviewSubject']))
+    && (value['reviewBindings'] === undefined || (Array.isArray(value['reviewBindings'])
+      && value['reviewBindings'].length <= 64 && value['reviewBindings'].every(reviewBinding)))
     && (value['resolutionArtifact'] === undefined || artifact(value['resolutionArtifact']))
     && (value['evidenceDependencies'] === undefined || (record(value['evidenceDependencies'])
       && Object.keys(value['evidenceDependencies']).length <= 64
@@ -349,7 +424,17 @@ interface ValidatedRecovery {
 }
 function projectRecoveries(events: readonly CanonicalEvent[], recoveries: readonly ValidatedRecovery[]): readonly CanonicalEvent[] {
   return recoveries.reduce((projected, item) => applyRoundCorrections(projected, item.receipt.roundCorrections)
-    .filter((event) => !item.receipt.inadmissibleCompletionEventIds.includes(event.eventId)), events);
+    .filter((event) => !item.receipt.inadmissibleCompletionEventIds.includes(event.eventId))
+    .map(event => {
+      const binding = item.receipt.observation.reviewBindings?.find(value => value.completionEventId === event.eventId);
+      const completion = field(event, 'completion');
+      if (binding === undefined || !record(event.payload) || completion === undefined || !record(completion)) return event;
+      const receipt = binding.review;
+      return { ...event, payload: { ...event.payload, completion: { ...completion, review: {
+        ...receipt, scope: { ...receipt.scope }, provenance: { ...receipt.provenance },
+        resolutions: receipt.resolutions.map(resolution => ({ ...resolution })),
+      } } } };
+    }), events);
 }
 function validateRecoveries(events: readonly CanonicalEvent[]): readonly ValidatedRecovery[] | undefined {
   const validated: ValidatedRecovery[] = [];

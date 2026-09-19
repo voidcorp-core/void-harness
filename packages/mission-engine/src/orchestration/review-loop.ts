@@ -1,12 +1,13 @@
 import type { CanonicalEvent } from '../events/types.js';
-import type { EvidenceObligationState } from '../specialist/evidence-obligations.js';
 import { canonicalJsonHash } from '../evidence/canonical-json.js';
 import {
   parseSpecialistCompletionValue,
   type SpecialistCompletion,
   type SpecialistEvidence,
+  type SpecialistFinding,
   type SpecialistFindingSeverity,
 } from '../specialist/completion.js';
+import type { EvidenceObligationState } from '../specialist/evidence-obligations.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
@@ -21,7 +22,7 @@ export type ReviewLoopStatus =
 export type ReviewFindingSeverity = SpecialistFindingSeverity;
 export type ReviewEvidence = SpecialistEvidence;
 
-export interface NormalizedReviewFinding {
+export interface NormalizedReviewFinding extends Omit<SpecialistFinding, 'id'> {
   readonly findingId: string;
   readonly sourceId: string;
   readonly severity: ReviewFindingSeverity;
@@ -59,6 +60,9 @@ export interface ReviewLoopInput {
   readonly contractVersions: Readonly<Record<string, number>>;
   readonly currentInputHashes: Readonly<Record<string, string>>;
   readonly maxRounds: number;
+  /** Enabled by the durable bounded-review policy; writer batches alone consume this budget. */
+  readonly maxCorrectionBatches?: 2;
+  readonly validProofIds?: readonly string[];
   readonly evidenceObligations?: EvidenceObligationState;
   readonly retainedSpecialists?: readonly SpecialistId[];
   /** Admission-validated contract transition; never supplied by a runtime caller. */
@@ -83,7 +87,7 @@ interface CompletionEnvelope {
   readonly stage: SpecialistInvocationStage;
   readonly reviewRound: number;
   readonly inputHash: string;
-  readonly contextId: string;
+  readonly contextId?: string;
   readonly completion: SpecialistCompletion;
 }
 
@@ -127,8 +131,8 @@ function parseEnvelope(event: CanonicalEvent): CompletionEnvelope | undefined {
     || Number(reviewRound) > 8
     || typeof payload.inputHash !== 'string'
     || !SHA256.test(payload.inputHash)
-    || typeof payload.contextId !== 'string'
-    || !CONTEXT_ID.test(payload.contextId)
+    || (!(typeof payload.contextId === 'string' && CONTEXT_ID.test(payload.contextId))
+      && completion?.review?.provenance.kind !== 'review-artifact')
     || (payload.stage !== 'pre-implementation' && payload.stage !== 'post-implementation')
     || completion === undefined
   ) {
@@ -139,7 +143,7 @@ function parseEnvelope(event: CanonicalEvent): CompletionEnvelope | undefined {
     stage: payload.stage,
     reviewRound: Number(reviewRound),
     inputHash: payload.inputHash,
-    contextId: payload.contextId,
+    ...(typeof payload.contextId === 'string' ? { contextId: payload.contextId } : {}),
     completion,
   };
 }
@@ -154,14 +158,17 @@ function collectCompletions(
   maxRounds: number,
   retainedSpecialists: readonly SpecialistId[],
   contractMigration: ReviewLoopInput['contractMigration'],
+  correctionBatches: number | undefined,
 ): {
   readonly accepted: readonly CompletionEnvelope[];
+  readonly history: readonly CompletionEnvelope[];
   readonly issues: readonly ReviewLoopIssue[];
   readonly highestRound: number;
   readonly nextRound: number;
 } {
   const accepted: CompletionEnvelope[] = [];
   const retained: CompletionEnvelope[] = [];
+  const history: CompletionEnvelope[] = [];
   const issues: ReviewLoopIssue[] = [];
   const completionIds = new Set<string>();
   const contextIds = new Set<string>();
@@ -173,6 +180,8 @@ function collectCompletions(
   for (const event of events) {
     const payload = record(event.payload);
     if (event.kind === 'specialist.failed') {
+      // A transport failure is an unfinished review, never a writer correction.
+      if (correctionBatches !== undefined) continue;
       const round = payload?.reviewRound;
       if (payload?.stage === stage && event.source !== expectedSource) {
         issues.push({
@@ -220,7 +229,9 @@ function collectCompletions(
       continue;
     }
     const duplicateCompletion = completionIds.has(envelope.completion.completionId);
-    const reusedContext = contextIds.has(envelope.contextId);
+    const contextKey = envelope.contextId ?? (envelope.completion.review?.provenance.kind === 'review-artifact'
+      ? `artifact:${envelope.completion.review.provenance.sha256}` : undefined);
+    const reusedContext = contextKey !== undefined && contextIds.has(contextKey);
     if (duplicateCompletion) {
       issues.push({
         code: 'duplicate-completion',
@@ -229,13 +240,13 @@ function collectCompletions(
       });
     }
     if (reusedContext) {
-      issues.push({ code: 'reused-context', eventId: event.eventId, detail: envelope.contextId });
+      issues.push({ code: 'reused-context', eventId: event.eventId, detail: contextKey ?? 'missing' });
     }
     if (duplicateCompletion || reusedContext) {
       continue;
     }
     completionIds.add(envelope.completion.completionId);
-    contextIds.add(envelope.contextId);
+    if (contextKey !== undefined) contextIds.add(contextKey);
     if (envelope.stage !== stage) continue;
     if (stageStartSeqExclusive !== undefined && event.seq <= stageStartSeqExclusive) {
       issues.push({
@@ -249,6 +260,7 @@ function collectCompletions(
       if (stageStartSeqExclusive !== undefined
         && (beforeSeqExclusive === undefined || event.seq < beforeSeqExclusive)) {
         historicalHighestRound = Math.max(historicalHighestRound, envelope.reviewRound);
+        history.push(envelope);
         if (retainedSpecialists.includes(envelope.completion.specialistId)) retained.push(envelope);
         continue;
       }
@@ -261,7 +273,8 @@ function collectCompletions(
     }
     accepted.push(envelope);
   }
-  const firstCurrentRound = historicalHighestRound + 1;
+  const firstCurrentRound = correctionBatches === undefined
+    ? historicalHighestRound + 1 : correctionBatches + 1;
   const currentRounds = [
     ...accepted.map((envelope) => ({
       event: envelope.event,
@@ -336,7 +349,7 @@ function collectCompletions(
     .filter(([id]) => !completedInWindow.has(id))
     .map(([, round]) => round + 1);
   const nextRound = Math.max(firstCurrentRound, highestRound, ...pendingFailureRounds);
-  return { accepted: [...retained, ...validAccepted], issues, highestRound, nextRound };
+  return { accepted: [...retained, ...validAccepted], history, issues, highestRound, nextRound };
 }
 
 function latestBySpecialist(
@@ -358,10 +371,15 @@ function mergeFindings(
   const findings = new Map<string, NormalizedReviewFinding>();
   for (const envelope of completions) {
     for (const finding of envelope.completion.findings) {
-      const proofKey = canonicalJsonHash({ evidence: finding.evidence });
+      const proofKey = canonicalJsonHash({ evidence: finding.evidence,
+        ...(finding.classification === undefined ? {} : {
+          sourceId: finding.id, classification: finding.classification,
+        }),
+      });
       const current = findings.get(proofKey);
       if (current === undefined) {
         findings.set(proofKey, {
+          ...(finding.classification === undefined ? {} : finding),
           findingId: `fnd_${proofKey.slice('sha256:'.length, 29)}`,
           sourceId: finding.id,
           severity: finding.severity,
@@ -395,6 +413,7 @@ function decideStatus(input: {
   readonly missing: readonly SpecialistId[];
   readonly stale: readonly SpecialistId[];
   readonly findings: readonly NormalizedReviewFinding[];
+  readonly correctionBatches?: number;
   readonly attemptedRound: number;
   readonly nextRound: number;
   readonly maxRounds: number;
@@ -413,12 +432,14 @@ function decideStatus(input: {
   const requestsEvidence = input.evidenceObligations === undefined
     ? input.current.some((item) => item.completion.evidenceRequests.length > 0)
     : input.evidenceObligations.blockingObligationIds.length > 0;
-  const requestsChanges = input.current.some((item) =>
-    item.completion.verdict === 'changes-requested'
-    || item.completion.verdict === 'blocked'
-  );
+  const requestsChanges = input.correctionBatches === undefined
+    ? input.current.some((item) => item.completion.verdict === 'changes-requested'
+      || item.completion.verdict === 'blocked')
+    : input.findings.some(finding => finding.classification === 'blocking');
   if (requestsEvidence || requestsChanges) {
-    return input.attemptedRound >= input.maxRounds ? 'blocked' : 'correction-required';
+    const exhausted = input.correctionBatches === undefined
+      ? input.attemptedRound >= input.maxRounds : input.correctionBatches >= 2;
+    return exhausted ? 'blocked' : 'correction-required';
   }
   return 'ready-for-verdict';
 }
@@ -460,6 +481,12 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
   )) {
     throw new Error('REVIEW_LOOP_INVALID: retained specialists require an explicit correction window');
   }
+  if (input.maxCorrectionBatches !== undefined && input.maxCorrectionBatches !== 2) {
+    throw new Error('REVIEW_LOOP_INVALID: bounded review allows exactly two correction batches');
+  }
+  const correctionBatches = input.maxCorrectionBatches === undefined ? undefined
+    : input.events.filter(event => event.kind === 'lead-writer.completed'
+      && record(event.payload)?.['actionKind'] === 'run-correction').length;
   const collected = collectCompletions(
     input.events,
     input.stage,
@@ -470,6 +497,7 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     input.maxRounds,
     input.retainedSpecialists ?? [],
     input.contractMigration,
+    correctionBatches,
   );
   const configurationIssues: ReviewLoopIssue[] = input.requiredSpecialists.flatMap((id) => {
     const version = input.contractVersions[id];
@@ -517,13 +545,21 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     && !current.some(x => x.completion.specialistId === input.contractMigration?.specialistId);
   const nextRound = migrationPending
     ? Math.max(collected.nextRound, input.contractMigration?.reviewRound ?? 1) : collected.nextRound;
-  const findings = mergeFindings(current);
+  const history = input.maxCorrectionBatches === undefined ? [] : collected.history.filter(item =>
+    input.requiredSpecialists.includes(item.completion.specialistId));
+  const resolved = new Set(current.flatMap(item => item.completion.review?.resolutions ?? [])
+    .filter(resolution => resolution.status === 'resolved' && resolution.proofIds.length > 0
+      && resolution.proofIds.every(id => input.validProofIds?.includes(id)))
+    .map(resolution => resolution.findingId));
+  const findings = mergeFindings([...history, ...current])
+    .filter(finding => !resolved.has(finding.sourceId));
   const status = decideStatus({
     issues,
     current,
     missing,
     stale,
     findings,
+    ...(correctionBatches === undefined ? {} : { correctionBatches }),
     attemptedRound: collected.highestRound,
     nextRound,
     maxRounds: input.maxRounds,

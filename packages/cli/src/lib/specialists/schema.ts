@@ -197,6 +197,12 @@ export function renderSpecialistInstructions(contract: SpecialistContract): stri
     'Your final response is consumed directly by JSON.parse. Return exactly one raw JSON object. Do not use Markdown, a code fence, headings, or surrounding prose. The first character must be `{` and the last must be `}`:',
     outputExample,
     '',
+    ...(contract.id === 'core:independent-code-reviewer' ? [
+    'When the dispatch includes `reviewSubject`, also return `review`: echo taskId, baseCommit, reviewedCommit and acceptanceCriteriaHash exactly; add the actual reviewerId, the original writerId, readOnly:true, the exact requested reviewScope as scope, proofIds, resolutions, and provenance. Native provenance is {kind:"native-context",contextId}; unavailable/refused native identity uses {kind:"review-artifact",path,sha256,limitation} linked to the real recorded invocation and retained structured result. Never invent an identity or independence.',
+    'A bounded finding also has classification:"advisory" or classification:"blocking". Blocking requires criterion, consequence, resolutionCondition and basis:"initial-scope-defect"|"regression", supported by its evidence. Style, refactoring preferences and scope expansion are advisory. Severity alone does not block. Advisory findings never request a correction.',
+    'For a targeted scope, inspect only the named findings and affected dependencies. Preserve unresolved blockers; a resolution is {findingId,status:"resolved"|"unresolved",proofIds:[...]}, and resolved requires observed fresh proof references. Report a new blocker only for a demonstrated regression or concrete defect in the initial acceptance scope. Do not repeat the general review or widen the panel.',
+    '',
+    ] : []),
     'Use an empty array when a collection has no entries. Echo this specialist id and contract version exactly. A completion id may be accepted only once. If required evidence or isolation is unavailable, use `degraded` or `blocked` and explain it in `limitations`.',
   ].join('\n');
 }

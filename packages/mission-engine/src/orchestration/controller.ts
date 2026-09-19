@@ -1,29 +1,31 @@
-import { validatedSpecialistContractMigrations } from './specialist-contract-migration.js';
 import type { EventStreamState } from '../events/reducer.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
-import type { EvidenceContext } from '../evidence/types.js';
-import { parseEvidence } from '../evidence/schema.js';
 import { canonicalJsonHash } from '../evidence/canonical-json.js';
-import { parseSpecialistCompletionValue } from '../specialist/completion.js';
-import { validatedRecoveredReviewEvents } from './mission-recovery.js';
-import {
-  reduceEvidenceObligations,
-  type EvidenceObligationState,
-} from '../specialist/evidence-obligations.js';
+import { assessEvidence } from '../evidence/invalidation.js';
+import { parseEvidence } from '../evidence/schema.js';
+import type { EvidenceContext } from '../evidence/types.js';
 import {
   deriveMissionVerdict,
   type MissionVerdict,
   type MissionVerdictStatus,
 } from '../evidence/verdict.js';
+import { parseSpecialistCompletionValue } from '../specialist/completion.js';
+import {
+  type EvidenceObligationState,
+  reduceEvidenceObligations,
+} from '../specialist/evidence-obligations.js';
+import { type ReviewScope, type ReviewSubject, sameReviewSubject } from '../specialist/review-receipt.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
   SpecialistRoutingDecision,
 } from '../specialist/routing.js';
+import { validatedRecoveredReviewEvents } from './mission-recovery.js';
 import {
   type ReviewLoopState,
   reduceReviewLoop,
 } from './review-loop.js';
+import { validatedSpecialistContractMigrations } from './specialist-contract-migration.js';
 
 export interface MissionSpecialistPlan {
   readonly planHash: string;
@@ -54,6 +56,7 @@ export type MissionTeamAction =
       readonly specialistIds: readonly SpecialistId[];
       readonly reviewRound: number;
       readonly stage: SpecialistInvocationStage;
+      readonly reviewScope?: ReviewScope;
     }
   | {
       readonly kind: 'run-preparation-correction';
@@ -83,6 +86,7 @@ export interface MissionTeamControllerInput {
     Readonly<Record<string, string>>
   >>;
   readonly maxReviewRounds: number;
+  readonly reviewSubject?: ReviewSubject;
   readonly specialistRuntime: SpecialistRuntimeCapability;
 }
 
@@ -100,6 +104,7 @@ interface MissionStart {
   readonly valid: boolean;
   readonly runtime: 'claude' | 'codex' | undefined;
   readonly strictLifecycle: boolean;
+  readonly boundedReview: boolean;
 }
 
 interface TeamEventPayload extends Readonly<Record<string, JsonValue>> {
@@ -126,6 +131,12 @@ function missionStart(input: MissionTeamControllerInput): MissionStart {
   const runtime = payload?.runtime;
   const routingHash = payload?.routingHash;
   return {
+    boundedReview: payload?.['reviewPolicy'] === 'bounded-corrections-v1'
+      || input.stream.events.some(event => {
+        if (event.kind !== 'mission.recovered') return false;
+        const request = record(lifecycleField(event, 'request') ?? null);
+        return record(request?.['disposition'] ?? null)?.['kind'] === 'review-provenance';
+      }),
     leadWriterId: typeof leadWriterId === 'string' ? leadWriterId : '',
     planHash: typeof planHash === 'string' ? planHash : '',
     runtime: runtime === 'claude' || runtime === 'codex' ? runtime : undefined,
@@ -169,11 +180,14 @@ function writerLifecycleViolation(
 function requiredSpecialists(
   plan: MissionSpecialistPlan,
   stage: SpecialistInvocationStage,
+  boundedReview = false,
 ): readonly SpecialistId[] {
   if (!Array.isArray(plan.specialists)) return [];
   return plan.specialists
     .filter((specialist) =>
-      specialist.state === 'applicable' && specialist.stages?.includes(stage))
+      specialist.state === 'applicable' && specialist.stages?.includes(stage)
+      && (!boundedReview || stage !== 'post-implementation'
+        || specialist.specialistId === 'core:independent-code-reviewer'))
     .map((specialist) => specialist.specialistId);
 }
 
@@ -241,7 +255,11 @@ function unboundCompletionReasons(
       && event.kind === 'specialist.started'
       && event.source === `runtime:${runtime ?? 'invalid'}`
       && sameSpecialistDispatch(event, completion)
-      && lifecycleField(event, 'contextId') === lifecycleField(completion, 'contextId'));
+      && (lifecycleField(completion, 'reviewInvocationEventId') === undefined
+        ? lifecycleField(event, 'contextId') === lifecycleField(completion, 'contextId')
+        : event.eventId === lifecycleField(completion, 'reviewInvocationEventId')
+          && lifecycleField(event, 'reviewerId') === parseSpecialistCompletionValue(
+            lifecycleField(completion, 'completion'))?.review?.reviewerId));
     const requested = started === undefined ? undefined : input.stream.events.find((event) =>
       event.seq < started.seq
       && event.kind === 'specialist.requested'
@@ -356,12 +374,14 @@ function decideReviewPhase(
         ? {
             kind: 'run-preparation-correction',
             writerId: start.leadWriterId,
-            findingIds: review.findings.map((finding) => finding.findingId),
+            findingIds: review.findings.filter(finding => !start.boundedReview
+              || finding.classification === 'blocking').map((finding) => finding.findingId),
           }
         : {
             kind: 'run-correction',
             writerId: start.leadWriterId,
-            findingIds: review.findings.map((finding) => finding.findingId),
+            findingIds: review.findings.filter(finding => !start.boundedReview
+              || finding.classification === 'blocking').map((finding) => finding.findingId),
           },
       review,
       verdict: overrideVerdict(baseVerdict, 'blocked', reasons),
@@ -387,6 +407,33 @@ function decideReviewPhase(
     verdict: baseVerdict,
     reasons: baseVerdict.reasons,
   };
+}
+
+function boundedReceiptReasons(
+  input: MissionTeamControllerInput, start: MissionStart, events: readonly CanonicalEvent[],
+): readonly string[] {
+  const lastWriter = writerCompletions(input).at(-1)?.seq ?? 0;
+  return events.filter(event => event.kind === 'specialist.completed' && event.seq > lastWriter
+    && event.subject === 'core:independent-code-reviewer'
+    && lifecycleField(event, 'stage') === 'post-implementation').flatMap(event => {
+    const result = parseSpecialistCompletionValue(lifecycleField(event, 'completion'));
+    const receipt = result?.review;
+    if (result === undefined || receipt === undefined || input.reviewSubject === undefined) {
+      return ['Independent review requires its durable committed subject and reviewer receipt'];
+    }
+    if (!sameReviewSubject(receipt, input.reviewSubject) || receipt.taskId !== event.missionId
+      || receipt.writerId !== start.leadWriterId || receipt.reviewerId === start.leadWriterId) {
+      return ['Independent review receipt does not match the observed task, commit, base, or writer'];
+    }
+    if (receipt.provenance.kind === 'native-context'
+      && receipt.provenance.contextId !== lifecycleField(event, 'contextId')) {
+      return ['Independent reviewer native provenance does not match its actual invocation'];
+    }
+    if (result.findings.some(finding => finding.classification === undefined)) {
+      return ['Bounded findings require an explicit consequence classification'];
+    }
+    return [];
+  });
 }
 
 function recoveredPreparationTargets(events: readonly CanonicalEvent[]): {
@@ -586,7 +633,13 @@ export function orchestrateMissionTeam(
       'effective specialist runtime capability is invalid or missing',
     ]);
   }
-  if (input.specialistRuntime.status === 'unavailable') {
+  const traceableReview = start.boundedReview && input.reviewSubject !== undefined
+    && reviewEvents.some(event => event.kind === 'specialist.completed'
+      && event.subject === 'core:independent-code-reviewer'
+      && parseSpecialistCompletionValue(lifecycleField(event, 'completion'))?.review !== undefined)
+    && boundedReceiptReasons(input, start, reviewEvents).length === 0
+    && unboundCompletionReasons(input, start.runtime).length === 0;
+  if (input.specialistRuntime.status === 'unavailable' && !traceableReview) {
     const limitations = input.specialistRuntime.limitations.length > 0
       ? input.specialistRuntime.limitations
       : ['effective specialist runtime capability is not available'];
@@ -724,16 +777,29 @@ export function orchestrateMissionTeam(
     stageStartSeqExclusive: firstImplementationSeq,
     afterSeqExclusive: lastWriterSeq,
     events: reviewEvents,
-    requiredSpecialists: requiredSpecialists(input.plan, 'post-implementation'),
+    requiredSpecialists: requiredSpecialists(input.plan, 'post-implementation', start.boundedReview),
     contractVersions: contractVersions(input.plan),
     currentInputHashes: input.currentInputHashesByStage['post-implementation'],
-    maxRounds: input.maxReviewRounds,
+    maxRounds: start.boundedReview ? 3 : input.maxReviewRounds,
+    ...(start.boundedReview ? { maxCorrectionBatches: 2 as const } : {}),
     evidenceObligations: obligations,
+    validProofIds: input.stream.events.flatMap(event => {
+      if (event.kind !== 'evidence.recorded') return [];
+      const parsed = parseEvidence(lifecycleField(event, 'evidence'));
+      return parsed.ok && parsed.value.evidenceId === event.subject
+        && parsed.value.missionId === event.missionId && parsed.value.status === 'passed'
+        && assessEvidence(parsed.value, input.evidenceContext).status === 'fresh'
+        ? [parsed.value.evidenceId] : [];
+    }),
     ...(migration === undefined ? {} : { contractMigration: {
       specialistId: migration.receipt.specialistId, afterSeq: migration.seq,
       reviewRound: migration.receipt.reviewRound,
     } }),
   });
+  if (start.boundedReview && postReview.missingSpecialists.length === 0) {
+    const receiptReasons = boundedReceiptReasons(input, start, reviewEvents);
+    if (receiptReasons.length > 0) return stopped('degraded', postReview, baseVerdict, receiptReasons);
+  }
   if (postReview.readyForVerdict) {
     const completionEvidence = obligationStop(
       evidenceObligations(input, expectedSource, 'completion'), postReview, baseVerdict,
@@ -742,12 +808,26 @@ export function orchestrateMissionTeam(
       return applyRuntimeCertification(completionEvidence, input.specialistRuntime);
     }
   }
-  const postDecision = decideReviewPhase(
+  let postDecision = decideReviewPhase(
     start,
     postReview,
     baseVerdict,
     'post-implementation',
   );
+  if (start.boundedReview && postDecision.action.kind === 'invoke-specialists') {
+    const previous = reviewEvents.filter(event => event.kind === 'specialist.completed'
+      && event.subject === 'core:independent-code-reviewer'
+      && lifecycleField(event, 'stage') === 'post-implementation' && event.seq < lastWriterSeq)
+      .map(event => parseSpecialistCompletionValue(lifecycleField(event, 'completion')))
+      .filter(completion => completion !== undefined);
+    const blockers = previous.flatMap(completion => completion.findings)
+      .filter(finding => finding.classification === 'blocking');
+    const reviewScope: ReviewScope = previous.length === 0 ? { kind: 'general' } : {
+      kind: 'targeted', findingIds: [...new Set(blockers.map(finding => finding.id))],
+      affectedPaths: [...new Set(blockers.flatMap(finding => finding.evidence.map(proof => proof.path)))],
+    };
+    postDecision = { ...postDecision, action: { ...postDecision.action, reviewScope } };
+  }
   if (pendingEvidence !== undefined) {
     // Due proof still refuses review acceptance. Only the admitted correction can produce it.
     const reasons = [...postDecision.reasons, ...pendingEvidence.reasons];

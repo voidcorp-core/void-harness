@@ -1,70 +1,74 @@
-import { loadSpecialistMigrationComparisonCatalog, observeSpecialistMigrationAssets, parseSpecialistContractMigrationRequest, recordSpecialistContractMigration } from '../lib/runs/specialist-contract-migration.js';
-import { parseSpecialistEvidenceRequest, parseSpecialistEvidenceResponse, requestSpecialistEvidence, recordSpecialistEvidence } from '../lib/runs/specialist-evidence.js';
-import { parseMissionRecoveryRequest, recordStoppedMissionRecovery } from '../lib/runs/mission-recovery.js';
-import { observedMissionLifecycle, requireOpenMission } from '../lib/runs/mission-lifecycle.js';
 import { execFile as nodeExecFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { basename, extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
-  canonicalJsonHash,
-  validatedSpecialistContractMigrations,
-  createSpecialistDispatch,
-  planLensExecution,
-  type LensPlan,
-  type OrchestrationCapability,
-  compileMissionPlan,
-  classifyRisk,
-  mergePolicies,
-  orchestrateMissionTeam,
-  selectMissionMode,
-  type MissionTeamAction,
-  type MissionPlan,
-  type MissionSpecialistPlan,
   type CanonicalEvent,
-  type SpecialistRuntimeCapability,
-  type SpecialistDispatchEnvelope,
-  type SpecialistDispatchRuntime,
-  type MissionVerdictStatus,
-  type RecoveryDecision,
-  citedPaths,
   type ContextArtifact,
   type ContextPackInput,
-  type SpecialistInvocationStage,
-  type MissionRecoveryRequest,
+  canonicalJsonHash,
+  citedPaths,
+  classifyRisk,
+  compileMissionPlan,
+  createSpecialistDispatch,
+  type LensPlan,
+  type MissionPlan,
   type MissionRecoveryObservation,
+  type MissionRecoveryRequest,
+  type MissionSpecialistPlan,
+  type MissionTeamAction,
+  type MissionVerdictStatus,
+  mergePolicies,
+  type OrchestrationCapability,
+  orchestrateMissionTeam,
+  parseRecoveredReviewBindings,
+  parseSpecialistCompletionValue,
+  planLensExecution,
+  type RecoveryDecision,
+  type SpecialistDispatchEnvelope,
+  type SpecialistDispatchRuntime,
+  type SpecialistInvocationStage,
+  type SpecialistRuntimeCapability,
+  sameReviewSubject,
+  selectMissionMode,
+  validatedRecoveredReviewEvents,
+  validatedSpecialistContractMigrations,
 } from '@voidcorp/mission-engine';
-import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
-import { findCoreSource } from '../lib/paths.js';
-import { type ProjectRoots, resolveProjectRoots } from '../lib/project-roots.js';
 import { observeOrchestrationCapability } from '../lib/orchestration-capability.js';
-import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
+import { findCoreSource } from '../lib/paths.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
 import { loadProfiles } from '../lib/profile-loader.js';
-import { readBoundedProjectFile } from '../lib/safe-read.js';
-import { loadSpecialists } from '../lib/specialists/load.js';
+import { type ProjectRoots, resolveProjectRoots } from '../lib/project-roots.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
+import { observedMissionLifecycle, requireOpenMission } from '../lib/runs/mission-lifecycle.js';
+import { parseMissionRecoveryRequest, recordStoppedMissionRecovery } from '../lib/runs/mission-recovery.js';
 import { collectKnownSecrets, redactText } from '../lib/runs/redact.js';
-import {
-  createMission,
-  inspectMission,
-  loadMissionControllerPlan,
-  missionControllerRoutingHash,
-  resumeMission,
-  writeMissionControllerPlan,
-  type MissionMode,
-  type MissionControllerTicketBinding,
-} from '../lib/runs/store.js';
-import { verifyMissionCommand } from '../lib/runs/verify.js';
+import { loadSpecialistMigrationComparisonCatalog, observeSpecialistMigrationAssets, parseSpecialistContractMigrationRequest, recordSpecialistContractMigration } from '../lib/runs/specialist-contract-migration.js';
+import { parseSpecialistEvidenceRequest, parseSpecialistEvidenceResponse, recordSpecialistEvidence, requestSpecialistEvidence } from '../lib/runs/specialist-evidence.js';
 import {
   parseSpecialistLifecycleInput,
   recordSpecialistLifecycle,
   recordSpecialistRequests,
   type SpecialistLifecycleStatus,
 } from '../lib/runs/specialist-lifecycle.js';
+import {
+  createMission,
+  inspectMission,
+  loadMissionControllerPlan,
+  type MissionControllerTicketBinding,
+  type MissionMode,
+  missionControllerRoutingHash,
+  resumeMission,
+  writeMissionControllerPlan,
+} from '../lib/runs/store.js';
+import { verifyMissionCommand } from '../lib/runs/verify.js';
+import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
+import { readBoundedProjectFile } from '../lib/safe-read.js';
+import { loadSpecialists } from '../lib/specialists/load.js';
 import { detectProfileInput, detectStack } from '../lib/stack.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
@@ -609,6 +613,8 @@ async function gitFiles(root: string): Promise<DetectedFiles> {
 }
 
 interface MissionReviewSubject {
+  readonly baseCommit?: string;
+  readonly reviewedCommit?: string;
   readonly diff: string;
   readonly files: DetectedFiles;
   readonly hash: string;
@@ -627,9 +633,10 @@ async function missionReviewBase(root: string): Promise<string> {
 
 /** Git 2.50: diff <commit> compares the complete worktree with a fixed commit.
  * https://git-scm.com/docs/git-diff/2.50.0 */
-async function captureMissionReviewSubject(
+export async function captureMissionReviewSubject(
   root: string,
   baseCommit: string | undefined,
+  committed = false,
 ): Promise<MissionReviewSubject> {
   if (baseCommit === undefined) {
     throw new Error(
@@ -644,15 +651,26 @@ async function captureMissionReviewSubject(
   }
   try {
     const paths = ['--', '.', ':(exclude).void/machine/**'];
+    const reviewedCommit = committed ? await missionReviewBase(root) : undefined;
+    if (committed) {
+      const dirty = await execFile('git', ['diff', '--no-ext-diff', '--no-textconv',
+        '--name-only', 'HEAD', ...paths], options);
+      if (dirty.stdout !== '') {
+        throw new Error('MISSION_REVIEW_UNCOMMITTED: commit the implementation before independent review');
+      }
+    }
+    const range = reviewedCommit === undefined ? [baseCommit] : [baseCommit, reviewedCommit];
     const [patch, names, untracked] = await Promise.all([
       execFile('git', ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--full-index',
-        '--no-renames', '--relative', baseCommit, ...paths], options),
+        '--no-renames', '--relative', ...range, ...paths], options),
       execFile('git', ['diff', '--no-ext-diff', '--no-textconv', '--name-only', '-z',
-        '--no-renames', '--relative', baseCommit, ...paths], options),
+        '--no-renames', '--relative', ...range, ...paths], options),
       execFile('git', ['ls-files', '--others', '--exclude-standard', '-z', ...paths], options),
     ]);
     if (untracked.stdout !== '') {
-      throw new Error('MISSION_REVIEW_UNTRACKED: stage new files before requesting implementation review');
+      throw new Error(committed
+        ? 'MISSION_REVIEW_UNTRACKED: commit new files before requesting independent review'
+        : 'MISSION_REVIEW_UNTRACKED: stage new files before requesting implementation review');
     }
     if (/^GIT binary patch$/m.test(patch.stdout)) {
       throw new Error('MISSION_REVIEW_BINARY_UNSUPPORTED: encoded binary content cannot be safely reviewed');
@@ -661,10 +679,15 @@ async function captureMissionReviewSubject(
       files: Object.freeze(names.stdout.split('\0').filter(Boolean).sort()),
       status: 'known' as const,
     });
+    if (reviewedCommit !== undefined && reviewedCommit !== await missionReviewBase(root)) {
+      throw new Error('MISSION_REVIEW_CHANGED: HEAD changed while capturing the review subject');
+    }
     return Object.freeze({
+      ...(reviewedCommit === undefined ? {} : { baseCommit, reviewedCommit }),
       diff: patch.stdout,
       files,
-      hash: canonicalJsonHash({ baseCommit, diff: patch.stdout, files: files.files }),
+      hash: canonicalJsonHash({ baseCommit, ...(reviewedCommit === undefined ? {} : { reviewedCommit }),
+        diff: patch.stdout, files: files.files }),
     });
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('MISSION_REVIEW_')) throw error;
@@ -926,11 +949,13 @@ export async function recoverStoppedMission(
   }
   const identity = missionRuntimeIdentity(inspected.stream.events);
   const coordinator = coordinatorRuntimeIdentity(process.env);
-  if (!identity?.attested || !coordinator.attested || coordinator.runtime !== identity.runtime) {
+  const provenanceRecovery = request.disposition.kind === 'review-provenance';
+  if (identity === undefined || (coordinator.attested && coordinator.runtime !== identity.runtime)
+    || (!provenanceRecovery && (!identity.attested || !coordinator.attested))) {
     throw new Error('MISSION_RECOVERY_RUNTIME: observe the original native runtime before recovery');
   }
   const capability = await specialistCapabilityFor(installRoot, identity.runtime);
-  if (capability.status === 'unavailable') {
+  if (capability.status === 'unavailable' && !provenanceRecovery) {
     throw new Error(`MISSION_RECOVERY_CAPABILITY: ${capability.limitations.join('; ')}`);
   }
   const migration = validatedSpecialistContractMigrations(inspected.stream.events, stored.plan);
@@ -972,9 +997,19 @@ export async function recoverStoppedMission(
       }
     }
   }
-  const resolutionArtifact = request.disposition.kind === 'review-blocker'
-    ? await recoveryResolutionArtifact(workRoot, request.disposition.resolutionArtifact.path) : undefined;
+  const provenance = request.disposition.kind !== 'review-provenance' ? undefined
+    : await readRecoveryReviewBindings(workRoot, request.disposition.resolutionArtifact.path);
+  const resolutionArtifact = provenance?.artifact ?? (request.disposition.kind === 'review-blocker'
+    ? await recoveryResolutionArtifact(workRoot, request.disposition.resolutionArtifact.path) : undefined);
+  const committedSubject = provenance === undefined ? undefined
+    : await captureMissionReviewSubject(workRoot, stored.baseCommit, true);
   const observation: MissionRecoveryObservation = {
+    ...(provenance === undefined || committedSubject?.baseCommit === undefined
+      || committedSubject.reviewedCommit === undefined ? {} : {
+      reviewBindings: provenance.bindings,
+      reviewSubject: { taskId: missionId, baseCommit: committedSubject.baseCommit,
+        reviewedCommit: committedSubject.reviewedCommit, acceptanceCriteriaHash: stored.ticket.contentHash },
+    }),
     stage: implemented ? 'post-implementation' : 'pre-implementation', maxRounds: 2,
     evidenceDependencies: { 'git:working-tree': current.project.diffHash },
     expectedSource: identity.runtime === 'codex' ? 'runtime:codex' : 'runtime:claude',
@@ -985,6 +1020,17 @@ export async function recoverStoppedMission(
   const result = await recordStoppedMissionRecovery(installRoot, missionId, request, observation);
   return { ...result, provenance: { coreRoot, catalogHash: canonicalJsonHash(catalog),
     routingHash: stored.routingHash, runtime: identity.runtime, capability } };
+}
+
+async function readRecoveryReviewBindings(root: string, path: string) {
+  const loaded = await readBoundedProjectFile({ root, inputPath: path, maxBytes: 64 * 1024,
+    pathEscapeMessage: 'MISSION_RECOVERY_PROVENANCE: artifact escapes project root',
+    invalidMessage: 'MISSION_RECOVERY_PROVENANCE: artifact must be a bounded stable file' });
+  const value: unknown = JSON.parse(loaded.body);
+  const bindings = isUnknownRecord(value) && Object.keys(value).length === 1
+    ? parseRecoveredReviewBindings(value['bindings']) : undefined;
+  if (bindings === undefined) throw new Error('MISSION_RECOVERY_PROVENANCE: exact original review bindings are required');
+  return { bindings, artifact: { path, sha256: `sha256:${createHash('sha256').update(loaded.body).digest('hex')}` } };
 }
 
 async function evidenceRuntime(roots: ProjectRoots, missionId: string) {
@@ -1049,8 +1095,12 @@ export async function dispatchMissionSpecialists(
     event.kind === 'lead-writer.completed'
     && isUnknownRecord(event.payload)
     && event.payload.actionKind !== 'run-preparation-correction');
+  const boundedReview = inspected.stream.events.some(event => event.kind === 'mission.started'
+    && objectField(event.payload, 'reviewPolicy') === 'bounded-corrections-v1')
+    || inspected.stream.events.some(event => event.kind === 'mission.recovered'
+      && objectField(objectField(objectField(event.payload, 'request'), 'disposition'), 'kind') === 'review-provenance');
   const reviewSubject = implemented
-    ? await captureMissionReviewSubject(workRoot, stored.baseCommit)
+    ? await captureMissionReviewSubject(workRoot, stored.baseCommit, boundedReview)
     : undefined;
   const live = await planBoundMission(
     workRoot, stored.ticket.path, generatedAt, reviewSubject?.files,
@@ -1128,7 +1178,25 @@ export async function dispatchMissionSpecialists(
   const specialistRuntime = runtimeIdentity === undefined
     ? rawCapability
     : constrainCapabilityByAttestation(runtimeIdentity, rawCapability);
+  const reviewBinding = reviewSubject?.reviewedCommit === undefined || reviewSubject.baseCommit === undefined
+    ? undefined : { taskId: input.missionId, baseCommit: reviewSubject.baseCommit,
+      reviewedCommit: reviewSubject.reviewedCommit, acceptanceCriteriaHash: stored.ticket.contentHash };
+  if (reviewBinding !== undefined) {
+    const restored = validatedRecoveredReviewEvents(inspected.stream.events);
+    if (!restored.ok) throw new Error(`MISSION_RECOVERY_INVALID: ${restored.reasons.join('; ')}`);
+    const hasProvenanceRecovery = inspected.stream.events.some(event => event.kind === 'mission.recovered'
+      && objectField(objectField(objectField(event.payload, 'request'), 'disposition'), 'kind') === 'review-provenance');
+    if (hasProvenanceRecovery) for (const event of restored.events) {
+      if (event.kind !== 'specialist.completed') continue;
+      const receipt = parseSpecialistCompletionValue(objectField(event.payload, 'completion'))?.review;
+      const hash = objectField(event.payload, 'inputHash');
+      if (receipt !== undefined && sameReviewSubject(receipt, reviewBinding) && typeof hash === 'string') {
+        currentInputHashes[event.subject] = hash;
+      }
+    }
+  }
   const decision = orchestrateMissionTeam({
+    ...(reviewBinding === undefined ? {} : { reviewSubject: reviewBinding }),
     plan: stored.plan,
     stream: inspected.stream,
     evidenceContext: { dependencies: current === undefined ? {}
@@ -1145,6 +1213,8 @@ export async function dispatchMissionSpecialists(
         missionId: input.missionId,
         runtime,
         plan: migration.plan,
+        ...(decision.action.stage !== 'post-implementation' || reviewBinding === undefined
+          ? {} : { reviewSubject: reviewBinding }),
         action: decision.action,
         currentInputHashes: decision.action.stage === 'pre-implementation'
           ? preImplementationInputHashes
@@ -1603,7 +1673,7 @@ export async function mission(args: readonly string[]): Promise<void> {
         parsed.status,
         await readLifecycleJson(root, parsed.inputPath),
       );
-      await recordSpecialistLifecycle(journal, parsed.missionId, lifecycle);
+      await recordSpecialistLifecycle(journal, parsed.missionId, lifecycle, root);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify({ recorded: true, status: parsed.status })}\n`
@@ -1680,6 +1750,7 @@ export async function mission(args: readonly string[]): Promise<void> {
                 leadWriterId: 'writer:primary',
                 runtime: runtimeIdentity.runtime,
                 runtimeAttested: runtimeIdentity.attested,
+                reviewPolicy: 'bounded-corrections-v1',
               },
           }),
       });

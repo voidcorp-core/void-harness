@@ -38,3 +38,5 @@ export * from './orchestration/mission-recovery.js';
 export * from './specialist/evidence-obligations.js';
 
 export * from './orchestration/specialist-contract-migration.js';
+
+export * from './specialist/review-receipt.js';

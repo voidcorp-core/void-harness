@@ -1,4 +1,3 @@
-import { requireOpenMission } from './mission-lifecycle.js';
 import { createHash } from 'node:crypto';
 import {
   lstat,
@@ -8,32 +7,31 @@ import {
   realpath,
   stat,
 } from 'node:fs/promises';
-import { voidReadPath } from '@voidcorp/hook-runner';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import { 
+  MAX_EVENT_LOG_BYTES,voidReadPath, 
+  writeSequencedEvent,
+  writeSequencedEventOnce,} from '@voidcorp/hook-runner';
 import {
-  deriveMissionVerdict,
-  canonicalJsonHash,
-  parseEventLine,
-  planMissionRecovery,
-  recoveryCheckpoint,
-  replayEventLog,
-  type Evidence,
   type CanonicalEvent,
-  type EvidenceContext,
+  canonicalJsonHash,
+  deriveMissionVerdict,
   type EventDraft,
   type EventStreamState,
+  type Evidence,
+  type EvidenceContext,
   type JsonValue,
-  type MissionVerdict,
   type MissionSpecialistPlan,
+  type MissionVerdict,
+  parseEventLine,
+  planMissionRecovery,
   type RecoveryDecision,
+  recoveryCheckpoint,
+  replayEventLog,
 } from '@voidcorp/mission-engine';
-import {
-  MAX_EVENT_LOG_BYTES,
-  writeSequencedEvent,
-  writeSequencedEventOnce,
-} from '@voidcorp/hook-runner';
-import { collectKnownSecrets, redactText } from './redact.js';
 import { readBoundedProjectFile } from '../safe-read.js';
+import { requireOpenMission } from './mission-lifecycle.js';
+import { collectKnownSecrets, redactText } from './redact.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 
@@ -51,6 +49,7 @@ export interface CreateMissionInput {
     readonly leadWriterId: string;
     readonly runtime: 'claude' | 'codex';
     readonly runtimeAttested?: boolean;
+    readonly reviewPolicy?: 'bounded-corrections-v1';
   };
   readonly now?: Date;
 }
@@ -204,6 +203,8 @@ export async function createMission(
       || !/^[A-Za-z0-9][A-Za-z0-9:._-]{3,127}$/.test(input.teamController.leadWriterId)
       || (input.teamController.runtime !== 'claude'
         && input.teamController.runtime !== 'codex')
+      || (input.teamController.reviewPolicy !== undefined
+        && input.teamController.reviewPolicy !== 'bounded-corrections-v1')
       || (input.teamController.runtimeAttested !== undefined
         && typeof input.teamController.runtimeAttested !== 'boolean')
     )
@@ -245,6 +246,8 @@ export async function createMission(
               leadWriterId: safeInput.teamController.leadWriterId,
               runtime: safeInput.teamController.runtime,
               runtimeAttested: safeInput.teamController.runtimeAttested === true,
+              ...(safeInput.teamController.reviewPolicy === undefined ? {}
+                : { reviewPolicy: safeInput.teamController.reviewPolicy }),
             }),
       },
     },

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
-  canonicalJson, canonicalJsonHash, parseEventLine, planStoppedMissionRecovery,
-  type MissionRecoveryObservation, type MissionRecoveryRequest,
+  canonicalJson, canonicalJsonHash, 
+  type MissionRecoveryObservation, type MissionRecoveryRequest,parseEventLine, planStoppedMissionRecovery,
 } from '@voidcorp/mission-engine';
 import { inspectMission } from './store.js';
 
@@ -67,7 +67,7 @@ export function parseMissionRecoveryRequest(value: unknown): MissionRecoveryRequ
   }
   const ids = disposition['completionEventIds'];
   const artifact = disposition['resolutionArtifact'];
-  if (disposition['kind'] !== 'review-blocker'
+  if ((disposition['kind'] !== 'review-blocker' && disposition['kind'] !== 'review-provenance')
     || !exact(disposition, ['kind', 'completionEventIds', 'resolutionArtifact'])
     || !Array.isArray(ids) || ids.length < 1 || ids.length > 64 || !ids.every(eventId)
     || new Set(ids).size !== ids.length || !record(artifact) || !exact(artifact, ['path', 'sha256'])
@@ -75,6 +75,6 @@ export function parseMissionRecoveryRequest(value: unknown): MissionRecoveryRequ
     || artifact['path'].length > 500 || artifact['path'].includes('\0')
     || /^(?:[A-Za-z]:|[/\\])/.test(artifact['path'])
     || artifact['path'].replaceAll('\\', '/').split('/').includes('..') || !hash(artifact['sha256'])) invalid();
-  return { ...base, disposition: { kind: 'review-blocker', completionEventIds: ids,
+  return { ...base, disposition: { kind: disposition['kind'], completionEventIds: ids,
     resolutionArtifact: { path: artifact['path'], sha256: artifact['sha256'] } } };
 }

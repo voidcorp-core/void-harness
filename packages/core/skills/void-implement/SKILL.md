@@ -24,53 +24,52 @@ For `team` missions, the prose below is not the routing authority. Load the cano
 before invoking an agent. The pure Mission Engine controller owns state and verdict; the CLI
 materializes its runtime-neutral specialist envelopes from the current plan.
 
-1. Keep one `leadWriterId` for implementation and every correction. Reviewers never edit.
-2. Start the controller-owned run with `mission start --ticket <ticket>`,
-   then call `mission dispatch --id <mission> --json` for every next action. The start binds the
-   canonical ticket path, ticket content, and frozen routing snapshot; dispatch accepts none of
-   them again and refuses a changed ticket. Runtime identity comes from the native session marker,
-   never a caller option; an unattested shell is permanently degraded.
-   Never pass a locally chosen stage, round, runtime, or role list: the frozen mission start and
-   pure controller own those decisions. Iterate every returned envelope only when the action is
-   `invoke-specialists`; an empty list with another action is a state transition, not a routing hint.
-3. Invoke each envelope's exact `agentName` in a separate fresh context. Codex uses native
-   `spawn_agent` with `agent_type`; Claude Code uses native `Agent` with `subagent_type`. Run
-   independent envelopes in parallel when the runtime supports it. Give each only its plan slice
-   and its own `contextPack`, inlined in the prompt: the pack is bound to that specialist, that
-   stage and that round, so one envelope's pack is refused inside another's. Reviewers never edit. The dispatch command records
-   `specialist.requested`. Once the fresh context identity is known, submit a bounded JSON file
-   containing only `{ envelope, contextId }` through `void-harness mission specialist-event
-   --status started`.
-4. Parse each raw JSON result through the specialist completion contract, then submit only
-   `{ envelope, contextId, completion }` with `--status completed`. On timeout or adapter failure,
-   submit `{ envelope, contextId, reason }` with `--status failed`; never retain the prompt or raw model output.
-   A malformed output, wrong role, stale hash, duplicate completion, or unavailable isolation is a
-   failed completion and makes certification blocked/degraded.
-5. Treat specialist output as structured findings, evidence requests, and limitations. It is never
-   authoritative free-form prose and never grants write ownership.
-6. Send one coherent correction batch to the same lead writer. The pre-implementation panel is
-   a one-time preparation gate: after `run-preparation-correction`, record the writer event and
-   request the next action, which is implementation. Do not reopen the preparation panel. Once
-   implementation has started, a finding stays in the post-implementation stage: correct it with
-   the same writer, recompute review input hashes, rerun only post-implementation specialists
-   whose inputs changed, and let that next post-implementation pass inspect the complete current
-   diff. A correction never rewinds the mission to the beginning. After `run-lead-writer`,
-   `run-correction`, or `run-preparation-correction`, call `mission writer-event --id <mission>`;
-   it consumes the controller's pending writer receipt rather than trusting caller-supplied
-   identity or round. Then request the next controller action. For `run-verification`, use
-   `mission verify`.
-   `complete` and `stop` close the mission automatically. On interruption or abandonment, call
-   `mission close --id <mission> --reason interrupted|abandoned` so lifecycle learning can
-   distinguish unfinished work from a still-active dispatch.
-7. Stop after two review rounds. A missing completion, stale proof, timeout, or persistent blocker
-   ends `blocked`/`degraded`. A runtime limitation may finish with a visible degraded note after
-   all ticket, review, and verification evidence is valid; it never becomes an unreported green
-   claim.
+1. Keep one `leadWriterId` for implementation and every correction. The implementer owns
+   the worktree and code; specialists and the independent reviewer never edit.
+2. Start with `mission start --ticket <ticket>` and follow `mission dispatch --id <mission>
+   --json`. The frozen task and controller own routing, state and correction budget. Before
+   implementation, invoke only the risk-relevant preparation specialists returned by dispatch.
+   Supply their exact envelopes and context packs; collect each result without inventing a
+   completion. A missing response calls for resumption, not another correction cycle.
+3. The implementer implements and verifies, then commits the candidate. Record the pending
+   writer receipt with `mission writer-event --id <mission>`. Review must bind an exact
+   `reviewedCommit`, `baseCommit` and `acceptanceCriteriaHash`; a mutable worktree is insufficient.
+   Prefer a dedicated worktree pinned to that commit, with native read-only permissions.
+4. Dispatch one independent general review. Use the runtime's native separate reviewer context
+   and preserve its actual result. Submit the canonical completion and minimal review receipt:
+   task, reviewer and writer identities, exact subject, conclusions, proofs and resolutions.
+   Native context identity supplements provenance; missing or refused identity alone does not
+   invalidate an executed, traceable independent review. Use the supported artifact provenance
+   path and state its precise limitation. Never invent an identity, independence or review.
+   Malformed, mismatched, stale or forged evidence still refuses; self-review is not independent.
+5. Only a concrete blocking defect requests correction: name the violated criterion, consequence,
+   evidence and resolution condition. Advisory findings never block, consume a correction cycle
+   or trigger another review. The implementer corrects or records a reasoned disagreement.
+6. Submit corrections as a coherent batch, commit and record the writer event. Verification is
+   targeted to the original findings and affected behavior, never a new general panel. Retain
+   unaffected conclusions and proofs; invalidate only affected evidence. A new targeted blocker
+   must demonstrate a regression from the correction or a defect within the original scope.
+   Carry unresolved blockers until an explicit, evidenced resolution; silence is not resolution.
+7. Maximum two correction batches after the initial general review. A batch is submitted
+   corrections awaiting targeted verification. Agent restart, incomplete review, transport repair
+   and mission resumption neither consume a batch nor reset the budget. At the limit, stop
+   automatic corrective dispatch, retain history and expose a cause, owner and next action.
+   Never declare completion with an unresolved blocking defect. The orchestrator may obtain
+   one independent opinion on a disputed point and retain it as proof for targeted verification;
+   this is not an automatic arbitration command or a permission override. It never reopens
+   general review or resets the budget.
+8. Use `mission verify` for required verification evidence. Future implementation proofs do not
+   block preparation prematurely. Escalate to the human only a decision beyond the mandate.
+   A turn ending does not end the task. Resume through supported mission commands, preserving
+   prior reviews, resolutions, budgets and effects. Existing attestation-only stops need explicit
+   validation of the original review's subject, available provenance and result before recovery;
+   never promote a degraded historical result automatically or recreate the mission to bypass it.
+9. Collect the final result before closing an orchestrator-owned agent panel. Keep worktrees,
+   branches and useful proofs on their distinct lifecycle. Panel closure never deletes them.
 
-Claude and Codex use their installed native agent definitions. A sequential self-review in the
-parent context is not a substitute for a missing subagent primitive. If the runtime cannot provide
-the specialist primitive at all, refuse dispatch; if its isolation is only partially enforceable,
-report the limitation and keep the degraded note visible through completion.
+The CLI and existing Mission Engine implement this bounded cycle. A runtime certification is
+not an additional delivery gate. Concrete independence, permission, isolation, evidence and
+acceptance failures remain enforceable; an unavailable reviewer is reported, never fabricated.
 
 ---
 
@@ -98,9 +97,9 @@ Run in order. Each pass names the skill it composes and the predicate that fires
 8. **End-to-end tests** (IF it touches a user-facing flow). Write/extend the E2E suite (Playwright). The path a user actually walks, not just the unit.
 9. **UX/UI pass** (IF it touches a UI surface). The interface is held to production craft, not just "it renders". Compose `void-frontend-design` (build-time craft) + `void-ui-review` (the audit/critique ceiling: AI-slop test, squint test, interaction-state coverage, technical audit) + `void-accessibility`, across the baseline (BACK+FRONT parity, mobile and desktop, and the states a user actually hits — loading / error / empty). Browser-verified QA (live screenshots) runs via `void-qa` (the claude-in-chrome MCP). A UI ticket is not shippable until this pass is **verified, not assumed**.
 10. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `void-security-guidance` + `void-security-audit`.
-11. **Review** (ALWAYS). Run the canonical team orchestration above. Compose `void-code-review` for the integration lens; `doctrine-critic`, `silent-failure-hunter`, and project reviewers may add scoped findings but never replace the required Architecture, Security, and QA completion events. Findings are deduplicated by concrete evidence, not reviewer majority. On a high-stakes diff, add one independent fresh-context adversarial pass; classify each finding FIXABLE vs INVESTIGATE and name the single most exploitable finding. *Vendored from gstack `/ship`.*
+11. **Review** (ALWAYS). Run the single independent general review in the bounded cycle above. Compose `void-code-review` for that pass. Relevant preparation specialists advise before implementation; they are not a mandatory repeated post-implementation panel. After corrections, inspect only the affected findings and behavior. Findings are judged by demonstrated consequence, not reviewer majority.
    **Name the anti-patch rule in this pass, out loud.** The first implementation that comes to mind is often a patch at the wrong level of abstraction: tokenising a string where the API takes a typed schema, mocking a field the real adapter never returns, disabling a flag instead of understanding what it blocks. A V0 mock mirrors the real adapter's signature, never a convenience one. It is judged **here**, on the first draft, because before the writing there is nothing to judge — and it does not belong to the Architecture pass, since a patch slips in precisely through the changes that touch no structure at all.
-12. **Verification before completion** (ALWAYS). Compose `void-verify`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. The controller may return `verified` only when every applicable specialist completion and required proof is fresh.
+12. **Verification before completion** (ALWAYS). Compose `void-verify`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. Completion requires the independent review, resolution of blocking defects, and fresh applicable verification proofs; native runtime attestation alone is not a delivery prerequisite.
 13. **Dogfood the shipped surface** (IF the ticket adds or changes a CLI command, a hook, an executable skill, or any output a person will read). Run the thing, on the **real repository**, and quote what came back in the evidence.
     This exists because the passes above have a measured hit rate of zero on a whole class of defect. Six shipped on 2026-08-06 with typecheck, lint, 2,700 tests and five CI checks green: five were caught by using the thing on the real tree, one by the harness itself, none by CI and none by the human merge gate. One of them reported "5 path(s) not extracted" about files it had read, parsed and indexed — the exact lie the feature existed to prevent — and it surfaced by running the command on the repo, after merge. Under autopilot nobody comes back to the previous ticket, so a defect found that way is a defect not found at all.
     **A fixture is not a dogfood.** The fixture is the shortcut that would have missed every one of the six: the two oversized generated artifacts that exposed the false count existed only in the real tree. **And "the command did not crash" is not an observation** — the output has to be read, and quoted rather than summarised as "works". A surface that genuinely cannot run here (a deploy, a remote service) has its limitation named, never worked around in silence. Keep the run read-only or reversible.
