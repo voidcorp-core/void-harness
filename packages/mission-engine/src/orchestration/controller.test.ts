@@ -326,6 +326,65 @@ describe('mission team controller', () => {
       .toHaveLength(architectureHash === HASH ? 4 : 5);
   });
 
+  it('allows only the recovered corrective work while its current-review regression proof remains due', () => {
+    const request = (seq: number, reviewRound: number, inputHash: string) => event({
+      seq, eventId: `evt_correction_review_request_${seq}`,
+      kind: 'specialist.requested', source: 'void-harness:mission.dispatch',
+      subject: 'core:test-qa-engineer', payload: { stage: 'post-implementation',
+        reviewRound, inputHash, contractVersion: 1, runtime: 'codex', planHash: PLAN.planHash },
+    });
+    const regression = event({ seq: 9, eventId: 'evt_correction_regression_review',
+      kind: 'specialist.completed', subject: 'core:test-qa-engineer', payload: {
+        stage: 'post-implementation', reviewRound: 2, inputHash: HASH_B,
+        contextId: 'context_corrective_regression', completion: {
+          schemaVersion: 1, specialistId: 'core:test-qa-engineer', contractVersion: 1,
+          completionId: 'completion_corrective_regression', verdict: 'changes-requested',
+          findings: [{ id: 'selective-cleanup-regression', severity: 'high',
+            summary: 'Mixed included and excluded cleanup assignments are not protected.',
+            evidence: [{ path: 'src/cleanup.ts', line: 1, detail: 'Excluded assignments enter cleanup.' }],
+            recommendation: 'Correct assignment filtering and prove mixed included/excluded behavior.' }],
+          evidenceRequests: ['Provide the mixed included/excluded cleanup regression result.'],
+          limitations: [],
+        },
+      } });
+    const closed = [started(), ...preReviews(), writer(), request(6, 1, HASH),
+      completion('core:solution-architect', 7), request(8, 2, HASH_B), regression,
+      event({ seq: 10, eventId: 'evt_correction_closed', kind: 'mission.closed',
+        payload: { reason: 'controller-stop' } })];
+    const inputs = Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, HASH_B]));
+    const recovery = planStoppedMissionRecovery({
+      stream: stream(closed), request: { schemaVersion: 1,
+        closureEventId: 'evt_correction_closed', expectedJournalHash: canonicalJsonHash(closed),
+        disposition: { kind: 'controller-defect', defect: 'stale-input-dispatch' } },
+      observation: { stage: 'post-implementation', currentInputHashes: inputs, maxRounds: 2,
+        contractVersions: Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, 1])),
+        expectedSource: 'runtime:codex' },
+    });
+    expect(recovery.kind).toBe('recover');
+    if (recovery.kind !== 'recover') throw new Error('Expected correction recovery admission');
+    expect(recovery.receipt).toMatchObject({ nextAction: 'correction', remainingRounds: 1 });
+    const resumed = parseEvent({
+      ...event({ seq: 11, eventId: 'evt_correction_recovered', kind: 'mission.recovered',
+        source: 'void-harness:mission.recover' }), payload: recovery.receipt,
+    });
+    if (!resumed.ok) throw new Error('Expected a canonical recovery receipt');
+    const recovered = [...closed, resumed.value];
+    expect(decide(recovered, PLAN, inputs, INPUTS, {
+      status: 'unavailable', limitations: ['Native isolation is not available.'],
+    }).action.kind).toBe('stop');
+    const invalidDisposition = event({ seq: 12, eventId: 'evt_unrequested_discharge',
+      kind: 'specialist.evidence-discharged', subject: 'core:test-qa-engineer',
+      causationId: 'evt_missing_controller_request', payload: {} });
+    expect(decide([...recovered, invalidDisposition], PLAN, inputs).action.kind).toBe('stop');
+    const correction = decide(recovered, PLAN, inputs);
+    expect(correction.action).toMatchObject({ kind: 'run-correction', writerId: 'writer:primary' });
+    expect(correction.review.readyForVerdict).toBe(false);
+    expect(correction.verdict.status).not.toBe('verified');
+    const corrected = decide([...recovered, writer(12, 'writer:primary', 'run-correction')], PLAN, inputs);
+    expect(corrected.action.kind).toBe('stop');
+    expect(corrected.reasons.join(' ')).toContain('Provide the mixed included/excluded cleanup regression result.');
+  });
+
   it('keeps a current evidence obligation blocking after a preparation writer receipt', () => {
     const events = [started(true), ...preparationReviews(1, 2, true), ...preparationReceipt()];
     const decision = decide(events);
