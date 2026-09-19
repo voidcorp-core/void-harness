@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 const SEGMENT = /^[a-z][a-z0-9-]{0,63}$/;
 const LOGICAL = /^[A-Za-z0-9._~:/-]{1,256}$/;
 
+/** Only these declared binary relations extend the legacy kind grammar. */
+export function isGraphRelationKind(value: string): boolean {
+ return SEGMENT.test(value) || value === 'decided_by' || value === 'constrained_by' || value === 'verified_by';
+}
+
 function segment(value: string, field: string): string {
   if (!SEGMENT.test(value)) {
     throw new Error(`GRAPH_ID_INVALID: ${field} must be a lower-case namespace segment`);
@@ -25,7 +30,7 @@ export function graphRelationId(
   logicalMembers: readonly string[],
 ): string {
   segment(namespace, 'namespace');
-  segment(kind, 'kind');
+  if (!isGraphRelationKind(kind)) throw new Error('GRAPH_ID_INVALID: kind must be a lower-case namespace segment');
   if (logicalMembers.length < 2 || logicalMembers.some((member) => member.length === 0)) {
     throw new Error('GRAPH_ID_INVALID: a relation requires at least two logical members');
   }

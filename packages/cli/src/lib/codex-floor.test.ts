@@ -128,7 +128,7 @@ describe('safety-floor matcher coverage', () => {
 
 describe('referencedScripts drift guard', () => {
   it('stages only the self-contained Node runner', () => {
-    expect(CODEX_FLOOR_SCRIPTS).toEqual(['_void-hook.mjs']);
+    expect(CODEX_FLOOR_SCRIPTS).toEqual(['_void-hook.mjs', '_syntax-worker.cjs']);
   });
 
   it('every script the template invokes is in the staged floor set', () => {

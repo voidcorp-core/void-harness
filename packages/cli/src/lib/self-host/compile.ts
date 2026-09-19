@@ -37,6 +37,7 @@ const SOURCE_INPUTS = [
   'packages/core',
   'packages/cli/src',
   'packages/hook-runner/src',
+  'packages/hook-runner/scripts',
   'packages/mission-engine/src',
   'package.json',
   'pnpm-lock.yaml',
@@ -44,6 +45,8 @@ const SOURCE_INPUTS = [
 const HASH_EXCLUSIONS = new Set([
   'packages/core/graph/void-graph.mjs',
   'packages/core/hooks/_void-hook.mjs',
+  'packages/core/hooks/_syntax-worker.cjs',
+  'packages/hook-runner/src/enforcement/syntax-worker-identity.generated.ts',
 ]);
 
 function lexical(a: string, b: string): number {
@@ -142,23 +145,8 @@ async function sourceBuilder(root: string) {
 }
 
 const defaultBuildHookBundle: BuildHookBundle = async ({ root, outfile }) => {
-  const { build } = await sourceBuilder(root);
-  await build({
-    absWorkingDir: root,
-    entryPoints: [join(root, 'packages/hook-runner/src/cli.ts')],
-    alias: {
-      '@voidcorp/mission-engine/events': join(
-        root,
-        'packages/mission-engine/src/events/index.ts',
-      ),
-    },
-    bundle: true,
-    platform: 'node',
-    format: 'esm',
-    target: 'node22',
-    outfile,
-    logLevel: 'silent',
-  });
+  const builder = await import(pathToFileURL(join(root, 'packages/hook-runner/scripts/build-runtime.mjs')).href);
+  await builder.buildHookRuntime({ root, outfile });
 };
 
 const defaultWireRuntimeSurfaces = async (

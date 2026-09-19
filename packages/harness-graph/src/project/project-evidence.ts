@@ -1,3 +1,4 @@
+import { collectDeclaredKnowledge } from './declarations.js';
 import { readFileIdentity } from './file-identifier.js';
 import { createHash } from 'node:crypto';
 import type { ProjectGraphCacheEntry, ProjectGraphTombstone } from './cache.js';
@@ -234,6 +235,7 @@ export async function collectProjectEvidence(
 	entries: readonly ProjectGraphCacheEntry[],
 ): Promise<ProjectBuildEvidence> {
 	validateWorkspaceNames(context, entries);
+	context.ledger.issues.push(...collectDeclaredKnowledge(entries).issues);
 	const git = await inspectGitEvidence(context, entries);
 	const tombstones = collectTombstones(context, entries, git);
 	const configsByPath = collectTypeScriptConfigs(context, entries);

@@ -8,6 +8,20 @@ import { harnessBlock, patchClaudeMd, patchAgentsMd, patchExistingRuntimeDocs } 
 const input = { enabledPlugins: ['harness'], enabledPacks: [] as never[] };
 
 describe('harnessBlock', () => {
+  it.each(['claude', 'codex'] as const)(
+    'includes bounded local follow-through in merge consent for %s',
+    (runtime) => {
+      const block = harnessBlock(input, runtime);
+      expect(block).toContain('An authorized merge includes routine local synchronization');
+      expect(block).toContain('without asking for confirmation again');
+      expect(block).toContain('clean local target branch');
+      expect(block).toContain('verified merged commit');
+      expect(block).toContain('git merge --ff-only');
+      expect(block).toContain('local changes, divergence, or an unexpected remote tip');
+      expect(block).toContain('Runtime sandbox and approval controls still apply');
+    },
+  );
+
   it('uses @imports for the Claude runtime', () => {
     const block = harnessBlock(input, 'claude');
     expect(block).toContain('@.void/installed/PHILOSOPHY.md');

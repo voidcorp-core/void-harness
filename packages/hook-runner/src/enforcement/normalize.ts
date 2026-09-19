@@ -1,8 +1,8 @@
+import { shellWriteTargets } from './shell-writes.js';
 import type {
   NormalizedEdit,
   NormalizedToolCall,
 } from './types.js';
-import { shellWriteTargets } from './shell-writes.js';
 
 const MAX_FIELD_BYTES = 1024 * 1024;
 
@@ -12,9 +12,9 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function safeString(value: unknown, label: string): string {
+function safeString(value: unknown, label: string, limit = MAX_FIELD_BYTES): string {
   if (typeof value !== 'string') return '';
-  if (value.includes('\u0000') || Buffer.byteLength(value) > MAX_FIELD_BYTES) {
+  if (value.includes('\u0000') || Buffer.byteLength(value) > limit) {
     throw new Error(`unsafe hook input: ${label}`);
   }
   return value;
@@ -71,7 +71,7 @@ export function parsePatchEdits(patch: string): NormalizedEdit[] {
   return edits;
 }
 
-export function normalizeToolCall(value: unknown): NormalizedToolCall {
+export function normalizeToolCall(value: unknown, contentLimit = MAX_FIELD_BYTES): NormalizedToolCall {
   const raw = record(value);
   if (raw === undefined) throw new Error('invalid hook input: expected object');
   const input = record(raw['tool_input']) ?? {};
@@ -82,7 +82,7 @@ export function normalizeToolCall(value: unknown): NormalizedToolCall {
   if (file !== '') {
     edits = [{
       path: file,
-      addedContent: safeString(input['content'] ?? input['new_string'], 'edit content'),
+      addedContent: safeString(input['content'] ?? input['new_string'], 'edit content', contentLimit),
     }];
   } else {
     edits = parsePatchEdits(patchText(input));

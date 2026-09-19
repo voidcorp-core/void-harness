@@ -5,6 +5,8 @@ describe('asksForHelp', () => {
   it('treats --help as a request to explain, not to act', () => {
     // The defect this pins: `init --help --no-interactive` created 135 files.
     expect(asksForHelp('init', ['--help', '--no-interactive'])).toBe(true);
+    expect(asksForHelp('why', ['--help'])).toBe(true);
+    expect(asksForHelp('why', ['-h'])).toBe(true);
     expect(asksForHelp('status', ['--help'])).toBe(true);
     expect(asksForHelp('update', ['-h'])).toBe(true);
   });

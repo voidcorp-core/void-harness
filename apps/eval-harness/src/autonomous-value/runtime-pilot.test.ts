@@ -5,18 +5,23 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseAutonomousValueManifest } from '../cases/autonomous-value.js';
-import { setupSandbox } from '../sandbox.js';
+import { git, setupSandbox } from '../sandbox.js';
 import { parsePilotApproval } from './approval.js';
 import { createConsumerCellWorkspaceFactory } from './consumer-workspace.js';
 import { createPilotSchedule } from './pilot.js';
-import { createConformanceCellExecutor } from './runner.js';
+import { createCellWorkspaceFactory, createConformanceCellExecutor } from './runner.js';
 import { type BoundedRuntimeAdapter, type RuntimePilotInput, runDurableRuntimePilot } from './runtime-pilot.js';
 
-async function scenario(runtime: 'codex' | 'claude' = 'codex') {
-  const source = setupSandbox({ 'result.txt': 'before\n' });
-  const fixture = { 'task.txt': 'Produce the requested result.\n' };
+async function scenario(
+  runtime: 'codex' | 'claude' = 'codex', workspace: 'consumer' | 'fixture' = 'consumer',
+) {
+  const fixture: Readonly<Record<string, string>> = {
+    'task.txt': 'Produce the requested result.\n',
+    ...(workspace === 'fixture' ? { 'result.txt': 'before\n' } : {}),
+  };
+  const source = setupSandbox(workspace === 'fixture' ? fixture : { 'result.txt': 'before\n' });
   const digest = `sha256:${createHash('sha256').update(JSON.stringify(Object.entries(fixture).sort(([a], [b]) => a.localeCompare(b)))).digest('hex')}`;
   const parsed = parseAutonomousValueManifest({
     schemaVersion: 1, campaignId: 'runtime-pilot-test',
@@ -48,7 +53,8 @@ async function scenario(runtime: 'codex' | 'claude' = 'codex') {
       provenance: { kind: 'verified', approvalDigest }, policyKey: 'test-only-no-paid-process',
       reservations: createPilotSchedule(parsed.value).map(({ executionId }) => ({ executionId, maxCostUsd: 1 })) },
     artifactDigest: `sha256:${'c'.repeat(64)}`,
-    workspaceFactory: createConsumerCellWorkspaceFactory({ sourceCheckout: source.dir }),
+    workspaceFactory: workspace === 'fixture' ? createCellWorkspaceFactory()
+      : createConsumerCellWorkspaceFactory({ sourceCheckout: source.dir }),
     loadTask: () => ({ fixture, task: 'Change result.txt', skillBody: 'Use targeted verification.' }),
     assess: async () => ({ kind: 'reviewed', score: 0.75, quality: {
       criticalDefect: false, falseGreen: false, inventedProof: false,
@@ -59,6 +65,7 @@ async function scenario(runtime: 'codex' | 'claude' = 'codex') {
   const executor = createConformanceCellExecutor(async ({ cwd, args }) => {
     expect(args).toContain('--json');
     expect(args).toContain('model_reasoning_effort="low"');
+    if (workspace === 'fixture') expect(git(cwd, 'rev-parse', 'HEAD').trim()).toBe(source.baseSha);
     workspaces.push(cwd);
     writeFileSync(join(cwd, 'result.txt'), 'after\n');
     return { outcome: { kind: 'exited', code: 0 }, stdout: '', stderr: '' };
@@ -75,25 +82,33 @@ async function scenario(runtime: 'codex' | 'claude' = 'codex') {
 }
 
 describe('durable runtime composition', () => {
-  it('runs the real workspace and seal path, then reuses results without processes or admissions', async () => {
-    const { input, adapter, workspaces, source } = await scenario();
-    let reviews = 0;
-    const options = { ...input,
-      assess: async (request: Parameters<RuntimePilotInput['assess']>[0]) => {
-        reviews += 1;
-        expect(request.evidence.cleanup.kind).toBe('complete');
-        expect(request.evidence.diff).toContain('+after');
-        expect(workspaces.every((path) => !existsSync(path))).toBe(true);
-        return input.assess(request);
-      },
-    };
-    const result = await runDurableRuntimePilot(options, adapter);
-    expect(result.report.valid).toBe(true);
-    expect(result.observations[0]?.result).toMatchObject({ status: 'completed', score: 0.75,
-      costUsd: { kind: 'unknown' } });
-    expect((await runDurableRuntimePilot({ ...options, archiveDirectory: join(input.archiveDirectory, 'export') }, adapter)).report.valid).toBe(true);
-    expect([workspaces.length, reviews]).toEqual([27, 27]);
-    expect(readFileSync(join(source.dir, 'result.txt'), 'utf8')).toBe('before\n');
+  it('seals all 27 real fixture workspaces, then resumes without processes or admissions', async () => {
+    // Equal fixture trees must name the same real Git commit across second boundaries.
+    // Consumer cloning is exercised below; repeating it 27 times adds no matrix coverage.
+    vi.stubEnv('GIT_AUTHOR_DATE', '2026-09-08T00:00:00Z');
+    vi.stubEnv('GIT_COMMITTER_DATE', '2026-09-08T00:00:00Z');
+    try {
+      const { input, adapter, workspaces, source } = await scenario('codex', 'fixture');
+      let reviews = 0;
+      const options = { ...input,
+        assess: async (request: Parameters<RuntimePilotInput['assess']>[0]) => {
+          reviews += 1;
+          expect(request.evidence.cleanup.kind).toBe('complete');
+          expect(request.evidence.diff).toContain('+after');
+          expect(workspaces.every((path) => !existsSync(path))).toBe(true);
+          return input.assess(request);
+        },
+      };
+      const result = await runDurableRuntimePilot(options, adapter);
+      expect(result.report.valid).toBe(true);
+      expect(result.observations[0]?.result).toMatchObject({ status: 'completed', score: 0.75,
+        costUsd: { kind: 'unknown' } });
+      expect((await runDurableRuntimePilot({ ...options, archiveDirectory: join(input.archiveDirectory, 'export') }, adapter)).report.valid).toBe(true);
+      expect([workspaces.length, reviews]).toEqual([27, 27]);
+      expect(readFileSync(join(source.dir, 'result.txt'), 'utf8')).toBe('before\n');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   }, 30_000);
 
   it.each(['codex', 'claude'] as const)('refuses production %s without creating workspaces or reservations', async (runtime) => {
@@ -171,15 +186,22 @@ describe('durable runtime composition', () => {
   });
 
   it('blocks missing condition skills without executing those cells or refunding their reservations', async () => {
-    const { input, adapter, workspaces } = await scenario();
+    const { input, adapter, workspaces, source } = await scenario();
     const options = { ...input, loadTask: (request: Parameters<RuntimePilotInput['loadTask']>[0]) => ({
       ...input.loadTask(request), skillBody: undefined,
-    }) };
+    }), assess: async (request: Parameters<RuntimePilotInput['assess']>[0]) => {
+      expect(request.evidence.cleanup.kind).toBe('complete');
+      expect(request.evidence.diff).toContain('+after');
+      expect(workspaces.every((path) => !existsSync(path))).toBe(true);
+      return input.assess(request);
+    } };
     const result = await runDurableRuntimePilot(options, adapter);
     expect(result.report.valid).toBe(false);
     const schedule = createPilotSchedule(input.manifest);
     const stoppedAt = schedule.findIndex((execution) => input.manifest.cells[execution.cellId].condition !== 'agent-alone');
     expect(stoppedAt).toBe(3);
+    expect(result.observations[0]?.result).toMatchObject({ status: 'completed', score: 0.75,
+      costUsd: { kind: 'unknown' } });
     expect(result.observations).toHaveLength(27);
     expect(result.observations.slice(stoppedAt + 1).every((observation) => observation.result?.status === 'unknown')).toBe(true);
     for (const execution of schedule.slice(0, stoppedAt + 1)) {
@@ -192,6 +214,7 @@ describe('durable runtime composition', () => {
     }
     await runDurableRuntimePilot(options, adapter);
     expect(workspaces).toHaveLength(stoppedAt);
+    expect(readFileSync(join(source.dir, 'result.txt'), 'utf8')).toBe('before\n');
   });
 
   it('refuses absent or incompatible authority before reserving or executing', async () => {

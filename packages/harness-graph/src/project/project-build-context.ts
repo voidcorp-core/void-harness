@@ -47,7 +47,7 @@ const DEFAULT_MAX_DEPTH = 64;
 const DEFAULT_MAX_TOTAL_BYTES = 512 * 1024 * 1024;
 const DEFAULT_MAX_HEAP_DELTA = 512 * 1024 * 1024;
 const MAX_HEAP_DELTA = 1024 * 1024 * 1024;
-const PROJECT_EXTRACTION_VERSION = 'project-extraction-v1';
+const PROJECT_EXTRACTION_VERSION = 'project-extraction-v2-declared';
 
 export interface ProjectGraphBuildOptions {
 	readonly root: string;

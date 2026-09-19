@@ -57,6 +57,22 @@ describe('test proof catalogue', () => {
     expect(byPath.get('packages/mission-engine/src/events/schema.test.ts')?.resource).toBe('cpu');
   });
 
+  it.each([
+    'test/cli/force-preserves-co-owned.test.ts',
+    'test/cli/add-remove-parity.test.ts',
+  ])('keeps indirect init subprocesses in the bounded system lane: %s', (path) => {
+    const catalog = buildTestCatalog(REPOSITORY_ROOT);
+    expect(catalog.find((entry) => entry.path === path)).toMatchObject({
+      tier: 'system',
+      resource: 'subprocess',
+    });
+    const project = createVitestProjects(catalog).find(
+      (entry) => entry.test?.name === 'system:subprocess',
+    );
+    expect(project?.test?.include).toContain(path);
+    expect(project?.test?.maxWorkers).toBe(1);
+  });
+
   it('renders one non-empty Vitest project per tier/resource cohort with bounded workers', () => {
     const catalog = buildTestCatalog(REPOSITORY_ROOT);
     const projects = createVitestProjects(catalog);
