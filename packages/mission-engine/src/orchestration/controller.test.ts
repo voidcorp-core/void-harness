@@ -377,7 +377,12 @@ describe('mission team controller', () => {
       causationId: 'evt_missing_controller_request', payload: {} });
     expect(decide([...recovered, invalidDisposition], PLAN, inputs).action.kind).toBe('stop');
     const correction = decide(recovered, PLAN, inputs);
-    expect(correction.action).toMatchObject({ kind: 'run-correction', writerId: 'writer:primary' });
+    const regressionFindingId = `fnd_${canonicalJsonHash({
+      evidence: [{ path: 'src/cleanup.ts', line: 1, detail: 'Excluded assignments enter cleanup.' }],
+    }).slice('sha256:'.length, 29)}`;
+    expect(correction.action).toMatchObject({
+      kind: 'run-correction', writerId: 'writer:primary', findingIds: [regressionFindingId],
+    });
     expect(correction.review.readyForVerdict).toBe(false);
     expect(correction.verdict.status).not.toBe('verified');
     const corrected = decide([...recovered, writer(12, 'writer:primary', 'run-correction')], PLAN, inputs);
