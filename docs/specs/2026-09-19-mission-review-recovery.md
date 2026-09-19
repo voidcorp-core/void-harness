@@ -36,7 +36,7 @@ engine, a second orchestrator, or an exception that lets any failed mission proc
 
 A PASS may carry advisory findings. Preserve them in the result, but their presence
 alone does not require correction or another review round. Explicit blocking verdicts,
-current evidence obligations and incoherent results still refuse progression. This is
+current evidence obligations and incoherent results still refuse acceptance. This is
 not a severity threshold and does not silently reinterpret a negative verdict as PASS.
 
 Recovery of a degraded preparation review permits bounded clarification, not approval.
@@ -44,6 +44,26 @@ After the admitted correction, request a fresh qualified review of the unresolve
 Reuse other PASS results only while their contracts and relevant reviewed inputs remain
 fresh. Keep the original negative result and obligations in history. Dispatch and
 validation must agree on the resulting round without resetting the true budget.
+
+## Corrective evidence remains required
+
+An obligation due at the current review blocks acceptance and closure. It does not
+prevent the bounded correction already admitted by an authenticated recovery receipt
+for concrete existing findings. The controller may propose only `run-correction`,
+within the remaining real budget and after runtime, permission and integrity guards.
+The action identifies the historical findings being corrected without treating their
+invalidated reviews as fresh evidence. The blocked verdict and obligations remain.
+A completed writer receipt consumes this continuation and does not discharge proof;
+no initial implementation, certification or implicit second attempt is authorized.
+
+## Recovered request identity
+
+A recovered logical review round can have the same number as a historical physical
+round. New requests in a recovered episode therefore bind their identity to that
+episode; lifecycle receipts bind to the exact canonical request. Existing historical
+IDs and contexts are not rewritten. Reusing the same event is idempotent; a context
+already used by another request remains refused. Freshness is checked again under the
+sequenced journal lock, so concurrent starts cannot both claim the same native context.
 
 ## Proof sequence
 

@@ -76,3 +76,20 @@ it('admits a fresh context and one terminal response for the new logical second 
   await expect(recordSpecialistLifecycle(root, ID, { ...started, contextId: 'context_conflict' }))
     .rejects.toThrow('dispatch already started');
 });
+it('admits a fresh native context for only one recovered dispatch under concurrent starts', async () => {
+  const root = await recoveredFanout();
+  const security = envelope(2);
+  const dispatch = { missionId: ID, specialistId: 'core:test-qa-engineer' as const,
+    stage: 'pre-implementation' as const, reviewRound: 2, inputHash: HASH };
+  const peer = { ...security, ...dispatch, agentName: 'test-qa-engineer',
+    contextPack: compileContextPack({ dispatch, diff: '', touchedPaths: [], artifacts: [],
+      lens: 'full', budgetTokens: 12000 }) };
+  await recordSpecialistRequests(root, ID, [security, peer], HASH);
+  const results = await Promise.allSettled([security, peer].map(value =>
+    recordSpecialistLifecycle(root, ID, { status: 'started', envelope: value, contextId: 'context_concurrent' })));
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+  expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
+  const events = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
+  expect(events.filter(event => event.kind === 'specialist.started'
+    && JSON.stringify(event.payload).includes('context_concurrent'))).toHaveLength(1);
+});

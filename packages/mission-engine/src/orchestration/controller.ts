@@ -2,6 +2,8 @@ import type { EventStreamState } from '../events/reducer.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import type { EvidenceContext } from '../evidence/types.js';
 import { parseEvidence } from '../evidence/schema.js';
+import { canonicalJsonHash } from '../evidence/canonical-json.js';
+import { parseSpecialistCompletionValue } from '../specialist/completion.js';
 import { validatedRecoveredReviewEvents } from './mission-recovery.js';
 import {
   reduceEvidenceObligations,
@@ -441,6 +443,29 @@ function preparationHasMissingOrStaleReviews(
   });
 }
 
+/** Called only after recovery receipts have reproduced their original admission. */
+function pendingRecoveredCorrectionFindingIds(events: readonly CanonicalEvent[]): readonly string[] {
+  const recovery = events.filter((event) => event.kind === 'mission.recovered').at(-1);
+  if (recovery === undefined || events.some((event) => event.seq > recovery.seq
+    && event.kind === 'lead-writer.completed')) return [];
+  const payload = record(recovery.payload);
+  const observation = record(payload?.['observation'] ?? null);
+  const invalidated = payload?.['invalidatedCompletionEventIds'];
+  const remaining = payload?.['remainingRounds'];
+  if (payload?.['nextAction'] !== 'correction'
+    || observation?.['stage'] !== 'post-implementation'
+    || typeof remaining !== 'number' || remaining < 1 || !Array.isArray(invalidated)) return [];
+  return [...new Set(events.flatMap((event) => {
+    if (event.kind !== 'specialist.completed' || event.seq >= recovery.seq
+      || !invalidated.includes(event.eventId)
+      || lifecycleField(event, 'stage') !== 'post-implementation') return [];
+    const completion = parseSpecialistCompletionValue(lifecycleField(event, 'completion'));
+    return completion === undefined || completion.verdict === 'pass' ? []
+      : completion.findings.map((finding) =>
+        `fnd_${canonicalJsonHash({ evidence: finding.evidence }).slice('sha256:'.length, 29)}`);
+  }))];
+}
+
 function evidenceObligations(
   input: MissionTeamControllerInput,
   expectedSource: 'runtime:claude' | 'runtime:codex',
@@ -518,6 +543,10 @@ export function orchestrateMissionTeam(
   const expectedSource = start.runtime === 'claude' ? 'runtime:claude' : 'runtime:codex';
   const obligations = evidenceObligations(input, expectedSource,
     firstImplementationSeq === undefined ? 'pre-implementation' : 'post-implementation');
+  const preparationObligationIds = new Set(obligations.obligations.filter((obligation) =>
+    input.stream.events.some((event) => event.eventId === obligation.completionEventId
+      && lifecycleField(event, 'stage') === 'pre-implementation'))
+    .map((obligation) => obligation.obligationId));
   const preReview = reduceReviewLoop({
     stage: 'pre-implementation',
     expectedSource,
@@ -531,7 +560,10 @@ export function orchestrateMissionTeam(
     contractVersions: contractVersions(input.plan),
     currentInputHashes: input.currentInputHashesByStage['pre-implementation'],
     maxRounds: input.maxReviewRounds,
-    evidenceObligations: obligations,
+    evidenceObligations: {
+      ...obligations,
+      blockingObligationIds: obligations.blockingObligationIds.filter((id) => preparationObligationIds.has(id)),
+    },
     ...(!preparationFollowupRequired || lastPreparationSeq === undefined
       || (preparationRecovery !== undefined
         && lastPreparationSeq <= preparationRecovery.recoverySeq) ? {} : {
@@ -602,7 +634,10 @@ export function orchestrateMissionTeam(
       'Reconcile the invalid recovery receipt through the supported admission path without editing history.');
   }
   const pendingEvidence = obligationStop(obligations, preReview, baseVerdict);
-  if (pendingEvidence !== undefined) {
+  const correctiveFindingIds = pendingRecoveredCorrectionFindingIds(input.stream.events);
+  const correctiveContinuation = pendingEvidence !== undefined && obligations.issues.length === 0
+    && firstImplementationSeq !== undefined && correctiveFindingIds.length > 0;
+  if (pendingEvidence !== undefined && !correctiveContinuation) {
     return applyRuntimeCertification(pendingEvidence, input.specialistRuntime);
   }
 
@@ -683,6 +718,21 @@ export function orchestrateMissionTeam(
     baseVerdict,
     'post-implementation',
   );
+  if (pendingEvidence !== undefined) {
+    // Due proof still refuses review acceptance. Only the admitted correction can produce it.
+    const reasons = [...postDecision.reasons, ...pendingEvidence.reasons];
+    if (postDecision.action.kind !== 'run-correction') {
+      return applyRuntimeCertification(stopped(
+        postDecision.phase === 'degraded' ? 'degraded' : 'blocked', postReview, baseVerdict, reasons,
+      ), input.specialistRuntime);
+    }
+    return applyRuntimeCertification({
+      ...postDecision,
+      action: { ...postDecision.action,
+        findingIds: [...new Set([...postDecision.action.findingIds, ...correctiveFindingIds])] },
+      reasons, verdict: overrideVerdict(postDecision.verdict, 'blocked', reasons),
+    }, input.specialistRuntime);
+  }
   if (postDecision.action.kind === 'complete') {
     const lifecycleReasons = unboundCompletionReasons(input, start.runtime);
     if (lifecycleReasons.length > 0) {

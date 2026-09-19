@@ -226,25 +226,27 @@ export async function recordSpecialistLifecycle(
       ? { ...common, contextId: input.contextId, completion: completionJson(input.completion) }
       : { ...common, contextId: input.contextId, reason: input.reason };
   rejectSecrets(payload);
+  const inspected = await inspectMission(root, missionId, { dependencies: {} });
+  const events = inspected.stream.events;
+  const lifecycle = observedMissionLifecycle(events);
+  if (lifecycle.status === 'closed') invalid('mission is closed');
+  const recovery = events.filter(event => event.kind === 'mission.recovered').at(-1);
+  const requested = events.filter(event => event.kind === 'specialist.requested'
+    && (recovery === undefined || event.seq > recovery.seq)
+    && sameDispatch(event, input.envelope)
+    && field(event.payload, 'runtime') === input.envelope.runtime).at(-1);
+  if (requested === undefined) invalid('no matching specialist.requested event exists');
   const draft: EventDraft = {
+    ...(recovery === undefined ? {} : { causationId: requested.eventId }),
     source: `runtime:${input.envelope.runtime}`,
     kind: `specialist.${input.status}`,
     subject: input.envelope.specialistId,
     correlationId: missionId,
     payload,
   };
-  const inspected = await inspectMission(root, missionId, { dependencies: {} });
-  const events = inspected.stream.events;
-  if (observedMissionLifecycle(events).status === 'closed') {
-    invalid('mission is closed');
-  }
-  const requested = events.some((event) =>
-    event.kind === 'specialist.requested'
-    && sameDispatch(event, input.envelope)
-    && field(event.payload, 'runtime') === input.envelope.runtime);
-  if (!requested) invalid('no matching specialist.requested event exists');
-
-  const starts = events.filter((event) =>
+  const dispatchEvents = events.filter(event => recovery === undefined
+    || (event.seq > requested.seq && event.causationId === requested.eventId));
+  const starts = dispatchEvents.filter(event =>
     event.kind === 'specialist.started' && sameDispatch(event, input.envelope));
   if (input.status === 'started') {
     const existing = starts[0];
@@ -252,11 +254,15 @@ export async function recordSpecialistLifecycle(
       if (field(existing.payload, 'contextId') === input.contextId) return;
       invalid('dispatch already started with another contextId');
     }
+    if (recovery !== undefined && events.some(event =>
+      event.kind === 'specialist.started' && field(event.payload, 'contextId') === input.contextId)) {
+      invalid('contextId was already used by a previous dispatch');
+    }
   } else {
     const started = starts.find((event) =>
       field(event.payload, 'contextId') === input.contextId);
     if (started === undefined) invalid('no matching specialist.started event exists');
-    const terminal = events.find((event) =>
+    const terminal = dispatchEvents.find((event) =>
       (event.kind === 'specialist.completed' || event.kind === 'specialist.failed')
       && sameDispatch(event, input.envelope));
     if (terminal !== undefined) {
@@ -266,13 +272,24 @@ export async function recordSpecialistLifecycle(
   }
 
   const phase = input.status === 'started' ? 'started' : 'terminal';
-  const eventId = lifecycleEventId(input.envelope, phase);
+  const eventId = lifecycleEventId(input.envelope, phase, recovery === undefined ? undefined : requested.eventId);
   const result = await writeSequencedEventOnce({
     root,
     missionId,
     eventId,
     draft,
-    validate: rejectClosedMission,
+    validate: current => {
+      rejectClosedMission(current);
+      if (observedMissionLifecycle(current).episodeId !== lifecycle.episodeId) {
+        invalid('mission episode changed before recording lifecycle');
+      }
+      if (recovery !== undefined && input.status === 'started' && current.some(event =>
+        event.kind === 'specialist.started'
+        && field(event.payload, 'contextId') === input.contextId
+        && event.eventId !== eventId)) {
+        invalid('contextId was already used by a previous dispatch');
+      }
+    },
   });
   if (!sameDraft(result.event, draft)) {
     invalid(`dispatch ${phase} event conflicts with an existing event`);
@@ -300,6 +317,7 @@ function sameDraft(event: CanonicalEvent, draft: EventDraft): boolean {
     && event.kind === draft.kind
     && event.subject === draft.subject
     && event.correlationId === draft.correlationId
+    && event.causationId === draft.causationId
     && JSON.stringify(event.payload) === JSON.stringify(draft.payload);
 }
 
@@ -312,6 +330,7 @@ function rejectClosedMission(events: readonly CanonicalEvent[]): void {
 function lifecycleEventId(
   envelope: SpecialistDispatchEnvelope,
   phase: 'started' | 'terminal',
+  requestEventId?: string,
 ): string {
   return `evt_${createHash('sha256')
     .update([
@@ -323,6 +342,7 @@ function lifecycleEventId(
       envelope.stage,
       String(envelope.reviewRound),
       envelope.inputHash,
+      ...(requestEventId === undefined ? [] : [requestEventId]),
     ].join('|'))
     .digest('hex')}`;
 }
@@ -352,6 +372,10 @@ export async function recordSpecialistRequests(
       invalid('envelope mission does not match the target mission');
     }
   }
+  const inspected = await inspectMission(root, missionId, { dependencies: {} });
+  const lifecycle = observedMissionLifecycle(inspected.stream.events);
+  if (lifecycle.status === 'closed') invalid('mission is closed');
+  const recovery = inspected.stream.events.filter(event => event.kind === 'mission.recovered').at(-1);
   for (const envelope of parsed) {
     const eventId = `evt_${createHash('sha256')
       .update([
@@ -363,9 +387,11 @@ export async function recordSpecialistRequests(
         String(envelope.reviewRound),
         envelope.specialistId,
         envelope.inputHash,
+        ...(recovery === undefined ? [] : [lifecycle.episodeId]),
       ].join('|'))
       .digest('hex')}`;
     const draft: EventDraft = {
+      ...(recovery === undefined ? {} : { causationId: recovery.eventId }),
       source: 'void-harness:mission.dispatch',
       kind: 'specialist.requested',
       subject: envelope.specialistId,
@@ -385,7 +411,12 @@ export async function recordSpecialistRequests(
       missionId,
       eventId,
       draft,
-      validate: rejectClosedMission,
+      validate: current => {
+        rejectClosedMission(current);
+        if (observedMissionLifecycle(current).episodeId !== lifecycle.episodeId) {
+          invalid('mission episode changed before recording dispatch');
+        }
+      },
     });
     if (!sameDraft(result.event, draft)) {
       invalid('requested dispatch conflicts with an existing event');
