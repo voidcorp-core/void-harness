@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
   parseContextPackValue,
+  validatedSpecialistContractMigrations,
   parseSpecialistCompletionValue,
   type CanonicalEvent,
   type EventDraft,
@@ -11,7 +12,7 @@ import {
   type SpecialistDispatchEnvelope,
 } from '@voidcorp/mission-engine';
 import { collectKnownSecrets, redactText } from './redact.js';
-import { eventLogPath, inspectMission } from './store.js';
+import { eventLogPath, inspectMission, loadMissionControllerPlan } from './store.js';
 
 export type SpecialistLifecycleStatus = 'started' | 'completed' | 'failed';
 
@@ -230,6 +231,7 @@ export async function recordSpecialistLifecycle(
   const events = inspected.stream.events;
   const lifecycle = observedMissionLifecycle(events);
   if (lifecycle.status === 'closed') invalid('mission is closed');
+  await rejectSupersededSpecialistContract(root, missionId, events, input.envelope, input.contextId);
   const recovery = events.filter(event => event.kind === 'mission.recovered').at(-1);
   const requested = events.filter(event => event.kind === 'specialist.requested'
     && (recovery === undefined || event.seq > recovery.seq)
@@ -278,8 +280,9 @@ export async function recordSpecialistLifecycle(
     missionId,
     eventId,
     draft,
-    validate: current => {
+    validate: async current => {
       rejectClosedMission(current);
+      await rejectSupersededSpecialistContract(root, missionId, current, input.envelope, input.contextId);
       if (observedMissionLifecycle(current).episodeId !== lifecycle.episodeId) {
         invalid('mission episode changed before recording lifecycle');
       }
@@ -293,6 +296,28 @@ export async function recordSpecialistLifecycle(
   });
   if (!sameDraft(result.event, draft)) {
     invalid(`dispatch ${phase} event conflicts with an existing event`);
+  }
+}
+
+async function rejectSupersededSpecialistContract(
+  root: string, missionId: string, events: readonly CanonicalEvent[],
+  envelope: SpecialistDispatchEnvelope, contextId?: string,
+): Promise<void> {
+  if (!events.some(event => event.kind === 'specialist.contract-migrated')) return;
+  const stored = await loadMissionControllerPlan(root, missionId);
+  const projected = validatedSpecialistContractMigrations(events, stored.plan);
+  if (!projected.ok) invalid(projected.reasons.join('; '));
+  const migration = projected.migration;
+  if (migration === undefined || envelope.specialistId !== migration.receipt.specialistId) return;
+  if (envelope.contractVersion !== migration.receipt.toVersion
+    || envelope.stage !== 'post-implementation'
+    || envelope.reviewRound !== migration.receipt.reviewRound
+    || envelope.inputHash !== migration.receipt.targetInputHash) {
+    invalid('dispatch is superseded by the authenticated specialist contract migration');
+  }
+  if (contextId !== undefined && events.some(event => event.seq < migration.seq
+    && field(event.payload, 'contextId') === contextId)) {
+    invalid('migrated specialist requires a fresh native context');
   }
 }
 
@@ -377,6 +402,7 @@ export async function recordSpecialistRequests(
   if (lifecycle.status === 'closed') invalid('mission is closed');
   const recovery = inspected.stream.events.filter(event => event.kind === 'mission.recovered').at(-1);
   for (const envelope of parsed) {
+    await rejectSupersededSpecialistContract(root, missionId, inspected.stream.events, envelope);
     const eventId = `evt_${createHash('sha256')
       .update([
         missionId,
@@ -411,8 +437,9 @@ export async function recordSpecialistRequests(
       missionId,
       eventId,
       draft,
-      validate: current => {
+      validate: async current => {
         rejectClosedMission(current);
+        await rejectSupersededSpecialistContract(root, missionId, current, envelope);
         if (observedMissionLifecycle(current).episodeId !== lifecycle.episodeId) {
           invalid('mission episode changed before recording dispatch');
         }

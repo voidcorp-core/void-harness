@@ -61,6 +61,8 @@ export interface ReviewLoopInput {
   readonly maxRounds: number;
   readonly evidenceObligations?: EvidenceObligationState;
   readonly retainedSpecialists?: readonly SpecialistId[];
+  /** Admission-validated contract transition; never supplied by a runtime caller. */
+  readonly contractMigration?: { readonly specialistId: string; readonly afterSeq: number; readonly reviewRound: number };
 }
 
 export interface ReviewLoopState {
@@ -151,6 +153,7 @@ function collectCompletions(
   beforeSeqExclusive: number | undefined,
   maxRounds: number,
   retainedSpecialists: readonly SpecialistId[],
+  contractMigration: ReviewLoopInput['contractMigration'],
 ): {
   readonly accepted: readonly CompletionEnvelope[];
   readonly issues: readonly ReviewLoopIssue[];
@@ -284,6 +287,11 @@ function collectCompletions(
     const expected = activeRound === undefined
       ? [firstCurrentRound]
       : canRetryFailure ? [activeRound, activeRound + 1] : [activeRound];
+    const migratedReview = contractMigration !== undefined && stage === 'post-implementation'
+      && current.specialistId === contractMigration.specialistId && current.event.seq > contractMigration.afterSeq;
+    const migratedAlreadyCompleted = migratedReview && currentRounds.some(candidate =>
+      candidate.event.seq < current.event.seq && candidate.event.seq > contractMigration.afterSeq
+      && candidate.specialistId === current.specialistId);
     const specialistAlreadyCompleted = current.specialistId !== undefined
       && completedInWindow.has(current.specialistId);
     const priorFailureRound = current.specialistId === undefined
@@ -295,8 +303,9 @@ function collectCompletions(
       || (!specialistAlreadyCompleted && retriesFailureInNextRound);
     if (
       current.round <= maxRounds
-      && expected.includes(current.round)
-      && respectsImplementationBoundary
+      && (migratedReview
+        ? current.round === contractMigration.reviewRound && !migratedAlreadyCompleted
+        : expected.includes(current.round) && respectsImplementationBoundary)
     ) {
       activeRound = Math.max(activeRound ?? current.round, current.round);
       if (current.specialistId !== undefined) {
@@ -318,7 +327,10 @@ function collectCompletions(
     });
   }
   const validAccepted = accepted.filter((envelope) =>
-    !invalidRoundEvents.has(envelope.event.eventId));
+    !invalidRoundEvents.has(envelope.event.eventId)
+    && !(contractMigration !== undefined && stage === 'post-implementation'
+      && envelope.completion.specialistId === contractMigration.specialistId
+      && envelope.event.seq < contractMigration.afterSeq));
   const highestRound = Math.max(historicalHighestRound, activeRound ?? 0);
   const pendingFailureRounds = [...failedRoundBySpecialist.entries()]
     .filter(([id]) => !completedInWindow.has(id))
@@ -457,6 +469,7 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     input.beforeSeqExclusive,
     input.maxRounds,
     input.retainedSpecialists ?? [],
+    input.contractMigration,
   );
   const configurationIssues: ReviewLoopIssue[] = input.requiredSpecialists.flatMap((id) => {
     const version = input.contractVersions[id];
@@ -500,6 +513,10 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     const completion = latest.get(id);
     return completion === undefined || stale.includes(id) ? [] : [completion];
   });
+  const migrationPending = input.stage === 'post-implementation' && input.contractMigration !== undefined
+    && !current.some(x => x.completion.specialistId === input.contractMigration?.specialistId);
+  const nextRound = migrationPending
+    ? Math.max(collected.nextRound, input.contractMigration?.reviewRound ?? 1) : collected.nextRound;
   const findings = mergeFindings(current);
   const status = decideStatus({
     issues,
@@ -508,14 +525,14 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     stale,
     findings,
     attemptedRound: collected.highestRound,
-    nextRound: collected.nextRound,
+    nextRound,
     maxRounds: input.maxRounds,
     ...(input.evidenceObligations === undefined ? {} : {
       evidenceObligations: input.evidenceObligations,
     }),
   });
   const reviewRound = status === 'awaiting-review'
-    ? Math.min(input.maxRounds, collected.nextRound)
+    ? Math.min(input.maxRounds, nextRound)
     : Math.max(1, collected.highestRound);
   return {
     stage: input.stage,

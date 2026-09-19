@@ -36,3 +36,5 @@ export * from './session/index.js';
 export * from './orchestration/mission-lifecycle.js';
 export * from './orchestration/mission-recovery.js';
 export * from './specialist/evidence-obligations.js';
+
+export * from './orchestration/specialist-contract-migration.js';

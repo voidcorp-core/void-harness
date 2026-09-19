@@ -1,3 +1,4 @@
+import { validatedSpecialistContractMigrations } from './specialist-contract-migration.js';
 import type { EventStreamState } from '../events/reducer.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import type { EvidenceContext } from '../evidence/types.js';
@@ -504,8 +505,10 @@ function obligationStop(
 }
 
 export function orchestrateMissionTeam(
-  input: MissionTeamControllerInput,
+  originalInput: MissionTeamControllerInput,
 ): MissionTeamDecision {
+  const migrated = validatedSpecialistContractMigrations(originalInput.stream.events, originalInput.plan);
+  const input = migrated.ok ? { ...originalInput, plan: migrated.plan } : originalInput;
   const start = missionStart(input);
   const recovered = validatedRecoveredReviewEvents(input.stream.events);
   const reviewEvents = recovered.ok ? recovered.events : input.stream.events;
@@ -633,7 +636,28 @@ export function orchestrateMissionTeam(
     return stopped('degraded', preReview, baseVerdict, recovered.reasons,
       'Reconcile the invalid recovery receipt through the supported admission path without editing history.');
   }
+  if (!migrated.ok) return stopped('degraded', preReview, baseVerdict, migrated.reasons);
   const pendingEvidence = obligationStop(obligations, preReview, baseVerdict);
+  const migration = migrated.migration;
+  if (migration !== undefined) {
+    const receipt = migration.receipt;
+    if (input.currentInputHashesByStage['post-implementation'][receipt.specialistId] !== receipt.targetInputHash
+      || receipt.reviewRound > input.maxReviewRounds) {
+      return stopped('blocked', preReview, baseVerdict, ['Migrated review inputs or budget changed; observe the admitted subject before dispatch']);
+    }
+    const terminal = input.stream.events.some(event => event.seq > migration.seq
+      && event.subject === receipt.specialistId && ['specialist.completed', 'specialist.failed'].includes(event.kind));
+    const onlyAuthorObligations = obligations.issues.length === 0
+      && obligations.blockingObligationIds.every(id => receipt.pendingAuthorObligationIds.includes(id));
+    if (!terminal && onlyAuthorObligations && preReview.readyForVerdict) {
+      const reasons = ['Explicit contract migration requires one fresh visual assessment; historical evidence obligations remain due'];
+      return applyRuntimeCertification({ phase: 'review',
+        action: { kind: 'invoke-specialists', specialistIds: ['core:visual-craft-director'],
+          stage: 'post-implementation', reviewRound: receipt.reviewRound },
+        review: preReview, verdict: overrideVerdict(baseVerdict, 'blocked', reasons), reasons,
+      }, input.specialistRuntime);
+    }
+  }
   const correctiveFindingIds = pendingRecoveredCorrectionFindingIds(input.stream.events);
   const correctiveContinuation = pendingEvidence !== undefined && obligations.issues.length === 0
     && firstImplementationSeq !== undefined && correctiveFindingIds.length > 0;
@@ -703,6 +727,10 @@ export function orchestrateMissionTeam(
     currentInputHashes: input.currentInputHashesByStage['post-implementation'],
     maxRounds: input.maxReviewRounds,
     evidenceObligations: obligations,
+    ...(migration === undefined ? {} : { contractMigration: {
+      specialistId: migration.receipt.specialistId, afterSeq: migration.seq,
+      reviewRound: migration.receipt.reviewRound,
+    } }),
   });
   if (postReview.readyForVerdict) {
     const completionEvidence = obligationStop(

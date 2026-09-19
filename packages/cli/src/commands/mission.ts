@@ -1,3 +1,4 @@
+import { loadSpecialistMigrationComparisonCatalog, observeSpecialistMigrationAssets, parseSpecialistContractMigrationRequest, recordSpecialistContractMigration } from '../lib/runs/specialist-contract-migration.js';
 import { parseSpecialistEvidenceRequest, parseSpecialistEvidenceResponse, requestSpecialistEvidence, recordSpecialistEvidence } from '../lib/runs/specialist-evidence.js';
 import { parseMissionRecoveryRequest, recordStoppedMissionRecovery } from '../lib/runs/mission-recovery.js';
 import { observedMissionLifecycle, requireOpenMission } from '../lib/runs/mission-lifecycle.js';
@@ -9,6 +10,7 @@ import { basename, extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import {
   canonicalJsonHash,
+  validatedSpecialistContractMigrations,
   createSpecialistDispatch,
   planLensExecution,
   type LensPlan,
@@ -117,6 +119,7 @@ export type MissionArgs =
   | { readonly kind: 'evidence-request'; readonly missionId: string; readonly inputPath: string; readonly json: boolean }
   | { readonly kind: 'evidence-event'; readonly missionId: string; readonly inputPath: string;
       readonly status: 'started' | 'completed'; readonly json: boolean }
+  | { readonly kind: 'migrate-specialist'; readonly missionId: string; readonly inputPath: string; readonly json: boolean }
   | {
       readonly kind: 'recover';
       readonly missionId: string;
@@ -263,7 +266,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     if (status !== 'started' && status !== 'completed') return invalid('invalid evidence status', 'pass started|completed');
     return { ...base, kind: 'evidence-event', status };
   }
-  if (subcommand === 'recover') {
+  if (subcommand === 'recover' || subcommand === 'migrate-specialist') {
     if (divider !== -1) return invalid('recover does not accept a command', 'remove --');
     const tokens = options.filter(value => value.startsWith('--'));
     if (new Set(tokens).size !== tokens.length) {
@@ -275,7 +278,9 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     if (typeof missionId !== 'string') return missionId;
     const inputPath = valueAfter(options, '--input');
     if (inputPath === undefined) return invalid('missing required option --input', 'pass --input <json-file>');
-    return { kind: 'recover', missionId, inputPath, json: options.includes('--json') };
+    return subcommand === 'recover'
+      ? { kind: 'recover', missionId, inputPath, json: options.includes('--json') }
+      : { kind: 'migrate-specialist', missionId, inputPath, json: options.includes('--json') };
   }
   if (subcommand === 'start') {
     if (divider !== -1) {
@@ -806,6 +811,7 @@ async function compileMission(
   ticket: Awaited<ReturnType<typeof readTicket>>,
   generatedAt: string,
   detectedFiles?: DetectedFiles,
+  specialistCatalog?: Awaited<ReturnType<typeof loadSpecialists>>,
 ): Promise<MissionPlan> {
   const [coreRoot, diff] = await Promise.all([
     findCoreSource(),
@@ -814,7 +820,7 @@ async function compileMission(
   const [policies, profiles, specialists] = await Promise.all([
     loadProjectPolicies(root, join(coreRoot, 'policies')),
     loadProfiles(root, join(coreRoot, 'profiles')),
-    loadSpecialists(coreRoot),
+    specialistCatalog ?? loadSpecialists(coreRoot),
   ]);
   const profileInput = detectProfileInput(root, diff.files);
   const stack = detectedStack(root, profileInput);
@@ -846,16 +852,63 @@ async function planBoundMission(
   ticketPath: string,
   generatedAt = new Date().toISOString(),
   detectedFiles?: DetectedFiles,
+  specialistCatalog?: Awaited<ReturnType<typeof loadSpecialists>>,
 ): Promise<{
   readonly plan: MissionPlan;
   readonly ticket: MissionControllerTicketBinding;
 }> {
   const ticket = await readTicket(root, ticketPath);
-  const plan = await compileMission(root, ticket, generatedAt, detectedFiles);
+  const plan = await compileMission(root, ticket, generatedAt, detectedFiles, specialistCatalog);
   return Object.freeze({
     plan,
     ticket: controllerTicketBinding(ticket),
   });
+}
+
+export async function migrateMissionSpecialist(
+  roots: ProjectRoots, missionId: string,
+  request: import('@voidcorp/mission-engine').SpecialistContractMigrationRequest,
+) {
+  const { workRoot, installRoot } = roots;
+  const [stored, current, coreRoot] = await Promise.all([
+    loadMissionControllerPlan(installRoot, missionId),
+    inspectCurrentMission(roots, missionId, collectKnownSecrets()), findCoreSource(),
+  ]);
+  requireOpenMission(current.inspected.stream.events);
+  if (missionRoutingHash(current.inspected.stream.events) !== stored.routingHash) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: migration requires the immutable bound plan');
+  }
+  const identity = missionRuntimeIdentity(current.inspected.stream.events);
+  const coordinator = coordinatorRuntimeIdentity(process.env);
+  if (!identity?.attested || !coordinator.attested || coordinator.runtime !== identity.runtime) {
+    throw new Error('SPECIALIST_CONTRACT_MIGRATION_RUNTIME: observe the original native runtime');
+  }
+  const capability = await specialistCapabilityFor(installRoot, identity.runtime);
+  if (capability.status === 'unavailable') {
+    throw new Error(`SPECIALIST_CONTRACT_MIGRATION_NATIVE: ${capability.limitations.join('; ')}`);
+  }
+  const assets = await observeSpecialistMigrationAssets(coreRoot, installRoot, identity.runtime);
+  const subject = await captureMissionReviewSubject(workRoot, stored.baseCommit);
+  const live = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject.files);
+  if (live.ticket.path !== stored.ticket.path || live.ticket.contentHash !== stored.ticket.contentHash) {
+    throw new Error('MISSION_TICKET_CHANGED: migration cannot replace the bound ticket');
+  }
+  const hashes = Object.fromEntries(live.plan.specialists.map(specialist => [specialist.specialistId,
+    canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash })]));
+  const comparisonCatalog = await loadSpecialistMigrationComparisonCatalog(coreRoot, assets.declaration, stored.plan);
+  const comparison = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject.files, comparisonCatalog);
+  const originalHashes = Object.fromEntries(comparison.plan.specialists.map(specialist => [specialist.specialistId,
+    canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash })]));
+  const targetInputHash = hashes[assets.declaration.specialistId];
+  if (targetInputHash === undefined) throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: missing target review input');
+  const result = await recordSpecialistContractMigration(installRoot, missionId, request, {
+    ...assets, reviewSubjectHash: subject.hash, targetInputHash, plan: stored.plan,
+    currentInputHashes: originalHashes, maxRounds: 2,
+    expectedSource: identity.runtime === 'codex' ? 'runtime:codex' : 'runtime:claude',
+    evidenceDependencies: { 'git:working-tree': current.project.diffHash },
+  });
+  return { ...result, provenance: { coreRoot, runtime: identity.runtime, capability,
+    declarationHash: canonicalJsonHash(assets.declaration), nativeAgentSha256: assets.nativeAgentSha256 } };
 }
 
 /** Observe recovery inputs from the bound project and this candidate's actual assets. */
@@ -997,6 +1050,29 @@ export async function dispatchMissionSpecialists(
       routing: specialist.proof.inputHash, subject: reviewSubject.hash,
     }),
   ]));
+  const migration = validatedSpecialistContractMigrations(inspected.stream.events, stored.plan);
+  if (!migration.ok) throw new Error(`SPECIALIST_CONTRACT_MIGRATION_INVALID: ${migration.reasons.join('; ')}`);
+  if (migration.migration !== undefined) {
+    const identity = missionRuntimeIdentity(inspected.stream.events);
+    if (identity === undefined || reviewSubject === undefined) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: migration requires its native post-implementation subject');
+    }
+    const coreRoot = await findCoreSource();
+    const assets = await observeSpecialistMigrationAssets(coreRoot, installRoot, identity.runtime);
+    if (canonicalJsonHash(assets.declaration) !== migration.migration.receipt.declarationHash
+      || assets.nativeAgentSha256 !== migration.migration.receipt.nativeAgentSha256) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: declared or installed contract changed');
+    }
+    const catalog = await loadSpecialistMigrationComparisonCatalog(coreRoot, assets.declaration, stored.plan);
+    const comparison = await planBoundMission(workRoot, stored.ticket.path, generatedAt, reviewSubject.files, catalog);
+    for (const specialist of comparison.plan.specialists) {
+      if (specialist.specialistId !== assets.declaration.specialistId) {
+        currentInputHashes[specialist.specialistId] = canonicalJsonHash({
+          routing: specialist.proof.inputHash, subject: reviewSubject.hash,
+        });
+      }
+    }
+  }
   const firstImplementation = inspected.stream.events.find(event => event.kind === 'lead-writer.completed'
     && objectField(event.payload, 'actionKind') !== 'run-preparation-correction');
   const implementationRequest = firstImplementation === undefined ? undefined
@@ -1045,7 +1121,7 @@ export async function dispatchMissionSpecialists(
     ? createSpecialistDispatch({
         missionId: input.missionId,
         runtime,
-        plan: stored.plan,
+        plan: migration.plan,
         action: decision.action,
         currentInputHashes: decision.action.stage === 'pre-implementation'
           ? preImplementationInputHashes
@@ -1472,6 +1548,13 @@ export async function mission(args: readonly string[]): Promise<void> {
         process.stdout.write(parsed.json ? `${JSON.stringify({ recorded: true, status: parsed.status, capability })}\n`
           : `recorded evidence ${parsed.status}\n`);
       }
+      return;
+    }
+    if (parsed.kind === 'migrate-specialist') {
+      const request = parseSpecialistContractMigrationRequest(await readLifecycleJson(root, parsed.inputPath));
+      const result = await migrateMissionSpecialist(roots, parsed.missionId, request);
+      process.stdout.write(parsed.json ? `${JSON.stringify(result)}\n`
+        : `specialist migration ${result.recorded ? 'recorded' : 'already recorded'}: ${result.migrationEventId}\n`);
       return;
     }
     if (parsed.kind === 'recover') {
