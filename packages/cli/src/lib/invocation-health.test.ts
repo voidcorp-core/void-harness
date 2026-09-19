@@ -102,7 +102,7 @@ describe('observeInvocation', () => {
         kind: 'runtime.tool.started',
         missionId: 'mis_aaaaaaaaaaaaaaaa',
         subject: 'skill:ticket-writer',
-        ts: '2026-08-19T10:00:00.000Z',
+        ts: new Date().toISOString(),
         payload: { category: 'skill', tool: 'Skill' },
       })}\n`,
     );

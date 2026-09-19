@@ -47,6 +47,7 @@ const SHIPPED = new Map([
   ['adapters', 'security scanner manifests'],
   ['agents', 'the specialist agent definitions each runtime stages'],
   ['codex', 'the Codex safety floor (hooks.json)'],
+  ['contract-history', 'immutable released contracts required by declared open-mission migrations'],
   ['data', 'the state-input JSON `status` scores against'],
   ['enforce', 'the enforcement floor configuration'],
   ['graph', 'excluded from the copy below; declared so its absence is deliberate'],

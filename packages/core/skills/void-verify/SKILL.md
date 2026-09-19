@@ -173,3 +173,12 @@ Otherwise → it is not voidcorp completion.
 ```
 
 Checklists prevent omissions even for experts. The discipline pays for itself the first time it catches the test that "should have" been run.
+
+## Bounded review evidence
+
+Use the review receipt from `void-implement`: exact commit and base, acceptance criteria,
+independent reviewer, conclusions, proofs and blocking-defect resolutions. A mutable worktree
+alone is insufficient. Reuse unaffected evidence after correction and verify the affected
+behavior only; do not trigger another general panel. Native runtime identity absence or refusal
+is an explicit provenance limitation, not an extra certification gate. Actual independence and
+valid evidence remain required. An unresolved blocking defect prevents completion.

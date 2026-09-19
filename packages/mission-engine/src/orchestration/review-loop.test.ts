@@ -100,6 +100,38 @@ describe('MVP specialist review loop', () => {
     expect(state.readyForVerdict).toBe(false);
   });
 
+  it('keeps an unchanged partial panel in its current round on repeated observation', () => {
+    const events = [completion('core:solution-architect')];
+    const first = review(events);
+    const resumed = review(events);
+
+    expect(first).toMatchObject({
+      status: 'awaiting-review',
+      reviewRound: 1,
+      specialistsToRun: ['core:security-engineer', 'core:test-qa-engineer'],
+    });
+    expect(resumed).toEqual(first);
+  });
+
+  it('collects missing peers within the last permitted round', () => {
+    const state = reduceReviewLoop({
+      stage: 'post-implementation',
+      expectedSource: 'runtime:codex',
+      events: [completion('core:solution-architect')],
+      requiredSpecialists: TEST_SPECIALIST_IDS,
+      contractVersions: CONTRACT_VERSIONS,
+      currentInputHashes: INPUTS,
+      maxRounds: 1,
+    });
+
+    expect(state).toMatchObject({
+      status: 'awaiting-review',
+      reviewRound: 1,
+      specialistsToRun: ['core:security-engineer', 'core:test-qa-engineer'],
+      readyForVerdict: false,
+    });
+  });
+
   it('turns architecture, security, and QA findings into a bounded correction', () => {
     const state = review([
       completion('core:solution-architect', {
@@ -139,6 +171,18 @@ describe('MVP specialist review loop', () => {
     expect(state.status).toBe('awaiting-review');
     expect(state.staleSpecialists).toEqual(['core:security-engineer']);
     expect(state.specialistsToRun).toEqual(['core:security-engineer']);
+  });
+
+  it('retains advisory findings from a PASS without demanding another correction', () => {
+    const advisory = finding('optional-clarity', 'low', 'src/domain.ts', 2);
+    const state = review([
+      completion('core:solution-architect', { findings: [advisory], verdict: 'pass' }),
+      completion('core:security-engineer'), completion('core:test-qa-engineer'),
+    ]);
+
+    expect(state.status).toBe('ready-for-verdict');
+    expect(state.readyForVerdict).toBe(true);
+    expect(state.findings).toEqual([expect.objectContaining({ sourceId: 'optional-clarity' })]);
   });
 
   it('becomes ready only after three fresh passing completions', () => {

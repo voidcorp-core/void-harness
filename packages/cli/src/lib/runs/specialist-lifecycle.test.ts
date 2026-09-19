@@ -1,14 +1,14 @@
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
 import { compileContextPack } from '@voidcorp/mission-engine';
-import { appendMissionEvent, createMission, inspectMission } from './store.js';
+import { describe, expect, it } from 'vitest';
 import {
   parseSpecialistLifecycleInput,
   recordSpecialistLifecycle,
   recordSpecialistRequests,
 } from './specialist-lifecycle.js';
+import { appendMissionEvent, createMission, inspectMission } from './store.js';
 
 const ID = 'mis_0123456789abcdef0123456789abcdef';
 const HASH = `sha256:${'a'.repeat(64)}`;
@@ -173,7 +173,7 @@ describe('specialist lifecycle adapter', () => {
     );
     await recordSpecialistRequests(root, ID, [ENVELOPE], HASH);
     await expect(recordSpecialistLifecycle(root, ID, completion)).rejects.toThrow(
-      'no matching specialist.started',
+      /SPECIALIST_LIFECYCLE_INVALID.*specialist\.started/,
     );
     await recordSpecialistLifecycle(root, ID, parseSpecialistLifecycleInput('started', {
       envelope: ENVELOPE,
