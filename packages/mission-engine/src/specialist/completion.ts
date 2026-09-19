@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/mission-engine/src/specialist/review-receipt.test.ts
 import { type IndependentReviewReceipt, parseReviewReceipt } from './review-receipt.js';
 export type SpecialistCompletionVerdict =
   | 'pass'

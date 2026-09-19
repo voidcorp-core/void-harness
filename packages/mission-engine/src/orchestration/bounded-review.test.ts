@@ -125,7 +125,8 @@ describe('bounded controller routing', () => {
 
 describe('retained review conclusions', () => {
   it('retains an unaffected resolution across the second correction batch', () => {
-    const resolved = (seq: number, round: number, id: string, findings: readonly JsonValue[], hash: string) =>
+    const resolved = (seq: number, round: number, id: string, findings: readonly JsonValue[], hash: string,
+      status: 'resolved' | 'unresolved' = 'resolved') =>
       event({ seq, eventId: `evt_review_${seq}`, kind: 'specialist.completed', subject: REVIEWER,
         payload: { stage: 'post-implementation', reviewRound: round, inputHash: hash,
           contextId: `ctx_review_${seq}`, completion: {
@@ -137,7 +138,7 @@ describe('retained review conclusions', () => {
               acceptanceCriteriaHash: HASH, readOnly: true,
               scope: { kind: 'targeted', findingIds: [id], affectedPaths: ['src/auth.ts'] },
               proofIds: [`proof-${id}`],
-              resolutions: [{ findingId: id, status: 'resolved', proofIds: [`proof-${id}`] }],
+              resolutions: [{ findingId: id, status, proofIds: [`proof-${id}`] }],
               provenance: { kind: 'native-context', contextId: `ctx_review_${seq}` },
             },
           } },
@@ -152,6 +153,10 @@ describe('retained review conclusions', () => {
     const expiredProof = reduce(secondBatch, OTHER_HASH, ['proof-defect-b']);
     expect(expiredProof).toMatchObject({ status: 'blocked', readyForVerdict: false });
     expect(expiredProof.findings.map(item => item.sourceId)).toEqual(['defect-a']);
+    const reopened = [...firstBatch, writer(5, 'run-correction'),
+      resolved(6, 3, 'defect-a', [], OTHER_HASH, 'unresolved')];
+    expect(reduce(reopened, OTHER_HASH, ['proof-defect-a']).findings.map(item => item.sourceId))
+      .toContain('defect-a');
   });
   it('does not silently drop an original blocker when targeted verification says pass', () => {
     expect(reduce([writer(1, 'run-lead-writer'), completed(2, 1, [finding('blocking')]),

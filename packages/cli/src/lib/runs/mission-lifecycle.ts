@@ -1,7 +1,8 @@
+// tdd-cover: e2e packages/cli/src/lib/runs/mission-recovery.test.ts
 import {
+  type CanonicalEvent,
   projectMissionLifecycle,
   validatedRecoveredReviewEvents,
-  type CanonicalEvent,
 } from '@voidcorp/mission-engine';
 
 /** A recovery opens an episode only when its receipt reproduces the original admission. */

@@ -30,7 +30,8 @@ materializes its runtime-neutral specialist envelopes from the current plan.
    --json`. The frozen task and controller own routing, state and correction budget. Before
    implementation, invoke only the risk-relevant preparation specialists returned by dispatch.
    Supply their exact envelopes and context packs; collect each result without inventing a
-   completion. A missing response calls for resumption, not another correction cycle.
+   completion. Record each actual start and completion with `mission specialist-event --id <mission>`.
+   A missing response calls for resumption, not another correction cycle.
 3. The implementer implements and verifies, then commits the candidate. Record the pending
    writer receipt with `mission writer-event --id <mission>`. Review must bind an exact
    `reviewedCommit`, `baseCommit` and `acceptanceCriteriaHash`; a mutable worktree is insufficient.

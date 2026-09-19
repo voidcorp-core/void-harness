@@ -1,13 +1,15 @@
-import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
-import { canonicalJson, canonicalJsonHash, parseEventLine, planSpecialistContractMigration } from '@voidcorp/mission-engine';
-import { inspectMission, loadMissionControllerPlan } from './store.js';
+// tdd-cover: e2e packages/cli/src/lib/runs/specialist-contract-migration-append.test.ts
+
 import { createHash } from 'node:crypto';
-import type { SpecialistContractMigrationRequest, SpecialistContractMigrationDeclaration } from '@voidcorp/mission-engine';
+import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
+import type { SpecialistContractMigrationDeclaration, SpecialistContractMigrationRequest } from '@voidcorp/mission-engine';
+import { canonicalJson, canonicalJsonHash, parseEventLine, planSpecialistContractMigration } from '@voidcorp/mission-engine';
 import type { Runtime } from '../runtime.js';
 import { readBoundedProjectFile } from '../safe-read.js';
-import { compileCodexSpecialist } from '../specialists/compile-codex.js';
 import { compileClaudeSpecialist } from '../specialists/compile-claude.js';
+import { compileCodexSpecialist } from '../specialists/compile-codex.js';
 import { loadSpecialists, parseSpecialistYaml } from '../specialists/load.js';
+import { inspectMission, loadMissionControllerPlan } from './store.js';
 
 const MIGRATION = 'visual-craft-director-v2-v3';
 const ARCHIVE = 'contract-history/visual-craft-director/v2.yaml';
