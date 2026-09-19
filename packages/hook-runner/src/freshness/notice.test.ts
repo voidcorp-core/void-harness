@@ -142,12 +142,33 @@ describe('freshnessRelay', () => {
     expect(relay).toContain('void-harness update');
   });
 
-  it('asks the agent to tell the user, which no hook field can do itself', () => {
-    expect(freshnessRelay(behind, 'local')).toMatch(/tell the user/i);
+  it('asks the agent to offer the update near the first reply', () => {
+    const relay = freshnessRelay(behind, 'local') ?? '';
+    expect(relay).toMatch(/tell the user/i);
+    expect(relay).toMatch(/first reply/i);
+    expect(relay).toMatch(/offer to run.*`void-harness update`/i);
   });
 
-  it('bounds the telling to once, so it never becomes noise every turn', () => {
-    expect(freshnessRelay(behind, 'local')).toMatch(/once/i);
+  it('requires explicit human permission for project writes even in autonomous mode', () => {
+    const relay = freshnessRelay(behind, 'local') ?? '';
+    expect(relay).toMatch(/writes project files/i);
+    expect(relay).toMatch(/wait for explicit human (?:permission|approval).*before (?:running|executing)/i);
+    expect(relay).toMatch(/even (?:in autonomous mode|when operating autonomously)/i);
+  });
+
+  it('links public release notes so breaking changes can be reviewed before approval', () => {
+    const relay = freshnessRelay(behind, 'local') ?? '';
+    expect(relay).toContain('https://github.com/voidcorp-core/void-harness/releases');
+    expect(relay).toMatch(/breaking changes/i);
+  });
+
+  it('continues the task without updating or repeating the offer after refusal or silence', () => {
+    const relay = freshnessRelay(behind, 'local') ?? '';
+    expect(relay).toMatch(/once/i);
+    expect(relay).toMatch(/declines|refuses/i);
+    expect(relay).toMatch(/does not (?:reply|answer)|silence/i);
+    expect(relay).toMatch(/continue (?:the|their) task without updating/i);
+    expect(relay).toMatch(/do not (?:repeat|offer again).*session/i);
   });
 
   it('reads differently from the terminal line, which needs no relaying', () => {

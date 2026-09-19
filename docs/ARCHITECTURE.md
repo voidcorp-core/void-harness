@@ -368,6 +368,18 @@ a current or next unit.
 Human gates and merges remain human. A standalone ticket or sequential plan keeps using its normal
 ticket or resume-point flow and does not need a programme descriptor.
 
+### Session update proposal
+
+For a local installation behind the cached published version, `freshnessRelay` supplies
+SessionStart model context asking the agent to offer `void-harness update` once near its
+first reply. The offer explains that update writes project files and links the public
+[release notes](https://github.com/voidcorp-core/void-harness/releases) for possible breaking
+changes. Execution requires explicit human permission, including during autonomous work.
+Refusal or silence leaves the task proceeding without updating or repeating the offer in
+that session. This is agent guidance, not a technical authorization barrier. Current,
+ahead, unknown, marketplace and unknown-source cases remain silent; the terminal notice,
+cached detection and background refresh keep their existing behavior and startup budget.
+
 ### Mechanical context continuity
 
 The checkpoint is also the single local continuity file. A uniquely delimited mechanical block
