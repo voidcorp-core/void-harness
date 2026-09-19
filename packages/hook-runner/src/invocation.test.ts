@@ -344,7 +344,7 @@ describe('the cached verdict', () => {
   function recorded(root: string, name: string): void {
     const dir = join(root, '.void', 'machine', 'runs', 'mis_aaaaaaaaaaaaaaaa');
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, 'events.jsonl'), `${activation(name)}\n`);
+    writeFileSync(join(dir, 'events.jsonl'), `${activation(name, new Date().toISOString())}\n`);
   }
 
   it('says nothing at all before anything has been computed', () => {
