@@ -32,3 +32,7 @@ export * from './routing/eligibility.js';
 export * from './security/scope.js';
 export * from './security/severity.js';
 export * from './session/index.js';
+
+export * from './orchestration/mission-lifecycle.js';
+export * from './orchestration/mission-recovery.js';
+export * from './specialist/evidence-obligations.js';

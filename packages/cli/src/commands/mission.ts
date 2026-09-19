@@ -1,3 +1,6 @@
+import { parseSpecialistEvidenceRequest, parseSpecialistEvidenceResponse, requestSpecialistEvidence, recordSpecialistEvidence } from '../lib/runs/specialist-evidence.js';
+import { parseMissionRecoveryRequest, recordStoppedMissionRecovery } from '../lib/runs/mission-recovery.js';
+import { observedMissionLifecycle, requireOpenMission } from '../lib/runs/mission-lifecycle.js';
 import { execFile as nodeExecFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -28,6 +31,8 @@ import {
   type ContextArtifact,
   type ContextPackInput,
   type SpecialistInvocationStage,
+  type MissionRecoveryRequest,
+  type MissionRecoveryObservation,
 } from '@voidcorp/mission-engine';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
@@ -109,6 +114,15 @@ interface InvalidArgs {
 }
 
 export type MissionArgs =
+  | { readonly kind: 'evidence-request'; readonly missionId: string; readonly inputPath: string; readonly json: boolean }
+  | { readonly kind: 'evidence-event'; readonly missionId: string; readonly inputPath: string;
+      readonly status: 'started' | 'completed'; readonly json: boolean }
+  | {
+      readonly kind: 'recover';
+      readonly missionId: string;
+      readonly inputPath: string;
+      readonly json: boolean;
+    }
   | {
       readonly kind: 'plan';
       readonly ticketPath: string;
@@ -232,6 +246,37 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     return { kind: 'help' };
   }
   const command = divider === -1 ? [] : args.slice(divider + 1);
+  if (subcommand === 'evidence-request' || subcommand === 'evidence-event') {
+    if (divider !== -1) return invalid('evidence commands do not accept a command', 'remove --');
+    const names = options.filter(value => value.startsWith('--'));
+    if (new Set(names).size !== names.length) return invalid('duplicate evidence option', 'provide each option once');
+    const error = validateOptions(options,
+      subcommand === 'evidence-event' ? ['--id', '--input', '--status'] : ['--id', '--input'], ['--json']);
+    if (error !== undefined) return invalid(error, 'void-harness mission --help');
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    const inputPath = valueAfter(options, '--input');
+    if (inputPath === undefined) return invalid('missing required option --input', 'pass --input <json-file>');
+    const base = { missionId, inputPath, json: options.includes('--json') };
+    if (subcommand === 'evidence-request') return { ...base, kind: 'evidence-request' };
+    const status = valueAfter(options, '--status');
+    if (status !== 'started' && status !== 'completed') return invalid('invalid evidence status', 'pass started|completed');
+    return { ...base, kind: 'evidence-event', status };
+  }
+  if (subcommand === 'recover') {
+    if (divider !== -1) return invalid('recover does not accept a command', 'remove --');
+    const tokens = options.filter(value => value.startsWith('--'));
+    if (new Set(tokens).size !== tokens.length) {
+      return invalid('duplicate recovery option', 'provide each recovery option once');
+    }
+    const error = validateOptions(options, ['--id', '--input'], ['--json']);
+    if (error !== undefined) return invalid(error, 'void-harness mission recover --help');
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    const inputPath = valueAfter(options, '--input');
+    if (inputPath === undefined) return invalid('missing required option --input', 'pass --input <json-file>');
+    return { kind: 'recover', missionId, inputPath, json: options.includes('--json') };
+  }
   if (subcommand === 'start') {
     if (divider !== -1) {
       return invalid('start does not accept a command', 'remove the -- separator');
@@ -813,6 +858,80 @@ async function planBoundMission(
   });
 }
 
+/** Observe recovery inputs from the bound project and this candidate's actual assets. */
+export async function recoverStoppedMission(
+  roots: ProjectRoots, missionId: string, request: MissionRecoveryRequest,
+) {
+  const { workRoot, installRoot } = roots;
+  const [stored, inspected, coreRoot] = await Promise.all([
+    loadMissionControllerPlan(installRoot, missionId),
+    inspectMission(installRoot, missionId, { dependencies: {} }), findCoreSource(),
+  ]);
+  if (missionRoutingHash(inspected.stream.events) !== stored.routingHash) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: recovery requires the original bound plan');
+  }
+  const identity = missionRuntimeIdentity(inspected.stream.events);
+  const coordinator = coordinatorRuntimeIdentity(process.env);
+  if (!identity?.attested || !coordinator.attested || coordinator.runtime !== identity.runtime) {
+    throw new Error('MISSION_RECOVERY_RUNTIME: observe the original native runtime before recovery');
+  }
+  const capability = await specialistCapabilityFor(installRoot, identity.runtime);
+  if (capability.status === 'unavailable') {
+    throw new Error(`MISSION_RECOVERY_CAPABILITY: ${capability.limitations.join('; ')}`);
+  }
+  const catalog = await loadSpecialists(coreRoot);
+  for (const specialist of stored.plan.specialists) {
+    const current = catalog.find(value => value.id === specialist.specialistId);
+    if (!current || current.version !== specialist.contractVersion) {
+      throw new Error(`MISSION_RECOVERY_CONTRACT: ${specialist.specialistId} needs matching candidate assets`);
+    }
+  }
+  const implemented = inspected.stream.events.some(event => event.kind === 'lead-writer.completed'
+    && objectField(event.payload, 'actionKind') !== 'run-preparation-correction');
+  const subject = implemented ? await captureMissionReviewSubject(workRoot, stored.baseCommit) : undefined;
+  const live = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject?.files);
+  if (live.ticket.path !== stored.ticket.path || live.ticket.contentHash !== stored.ticket.contentHash) {
+    throw new Error('MISSION_TICKET_CHANGED: recovery cannot replace the original ticket');
+  }
+  const currentInputHashes = Object.fromEntries(live.plan.specialists.map(specialist => [
+    specialist.specialistId, subject === undefined ? specialist.proof.inputHash
+      : canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash }),
+  ]));
+  const resolutionArtifact = request.disposition.kind === 'review-blocker'
+    ? await recoveryResolutionArtifact(workRoot, request.disposition.resolutionArtifact.path) : undefined;
+  const observation: MissionRecoveryObservation = {
+    stage: implemented ? 'post-implementation' : 'pre-implementation', maxRounds: 2,
+    expectedSource: identity.runtime === 'codex' ? 'runtime:codex' : 'runtime:claude',
+    currentInputHashes,
+    contractVersions: Object.fromEntries(stored.plan.specialists.map(value => [value.specialistId, value.contractVersion])),
+    ...(resolutionArtifact === undefined ? {} : { resolutionArtifact }),
+  };
+  const result = await recordStoppedMissionRecovery(installRoot, missionId, request, observation);
+  return { ...result, provenance: { coreRoot, catalogHash: canonicalJsonHash(catalog),
+    routingHash: stored.routingHash, runtime: identity.runtime, capability } };
+}
+
+async function evidenceRuntime(roots: ProjectRoots, missionId: string) {
+  const inspected = await inspectMission(roots.installRoot, missionId, { dependencies: {} });
+  const identity = missionRuntimeIdentity(inspected.stream.events);
+  const coordinator = coordinatorRuntimeIdentity(process.env);
+  if (!identity?.attested || !coordinator.attested || coordinator.runtime !== identity.runtime) {
+    throw new Error('SPECIALIST_EVIDENCE_INVALID: observe the original native runtime before author clarification');
+  }
+  const capability = await specialistCapabilityFor(roots.installRoot, identity.runtime);
+  if (capability.status === 'unavailable') {
+    throw new Error(`SPECIALIST_EVIDENCE_INVALID: ${capability.limitations.join('; ')}`);
+  }
+  return capability;
+}
+
+async function recoveryResolutionArtifact(root: string, path: string) {
+  const loaded = await readBoundedProjectFile({ root, inputPath: path, maxBytes: 100_000,
+    pathEscapeMessage: 'MISSION_RECOVERY_INVALID: resolution artifact escaped the project',
+    invalidMessage: 'MISSION_RECOVERY_INVALID: unsafe or oversized resolution artifact' });
+  return { path, sha256: `sha256:${createHash('sha256').update(loaded.body).digest('hex')}` };
+}
+
 /**
  * Two roots, on purpose. The ticket, the diff and the context pack are read
  * from the tree the command runs in; the mission journal, the controller plan
@@ -842,13 +961,14 @@ export async function dispatchMissionSpecialists(
   readonly lensPlan?: LensPlan;
 }> {
   const { workRoot, installRoot } = roots;
-  const [stored, inspected] = await Promise.all([
+  const [stored, initialInspection] = await Promise.all([
     loadMissionControllerPlan(installRoot, input.missionId),
     inspectMission(installRoot, input.missionId, { dependencies: {} }),
   ]);
-  if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: specialist dispatch is no longer active');
-  }
+  const current = initialInspection.stream.events.some(event => event.kind === 'evidence.recorded')
+    ? await inspectCurrentMission(roots, input.missionId, collectKnownSecrets()) : undefined;
+  const inspected = current?.inspected ?? initialInspection;
+  requireOpenMission(inspected.stream.events);
   const implemented = inspected.stream.events.some((event) =>
     event.kind === 'lead-writer.completed'
     && isUnknownRecord(event.payload)
@@ -877,9 +997,23 @@ export async function dispatchMissionSpecialists(
       routing: specialist.proof.inputHash, subject: reviewSubject.hash,
     }),
   ]));
+  const firstImplementation = inspected.stream.events.find(event => event.kind === 'lead-writer.completed'
+    && objectField(event.payload, 'actionKind') !== 'run-preparation-correction');
+  const implementationRequest = firstImplementation === undefined ? undefined
+    : inspected.stream.events.find(event => event.kind === 'lead-writer.requested'
+      && event.eventId === objectField(firstImplementation.payload, 'requestEventId'));
+  const preparationBoundary = implementationRequest?.seq ?? firstImplementation?.seq;
   const preImplementationInputHashes: Record<string, string> = {};
   for (const specialist of stored.plan.specialists) {
-    const inputHash = specialist.inputHash ?? currentInputHashes[specialist.specialistId];
+    const admittedPreparation = preparationBoundary === undefined ? undefined
+      : inspected.stream.events.filter(event => event.kind === 'specialist.completed'
+        && event.seq < preparationBoundary && event.subject === specialist.specialistId
+        && objectField(event.payload, 'stage') === 'pre-implementation').at(-1);
+    const admittedHash = admittedPreparation === undefined ? undefined
+      : objectField(admittedPreparation.payload, 'inputHash');
+    const inputHash = implemented
+      ? (typeof admittedHash === 'string' ? admittedHash : specialist.inputHash)
+      : currentInputHashes[specialist.specialistId];
     if (inputHash === undefined) {
       throw new Error(
         `MISSION_CONTROLLER_PLAN_INVALID: pre-implementation hash missing for ${specialist.specialistId}`,
@@ -898,7 +1032,8 @@ export async function dispatchMissionSpecialists(
   const decision = orchestrateMissionTeam({
     plan: stored.plan,
     stream: inspected.stream,
-    evidenceContext: { dependencies: {} },
+    evidenceContext: { dependencies: current === undefined ? {}
+      : { 'git:working-tree': current.project.diffHash } },
     currentInputHashesByStage: {
       'pre-implementation': preImplementationInputHashes,
       'post-implementation': currentInputHashes,
@@ -1018,9 +1153,7 @@ function isUnknownRecord(value: unknown): value is Readonly<Record<string, unkno
 }
 
 function rejectClosedMission(events: readonly CanonicalEvent[]): void {
-  if (events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: controller transition is no longer accepted');
-  }
+  requireOpenMission(events);
 }
 
 export async function recordLeadWriterCompletion(
@@ -1028,9 +1161,7 @@ export async function recordLeadWriterCompletion(
   input: Extract<MissionArgs, { readonly kind: 'writer-event' }>,
 ): Promise<void> {
   const inspected = await inspectMission(root, input.missionId, { dependencies: {} });
-  if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: lead-writer completion is no longer accepted');
-  }
+  requireOpenMission(inspected.stream.events);
   const requests = inspected.stream.events.filter((event) =>
     event.kind === 'lead-writer.requested'
     && event.source === 'void-harness:mission.dispatch')
@@ -1166,13 +1297,13 @@ export async function recordMissionClosure(
   source = 'void-harness:mission.close',
 ): Promise<void> {
   const inspected = await inspectMission(root, missionId, { dependencies: {} });
-  const existing = inspected.stream.events.find((event) => event.kind === 'mission.closed');
-  if (existing !== undefined) {
-    if (objectField(existing.payload, 'reason') === reason) return;
+  const lifecycle = observedMissionLifecycle(inspected.stream.events);
+  if (lifecycle.status === 'closed') {
+    if (objectField(lifecycle.closure.payload, 'reason') === reason) return;
     throw new Error('MISSION_CLOSURE_CONFLICT: mission already closed for another reason');
   }
   const eventId = `evt_${createHash('sha256')
-    .update([missionId, 'mission.closed'].join('|'))
+    .update([missionId, 'mission.closed', lifecycle.episodeId].join('|'))
     .digest('hex')}`;
   let result: Awaited<ReturnType<typeof writeSequencedEventOnce>>;
   try {
@@ -1185,7 +1316,13 @@ export async function recordMissionClosure(
         kind: 'mission.closed',
         subject: 'mission',
         correlationId: missionId,
-        payload: { reason },
+        payload: { reason, episodeId: lifecycle.episodeId },
+      },
+      validate: events => {
+        const current = observedMissionLifecycle(events);
+        if (current.status !== 'open' || current.episodeId !== lifecycle.episodeId) {
+          throw new Error('MISSION_CLOSURE_CONFLICT: active episode changed');
+        }
       },
     });
   } catch (error) {
@@ -1245,6 +1382,9 @@ function usage(): string {
   mission start --title <title> [--ticket <markdown-file>] [--mode fast|team|fortress] [--json]
   mission plan --ticket <markdown-file> [--json]
   mission dispatch --id <id> [--json]
+  mission evidence-request --id <id> --input <json-file> [--json]
+  mission evidence-event --id <id> --status started|completed --input <json-file> [--json]
+  mission recover --id <id> --input <json-file> [--json]
   mission specialist-event --id <id> --status started|completed|failed --input <json-file> [--json]
   mission writer-event --id <id> [--json]
   mission close --id <id> --reason interrupted|abandoned [--json]
@@ -1318,6 +1458,27 @@ export async function mission(args: readonly string[]): Promise<void> {
     if (parsed.kind === 'plan') {
       const plan = await planMission(root, parsed.ticketPath);
       process.stdout.write(parsed.json ? `${JSON.stringify(plan)}\n` : `${renderPlan(plan)}\n`);
+      return;
+    }
+    if (parsed.kind === 'evidence-request' || parsed.kind === 'evidence-event') {
+      const capability = await evidenceRuntime(roots, parsed.missionId);
+      const value = await readLifecycleJson(root, parsed.inputPath);
+      if (parsed.kind === 'evidence-request') {
+        const request = await requestSpecialistEvidence(roots, parsed.missionId, parseSpecialistEvidenceRequest(value));
+        process.stdout.write(parsed.json ? `${JSON.stringify({ request, capability })}\n` : `${request.eventId}\n`);
+      } else {
+        await recordSpecialistEvidence(roots, parsed.missionId, parsed.status,
+          parseSpecialistEvidenceResponse(parsed.status, value));
+        process.stdout.write(parsed.json ? `${JSON.stringify({ recorded: true, status: parsed.status, capability })}\n`
+          : `recorded evidence ${parsed.status}\n`);
+      }
+      return;
+    }
+    if (parsed.kind === 'recover') {
+      const request = parseMissionRecoveryRequest(await readLifecycleJson(root, parsed.inputPath));
+      const result = await recoverStoppedMission(roots, parsed.missionId, request);
+      process.stdout.write(parsed.json ? `${JSON.stringify(result)}\n`
+        : `recovery ${result.recorded ? 'recorded' : 'already recorded'}: ${result.recoveryEventId}\n`);
       return;
     }
     if (parsed.kind === 'dispatch') {

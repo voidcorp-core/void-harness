@@ -1,3 +1,4 @@
+import { observedMissionLifecycle } from './mission-lifecycle.js';
 import { createHash } from 'node:crypto';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
@@ -234,7 +235,7 @@ export async function recordSpecialistLifecycle(
   };
   const inspected = await inspectMission(root, missionId, { dependencies: {} });
   const events = inspected.stream.events;
-  if (events.some((event) => event.kind === 'mission.closed')) {
+  if (observedMissionLifecycle(events).status === 'closed') {
     invalid('mission is closed');
   }
   const requested = events.some((event) =>
@@ -303,7 +304,7 @@ function sameDraft(event: CanonicalEvent, draft: EventDraft): boolean {
 }
 
 function rejectClosedMission(events: readonly CanonicalEvent[]): void {
-  if (events.some((event) => event.kind === 'mission.closed')) {
+  if (observedMissionLifecycle(events).status === 'closed') {
     invalid('mission is closed');
   }
 }

@@ -1,3 +1,4 @@
+import { requireOpenMission } from './mission-lifecycle.js';
 import { createHash } from 'node:crypto';
 import {
   lstat,
@@ -91,9 +92,7 @@ function validMissionId(missionId: string): void {
 }
 
 function rejectClosedMission(events: readonly CanonicalEvent[]): void {
-  if (events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: transition is no longer accepted');
-  }
+  requireOpenMission(events);
 }
 
 async function existingRunDirectory(
@@ -156,7 +155,12 @@ export async function appendMissionEvent(
     root,
     missionId,
     draft,
-    ...(canFollowClosure ? {} : { validate: rejectClosedMission }),
+    ...(canFollowClosure ? {} : { validate: (events: readonly CanonicalEvent[]) => {
+      if (events.length === 0 && draft.kind === 'mission.started'
+        && draft.source === 'void-harness:mission' && draft.subject === 'mission'
+        && draft.correlationId === missionId) return;
+      rejectClosedMission(events);
+    } }),
     ...(now === undefined ? {} : { now }),
   });
 }
