@@ -101,7 +101,6 @@ async function exerciseRuntime(temporary, bin, runtime) {
 
   const skillRoot = runtime === 'codex' ? '.agents' : '.claude';
   const receiptPath = join(fixture, '.void', 'machine', 'receipts', 'install-v1.json');
-  const installed = JSON.parse(await readFile(receiptPath, 'utf8'));
   const adjacent = join(fixture, skillRoot, 'skills', 'private', 'SKILL.md');
   await mkdir(dirname(adjacent), { recursive: true });
   await writeFile(adjacent, '# private user skill\n');
@@ -116,8 +115,13 @@ async function exerciseRuntime(temporary, bin, runtime) {
   if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
     throw new Error(`${runtime} update changed an adjacent user file`);
   }
+  // Normal update may complete ownership from the manifest. The recovery
+  // baseline is that current receipt, not the earlier init receipt.
+  const installed = JSON.parse(await readFile(receiptPath, 'utf8'));
+  const doctrineBeforeRecovery = await readFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'));
+  const adjacentBeforeRecovery = await readFile(adjacent);
   // A fresh clone has the versioned manifest, but no machine-local receipt.
-  // Preserve the original fixture evidence rather than manufacturing ownership.
+  // Preserve the current fixture evidence rather than manufacturing ownership.
   await rename(receiptPath, join(fixture, 'original-install-receipt.json'));
   await run(
     `${runtime} update without machine receipt`,
@@ -127,6 +131,10 @@ async function exerciseRuntime(temporary, bin, runtime) {
     environment,
   );
   await assertDoctrine(fixture, bin, `${runtime} receipt recovery`);
+  if (!(await readFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'))).equals(doctrineBeforeRecovery)
+    || !(await readFile(adjacent)).equals(adjacentBeforeRecovery)) {
+    throw new Error(`${runtime} receipt recovery changed preserved user bytes`);
+  }
   const recovered = JSON.parse(await readFile(receiptPath, 'utf8'));
   const identity = (receipt) => JSON.stringify({
     source: receipt.source,
