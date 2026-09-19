@@ -33,13 +33,22 @@ async function bounded(root: string, path: string, maxBytes: number): Promise<st
     invalidMessage: 'SPECIALIST_CONTRACT_MIGRATION_INVALID: bounded regular asset required' })).body;
 }
 export function parseSpecialistContractMigrationRequest(value: unknown): SpecialistContractMigrationRequest {
-  if (!object(value) || !exact(value, ['schemaVersion', 'expectedJournalHash', 'expectedEpisodeId', 'migrationId'])
+  if (!object(value) || !exact(value, ['schemaVersion', 'expectedJournalHash', 'expectedEpisodeId', 'migrationId',
+    ...(value['recovery'] === undefined ? [] : ['recovery'])])
     || value['schemaVersion'] !== 1 || !hash(value['expectedJournalHash'])
     || typeof value['expectedEpisodeId'] !== 'string'
     || !/^evt_[A-Za-z0-9_-]{8,100}$/.test(value['expectedEpisodeId'])
     || value['migrationId'] !== MIGRATION) invalid('provide the exact bounded migration request without overrides');
+  const recovery = value['recovery'];
+  if (recovery !== undefined && (!object(recovery) || !exact(recovery, ['closureEventId'])
+    || typeof recovery['closureEventId'] !== 'string'
+    || !/^evt_[A-Za-z0-9_-]{8,100}$/.test(recovery['closureEventId']))) {
+    invalid('recovery must identify the exact stopped closure without overrides');
+  }
   return { schemaVersion: 1, expectedJournalHash: value['expectedJournalHash'],
-    expectedEpisodeId: value['expectedEpisodeId'], migrationId: value['migrationId'] };
+    expectedEpisodeId: value['expectedEpisodeId'], migrationId: value['migrationId'],
+    ...(object(recovery) && typeof recovery['closureEventId'] === 'string'
+      ? { recovery: { closureEventId: recovery['closureEventId'] } } : {}) };
 }
 export async function observeSpecialistMigrationAssets(
   coreRoot: string, installRoot: string, runtime: Runtime,

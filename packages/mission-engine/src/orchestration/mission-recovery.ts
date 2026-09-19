@@ -129,7 +129,7 @@ function applyRoundCorrections(events: readonly CanonicalEvent[], corrections: r
       : { ...event, payload: { ...event.payload, reviewRound: corrected.toRound } };
   });
 }
-function ambiguousEffects(events: readonly CanonicalEvent[]): boolean {
+export function ambiguousEffects(events: readonly CanonicalEvent[]): boolean {
   return events.some((started) => {
     if (started.kind === 'lead-writer.requested') {
       return !events.some((completed) => completed.kind === 'lead-writer.completed'
@@ -343,6 +343,8 @@ export function validatedRecoveredReviewEvents(events: readonly CanonicalEvent[]
     && projectMissionLifecycle(events).status === 'invalid') {
     return { ok: false, reasons: ['Recovered mission journal has inconsistent identity or episode linkage'] };
   }
+  const migration = validatedSpecialistContractMigrationBoundary(events);
+  if (!migration.ok) return migration;
   const validated = validateRecoveries(events);
   return validated === undefined
     ? { ok: false, reasons: ['Recovery receipt does not reproduce admission from its exact journal prefix'] }

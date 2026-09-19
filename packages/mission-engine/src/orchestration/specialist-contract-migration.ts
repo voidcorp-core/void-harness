@@ -3,7 +3,7 @@ import { canonicalJsonHash } from '../evidence/canonical-json.js';
 import { replayEventLog } from '../events/reducer.js';
 import { serializeEvent } from '../events/schema.js';
 import { projectMissionLifecycle } from './mission-lifecycle.js';
-import { validatedRecoveredReviewEvents } from './mission-recovery.js';
+import { ambiguousEffects, validatedRecoveredReviewEvents } from './mission-recovery.js';
 import { reduceReviewLoop } from './review-loop.js';
 import { reduceEvidenceObligations } from '../specialist/evidence-obligations.js';
 import type { EventStreamState } from '../events/reducer.js';
@@ -15,6 +15,7 @@ export interface SpecialistContractMigrationRequest {
   readonly expectedJournalHash: string;
   readonly expectedEpisodeId: string;
   readonly migrationId: string;
+  readonly recovery?: { readonly closureEventId: string };
 }
 export interface SpecialistContractMigrationDeclaration {
   readonly id: string;
@@ -42,6 +43,7 @@ export interface SpecialistContractMigrationObservation {
 }
 export interface SpecialistContractMigrationReceipt {
   readonly schemaVersion: 1;
+  readonly recovery?: { readonly closureEventId: string; readonly previousEpisodeId: string };
   readonly request: SpecialistContractMigrationRequest;
   readonly requestHash: string;
   readonly observation: SpecialistContractMigrationObservation;
@@ -96,7 +98,12 @@ function stream(events: readonly CanonicalEvent[]): EventStreamState {
   return replayEventLog(events.map(serializeEvent).join('\n'));
 }
 function requestValue(value: unknown): value is SpecialistContractMigrationRequest {
-  return record(value) && Object.keys(value).length === 4 && value['schemaVersion'] === 1
+  return record(value) && Object.keys(value).length === (value['recovery'] === undefined ? 4 : 5)
+    && (value['recovery'] === undefined || (record(value['recovery'])
+      && Object.keys(value['recovery']).length === 1
+      && typeof value['recovery']['closureEventId'] === 'string'
+      && /^evt_[A-Za-z0-9_-]{8,100}$/.test(value['recovery']['closureEventId'])))
+    && value['schemaVersion'] === 1
     && typeof value['expectedJournalHash'] === 'string' && HASH.test(value['expectedJournalHash'])
     && typeof value['expectedEpisodeId'] === 'string' && value['expectedEpisodeId'].startsWith('evt_')
     && value['migrationId'] === 'visual-craft-director-v2-v3';
@@ -139,7 +146,23 @@ function admit(input: SpecialistContractMigrationInput): SpecialistContractMigra
   if (!requestValue(request) || !observationValue(observation)) return refuse('invalid-migration', 'Use the declared bounded migration request and observed inputs');
   const lifecycle = projectMissionLifecycle(events);
   if (journal.continuity !== 'complete' || journal.invalidLines > 0 || journal.duplicateEventIds > 0
-    || lifecycle.status !== 'open') return refuse('invalid-journal', 'Migration requires the unchanged open mission episode');
+    || lifecycle.status === 'invalid') return refuse('invalid-journal', 'Migration requires the unchanged valid mission episode');
+  if (lifecycle.status === 'closed') {
+    const previous = events[lifecycle.closure.seq - 2];
+    if (request.recovery?.closureEventId !== lifecycle.closure.eventId
+      || lifecycle.closure.source !== 'void-harness:mission.dispatch'
+      || field(lifecycle.closure, 'reason') !== 'controller-stop'
+      || lifecycle.closure.seq !== journal.lastSeq
+      || previous?.kind !== 'lead-writer.completed'
+      || !['run-lead-writer', 'run-correction'].includes(String(field(previous, 'actionKind')))
+      || events.some(event => field(event, 'stage') === 'post-implementation'
+        && ['specialist.requested', 'specialist.started', 'specialist.completed', 'specialist.failed'].includes(event.kind))
+      || ambiguousEffects(events)) {
+      return refuse('unsupported-migration-recovery', 'Explicit recovery requires a controller stop immediately after implementation, before any post-review attempt and without unresolved effects');
+    }
+  } else if (request.recovery !== undefined) {
+    return refuse('unsupported-migration-recovery', 'An open episode cannot consume a stopped-episode recovery request');
+  }
   if (lifecycle.episodeId !== request.expectedEpisodeId || canonicalJsonHash(events) !== request.expectedJournalHash) {
     return refuse('stale-migration', 'Re-observe the active episode and journal before migration');
   }
@@ -187,6 +210,8 @@ function admit(input: SpecialistContractMigrationInput): SpecialistContractMigra
   if (obligations.issues.length > 0) return refuse('invalid-evidence', obligations.issues.map(x => x.detail).join('; '));
   const receipt: SpecialistContractMigrationReceipt = {
     schemaVersion: 1, request, requestHash: canonicalJsonHash(request), observation,
+    ...(lifecycle.status === 'closed' ? { recovery: { closureEventId: lifecycle.closure.eventId,
+      previousEpisodeId: lifecycle.episodeId } } : {}),
     episodeId: lifecycle.episodeId, priorJournalHash: canonicalJsonHash(events), priorJournalLastSeq: journal.lastSeq,
     migrationId: declaration.id, declarationHash: canonicalJsonHash(declaration), specialistId: VISUAL,
     fromVersion: 2, toVersion: 3, fromContractSha256: declaration.fromContractSha256,

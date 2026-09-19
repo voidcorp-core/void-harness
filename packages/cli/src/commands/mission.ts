@@ -874,7 +874,7 @@ export async function migrateMissionSpecialist(
     loadMissionControllerPlan(installRoot, missionId),
     inspectCurrentMission(roots, missionId, collectKnownSecrets()), findCoreSource(),
   ]);
-  requireOpenMission(current.inspected.stream.events);
+  if (request.recovery === undefined) requireOpenMission(current.inspected.stream.events);
   if (missionRoutingHash(current.inspected.stream.events) !== stored.routingHash) {
     throw new Error('MISSION_CONTROLLER_PLAN_INVALID: migration requires the immutable bound plan');
   }

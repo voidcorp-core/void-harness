@@ -45,6 +45,20 @@ export function projectMissionLifecycle(events: readonly CanonicalEvent[]): Miss
       }
       state = { status: 'closed', episodeId: state.episodeId, closure: current };
     }
+    if (current.kind === 'specialist.contract-migrated' && field(current.payload, 'recovery') !== undefined) {
+      const recovery = field(current.payload, 'recovery');
+      if (state.status !== 'closed' || field(state.closure.payload, 'reason') !== 'controller-stop'
+        || recovery === undefined || !isRecord(recovery)
+        || current.source !== 'void-harness:mission.migrate-specialist'
+        || field(recovery, 'closureEventId') !== state.closure.eventId
+        || field(recovery, 'previousEpisodeId') !== state.episodeId
+        || field(current.payload, 'episodeId') !== state.episodeId
+        || field(current.payload, 'priorJournalLastSeq') !== current.seq - 1
+        || !/^sha256:[a-f0-9]{64}$/.test(String(field(current.payload, 'priorJournalHash')))) {
+        return invalid('Contract migration recovery does not match its stopped episode and journal prefix');
+      }
+      state = { status: 'open', episodeId: current.eventId };
+    }
     if (current.kind === 'mission.recovered') {
       if (state.status !== 'closed' || field(state.closure.payload, 'reason') !== 'controller-stop') {
         return invalid('Only an active controller-stop closure may be recovered');

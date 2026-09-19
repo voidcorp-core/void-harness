@@ -67,6 +67,35 @@ The immutable controller-plan stays unchanged. A validated event projection supp
 
 A later supported recovery preserves the migration. Its adapter observes the authenticated effective contracts and recalculates current inputs using the declared historical catalogue for unchanged peers and the effective catalogue for the migrated specialist. The recovery reducer validates the migration against its exact original prefix and applies the same review boundary as dispatch. Historical v2 results keep their budget and obligation effects but cannot certify v3. Earlier mission.closed events remain in the journal; the lifecycle projection, not the absence of closure history, establishes whether the current episode is open.
 
+## Explicit recovery before the first post-implementation review
+
+An installation transition can precede a legacy controller dispatch: the old controller
+closes immediately after the completed writer because its v2 native specialist is now v3.
+Ordinary recovery cannot name a post-review blocker when no post-review has run, while
+ordinary migration requires an open episode. Do not fabricate a historical finding or
+reuse a previously consumed recovery disposition.
+
+For this bounded case only, the existing migration request accepts one optional field:
+`"recovery": { "closureEventId": "evt_<exact stopped closure>" }`. Omitting it never
+reopens a closed mission. The original episode ID and journal hash remain mandatory CAS
+values. Admission requires a controller-produced `controller-stop` immediately following
+completed implementation, no post-implementation specialist request or attempt anywhere
+in the history, no unresolved writer/external effect, and no active specialist invocation.
+The existing declared archive, target/native hashes, plan authority and budget checks
+all still apply. This admits the observed contract transition; it does not claim that an
+old closure recorded a diagnostic that its payload did not contain.
+
+One `specialist.contract-migrated` event records both the validated migration and
+`recovery: { closureEventId, previousEpisodeId }`. Its event ID becomes the new episode.
+There is no intermediate open v2 episode, no synthetic writer result and no separate
+recovery event. Readers authenticate the complete migration receipt against its exact
+prefix before accepting the open lifecycle. Historical closures, preparation corrections,
+writer rounds, evidence obligations and the immutable controller plan stay unchanged.
+A post-review attempt already present makes this recovery mode unavailable, rather than
+resetting its budget. Repeating the exact request is idempotent; stale or conflicting
+requests refuse under the existing journal lock. Installation and release remain separate
+operations and this command performs neither.
+
 ## Resolve the reviewed dispatch deadlock narrowly
 
 Current-review evidence obligations from the old visual completion must not prevent the one fresh visual scope assessment needed to resolve them. After authenticating the migration receipt and checking fresh inputs/native version/budget, the controller may return only `invoke-specialists` for `["core:visual-craft-director"]`, at the receipt's admitted stage/round, while exactly its recorded `pendingAuthorObligationIds` remain outstanding.

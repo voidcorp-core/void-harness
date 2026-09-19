@@ -77,7 +77,7 @@ it.each([false, true, 'closed-before-review'] as const)('migrates an isolated na
     const legacyPostHash = canonicalJsonHash({ routing: (await oldPlan(['runtime.ts'])).inputHash,
       subject: canonicalJsonHash({ baseCommit, diff: patch, files: ['runtime.ts'] }) });
     if (recoverAfterMigration === 'closed-before-review') {
-      await recordMissionClosure(root, ID, 'controller-stop');
+      await recordMissionClosure(root, ID, 'controller-stop', 'void-harness:mission.dispatch');
       const closed = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
       const lifecycle = projectMissionLifecycle(closed);
       if (lifecycle.status !== 'closed') throw new Error('Expected authentic stopped episode');
