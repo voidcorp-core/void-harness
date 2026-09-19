@@ -1,3 +1,4 @@
+import { recordStoppedMissionRecovery } from './mission-recovery.js';
 import { execFileSync } from 'node:child_process';
 import {
   appendFile,
@@ -11,6 +12,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   sealEvidence,
+  canonicalJsonHash,
   type MissionSpecialistPlan,
 } from '@voidcorp/mission-engine';
 import { archiveMission } from './archive.js';
@@ -336,5 +338,38 @@ describe('mission run store', () => {
     expect(inspected.stream.events.filter((item) =>
       item.kind === 'mission.resumed'
     )).toHaveLength(1);
+  });
+});
+
+
+describe('recovered mission transition projection', () => {
+  it('admits ordinary transitions after recovery while preserving the historical closure', async () => {
+    const root = await fixture();
+    await createMission(root, { missionId: ID, title: 'Recovered transition', mode: 'team' });
+    const completed = await appendMissionEvent(root, ID, { source: 'runtime:codex',
+      kind: 'specialist.completed', subject: 'core:test-qa-engineer', correlationId: ID, payload: {
+        stage: 'pre-implementation', reviewRound: 1, inputHash: `sha256:${'a'.repeat(64)}`,
+        contextId: 'context_recovery_fixture', completion: { schemaVersion: 1,
+          specialistId: 'core:test-qa-engineer', contractVersion: 2, completionId: 'completion_fixture',
+          verdict: 'degraded', findings: [], evidenceRequests: ['Clarify proof timing.'],
+          limitations: ['Proof timing unresolved.'] },
+      } });
+    await appendMissionEvent(root, ID, { source: 'void-harness:mission.close',
+      kind: 'mission.closed', subject: 'mission', correlationId: ID, payload: { reason: 'controller-stop' } });
+    const prior = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
+    const closure = prior.at(-1);
+    if (!closure) throw new Error('Expected original closure.');
+    const artifact = { path: 'docs/clarification.md', sha256: `sha256:${'a'.repeat(64)}` };
+    await recordStoppedMissionRecovery(root, ID, { schemaVersion: 1,
+      closureEventId: closure.eventId, expectedJournalHash: canonicalJsonHash(prior),
+      disposition: { kind: 'review-blocker', completionEventIds: [completed.eventId], resolutionArtifact: artifact },
+    }, { stage: 'pre-implementation', expectedSource: 'runtime:codex', maxRounds: 2,
+      currentInputHashes: { 'core:test-qa-engineer': artifact.sha256 },
+      contractVersions: { 'core:test-qa-engineer': 2 }, resolutionArtifact: artifact });
+    await expect(appendMissionEvent(root, ID, { source: 'runtime:codex',
+      kind: 'agent.observed', subject: 'agent', correlationId: ID, payload: {} })).resolves.toBeDefined();
+    const events = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
+    expect(events.filter(value => value.kind === 'mission.closed')).toHaveLength(1);
+    expect(events.at(-1)?.kind).toBe('agent.observed');
   });
 });

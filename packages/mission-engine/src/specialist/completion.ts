@@ -1,3 +1,5 @@
+// tdd-cover: e2e packages/mission-engine/src/specialist/review-receipt.test.ts
+import { type IndependentReviewReceipt, parseReviewReceipt } from './review-receipt.js';
 export type SpecialistCompletionVerdict =
   | 'pass'
   | 'changes-requested'
@@ -11,16 +13,27 @@ export interface SpecialistEvidence {
   readonly detail: string;
 }
 
+export type FindingClassification =
+  | { readonly classification: 'advisory' }
+  | { readonly classification: 'blocking'; readonly criterion: string; readonly consequence: string;
+      readonly resolutionCondition: string; readonly basis: 'initial-scope-defect' | 'regression' };
+
 export interface SpecialistFinding {
   readonly id: string;
   readonly severity: SpecialistFindingSeverity;
   readonly summary: string;
   readonly evidence: readonly SpecialistEvidence[];
   readonly recommendation: string;
+  readonly classification?: 'blocking' | 'advisory';
+  readonly criterion?: string;
+  readonly consequence?: string;
+  readonly resolutionCondition?: string;
+  readonly basis?: 'initial-scope-defect' | 'regression';
 }
 
 export interface SpecialistCompletion {
   readonly schemaVersion: 1;
+  readonly review?: IndependentReviewReceipt;
   readonly specialistId: `core:${string}`;
   readonly contractVersion: number;
   readonly completionId: string;
@@ -109,7 +122,10 @@ function parseFinding(value: unknown): SpecialistFinding | undefined {
   const input = record(value);
   if (
     input === undefined
-    || !exactKeys(input, ['id', 'severity', 'summary', 'evidence', 'recommendation'])
+    || !exactKeys(input, ['id', 'severity', 'summary', 'evidence', 'recommendation',
+      ...(input['classification'] === undefined ? [] : ['classification']),
+      ...(input['classification'] === 'blocking'
+        ? ['criterion', 'consequence', 'resolutionCondition', 'basis'] : [])])
     || typeof input.id !== 'string'
     || !FINDING_ID.test(input.id)
     || !['critical', 'high', 'medium', 'low'].includes(String(input.severity))
@@ -119,6 +135,8 @@ function parseFinding(value: unknown): SpecialistFinding | undefined {
   ) {
     return undefined;
   }
+  const classification = parseClassification(input);
+  if (input['classification'] !== undefined && classification === undefined) return undefined;
   const summary = boundedText(input.summary, 500);
   const recommendation = boundedText(input.recommendation, 1_000);
   const evidence = input.evidence.map(parseEvidence);
@@ -130,12 +148,25 @@ function parseFinding(value: unknown): SpecialistFinding | undefined {
     return undefined;
   }
   return {
+    ...classification,
     id: input.id,
     severity: input.severity as SpecialistFindingSeverity,
     summary,
     evidence: evidence as readonly SpecialistEvidence[],
     recommendation,
   };
+}
+
+function parseClassification(input: Readonly<Record<string, unknown>>): FindingClassification | undefined {
+  if (input['classification'] === 'advisory') return { classification: 'advisory' };
+  const criterion = boundedText(input['criterion'], 1_000);
+  const consequence = boundedText(input['consequence'], 1_000);
+  const resolutionCondition = boundedText(input['resolutionCondition'], 1_000);
+  const basis = input['basis'];
+  return input['classification'] === 'blocking' && criterion !== undefined
+    && consequence !== undefined && resolutionCondition !== undefined
+    && (basis === 'initial-scope-defect' || basis === 'regression')
+    ? { classification: 'blocking', criterion, consequence, resolutionCondition, basis } : undefined;
 }
 
 /** Parse the one canonical specialist completion contract used by every invocation path. */
@@ -152,6 +183,7 @@ export function parseSpecialistCompletionValue(input: unknown): SpecialistComple
       'findings',
       'evidenceRequests',
       'limitations',
+      ...(value['review'] === undefined ? [] : ['review']),
     ])
     || value.schemaVersion !== 1
     || typeof value.specialistId !== 'string'
@@ -167,6 +199,8 @@ export function parseSpecialistCompletionValue(input: unknown): SpecialistComple
   ) {
     return undefined;
   }
+  const review = parseReviewReceipt(value['review']);
+  if (value['review'] !== undefined && review === undefined) return undefined;
   const findings = value.findings.map(parseFinding);
   const evidenceRequests = textList(value.evidenceRequests);
   const limitations = textList(value.limitations);
@@ -179,7 +213,7 @@ export function parseSpecialistCompletionValue(input: unknown): SpecialistComple
       && limitations.length === 0
     )
     || (
-      findings.some((finding) => finding?.severity === 'critical')
+      findings.some((finding) => finding?.severity === 'critical' && finding.classification === undefined)
       && value.verdict !== 'blocked'
     )
   ) {
@@ -187,6 +221,7 @@ export function parseSpecialistCompletionValue(input: unknown): SpecialistComple
   }
   return {
     schemaVersion: 1,
+    ...(review === undefined ? {} : { review }),
     specialistId: value.specialistId as `core:${string}`,
     contractVersion: Number(value.contractVersion),
     completionId: value.completionId,
