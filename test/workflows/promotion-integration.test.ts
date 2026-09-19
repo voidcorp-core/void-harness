@@ -1,16 +1,15 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 const workflow = readFileSync(new URL('../../.github/workflows/promotion.yml', import.meta.url), 'utf8');
 const start = workflow.indexOf('          commit_count=');
 const end = workflow.indexOf('          body=$(printf', start);
 const audit = workflow.slice(start, end).replace(/^ {10}/gm, '');
 
-function history(direct = false) {
-  const root = mkdtempSync(join(tmpdir(), 'void-promotion-'));
+function history(root: string, direct = false) {
   const git = (...args: string[]) => execFileSync('git', args, {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_COMMITTER_NAME: 'Test',
@@ -67,6 +66,40 @@ printf '}}}\n'
   return { root, bin, commits, inner, integration, directOid };
 }
 
+let baselineRoot = '';
+let baseline: ReturnType<typeof history>;
+let directBaseline: ReturnType<typeof history>;
+const scenarioRoots: string[] = [];
+
+beforeAll(() => {
+  baselineRoot = mkdtempSync(join(tmpdir(), 'void-promotion-baselines-'));
+  const regularRoot = join(baselineRoot, 'regular');
+  const directRoot = join(baselineRoot, 'direct');
+  mkdirSync(regularRoot);
+  mkdirSync(directRoot);
+  baseline = history(regularRoot);
+  directBaseline = history(directRoot, true);
+});
+
+afterAll(() => {
+  if (baselineRoot) rmSync(baselineRoot, { recursive: true, force: true });
+});
+
+afterEach(() => {
+  for (const root of scenarioRoots) rmSync(root, { recursive: true, force: true });
+  scenarioRoots.length = 0;
+});
+
+function copyHistory(direct = false) {
+  const source = direct ? directBaseline : baseline;
+  const root = mkdtempSync(join(tmpdir(), 'void-promotion-'));
+  // Register before copying so a failed copy is cleaned by afterEach too.
+  scenarioRoots.push(root);
+  // Full copies preserve isolation; no shared Git objects, refs or query counters.
+  cpSync(source.root, root, { recursive: true, verbatimSymlinks: true });
+  return { ...source, root, bin: join(root, 'bin') };
+}
+
 function runAudit(options: {
   direct?: boolean;
   mismatched?: boolean;
@@ -74,7 +107,7 @@ function runAudit(options: {
   failOnce?: boolean;
   failAlways?: boolean;
 } = {}) {
-  const fixture = history(options.direct);
+  const fixture = copyHistory(options.direct);
   for (const oid of fixture.commits) {
     const pr = {
       number: 331, baseRefName: 'develop', headRefName: 'outer', isCrossRepository: false,

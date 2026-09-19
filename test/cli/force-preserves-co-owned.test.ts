@@ -1,3 +1,4 @@
+// @test-resource subprocess
 /**
  * `--force` answers a conflict on a MANAGED asset -- a file the harness owns
  * alone and can prove it wrote. It was never an answer about a CO-OWNED file,
