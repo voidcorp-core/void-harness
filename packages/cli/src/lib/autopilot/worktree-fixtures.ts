@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/cli/src/commands/autopilot-worktrees.test.ts
 // Test observations are explicit so the planner never borrows the runner's home or Git state.
 import { join, resolve } from 'node:path';
 import type { ObservedWorktree, WorktreeObservation } from './worktree-contract.js';
