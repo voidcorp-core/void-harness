@@ -1568,7 +1568,7 @@ async function resolveFreshness(options) {
 function freshnessRelay(freshness, source2) {
   if (freshness.verdict !== "behind" || source2 !== "local") return void 0;
   const { installed, latest } = freshness;
-  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and name the command that installs it: \`void-harness update\`. Do not repeat it later in the session.`;
+  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and offer to run \`void-harness update\`. Explain that update writes project files and link the release notes for possible breaking changes: https://github.com/voidcorp-core/void-harness/releases. Wait for explicit human permission before running it, even in autonomous mode. If the user declines or does not reply, continue the task without updating. Do not repeat the offer later in this session.`;
 }
 
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync9, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";

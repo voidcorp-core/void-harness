@@ -91,8 +91,9 @@ export function freshnessNotice(
  * `terminalSequence` carries escape codes rather than prose. The agent's reply is
  * the only channel left, so the line asks for the relay instead of assuming it.
  *
- * Bounded to once per session on purpose. A standing notice repeated every turn
- * is how a real one stops being read.
+ * Offer once per session and require explicit human permission for project writes.
+ * Refusal or silence leaves the task proceeding without another offer. This is
+ * guidance to the agent, not a technical authorization barrier around `update`.
  *
  * Silence follows exactly the same rules as `freshnessNotice`, marketplace and
  * unknown sources included -- naming a command that cannot update that install
@@ -102,6 +103,10 @@ export function freshnessRelay(freshness: Freshness, source: InstallSource | und
   if (freshness.verdict !== 'behind' || source !== 'local') return undefined;
   const { installed, latest } = freshness;
   return `A newer harness is published: ${installed} is installed, ${latest ?? 'a newer version'} is available. `
-    + 'Tell the user this once, near the start of your first reply, and name the command that installs it: '
-    + '`void-harness update`. Do not repeat it later in the session.';
+    + 'Tell the user this once, near the start of your first reply, and offer to run `void-harness update`. '
+    + 'Explain that update writes project files and link the release notes for possible breaking changes: '
+    + 'https://github.com/voidcorp-core/void-harness/releases. '
+    + 'Wait for explicit human permission before running it, even in autonomous mode. '
+    + 'If the user declines or does not reply, continue the task without updating. '
+    + 'Do not repeat the offer later in this session.';
 }
