@@ -43,12 +43,27 @@ async function installPackage(temporary, tarball) {
   return join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
 }
 
+const CUSTOM_DOCTRINE = '# Project rules\r\n\r\n- Preserve accents: dépôt, and this custom rule.\r\n';
+
+async function assertDoctrine(fixture, bin, stage) {
+  const custom = await readFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'), 'utf8');
+  if (custom !== CUSTOM_DOCTRINE) throw new Error(`${stage} changed customized PROJECT-DOCTRINE bytes`);
+  const expected = await readFile(join(dirname(bin), '..', 'core-assets', 'PHILOSOPHY.md'), 'utf8');
+  const installed = await readFile(join(fixture, '.void', 'installed', 'PHILOSOPHY.md'), 'utf8');
+  if (installed !== expected || !installed.includes('${VOID_WORKTREES:-${XDG_DATA_HOME:-$HOME/.local/share}/git-worktrees}')
+    || !installed.includes('git worktree move') || !installed.includes('git worktree prune')) {
+    throw new Error(`${stage} did not deliver the packaged universal worktree invariant`);
+  }
+}
+
 async function exerciseRuntime(temporary, bin, runtime) {
   const fixture = join(temporary, `fixture-${runtime}`);
   await mkdir(join(fixture, 'tmp'), { recursive: true });
   await writeFile(join(fixture, 'package.json'), JSON.stringify({
     name: `conformance-${runtime}`, private: true,
   }));
+  await mkdir(join(fixture, '.void'), { recursive: true });
+  await writeFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'), CUSTOM_DOCTRINE);
   const environment = conformanceFixtureEnvironment(fixture);
   const started = performance.now();
   await run(
@@ -58,6 +73,10 @@ async function exerciseRuntime(temporary, bin, runtime) {
     fixture,
     environment,
   );
+
+  await assertDoctrine(fixture, bin, `${runtime} init`);
+  await run(`${runtime} re-init`, process.execPath, [bin, 'init', '--runtime', runtime, '--no-interactive'], fixture, environment);
+  await assertDoctrine(fixture, bin, `${runtime} re-init`);
 
   requirePath(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), `${runtime} receipt`);
   requirePath(join(fixture, '.void', 'hooks', '_void-hook.mjs'), `${runtime} hook runner`);
@@ -93,6 +112,7 @@ async function exerciseRuntime(temporary, bin, runtime) {
     fixture,
     environment,
   );
+  await assertDoctrine(fixture, bin, `${runtime} update`);
   if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
     throw new Error(`${runtime} update changed an adjacent user file`);
   }
@@ -106,6 +126,7 @@ async function exerciseRuntime(temporary, bin, runtime) {
     fixture,
     environment,
   );
+  await assertDoctrine(fixture, bin, `${runtime} receipt recovery`);
   const recovered = JSON.parse(await readFile(receiptPath, 'utf8'));
   const identity = (receipt) => JSON.stringify({
     source: receipt.source,

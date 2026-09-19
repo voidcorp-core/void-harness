@@ -1,3 +1,4 @@
+import { worktreeRequest, WORKTREE_NOW, WORKTREE_REPO } from '../lib/autopilot/worktree-fixtures.js';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -288,5 +289,25 @@ describe('the stdin and dispatch contract', () => {
     const result = runAutopilotCommand(['nonesuch'], '', ctx);
 
     for (const name of Object.keys(SUBCOMMANDS)) expect(result.stderr).toContain(name);
+  });
+});
+
+
+describe('orchestrate worktree lifetime', () => {
+  const observation = (): string => JSON.stringify(worktreeRequest());
+
+  it('does not hand an executor removal commands before a merge was observed', () => {
+    const result = runAutopilotCommand(['orchestrate', '--json'], observation(), { root: WORKTREE_REPO, now: WORKTREE_NOW });
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({ teardown: [] });
+  });
+
+  it('does not tell an operator to remove worktrees when a run ends', () => {
+    const result = runAutopilotCommand(['orchestrate'], observation(), { root: WORKTREE_REPO, now: WORKTREE_NOW });
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(result.stdout).not.toContain('once the run is done');
+    expect(result.stdout).not.toContain('git worktree remove');
   });
 });

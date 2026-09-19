@@ -131,8 +131,8 @@ async function runWorkflow(
   args: unknown,
   step: Record<string, unknown> = answers(),
   worker: (ticketId: string) => unknown = (ticketId) => ({ ticketId, status: 'completed' }),
+  calls: AgentCall[] = [],
 ) {
-  const calls: AgentCall[] = [];
   const applied: string[] = [];
   const phases: string[] = [];
   const logs: string[] = [];
@@ -152,7 +152,10 @@ async function runWorkflow(
       inFlight -= 1;
 
       if (label.startsWith('ticket:')) return worker(label.slice('ticket:'.length));
-      if (label === 'execute') return { ok: true, result: { ran: 1 } };
+      if (label === 'execute') {
+        if (prompt.includes('planned cleanup of evidenced merged tickets only') && step.cleanupExecution !== undefined) return step.cleanupExecution;
+        return step.execute ?? { ok: true, result: { ran: 1 } };
+      }
       if (label === 'apply') {
         applied.push(prompt);
         return { ok: true, result: { receipts: [{ idempotencyKey: 'run-a:DEV-1:set-state:merged', ok: true }] } };
@@ -168,6 +171,26 @@ async function runWorkflow(
             ? { decision: { kind: 'stop', reason: 'budget-spent', detail: 'the time given is spent' } }
             : staged,
         };
+      }
+      if (name === 'orchestrate' && prompt.includes('Confirm cleanup')) {
+        if (step.cleanupConfirmation !== undefined) return step.cleanupConfirmation;
+        const original = step.orchestrate as { plan: { assignments: Array<Record<string, unknown>> } };
+        return { ok: true, result: { setup: [], teardown: [], dispositions: original.plan.assignments.map((entry) => ({
+          ...entry, state: 'already-absent', reason: 'observed absent', nextAction: 'none',
+        })) } };
+      }
+      if (name === 'orchestrate' && prompt.includes('action cleanup')) {
+        return { ok: true, result: step.cleanup ?? {
+          schemaVersion: 2, action: 'cleanup', setup: [],
+          teardown: [{ ticketId: 'DEV-1', command: ['git', 'worktree', 'remove', '/durable/DEV-1'] }],
+          dispositions: [{ ticketId: 'DEV-1', branch: 'work/DEV-1', worktreePath: '/durable/DEV-1', state: 'planned-remove', reason: 'merged', nextAction: 'execute' }],
+        } };
+      }
+      if (name === 'orchestrate' && prompt.includes('Confirm setup')) {
+        const original = step.orchestrate as { plan: { assignments: Array<Record<string, unknown>> } };
+        return { ok: true, result: step.reobserved ?? { ...original, setup: [], teardown: [],
+          dispositions: original.plan.assignments.map((assignment) => ({ ...assignment, state: 'reuse' })),
+        } };
       }
       const staged = step[name];
       if (staged === undefined) return { ok: false, result: null, detail: `no answer staged for ${name}` };
@@ -190,6 +213,127 @@ async function runWorkflow(
 const labels = (calls: readonly AgentCall[]): readonly string[] => calls.map((call) => call.label);
 
 describe('the autopilot cycle is a script', () => {
+  it.each([
+    { label: 'failed', receipt: { ok: false, result: { ran: 0 }, detail: 'git move refused' } },
+    { label: 'incomplete', receipt: { ok: true, result: { ran: 0 }, detail: 'execution interrupted' } },
+  ])('starts no worker after $label setup execution', async ({ receipt }) => {
+    const calls: AgentCall[] = [];
+    const workers: string[] = [];
+    const run = runWorkflow(configuration(), answers({ execute: receipt }), (ticketId) => {
+      workers.push(ticketId);
+      return { ticketId, status: 'completed' };
+    }, calls);
+    await expect(run).rejects.toThrow(/before workers: setup incomplete/);
+    expect(workers).toEqual([]);
+    expect(calls.filter((call) => call.label === 'execute')).toHaveLength(1);
+    expect(calls.some((call) => call.prompt.includes('Confirm setup'))).toBe(false);
+    expect(calls.some((call) => call.label === 'step:reconcile')).toBe(false);
+  });
+
+  it.each(['ticketId', 'branch', 'worktreePath'])('starts no worker when setup confirmation changes %s', async (field) => {
+    const original = answers().orchestrate as { plan: { assignments: Array<Record<string, unknown>> } };
+    const changed = original.plan.assignments.map((entry, index) => index === 0 ? { ...entry, [field]: 'different' } : entry);
+    const calls: AgentCall[] = [];
+    const workers: string[] = [];
+    const run = runWorkflow(configuration(), answers({ reobserved: {
+      ...original, plan: { ...original.plan, assignments: changed }, setup: [], teardown: [],
+      dispositions: changed.map((entry) => ({ ...entry, state: 'reuse' })),
+    } }), (ticketId) => {
+      workers.push(ticketId);
+      return { ticketId, status: 'completed' };
+    }, calls);
+    await expect(run).rejects.toThrow(/setup requires fresh planning; all existing worktrees are retained/);
+    expect(calls.some((call) => call.prompt.includes('Confirm setup'))).toBe(true);
+    expect(workers).toEqual([]);
+    expect(calls.filter((call) => call.label === 'execute')).toHaveLength(1);
+    expect(calls.some((call) => call.label === 'step:reconcile')).toBe(false);
+  });
+
+  it('retains the successful merge when cleanup execution fails', async () => {
+    const { calls, value, logs } = await runWorkflow(configuration(), answers({
+      cleanupExecution: { ok: false, result: { ran: 0 }, detail: 'git worktree remove refused: dirty checkout' },
+    }));
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', integrationSha: HEAD, mergeCommit: MERGE_SHA,
+      cleanup: { status: 'retained', reason: 'git worktree remove refused: dirty checkout' } }] });
+    expect(calls.filter((call) => call.label === 'execute' && call.prompt.includes('planned cleanup of evidenced merged tickets only'))).toHaveLength(1);
+    expect(calls.some((call) => call.prompt.includes('Confirm cleanup'))).toBe(false);
+    expect(logs.join('\n')).toContain('Preserve remaining worktrees and re-observe before retry');
+  });
+
+  it('retains the successful merge when cleanup reobservation refuses', async () => {
+    const { calls, value, logs } = await runWorkflow(configuration(), answers({
+      cleanupConfirmation: { ok: false, result: null, detail: 'AUTOPILOT_CONTRACT: fresh inventory unavailable' },
+    }));
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', integrationSha: HEAD, mergeCommit: MERGE_SHA,
+      cleanup: { status: 'retained', reason: 'AUTOPILOT_CONTRACT: fresh inventory unavailable' } }] });
+    const removal = calls.findIndex((call) => call.label === 'execute' && call.prompt.includes('planned cleanup of evidenced merged tickets only'));
+    const confirmation = calls.findIndex((call) => call.prompt.includes('Confirm cleanup'));
+    expect(removal).toBeGreaterThan(-1);
+    expect(confirmation).toBeGreaterThan(removal);
+    expect(calls.filter((call) => call.label === 'execute' && call.prompt.includes('planned cleanup of evidenced merged tickets only'))).toHaveLength(1);
+    expect(logs.join('\n')).toContain('Preserve remaining worktrees and re-observe before retry');
+  });
+
+  it('reports dirty cleanup as retained, not completed, alongside the successful merge', async () => {
+    const { value } = await runWorkflow(configuration(), answers({ cleanup: {
+      schemaVersion: 2, action: 'cleanup', setup: [], teardown: [], dispositions: [
+        { ticketId: 'DEV-1', branch: 'work/DEV-1', worktreePath: '/durable/DEV-1', state: 'retained', reason: 'dirty checkout', nextAction: 'preserve and re-observe' },
+      ],
+    } }));
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', mergeCommit: MERGE_SHA, cleanup: { status: 'retained' } }] });
+  });
+
+  it('confirms setup from fresh inventory before starting a worker', async () => {
+    const { calls } = await runWorkflow(configuration());
+    const reobserved = calls.findIndex((call) => call.label === 'step:orchestrate' && call.prompt.includes('Confirm setup'));
+    const worker = calls.findIndex((call) => call.label.startsWith('ticket:'));
+    expect(reobserved).toBeGreaterThan(-1);
+    expect(worker).toBeGreaterThan(reobserved);
+  });
+
+  it('requests selective cleanup from fresh merge evidence rather than the original teardown', async () => {
+    const original = answers().orchestrate as Record<string, unknown>;
+    const { calls } = await runWorkflow(configuration(), answers({ orchestrate: {
+      ...original, teardown: [{ ticketId: 'DEV-2', command: ['git', 'worktree', 'remove', '/durable/DEV-2'] }],
+    } }));
+    const cleanup = calls.find((call) => call.label === 'step:orchestrate' && call.prompt.includes('action cleanup'));
+    expect(cleanup?.prompt).toContain(HEAD);
+    expect(cleanup?.prompt).toContain(MERGE_SHA);
+    const executed = calls.filter((call) => call.label === 'execute').map((call) => call.prompt).join('\n');
+    expect(executed).toContain('/durable/DEV-1');
+    expect(executed).not.toContain('/durable/DEV-2');
+  });
+
+  it('retains a successful merge outcome when cleanup planning refuses', async () => {
+    const { value } = await runWorkflow(configuration(), answers({ cleanup: {
+      error: { code: 'AUTOPILOT_CONTRACT', cause: 'dirty checkout' },
+    } }));
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', cleanup: { status: 'retained' } }] });
+  });
+
+  it('passes argv as JSON so spaces, quotes and shell syntax remain literal path bytes', async () => {
+    const path = '/durable/work tree/quote\'$(touch NOT-A-COMMAND);&';
+    const command = ['git', 'worktree', 'move', '/legacy/path', path];
+    const original = answers().orchestrate as Record<string, unknown>;
+    const { calls } = await runWorkflow(configuration(), answers({
+      orchestrate: { ...original, setup: [{ ticketId: 'DEV-1', command }] },
+    }));
+    const execution = calls.find((call) => call.label === 'execute' && call.prompt.includes('NOT-A-COMMAND'));
+    expect(execution?.prompt).toContain(JSON.stringify([command]));
+    expect(execution?.prompt).toMatch(/shell:false/);
+  });
+
+  it.each([
+    ['proofs refuse', { gate: { proofs: { kind: 'refuse', action: 'STOP_CHAIN', detail: 'no proof ran', debts: [] } } }],
+    ['publication has not merged', { landed: { verdict: { kind: 'waiting', detail: 'pull request still open' }, checks: [] } }],
+  ])('preserves worktrees when %s, even if an earlier plan supplied teardown commands', async (_reason, overrides) => {
+    const { calls } = await runWorkflow(configuration(), answers(overrides));
+    const executions = calls.filter((call) => call.label === 'execute');
+
+    expect(executions.some((call) => /git worktree add(?:\s|$)|"git",\s*"worktree",\s*"add"/m.test(call.prompt))).toBe(true);
+    expect(executions.some((call) => /git worktree remove(?:\s|$)|"git",\s*"worktree",\s*"remove"/m.test(call.prompt))).toBe(false);
+  });
+
   it('runs every step of one unit, in the order the cycle declares', async () => {
     const { calls } = await runWorkflow(configuration());
 
@@ -199,6 +343,7 @@ describe('the autopilot cycle is a script', () => {
       'step:chain',
       'step:reserve',
       'step:start',
+      'step:orchestrate',
       'step:orchestrate',
       'step:progress',
       'step:reconcile',
@@ -211,6 +356,8 @@ describe('the autopilot cycle is a script', () => {
       'step:lifecycle',
       'step:lifecycle',
       'step:progress',
+      'step:orchestrate',
+      'step:orchestrate',
       'step:chain',
       'step:progress',
     ]);
@@ -249,8 +396,8 @@ describe('the autopilot cycle is a script', () => {
   it('runs the merge the grant permitted, then journals it only from the observed merge commit', async () => {
     const { calls, value } = await runWorkflow(configuration());
 
-    const merge = calls.find((call) => call.label === 'execute' && call.prompt.includes('gh pr merge'));
-    expect(merge?.prompt).toContain('--match-head-commit');
+    const merge = calls.find((call) => call.label === 'execute' && call.prompt.includes('"gh","pr","merge",'));
+    expect(merge?.prompt).toContain(JSON.stringify([['gh', 'pr', 'merge', '12', '--merge', '--match-head-commit', HEAD]]));
     const steps = labels(calls).filter((label) => label.startsWith('step:'));
     expect(steps.indexOf('step:landed')).toBe(steps.indexOf('step:grant') + 1);
     expect(value).toMatchObject({
@@ -497,15 +644,17 @@ describe('the autopilot cycle is a script', () => {
 
   // A gate that says RETRY_MODIFIED decided this unit is over, not the run.
   it('lets the chain decide after a blocked unit, unless the gate asked for the run to end', async () => {
-    const { calls } = await runWorkflow(
+    const { calls, logs } = await runWorkflow(
       configuration(),
       answers({ gate: { proofs: { kind: 'refuse', action: 'RETRY_MODIFIED', detail: 'a proof was modified', debts: [] } } }),
     );
 
     // Two chain turns: the one that took this unit, and the one it went back to.
     expect(labels(calls).filter((label) => label === 'step:chain')).toHaveLength(2);
-    // And the worktrees went back, exactly as they do after a publish.
-    expect(calls.some((call) => call.label === 'execute' && call.prompt.includes('worktree remove'))).toBe(true);
+    // Blocked work remains available while the chain decides whether to continue.
+    expect(calls.some((call) => call.label === 'execute' && call.prompt.includes('"worktree","remove"'))).toBe(false);
+    expect(logs.join('\n')).toContain('retained:');
+    expect(logs.join('\n')).toContain(assignment('DEV-1', 'parallel', 0).worktreePath);
   });
 
   // Its branch exists and its worker ran. Left out of the journal it went back
@@ -650,5 +799,73 @@ describe('the autopilot cycle is a script', () => {
     expect(reconcile).toContain('git log');
     expect(reconcile).toMatch(/any order|whatever order/i);
     expect(reconcile).toMatch(/parent/i);
+  });
+});
+
+
+describe('post-review workflow ownership and scheduling corrections', () => {
+  it('passes original scheduling inputs to fresh setup confirmation', async () => {
+    const original = answers().orchestrate as Record<string, unknown>;
+    const prepareInput = { sequentialOwnership: ['shared/lock'], minConfidence: 0.8,
+      footprints: [{ id: 'DEV-1', areas: ['shared/lock'], confidence: 0.9, highRisk: true, touchesMigration: false }] };
+    const { calls } = await runWorkflow(configuration(), answers({ orchestrate: { ...original, prepareInput } }));
+    const confirmation = calls.find((call) => call.prompt.includes('Confirm setup'));
+    expect(confirmation?.prompt).toContain(JSON.stringify(prepareInput));
+  });
+
+  it.each(['lane', 'order', 'concurrency', 'base', 'footprints'])('refuses setup confirmation changing approved %s before workers', async (field) => {
+    const original = answers().orchestrate as { plan: { assignments: Array<Record<string, unknown>>; concurrency: number; base: { branch: string; sha: string } }; footprints: unknown[] };
+    const assignments = original.plan.assignments.map((entry, index) => index === 1 && (field === 'lane' || field === 'order')
+      ? { ...entry, [field]: field === 'lane' ? 'parallel' : 9 } : entry);
+    const confirmed = { ...original, plan: { ...original.plan, assignments,
+      ...(field === 'concurrency' ? { concurrency: 99 } : {}),
+      ...(field === 'base' ? { base: { branch: 'main', sha: HEAD } } : {}),
+    }, ...(field === 'footprints' ? { footprints: [{ id: 'DEV-1', areas: ['unrelated'] }] } : {}),
+    setup: [], teardown: [], dispositions: assignments.map((entry) => ({ ...entry, state: 'reuse' })) };
+    const calls: AgentCall[] = [];
+    const workers: string[] = [];
+    const run = runWorkflow(configuration(), answers({ reobserved: confirmed }), (ticketId) => {
+      workers.push(ticketId); return { ticketId, status: 'completed' };
+    }, calls);
+    await expect(run).rejects.toThrow(/before workers/);
+    expect(calls.some((call) => call.prompt.includes('Confirm setup'))).toBe(true);
+    expect(workers).toEqual([]);
+    expect(calls.some((call) => call.label === 'step:reconcile')).toBe(false);
+  });
+
+  it.each(['empty', 'subset', 'duplicate', 'foreign', 'branch', 'path'])('does not claim cleanup completed for %s confirmation', async (kind) => {
+    const owned = [assignment('DEV-1', 'parallel', 0), assignment('DEV-2', 'sequential', 1)]
+      .map((entry) => ({ ...entry, state: 'already-absent', reason: 'observed absent', nextAction: 'none' }));
+    const dispositions = kind === 'empty' ? [] : kind === 'subset' ? owned.slice(0, 1)
+      : kind === 'duplicate' ? [owned[0], owned[0]]
+      : owned.map((entry, index) => index !== 0 ? entry : { ...entry,
+        ...(kind === 'foreign' ? { ticketId: 'FOREIGN-1' } : {}),
+        ...(kind === 'branch' ? { branch: 'foreign/branch' } : {}),
+        ...(kind === 'path' ? { worktreePath: '/foreign/path' } : {}),
+      });
+    const { value, logs } = await runWorkflow(configuration(), answers({ cleanupConfirmation: {
+      ok: true, result: { setup: [], teardown: [], dispositions },
+    } }));
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', integrationSha: HEAD, mergeCommit: MERGE_SHA,
+      cleanup: { status: 'retained' } }] });
+    expect(logs.join('\n')).toContain('re-observe before retry');
+  });
+
+  it('reports completed only for exact observed owned coverage', async () => {
+    const { value } = await runWorkflow(configuration());
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', mergeCommit: MERGE_SHA, cleanup: { status: 'completed', dispositions: [
+      expect.objectContaining({ ticketId: 'DEV-1', state: 'already-absent' }),
+      expect.objectContaining({ ticketId: 'DEV-2', state: 'already-absent' }),
+    ] } }] });
+  });
+
+  it('retains mixed absent and retained owned coverage without losing merge success', async () => {
+    const dispositions = [assignment('DEV-1', 'parallel', 0), assignment('DEV-2', 'sequential', 1)]
+      .map((entry, index) => ({ ...entry, state: index === 0 ? 'already-absent' : 'retained', reason: index === 0 ? 'absent' : 'excluded', nextAction: 'preserve' }));
+    const { value } = await runWorkflow(configuration(), answers({ cleanupConfirmation: {
+      ok: true, result: { setup: [], teardown: [], dispositions },
+    } }));
+    expect(value).toMatchObject({ journal: [{ outcome: 'merged', mergeCommit: MERGE_SHA,
+      cleanup: { status: 'retained', dispositions } }] });
   });
 });

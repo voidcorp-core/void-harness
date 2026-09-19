@@ -67,7 +67,8 @@ import {
   type UnitReview,
 } from '../lib/autopilot/review-provenance.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
-import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
+import { planWorktreePreparation, planWorktreeSetup, planWorktreeTeardown, planWorktreeCleanup, type WorktreeDisposition } from '../lib/autopilot/worktree-lifecycle.js';
+import { readWorktreeRequest, worktreeRecovery, type PrepareRequest, type WorktreeObservation } from '../lib/autopilot/worktree-contract.js';
 import {
   type ConfirmationInput,
   confirmReservation,
@@ -499,6 +500,9 @@ function chainCommand(
  * the step stays testable without a git tree and the executor stays visible.
  */
 interface OrchestrationObservation {
+  readonly schemaVersion: 2;
+  readonly worktrees: WorktreeObservation;
+  readonly ticketBranches: readonly { readonly ticketId: string; readonly branch: string }[];
   readonly runId: string;
   readonly clusterId: string;
   readonly base: { readonly branch: string; readonly sha: string };
@@ -512,7 +516,10 @@ interface OrchestrationObservation {
 }
 
 interface OrchestrationOutcome {
-  readonly schemaVersion: 1;
+  readonly prepareInput: PrepareRequest;
+  readonly schemaVersion: 2;
+  readonly action: 'prepare';
+  readonly dispositions: readonly WorktreeDisposition[];
   readonly plan: OrchestrationPlan;
   /**
    * What each ticket claimed, in one spelling, on the way out.
@@ -545,7 +552,7 @@ interface OrchestrationOutcome {
  * `orderWorkers` gives it `unknown-footprint` and a sequential lane, which is
  * the conservative reading, not a contract failure.
  */
-function requireFootprintsOfThisRun(observation: OrchestrationObservation): void {
+function requireFootprintsOfThisRun(observation: Pick<OrchestrationObservation, 'tickets' | 'footprints'>): void {
   const listed = new Set(observation.tickets);
   const strays = [...new Set(observation.footprints.map((entry) => entry.id).filter((id) => !listed.has(id)))];
   if (strays.length === 0) return;
@@ -557,8 +564,29 @@ function requireFootprintsOfThisRun(observation: OrchestrationObservation): void
   );
 }
 
-function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResult {
-  const observation = parseStdin<OrchestrationObservation>(stdin, 'orchestration observation');
+function renderWorktreeDispositions(dispositions: readonly WorktreeDisposition[]): string {
+  return `${dispositions.map((entry) =>
+    `${entry.ticketId} | ${entry.branch} | ${entry.worktreePath} | ${entry.state}: ${entry.reason}\n  Next: ${entry.nextAction}`,
+  ).join('\n')}\n`;
+}
+
+function orchestrateCommand(stdin: string, json: boolean, now?: string): AutopilotCommandResult {
+  const observation = readWorktreeRequest(parseStdin<unknown>(stdin, 'orchestration observation'));
+  if (observation.action === 'cleanup') {
+    let cleanup: ReturnType<typeof planWorktreeCleanup>;
+    try {
+      cleanup = planWorktreeCleanup(observation, now ?? '');
+    } catch (error) {
+      const failure = toAutopilotFailure(error);
+      throw autopilotFailure(failure.code, failure.problem, failure.cause, worktreeRecovery('cleanup'));
+    }
+    const outcome = { schemaVersion: 2, action: 'cleanup', plan: observation.plan,
+      setup: [], teardown: cleanup.steps, dispositions: cleanup.dispositions };
+    const human = [renderWorktreeDispositions(cleanup.dispositions), 'planned cleanup argv (not executed):',
+      ...cleanup.steps.map((step) => `  ${JSON.stringify(step.command)}`), '',
+    ].join('\n');
+    return ok(json ? `${JSON.stringify(outcome, undefined, 2)}\n` : human);
+  }
   requireFootprintsOfThisRun(observation);
   const order = orderWorkers({
     tickets: observation.tickets,
@@ -567,6 +595,7 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
     ...(observation.minConfidence === undefined ? {} : { minConfidence: observation.minConfidence }),
   });
   const plan = buildOrchestrationPlan({
+    schemaVersion: 2, worktrees: observation.worktrees, ticketBranches: observation.ticketBranches,
     runId: observation.runId,
     clusterId: observation.clusterId,
     base: observation.base,
@@ -577,7 +606,8 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
     specPath: observation.specPath,
   });
   const outcome: OrchestrationOutcome = {
-    schemaVersion: 1,
+    prepareInput: observation,
+    schemaVersion: 2, action: 'prepare', dispositions: planWorktreePreparation(plan).dispositions,
     plan,
     // Normalised through the one reading, so ordering and the reconciliation
     // audit cannot disagree about what an area claims.
@@ -598,10 +628,10 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
     }),
     '',
     'before any worker:',
-    ...outcome.setup.map((step) => `  ${step.command.join(' ')}`),
+    ...outcome.setup.map((step) => `  ${JSON.stringify(step.command)}`),
     '',
-    'once the run is done with them:',
-    ...outcome.teardown.map((step) => `  ${step.command.join(' ')}`),
+    'retained until ticket-specific merge evidence; later submit action cleanup with fresh inventory:',
+    renderWorktreeDispositions(outcome.dispositions),
     '',
   ].join('\n');
   return emit(json, outcome, human);
@@ -1467,7 +1497,7 @@ export function runAutopilotCommand(
     const subcommand: AutopilotSubcommand = word as AutopilotSubcommand;
 
     if (subcommand === 'plan') return planCommand(stdin, json);
-    if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
+    if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json, context?.now);
     if (subcommand === 'reconcile') return reconcileCommand(stdin, json);
     if (subcommand === 'verify') return verifyCommand(stdin, json);
     if (subcommand === 'gate') return gateCommand(stdin, json);

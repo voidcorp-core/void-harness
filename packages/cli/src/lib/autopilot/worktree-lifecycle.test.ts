@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { join, isAbsolute } from 'node:path';
+import { worktreeObservation, WORKTREE_ROOT } from './worktree-fixtures.js';
 import { buildOrchestrationPlan, type OrchestrationPlan } from './orchestration-plan.js';
 import { planWorktreeSetup, planWorktreeTeardown } from './worktree-lifecycle.js';
 
@@ -9,6 +11,12 @@ const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 function plan(over: Partial<OrchestrationPlan> = {}): OrchestrationPlan {
   return {
     ...buildOrchestrationPlan({
+      schemaVersion: 2,
+      worktrees: worktreeObservation({ destinations: ['DEV-1', 'DEV-2'].map((id) => {
+        const path = join(WORKTREE_ROOT, 'example', 'autopilot-worker', id);
+        return { path, canonicalPath: path, exists: false };
+      }) }),
+      ticketBranches: ['DEV-1', 'DEV-2'].map((ticketId) => ({ ticketId, branch: `autopilot-worker/${ticketId}` })),
       runId: 'run-a',
       clusterId: 'cluster-1',
       base: { branch: 'main', sha: SHA },
@@ -53,7 +61,7 @@ describe('planWorktreeSetup', () => {
     const setup = planWorktreeSetup(plan());
 
     for (const step of setup) {
-      expect(step.worktreePath).toMatch(/^\.void\/autopilot\/run-a\/worktrees\//);
+      expect(isAbsolute(step.worktreePath)).toBe(true);
       expect(step.worktreePath).not.toBe('.');
     }
   });
@@ -87,7 +95,7 @@ describe('planWorktreeSetup', () => {
       ],
     });
 
-    expect(() => planWorktreeSetup(foreign)).toThrow(/run-a/);
+    expect(() => planWorktreeSetup(foreign)).toThrow(/worktree/);
   });
 
   it('refuses a branch that does not belong to the cluster', () => {
@@ -115,20 +123,18 @@ describe('planWorktreeSetup', () => {
 });
 
 describe('planWorktreeTeardown', () => {
-  it('removes the worktrees but never the branches, because the commits live there', () => {
+  it('preserves every checkout until its ticket is merged, including an interrupted run', () => {
+    expect(planWorktreeTeardown(plan())).toEqual([]);
+  });
+
+  it('emits no removal authority without post-merge evidence', () => {
     const teardown = planWorktreeTeardown(plan());
 
-    expect(teardown.map((step) => step.command[2])).toEqual(['remove', 'remove']);
+    expect(teardown.map((step) => step.command[2])).toEqual([]);
     // The step still NAMES its branch, for the report; no command deletes one.
     const commands = teardown.map((step) => step.command.join(' '));
     expect(commands.some((command) => command.includes('branch'))).toBe(false);
     expect(commands.some((command) => /\s-D\b|--delete/.test(command))).toBe(false);
-  });
-
-  it('keeps a worktree whose worker was excluded, so its partial work stays inspectable', () => {
-    const teardown = planWorktreeTeardown(plan(), { keep: ['DEV-2'] });
-
-    expect(teardown.map((step) => step.ticketId)).toEqual(['DEV-1']);
   });
 
   it('emits argv commands only', () => {

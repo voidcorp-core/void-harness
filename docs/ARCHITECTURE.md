@@ -152,6 +152,17 @@ restating the rule. `.void/machine/` is per-repository state, so the mission jou
 plan, evidence and the status snapshot are written there, while the ticket, the diff and the
 verified command stay in `workRoot`. The session checkpoint stays with its tree.
 
+### Working checkout ownership
+
+Working Git checkouts live outside the repository at the durable location in
+[WORKTREES.md](WORKTREES.md). The v2 autopilot observation explicitly supplies
+physical paths, Git inventory and ticket-to-branch bindings. Pure planning returns
+absolute assignments and argv; the existing runtime owns execution and fresh
+observations. Checkout lifetime follows the ticket and observed merge, independently
+of run/session/presentation lifetime. Useful ignored evidence must be preserved
+before removal even when Git reports clean. This does not change repository-owned
+runtime state or installation-root resolution above.
+
 ## Decision records
 
 ADRs are an append-only data model, not a generated document:

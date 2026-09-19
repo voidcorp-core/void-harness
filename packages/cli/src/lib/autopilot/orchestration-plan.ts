@@ -25,6 +25,8 @@
 // neighbour.
 
 import { autopilotFailure } from './errors.js';
+import { type WorktreeObservation, readWorktreeObservation, worktreeFailure } from './worktree-contract.js';
+import { pathKey, resolveWorktreeRoot, validateInventory, worktreeDestination } from './worktree-location.js';
 
 export type WorkerLane = 'parallel' | 'sequential';
 
@@ -85,7 +87,7 @@ const SHARED_GIT_STATE: SharedGitStateProhibition = Object.freeze({
 export interface WorkerAssignment {
   readonly ticketId: string;
   readonly branch: string;
-  /** Repo-relative worktree the controller creates BEFORE any spawn. */
+  /** Absolute physical destination, stable across runs and presentation adapters. */
   readonly worktreePath: string;
   readonly lane: WorkerLane;
   /** Deterministic position; sequential workers run in this order. */
@@ -93,7 +95,9 @@ export interface WorkerAssignment {
 }
 
 export interface OrchestrationPlan {
-  readonly schemaVersion: 1;
+  readonly worktreeRoot: string;
+  readonly worktrees: WorktreeObservation;
+  readonly schemaVersion: 2;
   readonly runId: string;
   readonly clusterId: string;
   readonly base: { readonly branch: string; readonly sha: string };
@@ -124,6 +128,9 @@ export interface OrchestrationPlan {
 }
 
 export interface OrchestrationInput {
+  readonly schemaVersion: 2;
+  readonly worktrees: WorktreeObservation;
+  readonly ticketBranches: readonly { readonly ticketId: string; readonly branch: string }[];
   readonly runId: string;
   readonly clusterId: string;
   readonly base: { readonly branch: string; readonly sha: string };
@@ -170,6 +177,10 @@ function confinedPath(value: unknown, field: string): string {
 }
 
 export function buildOrchestrationPlan(input: OrchestrationInput): OrchestrationPlan {
+  if (input.schemaVersion !== 2) worktreeFailure('orchestration requires schemaVersion 2');
+  const worktrees = readWorktreeObservation(input.worktrees);
+  validateInventory(worktrees);
+  const worktreeRoot = resolveWorktreeRoot(worktrees);
   const runId = requireSlug(input.runId, 'runId');
   const clusterId = requireSlug(input.clusterId, 'clusterId');
 
@@ -220,10 +231,32 @@ export function buildOrchestrationPlan(input: OrchestrationInput): Orchestration
   }
   const baseBranch = requireSlug(input.base.branch, 'base.branch');
 
+  const bindings = new Map<string, string>();
+  const destinations = new Set<string>();
+  const branches = new Set<string>();
+  for (const binding of input.ticketBranches ?? []) {
+    if (!seen.has(binding.ticketId) || bindings.has(binding.ticketId)) {
+      worktreeFailure(`competing or foreign ticket binding: ${binding.ticketId}`);
+    }
+    const branchKey = binding.branch;
+    const destination = worktreeDestination(worktrees, binding.branch);
+    const locationKey = pathKey(destination.canonicalPath, worktrees.caseSensitive);
+    if (branches.has(branchKey) || destinations.has(locationKey)) worktreeFailure('ticket branch or destination collision');
+    branches.add(branchKey);
+    destinations.add(locationKey);
+    bindings.set(binding.ticketId, binding.branch);
+  }
+  if (bindings.size !== all.length) worktreeFailure('ticketBranches must bind every ticket explicitly');
+  const branchFor = (ticketId: string): string => {
+    const branch = bindings.get(ticketId);
+    if (branch === undefined) worktreeFailure(`missing binding: ${ticketId}`);
+    return branch;
+  };
+
   const assign = (ticketId: string, lane: WorkerLane, order: number): WorkerAssignment => ({
     ticketId,
-    branch: `autopilot-worker/${clusterId}/${ticketId}`,
-    worktreePath: `.void/autopilot/${runId}/worktrees/${ticketId}`,
+    branch: branchFor(ticketId),
+    worktreePath: worktreeDestination(worktrees, branchFor(ticketId)).canonicalPath,
     lane,
     order,
   });
@@ -234,7 +267,9 @@ export function buildOrchestrationPlan(input: OrchestrationInput): Orchestration
   ];
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    worktreeRoot,
+    worktrees,
     runId,
     clusterId,
     base: { branch: baseBranch, sha: input.base.sha },

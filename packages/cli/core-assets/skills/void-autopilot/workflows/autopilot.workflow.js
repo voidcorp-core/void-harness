@@ -106,7 +106,9 @@ function execute(commands, why, phaseTitle) {
     [
       `Execute these commands in ${input.root}, in order, stopping at the first failure:`,
       '',
-      ...argv.map((command) => `  ${command.join(' ')}`),
+      'Command argv (JSON):',
+      JSON.stringify(argv),
+      'Pass each array directly to a process API with shell:false. Never join argv into shell text.',
       '',
       `They were computed by autopilot, not by you: ${why}`,
       'Do not substitute, reorder or add to them.',
@@ -452,12 +454,12 @@ const mergedUnits = () =>
  * is journaled here, the worktrees are reclaimed exactly as they are after a
  * publish, and the chain decides whether the run goes on.
  */
-async function blockUnit(tickets, cause, stepName, teardown) {
+async function blockUnit(tickets, cause, stepName, assignments) {
   journal.push({ tickets, outcome: 'unit-blocked', cause, integrationSha: null, mergeCommit: null, unionVerdict: null, checks: [] })
   taken += 1
   await beat(stepName, cause)
-  if (teardown.length > 0) {
-    await execute(teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile')
+  for (const assignment of assignments) {
+    log(`${assignment.ticketId} | ${assignment.branch} | ${assignment.worktreePath} | retained: ${cause}; resume at this path`)
   }
 }
 
@@ -548,16 +550,39 @@ while (true) {
     }
   }
 
-  const orchestration = required(
+  let orchestration = required(
     await step(
       'orchestrate',
-      'the reserved cluster, a footprint per ticket, and the paths the programme reserves to one writer',
-      'The footprints come from the tickets themselves. A ticket whose footprint you cannot establish is passed with low confidence rather than guessed at: the step sequences what it cannot prove disjoint.',
+      'schemaVersion 2, action prepare, the reserved cluster, footprint per ticket, worktrees observation and explicit ticketBranches',
+      'The footprints come from the tickets. The v2 worktrees object has repository:{name,root}, environment:{home,xdgDataHome?,voidWorktrees?}, observedAt, caseSensitive, temporaryRoots, branches:[{branch,headSha}], destinations:[{path,canonicalPath,exists}], worktrees:[{path,branch?,headSha?,exists,main,locked,hasSubmodules,dirty,localData}]. Observe Git worktree list --porcelain -z and local refs plus physical facts; full refs retain refs/heads/. localData is none, preserve or archived after useful ignored evidence was copied and verified; for missing directories inspect recoverable Git index/admin metadata too, and preserve unknown or unrecovered state. Missing facts refuse; no default false. Prior ticketBranches come from saved assignments, never a suffix guess. New tickets bind autopilot-worker/<ticketId>. Supply all fields, refuse unknown observations.',
       'Preflight',
     ),
     'the orchestration',
   )
-  required(await execute(orchestration.setup.map((s) => s.command), 'they create the worktrees a worker may write in', 'Preflight'), 'creating the worktrees')
+  if (orchestration.setup.length > 0) {
+    const setup = await execute(orchestration.setup.map((s) => s.command), 'planned checkout preparation; preserve completed operations on failure', 'Preflight')
+    if (!setup?.ok || setup.result?.ran !== orchestration.setup.length) {
+      for (const a of orchestration.plan.assignments) log(`${a.ticketId} | ${a.branch} | ${a.worktreePath} | retained after partial setup; refresh inventory before resume`)
+      throw new Error(`autopilot stopped before workers: setup incomplete: ${setup?.detail ?? 'missing execution receipt'}`)
+    }
+    const confirmed = required(await step('orchestrate', 'Confirm setup: fresh schemaVersion 2 action prepare from current Git inventory',
+      `Use this exact original prepare input: ${JSON.stringify(orchestration.prepareInput)}. Preserve tickets, footprints, sequentialOwnership, minConfidence, bindings and pinned base; replace only worktrees with fresh physical/Git observations after execution. Saved plan: ${JSON.stringify(orchestration.plan)}. Return the full v2 preparation result, without executing its commands.`, 'Preflight'), 'confirming worktree setup')
+    const scheduling = (value) => JSON.stringify({
+      assignments: value.plan.assignments.map(({ ticketId, branch, worktreePath, lane, order }) => ({ ticketId, branch, worktreePath, lane, order })),
+      concurrency: value.plan.concurrency,
+      base: { branch: value.plan.base.branch, sha: value.plan.base.sha },
+      footprints: (value.footprints ?? []).map(({ id, areas }) => ({ id, areas: [...areas].sort() })).sort((a, b) => a.id.localeCompare(b.id)),
+    })
+    if (confirmed.setup.length !== 0 || !confirmed.dispositions?.every((entry) => entry.state === 'reuse')
+      || scheduling(confirmed) !== scheduling(orchestration)) {
+      throw new Error('autopilot stopped before workers: setup requires fresh planning; all existing worktrees are retained')
+    }
+    // Confirmation owns physical observations, never the original scheduling decision.
+    orchestration = { ...orchestration, setup: confirmed.setup, dispositions: confirmed.dispositions,
+      plan: { ...orchestration.plan, worktrees: confirmed.plan.worktrees } }
+  } else if (!orchestration.dispositions?.every((entry) => entry.state === 'reuse')) {
+    throw new Error('autopilot stopped before workers: no setup operation and no observed reusable assignments')
+  }
 
   await beat('orchestrate', chain.nextUnit)
   const results = await runWorkers(orchestration.plan)
@@ -588,7 +613,7 @@ while (true) {
       orchestration.plan.assignments.map((a) => a.ticketId),
       `nothing survived reconciliation: ${reconciliation.outcome?.detail ?? 'no range was integrable'}`,
       'reconcile',
-      orchestration.teardown,
+      orchestration.plan.assignments,
     )
     continue
   }
@@ -620,7 +645,7 @@ while (true) {
   )
   if (gate.proofs.kind !== 'merge') {
     log(`stop (${gate.proofs.action}): ${gate.proofs.detail}`)
-    await blockUnit(reconciliation.plan.integrate, `the proofs refused (${gate.proofs.action}): ${gate.proofs.detail}`, 'gate', orchestration.teardown)
+    await blockUnit(reconciliation.plan.integrate, `the proofs refused (${gate.proofs.action}): ${gate.proofs.detail}`, 'gate', orchestration.plan.assignments)
     // The gate names what it wants: `STOP_CHAIN` ends the run, and anything
     // else ends this unit only. Reading both as "stop" threw away a
     // continuation the gate had already decided was safe.
@@ -768,7 +793,40 @@ while (true) {
   }
   taken += 1
   await beat('publish', reconciliation.plan.integrate.join(', '))
-  required(await execute(orchestration.teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile'), 'reclaiming the worktrees')
+  const mergeRecord = journal.findLast((entry) => entry.integrationSha === verification.integrationSha)
+  if (landed) {
+    const facts = `Owned plan: ${JSON.stringify(orchestration.plan)}. Verified integration SHA: ${verification.integrationSha}; observed merge SHA: ${landing.verdict.mergeSha}. Reconciliation: ${JSON.stringify(reconciliation.plan)}. Included IDs: ${JSON.stringify(reconciliation.plan.integrate)}. Obtain included headSha from the verified ranges used by this integration, never an unrelated current tip. Observe merge then fresh worktrees inventory, localData preservation (including recoverable index/admin metadata for missing registrations) and exact branch HEADs; excluded assignments remain retained. retainedTicketIds is empty unless an explicit hold exists.`
+    const planned = await step('orchestrate', 'schemaVersion 2 action cleanup with ticket-specific post-merge evidence', facts, 'Reconcile')
+    if (!planned?.ok || !Array.isArray(planned.result?.teardown) || !Array.isArray(planned.result?.dispositions)) {
+      if (mergeRecord) mergeRecord.cleanup = { status: 'retained', reason: planned?.detail ?? 'cleanup planning refused', assignments: orchestration.plan.assignments }
+      log('merge succeeded; worktrees retained because cleanup planning refused. Refresh evidence and submit action cleanup.')
+    } else {
+      let observed = planned
+      if (planned.result.teardown.length > 0) {
+        const removal = await execute(planned.result.teardown.map((entry) => entry.command), 'planned cleanup of evidenced merged tickets only', 'Reconcile')
+        if (removal?.ok && removal.result?.ran === planned.result.teardown.length) {
+          observed = await step('orchestrate', 'Confirm cleanup: schemaVersion 2 action cleanup after actual execution', facts, 'Reconcile')
+        } else {
+          observed = { ok: false, detail: removal?.detail ?? 'incomplete cleanup execution receipt' }
+        }
+      }
+      const observedDispositions = observed?.result?.dispositions
+      const owned = orchestration.plan.assignments
+      const coversOwned = Array.isArray(observedDispositions) && observedDispositions.length === owned.length
+        && owned.every((assignment) => observedDispositions.filter((entry) => entry.ticketId === assignment.ticketId
+          && entry.branch === assignment.branch && entry.worktreePath === assignment.worktreePath).length === 1)
+      const complete = observed?.ok && Array.isArray(observed.result?.teardown)
+        && observed.result.teardown.length === 0 && coversOwned
+        && observedDispositions.every((entry) => entry.state === 'already-absent' || entry.state === 'retained')
+      const dispositions = observed?.result?.dispositions ?? planned.result.dispositions
+      if (mergeRecord) mergeRecord.cleanup = { status: complete && dispositions.every((entry) => entry.state === 'already-absent') ? 'completed' : 'retained', dispositions,
+        reason: complete ? 'post-execution inventory observed' : observed?.detail ?? 'refresh inventory before cleanup retry' }
+      for (const entry of dispositions) log(`${entry.ticketId} | ${entry.branch} | ${entry.worktreePath} | ${entry.state}: ${entry.reason}; ${entry.nextAction}`)
+      if (!complete) log('merge succeeded; cleanup did not complete. Preserve remaining worktrees and re-observe before retry.')
+    }
+  } else {
+    for (const a of orchestration.plan.assignments) log(`${a.ticketId} | ${a.branch} | ${a.worktreePath} | retained: merge not observed; resume here or submit action cleanup after a later human merge`)
+  }
   // A tracker that did not converge leaves the run in reconciliation, not in
   // "synced": the unit stays journaled and the next one is not taken.
   if (!trackerConverged) break

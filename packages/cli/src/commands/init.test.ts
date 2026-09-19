@@ -11,6 +11,7 @@ import type { Stack } from '../lib/stack.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { afterEach } from 'vitest';
 
@@ -212,6 +213,23 @@ describe('installDoctrineFiles', () => {
     const stage = staged('OLD TEMPLATE\n');
     await installDoctrineFiles(stage, source(), { installRoot: attesting('OLD TEMPLATE\n') });
     expect(doctrineIn(stage)).toBe('TEMPLATE\n');
+  });
+
+  it('distributes the universal worktree invariant while preserving a customized doctrine on repeated installs', async () => {
+    const core = fileURLToPath(new URL('../../../core/', import.meta.url));
+    const custom = '# My project\r\n\r\n- Keep my conventions and accents: dépôt.\r\n';
+    const stage = staged(custom);
+    const installed = attesting('ORIGINAL TEMPLATE\n');
+
+    await installDoctrineFiles(stage, core, { installRoot: installed });
+    await installDoctrineFiles(stage, core, { installRoot: installed });
+
+    expect(doctrineIn(stage)).toBe(custom);
+    const philosophy = readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8');
+    expect(philosophy).toBe(readFileSync(join(core, 'PHILOSOPHY.md'), 'utf8'));
+    expect(philosophy).toContain(`\${VOID_WORKTREES:-\${XDG_DATA_HOME:-$HOME/.local/share}/git-worktrees}`);
+    expect(philosophy).toContain('git worktree move');
+    expect(philosophy).toContain('git worktree prune');
   });
 
   it('never touches a project doctrine the project has written into', async () => {

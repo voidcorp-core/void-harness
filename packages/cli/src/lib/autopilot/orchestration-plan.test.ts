@@ -1,38 +1,67 @@
 import { describe, expect, it } from 'vitest';
+import { join } from 'node:path';
+import { worktreeObservation, WORKTREE_ROOT } from './worktree-fixtures.js';
 import { buildOrchestrationPlan, type OrchestrationInput } from './orchestration-plan.js';
 
 const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 
 function input(over: Partial<OrchestrationInput> = {}): OrchestrationInput {
+  const parallel = over.parallel ?? ['DEV-1', 'DEV-2'];
+  const sequential = over.sequential ?? [];
+  const ids = [...parallel, ...sequential];
   return {
-    runId: 'run-a',
-    clusterId: 'cluster-1',
-    base: { branch: 'main', sha: SHA },
-    parallel: ['DEV-1', 'DEV-2'],
-    sequential: [],
-    clusterSize: 4,
-    planPath: 'plans/2026-07-25-autopilot-plan.md',
-    specPath: 'docs/specs/2026-07-25-autopilot.md',
+    schemaVersion: 2,
+    runId: 'run-a', clusterId: 'cluster-1',
+    base: { branch: 'main', sha: SHA }, parallel, sequential, clusterSize: 4,
+    planPath: 'plans/2026-07-25-autopilot-plan.md', specPath: 'docs/specs/2026-07-25-autopilot.md',
+    ticketBranches: ids.map((ticketId) => ({ ticketId, branch: `autopilot-worker/${ticketId}` })),
+    worktrees: worktreeObservation({ destinations: ids.map((ticketId) => {
+      const path = join(WORKTREE_ROOT, 'example', 'autopilot-worker', ticketId);
+      return { path, canonicalPath: path, exists: false };
+    }) }),
     ...over,
   };
 }
 
 describe('buildOrchestrationPlan', () => {
+  it('reuses ticket identity when a later cluster resumes its unfinished work', () => {
+    const first = buildOrchestrationPlan(input({ clusterId: 'cluster-1' }));
+    const resumed = buildOrchestrationPlan(input({ clusterId: 'cluster-2' }));
+
+    expect(resumed.assignments).toEqual(first.assignments);
+  });
+
+  it('keeps a ticket checkout across runs because interruption must preserve its work', () => {
+    const first = buildOrchestrationPlan(input({ runId: 'run-a' }));
+    const resumed = buildOrchestrationPlan(input({ runId: 'run-b' }));
+
+    expect(resumed.assignments).toEqual(first.assignments);
+  });
+
+  it('places working checkouts outside the repository and retains branch path segments', () => {
+    const plan = buildOrchestrationPlan(input());
+
+    for (const assignment of plan.assignments) {
+      expect(assignment.worktreePath).not.toMatch(/^\.void\//);
+      expect(assignment.worktreePath.endsWith(`/${assignment.branch}`)).toBe(true);
+    }
+  });
+
   it('assigns one branch and one worktree per ticket, derived from identifiers only', () => {
     const plan = buildOrchestrationPlan(input());
 
     expect(plan.assignments).toEqual([
       {
         ticketId: 'DEV-1',
-        branch: 'autopilot-worker/cluster-1/DEV-1',
-        worktreePath: '.void/autopilot/run-a/worktrees/DEV-1',
+        branch: 'autopilot-worker/DEV-1',
+        worktreePath: join(WORKTREE_ROOT, 'example', 'autopilot-worker', 'DEV-1'),
         lane: 'parallel',
         order: 0,
       },
       {
         ticketId: 'DEV-2',
-        branch: 'autopilot-worker/cluster-1/DEV-2',
-        worktreePath: '.void/autopilot/run-a/worktrees/DEV-2',
+        branch: 'autopilot-worker/DEV-2',
+        worktreePath: join(WORKTREE_ROOT, 'example', 'autopilot-worker', 'DEV-2'),
         lane: 'parallel',
         order: 1,
       },
