@@ -932,8 +932,10 @@ export async function recoverStoppedMission(
   if (capability.status === 'unavailable') {
     throw new Error(`MISSION_RECOVERY_CAPABILITY: ${capability.limitations.join('; ')}`);
   }
+  const migration = validatedSpecialistContractMigrations(inspected.stream.events, stored.plan);
+  if (!migration.ok) throw new Error(`SPECIALIST_CONTRACT_MIGRATION_INVALID: ${migration.reasons.join('; ')}`);
   const catalog = await loadSpecialists(coreRoot);
-  for (const specialist of stored.plan.specialists) {
+  for (const specialist of migration.plan.specialists) {
     const current = catalog.find(value => value.id === specialist.specialistId);
     if (!current || current.version !== specialist.contractVersion) {
       throw new Error(`MISSION_RECOVERY_CONTRACT: ${specialist.specialistId} needs matching candidate assets`);
@@ -950,13 +952,32 @@ export async function recoverStoppedMission(
     specialist.specialistId, subject === undefined ? specialist.proof.inputHash
       : canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash }),
   ]));
+  if (migration.migration !== undefined) {
+    if (subject === undefined) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: migration requires its post-implementation subject');
+    }
+    const assets = await observeSpecialistMigrationAssets(coreRoot, installRoot, identity.runtime);
+    if (canonicalJsonHash(assets.declaration) !== migration.migration.receipt.declarationHash
+      || assets.nativeAgentSha256 !== migration.migration.receipt.nativeAgentSha256) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: declared or installed contract changed');
+    }
+    const comparisonCatalog = await loadSpecialistMigrationComparisonCatalog(coreRoot, assets.declaration, stored.plan);
+    const comparison = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject.files, comparisonCatalog);
+    for (const specialist of comparison.plan.specialists) {
+      if (specialist.specialistId !== assets.declaration.specialistId) {
+        currentInputHashes[specialist.specialistId] = canonicalJsonHash({
+          routing: specialist.proof.inputHash, subject: subject.hash,
+        });
+      }
+    }
+  }
   const resolutionArtifact = request.disposition.kind === 'review-blocker'
     ? await recoveryResolutionArtifact(workRoot, request.disposition.resolutionArtifact.path) : undefined;
   const observation: MissionRecoveryObservation = {
     stage: implemented ? 'post-implementation' : 'pre-implementation', maxRounds: 2,
     expectedSource: identity.runtime === 'codex' ? 'runtime:codex' : 'runtime:claude',
     currentInputHashes,
-    contractVersions: Object.fromEntries(stored.plan.specialists.map(value => [value.specialistId, value.contractVersion])),
+    contractVersions: Object.fromEntries(migration.plan.specialists.map(value => [value.specialistId, value.contractVersion])),
     ...(resolutionArtifact === undefined ? {} : { resolutionArtifact }),
   };
   const result = await recordStoppedMissionRecovery(installRoot, missionId, request, observation);

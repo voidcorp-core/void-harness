@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseEvent, replayEventLog, serializeEvent } from '../events/index.js';
+import { planSpecialistContractMigration } from './specialist-contract-migration.js';
 import { planStoppedMissionRecovery } from './mission-recovery.js';
 import { sealEvidence } from '../evidence/schema.js';
 import { canonicalJsonHash } from '../evidence/canonical-json.js';
@@ -388,6 +389,47 @@ describe('mission team controller', () => {
     const corrected = decide([...recovered, writer(12, 'writer:primary', 'run-correction')], PLAN, inputs);
     expect(corrected.action.kind).toBe('stop');
     expect(corrected.reasons.join(' ')).toContain('Provide the mixed included/excluded cleanup regression result.');
+  });
+
+  it('dispatches only migrated visual assessment after admitted preparation correction while degraded peer verdicts remain', () => {
+    const visual = 'core:visual-craft-director';
+    const devex = 'core:devex-docs-engineer';
+    const migrationPlan = { ...PLAN, context: { status: 'complete' as const, issues: [] },
+      specialists: [...PLAN.specialists, { specialistId: visual, contractVersion: 2,
+        state: 'applicable', stages: ['post-implementation'] },
+      { specialistId: devex, contractVersion: 1, state: 'applicable', stages: ['post-implementation'] }],
+    } as MissionPlan;
+    const events = [started(), ...preReviews(), ...preparationReceipt(6), writer(7, 'writer:primary', 'run-lead-writer'),
+      completion('core:solution-architect', 8), completion('core:security-engineer', 9),
+      completion('core:test-qa-engineer', 10, 'degraded', 'post-implementation', HASH, 1,
+        'qa_degraded', [], ['Package proof remains incomplete.']),
+      completion(devex, 11, 'degraded', 'post-implementation', HASH, 1,
+        'devex_degraded', [], ['Documented examples still need verification.']),
+      event({ seq: 12, eventId: 'evt_queued_visual_migration', kind: 'specialist.requested',
+        source: 'void-harness:mission.dispatch', subject: visual, payload: {
+          stage: 'post-implementation', reviewRound: 1, inputHash: HASH, contractVersion: 2,
+          runtime: 'codex', planHash: PLAN.planHash } })];
+    const hashes = { ...INPUTS, [visual]: HASH, [devex]: HASH };
+    const admission = planSpecialistContractMigration({ stream: stream(events), request: {
+      schemaVersion: 1, expectedEpisodeId: events[0]!.eventId,
+      expectedJournalHash: canonicalJsonHash(events), migrationId: 'visual-craft-director-v2-v3' },
+    observation: { declaration: { id: 'visual-craft-director-v2-v3', specialistId: visual,
+      fromVersion: 2, toVersion: 3, fromContractSha256: HASH, toContractSha256: HASH_B,
+      fromContractPath: 'contract-history/visual-craft-director/v2.yaml', policy: 'fresh-review-required' },
+      observedFromContractSha256: HASH, observedToContractSha256: HASH_B, nativeAgentSha256: HASH_B,
+      nativeContractVersion: 3, reviewSubjectHash: HASH, targetInputHash: HASH_B,
+      plan: migrationPlan, currentInputHashes: hashes, maxRounds: 2, expectedSource: 'runtime:codex' } });
+    expect(admission).toMatchObject({ kind: 'migrate' });
+    if (admission.kind !== 'migrate') throw new Error('Authentic migration admission required');
+    const migrated = parseEvent({ ...event({ seq: 13, eventId: 'evt_post_preparation_migration',
+      kind: 'specialist.contract-migrated', source: 'void-harness:mission.migrate-specialist',
+      subject: visual }), payload: admission.receipt });
+    if (!migrated.ok) throw new Error('Canonical migration required');
+    const decision = decide([...events, migrated.value], migrationPlan, { ...hashes, [visual]: HASH_B }, hashes);
+    expect(decision.action).toEqual({ kind: 'invoke-specialists', specialistIds: [visual],
+      stage: 'post-implementation', reviewRound: 1 });
+    expect(decision.verdict.status).not.toBe('verified');
+    expect(events.filter(item => item.kind === 'specialist.completed' && item.seq >= 10)).toHaveLength(2);
   });
 
   it('keeps a current evidence obligation blocking after a preparation writer receipt', () => {

@@ -649,7 +649,9 @@ export function orchestrateMissionTeam(
       && event.subject === receipt.specialistId && ['specialist.completed', 'specialist.failed'].includes(event.kind));
     const onlyAuthorObligations = obligations.issues.length === 0
       && obligations.blockingObligationIds.every(id => receipt.pendingAuthorObligationIds.includes(id));
-    if (!terminal && onlyAuthorObligations && preReview.readyForVerdict) {
+    const preparationAdmitted = preReview.readyForVerdict
+      || (preparationCorrectionCompleted && !preparationFollowupRequired && firstImplementationSeq !== undefined);
+    if (!terminal && onlyAuthorObligations && preparationAdmitted) {
       const reasons = ['Explicit contract migration requires one fresh visual assessment; historical evidence obligations remain due'];
       return applyRuntimeCertification({ phase: 'review',
         action: { kind: 'invoke-specialists', specialistIds: ['core:visual-craft-director'],

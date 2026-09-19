@@ -157,8 +157,10 @@ function admit(input: SpecialistContractMigrationInput): SpecialistContractMigra
     || observation.observedToContractSha256 !== declaration.toContractSha256
     || observation.nativeContractVersion !== 3) return refuse('migration-contract-mismatch', 'Observe the original v2 plan and declared v3 assets/native specialist');
   const requested = events.filter(x => x.kind === 'specialist.requested' && x.subject === VISUAL);
+  const episodeStart = events.find(x => x.eventId === lifecycle.episodeId);
+  if (!episodeStart) return refuse('invalid-journal', 'Active mission episode has no original start event');
   const starts = events.filter(x => x.kind === 'specialist.started');
-  if (starts.some(start => !events.some(x => x.seq > start.seq && sameInvocation(start, x)
+  if (starts.filter(start => start.seq > episodeStart.seq).some(start => !events.some(x => x.seq > start.seq && sameInvocation(start, x)
     && ['specialist.completed', 'specialist.failed'].includes(x.kind)))) return refuse('specialist-inflight', 'Wait for the started specialist to produce its terminal receipt');
   const writers = recovered.events.filter(x => x.kind === 'lead-writer.completed'
     && field(x, 'actionKind') !== 'run-preparation-correction');
@@ -242,4 +244,18 @@ export function planSpecialistContractMigration(input: SpecialistContractMigrati
     return { kind: 'already-migrated', receipt, migrationEventId: eventId };
   }
   return admit(input);
+}
+
+/** Recovery has no mutable plan: validate the migration against its recorded original plan. */
+export function validatedSpecialistContractMigrationBoundary(events: readonly CanonicalEvent[]):
+  | { readonly ok: false; readonly reasons: readonly string[] }
+  | { readonly ok: true; readonly migration?: { readonly eventId: string; readonly seq: number;
+      readonly receipt: SpecialistContractMigrationReceipt } } {
+  const migration = events.find(event => event.kind === 'specialist.contract-migrated');
+  if (migration === undefined) return { ok: true };
+  const observation = field(migration, 'observation');
+  if (!observationValue(observation)) return { ok: false, reasons: ['Migration observation is invalid'] };
+  const validated = validatedSpecialistContractMigrations(events, observation.plan);
+  if (!validated.ok) return validated;
+  return { ok: true, ...(validated.migration === undefined ? {} : { migration: validated.migration }) };
 }

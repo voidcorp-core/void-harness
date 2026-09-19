@@ -4,6 +4,7 @@ import { parseEvent, replayEventLog, serializeEvent } from '../events/index.js';
 import type { CanonicalEvent } from '../events/types.js';
 import { event } from '../test/events.js';
 import { orchestrateMissionTeam, type MissionSpecialistPlan } from './controller.js';
+import { planStoppedMissionRecovery } from './mission-recovery.js';
 import { planSpecialistContractMigration, validatedSpecialistContractMigrations } from './specialist-contract-migration.js';
 
 const HASH = `sha256:${'a'.repeat(64)}`;
@@ -109,6 +110,41 @@ describe('open specialist contract migration', () => {
         currentInputHashes: { ...value.observation.currentInputHashes, [peer]: HASH } } });
     expect(result).toMatchObject({ kind: 'refused', code: 'specialist-inflight' });
     expect(canonicalJsonHash(value.events)).toBe(original);
+  });
+  it('archives a pre-recovery peer start while preserving its authentic episode history', () => {
+    const value = fixture(true);
+    value.events.push(event({ seq: 6, eventId: 'evt_historical_qa_request',
+      kind: 'specialist.requested', source: 'void-harness:mission.dispatch', subject: 'core:test-qa-engineer',
+      payload: { stage: 'post-implementation', reviewRound: 2, inputHash: NEXT,
+        contractVersion: 2, runtime: 'codex', planHash: HASH } }),
+    event({ seq: 7, eventId: 'evt_historical_qa_start', kind: 'specialist.started',
+      subject: 'core:test-qa-engineer', payload: { stage: 'post-implementation', reviewRound: 2,
+        inputHash: NEXT, contractVersion: 2, contextId: 'context_historical_qa' } }),
+    event({ seq: 8, eventId: 'evt_historical_closure', kind: 'mission.closed',
+      payload: { reason: 'controller-stop' } }));
+    const artifact = { path: 'docs/visual-applicability.md', sha256: HASH };
+    const recovery = planStoppedMissionRecovery({ stream: stream(value.events), request: {
+      schemaVersion: 1, closureEventId: 'evt_historical_closure',
+      expectedJournalHash: canonicalJsonHash(value.events), disposition: { kind: 'review-blocker',
+        completionEventIds: ['evt_old_visual_completed'], resolutionArtifact: artifact } },
+    observation: { stage: 'post-implementation', contractVersions: { [VISUAL]: 2 },
+      currentInputHashes: { [VISUAL]: HASH }, maxRounds: 2, expectedSource: 'runtime:codex',
+      resolutionArtifact: artifact } });
+    expect(recovery).toMatchObject({ kind: 'recover' });
+    if (recovery.kind !== 'recover') throw new Error('Authentic recovery admission required');
+    const recovered = parseEvent({ ...event({ seq: 9, eventId: 'evt_authentic_recovery',
+      kind: 'mission.recovered', source: 'void-harness:mission.recover' }), payload: recovery.receipt });
+    if (!recovered.ok) throw new Error('Canonical recovery receipt required');
+    value.events.push(recovered.value);
+    value.request.expectedEpisodeId = recovered.value.eventId;
+    value.request.expectedJournalHash = canonicalJsonHash(value.events);
+    const before = canonicalJsonHash(value.events);
+    const { decision } = migrate(value);
+    expect(decision.receipt).toMatchObject({ episodeId: recovered.value.eventId,
+      reviewRound: 2, remainingRounds: 1 });
+    expect(canonicalJsonHash(value.events)).toBe(before);
+    expect(value.events.find(item => item.eventId === 'evt_historical_qa_start')?.kind)
+      .toBe('specialist.started');
   });
   it('admits only the fresh v3 assessment while retaining old author obligations and the consumed round', () => {
     const value = fixture(true);

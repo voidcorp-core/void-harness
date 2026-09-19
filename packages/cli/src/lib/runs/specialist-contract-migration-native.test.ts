@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, it, vi } from 'vitest';
-import { canonicalJsonHash, compileContextPack, compileMissionPlan, mergePolicies, reduceEvidenceObligations,
+import { canonicalJsonHash, compileContextPack, compileMissionPlan, mergePolicies, projectMissionLifecycle, reduceEvidenceObligations,
   type MissionSpecialistPlan } from '@voidcorp/mission-engine';
 import { loadProjectPolicies } from '../policy-loader.js';
 import { loadProfiles } from '../profile-loader.js';
@@ -13,7 +13,7 @@ import { loadSpecialists, parseSpecialistYaml } from '../specialists/load.js';
 import { detectProfileInput, detectStack } from '../stack.js';
 import { wireCodexAgents } from '../codex-agents.js';
 import { resolveProjectRoots } from '../project-roots.js';
-import { dispatchMissionSpecialists, migrateMissionSpecialist, planMission } from '../../commands/mission.js';
+import { dispatchMissionSpecialists, migrateMissionSpecialist, planMission, recoverStoppedMission, recordMissionClosure } from '../../commands/mission.js';
 import { appendMissionEvent, createMission, eventLogPath, inspectMission,
   missionControllerRoutingHash, writeMissionControllerPlan } from './store.js';
 import { recordSpecialistLifecycle, recordSpecialistRequests } from './specialist-lifecycle.js';
@@ -23,7 +23,7 @@ const CORE = fileURLToPath(new URL('../../../../core/', import.meta.url));
 const ID = 'mis_native_migration_0123456789';
 const VISUAL = 'core:visual-craft-director' as const;
 
-it('migrates an isolated native mission and retains the original author obligation until supported proof discharge', async () => {
+it.each([false, true])('migrates an isolated native mission and retains the original author obligation (recover after migration: %s)', async (recoverAfterMigration) => {
   const root = await mkdtemp(join(tmpdir(), 'void-native-migration-'));
   vi.stubEnv('CODEX_SESSION_ID', 'fixture-native-migration');
   try {
@@ -116,6 +116,23 @@ it('migrates an isolated native mission and retains the original author obligati
     await expect(recordSpecialistLifecycle(root, ID, { status: 'started', envelope: queuedOld,
       contextId: 'context_superseded_visual' })).rejects.toThrow('SPECIALIST_LIFECYCLE_INVALID');
     expect(await readFile(logPath, 'utf8')).toBe(migratedBytes);
+    if (recoverAfterMigration) {
+      const resolutionPath = '.void/machine/migration-resolution.md';
+      const resolutionBody = 'The recorded migration requests a fresh v3 applicability review; the original obligation remains due.\n';
+      await writeFile(join(root, resolutionPath), resolutionBody);
+      await recordMissionClosure(root, ID, 'controller-stop');
+      const closed = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
+      const closure = closed.at(-1);
+      if (!closure) throw new Error('Expected controller closure after recorded migration.');
+      const closedBytes = await readFile(logPath, 'utf8');
+      const recovered = await recoverStoppedMission(roots, ID, { schemaVersion: 1,
+        closureEventId: closure.eventId, expectedJournalHash: canonicalJsonHash(closed),
+        disposition: { kind: 'review-blocker', completionEventIds: [original.eventId],
+          resolutionArtifact: { path: resolutionPath,
+            sha256: `sha256:${createHash('sha256').update(resolutionBody).digest('hex')}` } } });
+      expect(recovered.recorded).toBe(true);
+      expect((await readFile(logPath, 'utf8')).startsWith(closedBytes)).toBe(true);
+    }
     const first = await dispatchMissionSpecialists(roots, { kind: 'dispatch', missionId: ID, json: true });
     expect(first.action).toEqual({ kind: 'invoke-specialists', specialistIds: [VISUAL], stage: 'post-implementation', reviewRound: 2 });
     expect(first.envelopes).toHaveLength(1);
@@ -130,7 +147,8 @@ it('migrates an isolated native mission and retains the original author obligati
     const obligations = reduceEvidenceObligations({ events: reviewed, expectedSource: 'runtime:codex',
       phase: 'post-implementation', evidenceContext: { dependencies: {} }, proofs: [] });
     expect(obligations.blockingObligationIds).toHaveLength(1);
-    expect(reviewed.some(event => event.kind === 'mission.closed')).toBe(false);
+    expect(reviewed.filter(event => event.kind === 'mission.closed')).toHaveLength(recoverAfterMigration ? 1 : 0);
+    expect(projectMissionLifecycle(reviewed)).toMatchObject({ status: 'open' });
     // The supported recorder executes a real verifier against the actual canonical v3 result.
     const verifier = "const fs=require('node:fs');const assert=require('node:assert/strict');const rows=fs.readFileSync(process.argv[1],'utf8').trim().split('\\n').map(JSON.parse);const found=rows.find(e=>e.kind==='specialist.completed'&&e.payload.contextId==='context_fresh_visual');assert.equal(found.payload.completion.contractVersion,3);assert.equal(found.payload.completion.verdict,'pass');process.stdout.write(JSON.stringify({reviewEventId:found.eventId,contractVersion:3,verdict:'pass'}));";
     const proof = await verifyMissionCommand({ roots, missionId: ID, shell: false, echo: false,

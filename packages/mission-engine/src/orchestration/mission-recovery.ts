@@ -1,3 +1,4 @@
+import { validatedSpecialistContractMigrationBoundary } from './specialist-contract-migration.js';
 import { initialEventStream, reduceEventStream, type EventStreamState } from '../events/reducer.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import { canonicalJson, canonicalJsonHash } from '../evidence/canonical-json.js';
@@ -221,7 +222,17 @@ function admitStoppedMission(input: MissionRecoveryInput, projectedHistory = inp
     ? writers.find((event) => field(event, 'actionKind') !== 'run-preparation-correction')?.seq
     : undefined;
   const lastWriter = observation.stage === 'post-implementation' ? writers.at(-1)?.seq : undefined;
+  const migration = validatedSpecialistContractMigrationBoundary(events);
+  if (!migration.ok) return refuse('invalid-migration-receipt', migration.reasons.join('; '));
+  const boundary = observation.stage === 'post-implementation' ? migration.migration : undefined;
+  if (boundary !== undefined && observation.contractVersions[boundary.receipt.specialistId] !== boundary.receipt.toVersion) {
+    return refuse('inconsistent-review', 'Recovery must observe the authenticated effective specialist contract');
+  }
   const reviewInput = { stage: observation.stage, expectedSource: observation.expectedSource,
+    ...(boundary === undefined ? {} : { contractMigration: {
+      specialistId: boundary.receipt.specialistId, afterSeq: boundary.seq,
+      reviewRound: boundary.receipt.reviewRound,
+    } }),
     ...(stageStart === undefined ? {} : { stageStartSeqExclusive: stageStart }),
     ...(lastWriter === undefined ? {} : { afterSeqExclusive: lastWriter }),
     requiredSpecialists: required, contractVersions: observation.contractVersions,
@@ -239,6 +250,7 @@ function admitStoppedMission(input: MissionRecoveryInput, projectedHistory = inp
       && field(event, 'stage') === observation.stage).map((event) => Number(field(event, 'reviewRound'))));
   if (consumedRounds >= observation.maxRounds) return refuse('review-budget-exhausted', 'The real review budget is exhausted; recovery cannot reset it');
   const preserved = existing.filter((item) => !inadmissible.includes(item.event.eventId)
+    && item.completion.contractVersion === observation.contractVersions[item.event.subject]
     && field(item.event, 'inputHash') === observation.currentInputHashes[item.event.subject]);
   const preservedIds = new Set(preserved.map((item) => item.event.eventId));
   const receipt: MissionRecoveryReceipt = {
