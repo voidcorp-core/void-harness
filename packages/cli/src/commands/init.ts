@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { stripManagedBlock } from '@voidcorp/hook-runner';
 import { PROJECT_DOCTRINE_PATH } from '../lib/co-owned.js';
 import { observeKeptTracked, writeExcludeBlock } from '../lib/git-exclude.js';
-import { isUntouchedSinceInstall, readInstallManifest } from '../lib/install-manifest.js';
+import { isUntouchedSinceInstall, readInstallManifest, sha256Of } from '../lib/install-manifest.js';
 import * as p from '@clack/prompts';
 import {
   prepareInstallCommit,
@@ -392,7 +392,9 @@ export async function init(args: readonly string[]): Promise<void> {
     // The committed record of exactly what this install materialized, so any
     // other checkout can restore the same bytes and PROVE it did. Written last,
     // so it also hashes the .gitignore this install just wrote.
-    await stageInstallManifest(stageRoot, cliVersion());
+    const doctrineTemplate = join(sourceRoot, 'PROJECT-DOCTRINE.template.md');
+    const templateSha256 = existsSync(doctrineTemplate) ? sha256Of(await readFile(doctrineTemplate)) : undefined;
+    await stageInstallManifest(stageRoot, cliVersion(), templateSha256);
 
     const prepared = await prepareInstallCommit({
       projectRoot,
@@ -696,16 +698,18 @@ export interface DoctrineInstallRoots {
  * Is the staged project doctrine still the untouched file we wrote last time?
  *
  * The project owns every line of it, so the answer is normally no and the file
- * is preserved. Only exact equality with the manifest's record — proof nobody
- * has written into it — licenses replacing it with the current template. An
- * unreadable or absent manifest answers no: silence is not proof.
+ * is preserved. Refresh requires both unchanged observed bytes and equality with
+ * the explicitly recorded delivered template digest. Observed hashes can belong
+ * to preserved user content; absent template provenance is not authority.
  */
 function isUntouchedProjectDoctrine(installRoot: string | undefined, staged: string): boolean {
   if (installRoot === undefined) return false;
   const manifest = readInstallManifest(installRoot);
-  if (manifest === undefined) return false;
+  if (manifest?.projectDoctrineTemplateSha256 === undefined) return false;
   try {
-    return isUntouchedSinceInstall(manifest, PROJECT_DOCTRINE_PATH, readFileSync(staged));
+    const content = readFileSync(staged);
+    return sha256Of(content) === manifest.projectDoctrineTemplateSha256
+      && isUntouchedSinceInstall(manifest, PROJECT_DOCTRINE_PATH, content);
   } catch {
     return false;
   }

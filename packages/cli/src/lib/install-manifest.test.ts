@@ -87,6 +87,16 @@ describe('parseInstallManifest', () => {
     expect(parseInstallManifest(body)).toBeUndefined();
   });
 
+  it('round-trips template provenance separately from preserved content and rejects invalid provenance', () => {
+    const template = sha256('TEMPLATE\n');
+    const manifest = buildInstallManifest('3.8.0', [{ path: '.void/PROJECT-DOCTRINE.md', sha256: sha256('CUSTOM\r\n') }], template);
+    expect(parseInstallManifest(JSON.stringify(manifest))).toEqual(manifest);
+    expect(manifest.projectDoctrineTemplateSha256).toBe(template);
+    for (const invalid of ['bad', 42]) {
+      expect(parseInstallManifest(JSON.stringify({ ...manifest, projectDoctrineTemplateSha256: invalid }))).toBeUndefined();
+    }
+  });
+
   it('accepts a well-formed manifest', () => {
     const body = JSON.stringify({
       schemaVersion: 1,

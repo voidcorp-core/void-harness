@@ -188,3 +188,13 @@ and display resource closure never triggers Git removal or global pruning; see
 Sources: [Git worktree](https://git-scm.com/docs/git-worktree),
 [Git reference validation](https://git-scm.com/docs/git-check-ref-format), and
 [XDG base directories](https://specifications.freedesktop.org/basedir/latest/).
+
+### Preserving project doctrine across installation
+
+Init, re-init and update preserve customized PROJECT-DOCTRINE bytes, including
+line endings. Install manifests keep observed file hashes separate from the optional
+`projectDoctrineTemplateSha256`, which comes from the delivered package template.
+Refreshing an existing doctrine requires both equality with that template digest
+and unchanged observed bytes. Legacy manifests without template provenance preserve
+the existing file conservatively; an observed hash alone cannot establish that the
+harness authored user content. A proven untouched seeded template can still refresh.
