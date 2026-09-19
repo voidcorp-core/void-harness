@@ -24,3 +24,15 @@ it('accepts only the exact migration request without observation or permission o
     expect(() => parseSpecialistContractMigrationRequest(altered)).toThrow('SPECIALIST_CONTRACT_MIGRATION_INVALID');
   }
 });
+
+it('requires an exact explicit closure for stopped-episode migration recovery', async () => {
+  const { parseSpecialistContractMigrationRequest } = await import('./specialist-contract-migration.js');
+  const request = { schemaVersion: 1, expectedEpisodeId: 'evt_episode_0123456789',
+    expectedJournalHash: `sha256:${'a'.repeat(64)}`, migrationId: 'visual-craft-director-v2-v3',
+    recovery: { closureEventId: 'evt_closure_0123456789' } };
+  expect(parseSpecialistContractMigrationRequest(request)).toEqual(request);
+  for (const recovery of [{}, { closureEventId: '' }, { closureEventId: request.recovery.closureEventId, reset: true }]) {
+    expect(() => parseSpecialistContractMigrationRequest({ ...request, recovery }))
+      .toThrow('SPECIALIST_CONTRACT_MIGRATION_INVALID');
+  }
+});

@@ -23,7 +23,7 @@ const CORE = fileURLToPath(new URL('../../../../core/', import.meta.url));
 const ID = 'mis_native_migration_0123456789';
 const VISUAL = 'core:visual-craft-director' as const;
 
-it.each([false, true])('migrates an isolated native mission and retains the original author obligation (recover after migration: %s)', async (recoverAfterMigration) => {
+it.each([false, true, 'closed-before-review'] as const)('migrates an isolated native mission and retains the original author obligation (recover after migration: %s)', async (recoverAfterMigration) => {
   const root = await mkdtemp(join(tmpdir(), 'void-native-migration-'));
   vi.stubEnv('CODEX_SESSION_ID', 'fixture-native-migration');
   try {
@@ -76,6 +76,30 @@ it.each([false, true])('migrates an isolated native mission and retains the orig
       '--no-renames', '--relative', baseCommit, '--', '.', ':(exclude).void/machine/**']);
     const legacyPostHash = canonicalJsonHash({ routing: (await oldPlan(['runtime.ts'])).inputHash,
       subject: canonicalJsonHash({ baseCommit, diff: patch, files: ['runtime.ts'] }) });
+    if (recoverAfterMigration === 'closed-before-review') {
+      await recordMissionClosure(root, ID, 'controller-stop');
+      const closed = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
+      const lifecycle = projectMissionLifecycle(closed);
+      if (lifecycle.status !== 'closed') throw new Error('Expected authentic stopped episode');
+      const path = await eventLogPath(root, ID);
+      const originalBytes = await readFile(path, 'utf8');
+      const roots = resolveProjectRoots(root);
+      const request = { schemaVersion: 1 as const, expectedEpisodeId: lifecycle.episodeId,
+        expectedJournalHash: canonicalJsonHash(closed), migrationId: 'visual-craft-director-v2-v3',
+        recovery: { closureEventId: lifecycle.closure.eventId } };
+      const migrated = await migrateMissionSpecialist(roots, ID, request);
+      expect(migrated.recorded).toBe(true);
+      const after = (await inspectMission(root, ID, { dependencies: {} })).stream.events;
+      expect(after).toHaveLength(closed.length + 1);
+      expect(after.at(-1)?.kind).toBe('specialist.contract-migrated');
+      expect(projectMissionLifecycle(after)).toEqual({ status: 'open', episodeId: migrated.migrationEventId });
+      expect((await readFile(path, 'utf8')).startsWith(originalBytes)).toBe(true);
+      expect(await migrateMissionSpecialist(roots, ID, request)).toMatchObject({ recorded: false });
+      const next = await dispatchMissionSpecialists(roots, { kind: 'dispatch', missionId: ID, json: true });
+      expect(next.action).toMatchObject({ kind: 'invoke-specialists', stage: 'post-implementation', reviewRound: 1 });
+      expect(next.envelopes.find(envelope => envelope.specialistId === VISUAL)?.contractVersion).toBe(3);
+      return;
+    }
     const binding = { missionId: ID, specialistId: VISUAL, stage: 'post-implementation' as const,
       reviewRound: 1, inputHash: legacyPostHash };
     const oldEnvelope = { ...binding, schemaVersion: 1 as const, runtime: 'codex' as const,

@@ -4,6 +4,7 @@ import { parseEvent, replayEventLog, serializeEvent } from '../events/index.js';
 import type { CanonicalEvent } from '../events/types.js';
 import { event } from '../test/events.js';
 import { orchestrateMissionTeam, type MissionSpecialistPlan } from './controller.js';
+import { projectMissionLifecycle } from './mission-lifecycle.js';
 import { planStoppedMissionRecovery } from './mission-recovery.js';
 import { planSpecialistContractMigration, validatedSpecialistContractMigrations } from './specialist-contract-migration.js';
 
@@ -35,8 +36,10 @@ function fixture(completed = false) {
         contractVersion: 2, completionId: 'completion_old_visual', verdict: 'blocked', findings: [],
         evidenceRequests: ['Confirm visual applicability before certification.'],
         limitations: ['No rendered surface or current visual captures were supplied.'] } } }));
-  return { events, request: { schemaVersion: 1 as const, expectedEpisodeId: events[0]!.eventId,
-    expectedJournalHash: canonicalJsonHash(events), migrationId: declaration.id },
+  const request: { schemaVersion: 1; expectedEpisodeId: string; expectedJournalHash: string;
+    migrationId: string; recovery?: { closureEventId: string } } = { schemaVersion: 1,
+    expectedEpisodeId: events[0]!.eventId, expectedJournalHash: canonicalJsonHash(events), migrationId: declaration.id };
+  return { events, request,
   observation: { declaration, observedFromContractSha256: HASH, observedToContractSha256: NEXT,
     nativeAgentSha256: NEXT, nativeContractVersion: 3, reviewSubjectHash: HASH, targetInputHash: NEXT,
     plan, currentInputHashes: { [VISUAL]: HASH }, maxRounds: 2, expectedSource: 'runtime:codex' as const } };
@@ -59,6 +62,41 @@ function decide(events: readonly CanonicalEvent[]) {
 }
 
 describe('open specialist contract migration', () => {
+  it('reopens a controller stop before first post review with one authenticated migration and no budget credit', () => {
+    const value = fixture();
+    value.events.pop();
+    value.events.push(event({ seq: 3, eventId: 'evt_contract_mismatch_stop', kind: 'mission.closed',
+      source: 'void-harness:mission.dispatch', subject: 'mission',
+      payload: { reason: 'controller-stop', episodeId: value.request.expectedEpisodeId } }));
+    value.request.expectedJournalHash = canonicalJsonHash(value.events);
+    value.request.recovery = { closureEventId: 'evt_contract_mismatch_stop' };
+    const { decision, migrated } = migrate(value);
+    expect(decision.receipt).toMatchObject({ reviewRound: 1, remainingRounds: 2,
+      recovery: { closureEventId: 'evt_contract_mismatch_stop', previousEpisodeId: value.request.expectedEpisodeId } });
+    expect(projectMissionLifecycle(migrated)).toEqual({ status: 'open', episodeId: 'evt_visual_migration' });
+    expect(validatedSpecialistContractMigrations(migrated, plan).ok).toBe(true);
+    expect(planSpecialistContractMigration({ stream: stream(migrated), request: value.request,
+      observation: value.observation }).kind).toBe('already-migrated');
+  });
+  it.each(['completed', 'interrupted', 'abandoned', 'post-review-attempt', 'writer-inflight', 'effect-inflight', 'implicit', 'wrong-closure'])(
+    'does not reopen %s as a contract transition', cause => {
+      const value = fixture();
+      if (cause !== 'post-review-attempt') value.events.pop();
+      if (cause === 'writer-inflight') value.events.push(event({ seq: value.events.length + 1,
+        eventId: 'evt_writer_pending', kind: 'lead-writer.requested', subject: 'writer:primary',
+        payload: { actionKind: 'run-correction', writerId: 'writer:primary', planHash: HASH } }));
+      if (cause === 'effect-inflight') value.events.push(event({ seq: value.events.length + 1,
+        eventId: 'evt_effect_pending', kind: 'orchestration.node-started', subject: 'node_pending', payload: {} }));
+      value.events.push(event({ seq: value.events.length + 1, eventId: 'evt_refused_stop', kind: 'mission.closed',
+        source: 'void-harness:mission.dispatch', subject: 'mission', payload: {
+          reason: ['completed', 'interrupted', 'abandoned'].includes(cause) ? cause : 'controller-stop',
+          episodeId: value.request.expectedEpisodeId } }));
+      value.request.expectedJournalHash = canonicalJsonHash(value.events);
+      if (cause !== 'implicit') value.request.recovery = { closureEventId: cause === 'wrong-closure' ? 'evt_other' : 'evt_refused_stop' };
+      expect(planSpecialistContractMigration({ stream: stream(value.events), request: value.request,
+        observation: value.observation }).kind).toBe('refused');
+    });
+
   it('supersedes only queued old requests and preserves the original plan and journal', () => {
     const value = fixture();
     const before = canonicalJsonHash(value.events);
