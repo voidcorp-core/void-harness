@@ -486,3 +486,25 @@ arrivée après l'échéance n'est ni admise ni transmise à la synthèse.
 
 Le BLOCKER de fraîcheur de preuve est levé par ce lot. La relecture ciblée ORCH
 reste la prochaine étape ; aucune vérification supplémentaire n'est demandée ici.
+
+
+### Receipt finale de la tranche A1/M1
+
+La relecture indépendante finale a relu le head `c490e667`, arbre propre, et
+confirme : production inchangée dans le lot de correction, BLOCKER de fraîcheur
+levé, aucun défaut nouveau et aucune demande restante. Le premier code-review a
+identifié la preuve doctor contre `dist/`; le lot `c490e667` l'a corrigée par le
+loader tsx existant vers les sources, puis a ajouté le cas concret d'observation
+tardive. Les preuves RUN associées sont doctor 19/19, note 23/23 et typecheck
+exit 0, stderr vide.
+
+La marge du timeout de processus doctor est un advisory sans conséquence actuelle
+(cas le plus lourd observé 762 ms pour une limite de 5 s). Elle n'est ni augmentée
+ni transformée en modification de test. Les limites restent celles de M1 : aucun
+modèle réel, aucune qualité sémantique certifiée, aucune terminaison distante,
+aucune reprise durable, aucune bascule CLI et aucun paquet publié. A2-A5 restent
+explicitement non implémentés ; le runtime externe devra fournir les exécuteurs,
+la configuration de modèle et les bornes transport adaptées.
+
+Ce receipt clôt la mission de writer A1/M1. ORCH conserve la publication de la
+branche/PR et la suite différée, avec toutes les preuves et archives locales.
