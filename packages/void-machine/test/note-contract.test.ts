@@ -70,6 +70,34 @@ describe('non-Git note relay with asynchronous untrusted agent observations', ()
     expect(f.requests).toHaveLength(stage === 'extraction' ? 0 : 1);
   });
 
+  it('ignores a late extraction result after timeout without admitting it or dispatching synthesis', async () => {
+    const f = noteFixture();
+    let deliver: ((value: unknown) => void) | undefined;
+    let received: ExecutionRequest | undefined;
+    let observationReads = 0;
+    const extract = (request: ExecutionRequest): Promise<unknown> => {
+      received = request;
+      return new Promise((resolve) => { deliver = resolve; });
+    };
+    const pending = runNote(f.input, { ...f.dependencies, extract });
+    expect(received).toBeDefined();
+    f.timer.advance(10);
+    const outcome = await pending;
+    expect(outcome).toMatchObject({ kind: 'stopped', stage: 'extraction',
+      issue: { code: 'execution.timeout' }, cancellation: 'requested-unconfirmed' });
+    expect(received?.signal.aborted).toBe(true);
+    if (deliver === undefined) throw new Error('Extraction was not dispatched');
+    deliver({ kind: 'result', payload: f.extraction,
+      get executionId() { observationReads += 1; return 'extract-current'; } });
+    // Drain the already registered result handler, without a wall-time sleep.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(observationReads).toBe(0);
+    expect(await pending).toBe(outcome);
+    expect(f.requests).toEqual([]);
+    expect(f.timer.pending()).toBe(0);
+  });
+
   it('arms the caller deadline before handing control to the executor', async () => {
     const f = noteFixture();
     let armedAtEntry = false;

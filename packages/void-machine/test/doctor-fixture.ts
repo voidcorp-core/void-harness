@@ -3,11 +3,13 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { onTestFinished } from 'vitest';
 
 const project = resolve(import.meta.dirname, '../../..');
-const entry = resolve(project, process.env['VOID_MACHINE_CONTRACT_ENTRY']
-  ?? 'packages/void-machine/dist/application/cli.js');
+// Same source-loader mechanism as test/autopilot/stdin-process.test.ts.
+const loader = pathToFileURL(resolve(project, 'packages/cli/node_modules/tsx/dist/loader.mjs')).href;
+const entry = resolve(project, 'packages/void-machine/src/application/cli.ts');
 
 export function doctorFixture() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'machine-doctor-')));
@@ -23,9 +25,6 @@ export function doctorFixture() {
     GIT_CONFIG_GLOBAL: devNull,
     GIT_TERMINAL_PROMPT: '0',
     GIT_OPTIONAL_LOCKS: '0',
-    ...(process.env['VOID_MACHINE_BIN'] === undefined ? {} : {
-      VOID_MACHINE_BIN: process.env['VOID_MACHINE_BIN'],
-    }),
   };
   const git = (args: readonly string[], cwd = root) => execFileSync('git', [...args], {
     cwd, env, encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'],
@@ -33,7 +32,7 @@ export function doctorFixture() {
   git(['init', '--quiet', repository]);
   mkdirSync(join(repository, '.void'));
   const invoke = (args: readonly string[], cwd = repository, extra: NodeJS.ProcessEnv = {}) => {
-    const result = spawnSync(process.execPath, [entry, ...args], {
+    const result = spawnSync(process.execPath, ['--import', loader, entry, ...args], {
       cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: 5000,
       maxBuffer: 1024 * 1024, windowsHide: true,
     });

@@ -4,8 +4,8 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { contentsDigest, doctorFixture } from './doctor-fixture.js';
 
-// One behavioral corpus targets the observed Rust command and then the candidate.
-// VOID_MACHINE_CONTRACT_ENTRY is test routing, never product configuration.
+// Exercise current TypeScript sources, independent of any previously emitted dist.
+// The historical Rust comparison and its routing remain in Git and RUN evidence.
 const schema: unknown = JSON.parse(readFileSync(resolve(import.meta.dirname,
   '../../../native/void-machine/schema/doctor-v1.json'), 'utf8'));
 

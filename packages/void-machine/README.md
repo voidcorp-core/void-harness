@@ -27,7 +27,11 @@ Source grounding:
 - Zod 4.4.3 installed README and src/v4/classic/schemas.ts: strictObject,
   looseObject and safeParse; [object API](https://zod.dev/api#objects).
 - TypeScript 5.9.3 installed package; [NodeNext module configuration](https://www.typescriptlang.org/tsconfig/module.html).
-  Reuse the repository strict baseline and emit Node ESM. No runtime TS loader.
+  Reuse the repository strict baseline and emit Node ESM. Distribution needs no
+  runtime TS loader. Doctor contract tests run current sources with the existing
+  CLI test dependency tsx 4.22.4 through Node --import, as the repository stdin
+  process test does. Installed tsx package.json exports and dist/loader.mjs are
+  the version-specific references; no dependency or configuration was added.
 - Node 22 [filesystem API](https://nodejs.org/docs/latest-v22.x/api/fs.html):
   openSync, fstatSync, readSync and closeSync bound the actual file read.
 
@@ -52,3 +56,17 @@ it never asserts remote termination, retries or durable recovery.
 The first proof uses simulated executors and a manual clock through the real
 application/runtime. It does not prove real model execution. No process fixture
 or general orchestration framework is needed for this transport-neutral seam.
+
+
+M1 admission limits: timeoutMs applies to each execution separately (up to two
+execution deadlines for a note), not to the whole mission. Correlation checks an
+executor-supplied executionId; it is not authentication of the executor. The
+transport adapter must bound incoming bytes before decoding: this object-level
+runtime has no pre-parsing byte cap. The vertical bounds admitted inputs and
+serialized note size, not transport memory. Exact quotation membership accepts
+a single character and does not establish relevance or semantic support.
+
+The package export remains doctor only; note is a private source application
+seam, not a released package API. The accepted package ADR records the original
+A5 sequence as provenance; the revised plan defers that cutover. No separate
+publication is authorized.

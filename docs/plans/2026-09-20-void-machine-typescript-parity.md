@@ -446,3 +446,43 @@ Preuves locales sous `.void/machine/typescript-port/`, SHA-256 :
 - `m1-integration-paths.log` : `f484fccffa9c456dccf46b87aff3aa7bfbaad851c39f0f478f0a782fe724fbea`.
 - `m1-integration-decisions.json` : `267bbc2fd45a382f3c6971c03b004b8795d4270a11238fdf57b894ac5be0b176`.
 - `m1-integration-contracts.log` : `1e42791f6ed2be61e1c10088f8cfdbc6a98758918bf23c691d92c55f64ebf23f`.
+
+
+### Revue générale round 1 : disposition du lot unique
+
+Rapport ORCH code-review-round1.txt sur 387aacfb : couches de production admises,
+un BLOCKER sur la fraîcheur de la preuve doctor. Correction limitée aux tests :
+entrée src/application/cli.ts via le loader tsx déjà employé dans le dépôt ;
+aucun fallback dist ni override d'entrée. Ancienne route de comparaison Rust
+conservée dans Git, pas maintenue dans la suite active. Source officielle locale :
+tsx 4.22.4 package.json (export loader) et dist/loader.mjs ; mécanisme de référence
+test/autopilot/stdin-process.test.ts. Aucun nouveau gate mtime/hook/dépendance.
+
+Advisories disposés ensemble :
+
+- Résultat tardif : cas de contrat ajouté, résolution après deadline ; vérifie
+  timeout conservé, signal annulé, observation non lue et aucune synthèse lancée.
+  Couverture d'un comportement déjà implémenté, pas de nouveau RED métier prétendu.
+- Lint tests : aucun défaut démontré ; absence de couverture nommée, pas de lint
+  facultatif demandé pour confirmer une information déjà connue.
+- Deadline par exécution, limite mémoire pré-parsing absente, identité en écho,
+  export doctor seul, citation d'un caractère : limites explicites dans README,
+  pas de framework, API publique ou politique sémantique ajoutés.
+- Message 387aacfb : séparateur littéral backslash-n reconnu ; historique conservé,
+  prochains messages utilisent de vrais paragraphes. Aucun amend de preuve.
+- ADR A5 : accepté et immuable, date le choix initial ; mandat et plan directeur
+  diffèrent l'exécution de cette séquence, sans changer le package privé ou
+  autoriser une publication séparée. Aucune réécriture ADR nécessaire.
+
+Aucune production modifiée. RUN ciblé terminé sans build préalable : typecheck exit
+0, doctor source 19/19 et corpus M1 23/23, stderr vide pour les trois commandes.
+La preuve doctor porte donc sur `src/application/cli.ts` via le loader tsx existant,
+indépendamment de tout `dist/` antérieur. Le cas tardif confirme qu'une observation
+arrivée après l'échéance n'est ni admise ni transmise à la synthèse.
+
+- `m1-review1-results.json` : résultat des trois commandes, tous exit 0.
+- `m1-review1-typecheck.log`, `m1-review1-doctor-source.log`,
+  `m1-review1-note-late.log` : sorties RUN, stderr correspondants vides.
+
+Le BLOCKER de fraîcheur de preuve est levé par ce lot. La relecture ciblée ORCH
+reste la prochaine étape ; aucune vérification supplémentaire n'est demandée ici.
