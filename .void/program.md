@@ -2,12 +2,12 @@
 schemaVersion: 1
 status: executing
 program: autonomous-until-develop
-plan: docs/plans/2026-09-15-approved-six-ticket-cluster-plan.md
-spec: docs/specs/2026-09-15-approved-six-ticket-cluster.md
+plan: docs/plans/2026-09-16-seven-ticket-delivery.md
+spec: docs/specs/2026-09-16-seven-ticket-delivery.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-531, DEV-610, DEV-611, DEV-630, DEV-682, DEV-645]
+  order: [DEV-844, DEV-531, DEV-611, DEV-630, DEV-682, DEV-662, DEV-635]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -39,12 +39,13 @@ autopilot:
 
 # Program: autonomous until develop
 
-## Scope approved on 14 September 2026
+## Scope explicitly expanded on 16 September 2026
 
-The active scope is the six-ticket cluster named by the linked spec and plan.
-Its motion, update-proposal, doctrine-routing and bounded rollback choices were
-approved by Folpe. The native-pivot plan remains historical context; it does not
-select a unit in this pool. Mutable state belongs only to Linear.
+Folpe explicitly requested DEV-844 first from the test-cost audit and the six
+proposed units DEV-531/611/630/682/662/635, each with its own implementing agent.
+The linked spec and plan record this authorized scope change. Prior motion,
+update-proposal and doctrine-routing choices remain approved. DEV-610/645 are
+already delivered and are not reopened. Mutable state belongs only to Linear.
 
 The programme retains its existing non-production merge grant and protection
 requirements. At most two writers run concurrently; declarations containing
@@ -127,7 +128,7 @@ contracts.
 
 ## Program completion
 
-When all six scoped implementation units are verified and delivered into `develop`
+When all seven scoped implementation units are verified and delivered into `develop`
 under the declared `union-reviewed` merge gate, the final program change sets this
 file's `status` to `completed`. Promotion to `main` is not a completion prerequisite
 and remains a separate human decision. This program never repoints itself to a
