@@ -152,6 +152,17 @@ restating the rule. `.void/machine/` is per-repository state, so the mission jou
 plan, evidence and the status snapshot are written there, while the ticket, the diff and the
 verified command stay in `workRoot`. The session checkpoint stays with its tree.
 
+### Working checkout ownership
+
+Working Git checkouts live outside the repository at the durable location in
+[WORKTREES.md](WORKTREES.md). The v2 autopilot observation explicitly supplies
+physical paths, Git inventory and ticket-to-branch bindings. Pure planning returns
+absolute assignments and argv; the existing runtime owns execution and fresh
+observations. Checkout lifetime follows the ticket and observed merge, independently
+of run/session/presentation lifetime. Useful ignored evidence must be preserved
+before removal even when Git reports clean. This does not change repository-owned
+runtime state or installation-root resolution above.
+
 ## Decision records
 
 ADRs are an append-only data model, not a generated document:
@@ -356,6 +367,18 @@ deliberate session close and stay readable offline; neither the checkpoint nor t
 a current or next unit.
 Human gates and merges remain human. A standalone ticket or sequential plan keeps using its normal
 ticket or resume-point flow and does not need a programme descriptor.
+
+### Session update proposal
+
+For a local installation behind the cached published version, `freshnessRelay` supplies
+SessionStart model context asking the agent to offer `void-harness update` once near its
+first reply. The offer explains that update writes project files and links the public
+[release notes](https://github.com/voidcorp-core/void-harness/releases) for possible breaking
+changes. Execution requires explicit human permission, including during autonomous work.
+Refusal or silence leaves the task proceeding without updating or repeating the offer in
+that session. This is agent guidance, not a technical authorization barrier. Current,
+ahead, unknown, marketplace and unknown-source cases remain silent; the terminal notice,
+cached detection and background refresh keep their existing behavior and startup budget.
 
 ### Mechanical context continuity
 
@@ -1479,3 +1502,18 @@ print output and failure traces for fourteen days. Zero retries and finite
 execution limits keep a failure red. Visual review and real assistive testing
 remain separate from automated assertions; see [the suite contract](../test/browser/README.md)
 and [the decision](decisions-log/2026-09-13-isolated-consumer-browser-ci--392e4254-fb63-4743-af1f-4c99a035170d.md).
+
+## Bounded independent review
+
+The existing Mission Engine owns the review state and correction budget; the CLI owns
+Git subject observation, receipt ingestion and append-only persistence. Skills describe
+the same procedure rather than defining a separate review engine. See
+[the bounded review decision](decisions-log/2026-09-19-bounded-independent-review--eb08fcc8-d50a-4574-89da-d5a174f4035d.md).
+
+Risk-specific preparation advice precedes implementation. One read-only independent
+review examines a commit, comparison base and acceptance criteria. Corrections receive
+targeted verification, at most two batches, retaining unaffected conclusions and proofs.
+Advisories, incomplete responses and transport retries never consume correction budget.
+Native context identity is provenance metadata; absent identity alone is not a delivery
+refusal when actual independent execution and the review subject remain evidenced.
+Unresolved concrete blockers, invalid evidence and missing required isolation still refuse.

@@ -55,7 +55,7 @@ Every PR in strict mode includes a Review Evidence block:
 ## Review Evidence
 
 - **Mode**: strict
-- **Composed with**: native /void-code-review medium, codex CLI (second opinion)
+- **Reviewer runtime**: native independent reviewer or codex CLI (one general pass)
 - **Dimensions covered**:
   - [x] Correctness — tdd evidence verified (RED commit c925187, GREEN 5e0055b)
   - [x] Tests — 4/4 passing, mutation score 94%, no business mocks
@@ -90,7 +90,7 @@ Review quality decays after ~400 added LOC. The optional `large-cl-grep` adapter
 
 | Mode | Trigger | Posture |
 |---|---|---|
-| **strict** | PR targeting `main` / `develop` / release branches. Pre-PR final pass. | All six dimensions checked. Blockers fail. Evidence block REQUIRED. Default effort: native `/void-code-review medium`, escalate to `ultra` for high-stakes diffs. Optional codex CLI second opinion. |
+| **strict** | PR targeting `main` / `develop` / release branches. Pre-PR final pass. | All six dimensions checked. Blockers fail. Evidence block REQUIRED. Default effort: native `/void-code-review medium`, escalate to `ultra` for high-stakes diffs. Select one independent reviewer runtime. |
 | **souple** | In-progress feedback on a feature branch during work. WIP commits. | Dimensions checked at user discretion. No evidence block required. Default effort: native `/void-code-review low` or `medium`. |
 
 ---
@@ -104,7 +104,7 @@ Review quality decays after ~400 added LOC. The optional `large-cl-grep` adapter
 | Structure | `void-hexagonal-architecture` skill, `void-domain-driven-design` skill, `doctrine-critic` agent (boundary spirit) |
 | Readability | `void-typescript-strict` skill, Biome (formatter) |
 | Performance | the project's perf tooling (Lighthouse CI, bundlesize) for measured claims; this skill flags only obvious smells |
-| Independent second opinion | `codex review` (the codex CLI's non-interactive review; a different model family, catches different bug classes) |
+| Independent reviewer alternative | `codex review` (choose this or the native independent reviewer for the general pass) |
 | Diff analysis at high effort | native `/void-code-review medium` / `high` / `ultra` |
 
 The skill is the orchestration. Specialized agents and the native `/void-code-review` do the heavy work.
@@ -115,22 +115,36 @@ The skill is the orchestration. Specialized agents and the native `/void-code-re
 
 ### Pre-condition (strict mode)
 
-- The PR's HEAD has been built and tested locally / in CI. No build errors, no failing tests, no lint warnings.
-- Pristine output verified (no `console.log` in production code, no leaked warnings).
+- The PR's HEAD has been built and tested locally / in CI. No build errors or failing required tests. Lint findings block only for a demonstrated consequence.
+- Inspect output for leaked data and actionable errors; advisory diagnostics do not reopen review.
 - The PR description includes a clear "what" and "why."
 
 If any pre-condition fails, the review pauses — fix the pre-condition first.
 
 ### Pass
 
-1. Run the native `/void-code-review <effort>` to enumerate findings.
-2. Walk the six dimensions in order. For each:
-   - Compose with the specialized skill / agent if applicable.
-   - Tag findings as `BLOCKER:` / `NIT:` / `QUESTION:` / `PRAISE:`.
-3. If strict mode and high stakes: run `codex review` (the CLI's non-interactive review subcommand) for an independent cross-model pass. Surface disagreements explicitly.
-4. Compose the Review Evidence block.
-5. If blockers remain: PR is not ready to merge. Author addresses.
-6. If only nits: PR can merge once author has read the nits (no obligation to address each).
+1. Bind the task, acceptance criteria, exact commit and base before reading. Prefer a dedicated
+   worktree pinned to the commit, with native read-only permissions. The reviewer never edits.
+2. Perform one independent general review across the six dimensions. Report only demonstrated
+   consequences in scope. Every blocker names its violated criterion, concrete consequence,
+   evidence and resolution condition. Style and optional refactoring remain advisory.
+3. Preserve the minimal review receipt and original result: reviewer, subject, conclusions,
+   proofs and defect resolutions. Record missing or refused native identity as an exact
+   provenance limitation; it alone cannot reject a traceable independent review. Do not invent
+   independence or accept self-review as a substitute.
+4. The author corrects blockers or records a reasoned disagreement. After each correction batch,
+   verify only the corrections and affected behavior. Reuse unaffected conclusions and proofs;
+   never restart the general review. Newly raised blockers must demonstrate a correction
+   regression or a concrete defect within the original scope.
+5. Follow `void-implement`'s maximum two correction batches. Incomplete review, resumption and
+   transport repair do not consume or reset that budget. Advisory findings never request a
+   correction cycle. At the limit, report unresolved defects with cause and next action.
+6. The orchestrator may request one independent opinion on a disputed point and retain it
+   as evidence for targeted verification, without reopening general review or resetting the
+   budget. No separate automatic arbitration command is provided. Escalate beyond-mandate
+   decisions to the human. Retain historical
+   findings and their resolutions; never call an unresolved blocking defect conformant.
+
 
 ### Author response (Google practices)
 
@@ -215,4 +229,4 @@ A review → six dimensions in order, blockers explicit, evidence in PR body (st
 Otherwise → it is not a voidcorp code-review.
 ```
 
-The review is the second pair of eyes. Two model families is two thirds. The author owns the code.
+The independent reviewer examines the committed result. The author owns all code changes.

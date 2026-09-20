@@ -1,67 +1,68 @@
-import { execFile as nodeExecFile } from 'node:child_process';
+// tdd-cover: e2e packages/cli/src/commands/mission.test.ts
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { realpath } from 'node:fs/promises';
-import { basename, extname, join, relative, resolve } from 'node:path';
-import { promisify } from 'node:util';
+import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
-  canonicalJsonHash,
-  createSpecialistDispatch,
-  planLensExecution,
-  type LensPlan,
-  type OrchestrationCapability,
-  compileMissionPlan,
-  classifyRisk,
-  mergePolicies,
-  orchestrateMissionTeam,
-  selectMissionMode,
-  type MissionTeamAction,
-  type MissionPlan,
-  type MissionSpecialistPlan,
   type CanonicalEvent,
-  type SpecialistRuntimeCapability,
+  canonicalJsonHash,
+  classifyRisk,
+  createSpecialistDispatch,
+  type LensPlan,
+  type MissionPlan,
+  type MissionRecoveryObservation,
+  type MissionRecoveryRequest,
+  type MissionSpecialistPlan,
+  type MissionTeamAction,
+  type MissionVerdictStatus,
+  type OrchestrationCapability,
+  orchestrateMissionTeam,
+  parseRecoveredReviewBindings,
+  parseSpecialistCompletionValue,
+  planLensExecution,
+  type RecoveryDecision,
   type SpecialistDispatchEnvelope,
   type SpecialistDispatchRuntime,
-  type MissionVerdictStatus,
-  type RecoveryDecision,
-  citedPaths,
-  type ContextArtifact,
-  type ContextPackInput,
-  type SpecialistInvocationStage,
+  type SpecialistRuntimeCapability,
+  sameReviewSubject,
+  selectMissionMode,
+  validatedRecoveredReviewEvents,
+  validatedSpecialistContractMigrations,
 } from '@voidcorp/mission-engine';
-import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
+import { captureMissionReviewSubject, compileDispatchContent, detectedStack, gitFiles, missionReviewBase, planBoundMission, planMission } from '../lib/mission-inputs.js';
+
+export { captureMissionReviewSubject, normalizeControllerTicketPath, planMission } from '../lib/mission-inputs.js';
+
+import { observeOrchestrationCapability } from '../lib/orchestration-capability.js';
 import { findCoreSource } from '../lib/paths.js';
 import { type ProjectRoots, resolveProjectRoots } from '../lib/project-roots.js';
-import { observeOrchestrationCapability } from '../lib/orchestration-capability.js';
-import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
-import { loadProjectPolicies } from '../lib/policy-loader.js';
-import { loadProfiles } from '../lib/profile-loader.js';
-import { readBoundedProjectFile } from '../lib/safe-read.js';
-import { loadSpecialists } from '../lib/specialists/load.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
-import { collectKnownSecrets, redactText } from '../lib/runs/redact.js';
-import {
-  createMission,
-  inspectMission,
-  loadMissionControllerPlan,
-  missionControllerRoutingHash,
-  resumeMission,
-  writeMissionControllerPlan,
-  type MissionMode,
-  type MissionControllerTicketBinding,
-} from '../lib/runs/store.js';
-import { verifyMissionCommand } from '../lib/runs/verify.js';
+import { observedMissionLifecycle, requireOpenMission } from '../lib/runs/mission-lifecycle.js';
+import { parseMissionRecoveryRequest, recordStoppedMissionRecovery } from '../lib/runs/mission-recovery.js';
+import { collectKnownSecrets } from '../lib/runs/redact.js';
+import { loadSpecialistMigrationComparisonCatalog, observeSpecialistMigrationAssets, parseSpecialistContractMigrationRequest, recordSpecialistContractMigration } from '../lib/runs/specialist-contract-migration.js';
+import { parseSpecialistEvidenceRequest, parseSpecialistEvidenceResponse, recordSpecialistEvidence, requestSpecialistEvidence } from '../lib/runs/specialist-evidence.js';
 import {
   parseSpecialistLifecycleInput,
   recordSpecialistLifecycle,
   recordSpecialistRequests,
   type SpecialistLifecycleStatus,
 } from '../lib/runs/specialist-lifecycle.js';
-import { detectProfileInput, detectStack } from '../lib/stack.js';
+import {
+  createMission,
+  inspectMission,
+  loadMissionControllerPlan,
+  type MissionMode,
+  missionControllerRoutingHash,
+  resumeMission,
+  writeMissionControllerPlan,
+} from '../lib/runs/store.js';
+import { verifyMissionCommand } from '../lib/runs/verify.js';
+import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
+import { readBoundedProjectFile } from '../lib/safe-read.js';
+import { loadSpecialists } from '../lib/specialists/load.js';
+import { detectProfileInput } from '../lib/stack.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
-const execFile = promisify(nodeExecFile);
 const MAX_TICKET_BYTES = 100_000;
 
 export interface CoordinatorRuntimeIdentity {
@@ -109,6 +110,16 @@ interface InvalidArgs {
 }
 
 export type MissionArgs =
+  | { readonly kind: 'evidence-request'; readonly missionId: string; readonly inputPath: string; readonly json: boolean }
+  | { readonly kind: 'evidence-event'; readonly missionId: string; readonly inputPath: string;
+      readonly status: 'started' | 'completed'; readonly json: boolean }
+  | { readonly kind: 'migrate-specialist'; readonly missionId: string; readonly inputPath: string; readonly json: boolean }
+  | {
+      readonly kind: 'recover';
+      readonly missionId: string;
+      readonly inputPath: string;
+      readonly json: boolean;
+    }
   | {
       readonly kind: 'plan';
       readonly ticketPath: string;
@@ -232,6 +243,39 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     return { kind: 'help' };
   }
   const command = divider === -1 ? [] : args.slice(divider + 1);
+  if (subcommand === 'evidence-request' || subcommand === 'evidence-event') {
+    if (divider !== -1) return invalid('evidence commands do not accept a command', 'remove --');
+    const names = options.filter(value => value.startsWith('--'));
+    if (new Set(names).size !== names.length) return invalid('duplicate evidence option', 'provide each option once');
+    const error = validateOptions(options,
+      subcommand === 'evidence-event' ? ['--id', '--input', '--status'] : ['--id', '--input'], ['--json']);
+    if (error !== undefined) return invalid(error, 'void-harness mission --help');
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    const inputPath = valueAfter(options, '--input');
+    if (inputPath === undefined) return invalid('missing required option --input', 'pass --input <json-file>');
+    const base = { missionId, inputPath, json: options.includes('--json') };
+    if (subcommand === 'evidence-request') return { ...base, kind: 'evidence-request' };
+    const status = valueAfter(options, '--status');
+    if (status !== 'started' && status !== 'completed') return invalid('invalid evidence status', 'pass started|completed');
+    return { ...base, kind: 'evidence-event', status };
+  }
+  if (subcommand === 'recover' || subcommand === 'migrate-specialist') {
+    if (divider !== -1) return invalid('recover does not accept a command', 'remove --');
+    const tokens = options.filter(value => value.startsWith('--'));
+    if (new Set(tokens).size !== tokens.length) {
+      return invalid('duplicate recovery option', 'provide each recovery option once');
+    }
+    const error = validateOptions(options, ['--id', '--input'], ['--json']);
+    if (error !== undefined) return invalid(error, 'void-harness mission recover --help');
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    const inputPath = valueAfter(options, '--input');
+    if (inputPath === undefined) return invalid('missing required option --input', 'pass --input <json-file>');
+    return subcommand === 'recover'
+      ? { kind: 'recover', missionId, inputPath, json: options.includes('--json') }
+      : { kind: 'migrate-specialist', missionId, inputPath, json: options.includes('--json') };
+  }
   if (subcommand === 'start') {
     if (divider !== -1) {
       return invalid('start does not accept a command', 'remove the -- separator');
@@ -487,37 +531,6 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
   );
 }
 
-async function readTicket(root: string, ticketPath: string): Promise<{
-  readonly id: string;
-  readonly title: string;
-  readonly body: string;
-  readonly path: string;
-}> {
-  const canonicalRoot = await realpath(resolve(root));
-  const loaded = await readBoundedProjectFile({
-    root: canonicalRoot,
-    inputPath: ticketPath,
-    maxBytes: MAX_TICKET_BYTES,
-    pathEscapeMessage: 'MISSION_TICKET_PATH_ESCAPE: ticket resolves outside project root',
-    invalidMessage: `MISSION_TICKET_INVALID: ticket must be a stable file under ${MAX_TICKET_BYTES} bytes`,
-  });
-  const canonicalTicket = loaded.resolvedPath;
-  const body = loaded.body;
-  if (body.trim() === '') throw new Error('MISSION_TICKET_INVALID: ticket is empty');
-  const heading = body.split('\n').find((line) => /^#\s+\S/.test(line));
-  const fallback = basename(canonicalTicket, extname(canonicalTicket));
-  return Object.freeze({
-    id: fallback.slice(0, 128),
-    title: (heading?.replace(/^#\s+/, '').trim() ?? fallback).slice(0, 200),
-    body,
-    path: normalizeControllerTicketPath(relative(canonicalRoot, canonicalTicket)),
-  });
-}
-
-export function normalizeControllerTicketPath(path: string): string {
-  return path.replaceAll('\\', '/');
-}
-
 async function readLifecycleJson(root: string, inputPath: string): Promise<unknown> {
   const loaded = await readBoundedProjectFile({
     root,
@@ -533,284 +546,170 @@ async function readLifecycleJson(root: string, inputPath: string): Promise<unkno
   }
 }
 
-interface DetectedFiles {
-  readonly files: readonly string[];
-  readonly status: 'known' | 'unknown';
+export async function migrateMissionSpecialist(
+  roots: ProjectRoots, missionId: string,
+  request: import('@voidcorp/mission-engine').SpecialistContractMigrationRequest,
+) {
+  const { workRoot, installRoot } = roots;
+  const [stored, current, coreRoot] = await Promise.all([
+    loadMissionControllerPlan(installRoot, missionId),
+    inspectCurrentMission(roots, missionId, collectKnownSecrets()), findCoreSource(),
+  ]);
+  if (request.recovery === undefined) requireOpenMission(current.inspected.stream.events);
+  if (missionRoutingHash(current.inspected.stream.events) !== stored.routingHash) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: migration requires the immutable bound plan');
+  }
+  const identity = missionRuntimeIdentity(current.inspected.stream.events);
+  const coordinator = coordinatorRuntimeIdentity(process.env);
+  if (!identity?.attested || !coordinator.attested || coordinator.runtime !== identity.runtime) {
+    throw new Error('SPECIALIST_CONTRACT_MIGRATION_RUNTIME: observe the original native runtime');
+  }
+  const capability = await specialistCapabilityFor(installRoot, identity.runtime);
+  if (capability.status === 'unavailable') {
+    throw new Error(`SPECIALIST_CONTRACT_MIGRATION_NATIVE: ${capability.limitations.join('; ')}`);
+  }
+  const assets = await observeSpecialistMigrationAssets(coreRoot, installRoot, identity.runtime);
+  const subject = await captureMissionReviewSubject(workRoot, stored.baseCommit);
+  const live = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject.files);
+  if (live.ticket.path !== stored.ticket.path || live.ticket.contentHash !== stored.ticket.contentHash) {
+    throw new Error('MISSION_TICKET_CHANGED: migration cannot replace the bound ticket');
+  }
+  const hashes = Object.fromEntries(live.plan.specialists.map(specialist => [specialist.specialistId,
+    canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash })]));
+  const comparisonCatalog = await loadSpecialistMigrationComparisonCatalog(coreRoot, assets.declaration, stored.plan);
+  const comparison = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject.files, comparisonCatalog);
+  const originalHashes = Object.fromEntries(comparison.plan.specialists.map(specialist => [specialist.specialistId,
+    canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash })]));
+  const targetInputHash = hashes[assets.declaration.specialistId];
+  if (targetInputHash === undefined) throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: missing target review input');
+  const result = await recordSpecialistContractMigration(installRoot, missionId, request, {
+    ...assets, reviewSubjectHash: subject.hash, targetInputHash, plan: stored.plan,
+    currentInputHashes: originalHashes, maxRounds: 2,
+    expectedSource: identity.runtime === 'codex' ? 'runtime:codex' : 'runtime:claude',
+    evidenceDependencies: { 'git:working-tree': current.project.diffHash },
+  });
+  return { ...result, provenance: { coreRoot, runtime: identity.runtime, capability,
+    declarationHash: canonicalJsonHash(assets.declaration), nativeAgentSha256: assets.nativeAgentSha256 } };
 }
 
-async function gitFiles(root: string): Promise<DetectedFiles> {
-  try {
-    const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 1_000_000, timeout: 5_000 };
-    const [changed, untracked] = await Promise.all([
-      execFile('git', ['diff', '--name-only', '--relative', 'HEAD'], options),
-      execFile('git', ['ls-files', '--others', '--exclude-standard'], options),
-    ]);
-    return Object.freeze({
-      files: Object.freeze(
-        [...new Set(`${changed.stdout}\n${untracked.stdout}`
-          .split('\n')
-          .filter((file) => file !== '' && !file.startsWith('.void/')))].sort(),
-      ),
-      status: 'known',
-    });
-  } catch {
-    return Object.freeze({ files: Object.freeze([]), status: 'unknown' });
+/** Observe recovery inputs from the bound project and this candidate's actual assets. */
+export async function recoverStoppedMission(
+  roots: ProjectRoots, missionId: string, request: MissionRecoveryRequest,
+) {
+  const { workRoot, installRoot } = roots;
+  const [stored, current, coreRoot] = await Promise.all([
+    loadMissionControllerPlan(installRoot, missionId),
+    inspectCurrentMission(roots, missionId, collectKnownSecrets()), findCoreSource(),
+  ]);
+  const inspected = current.inspected;
+  if (missionRoutingHash(inspected.stream.events) !== stored.routingHash) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: recovery requires the original bound plan');
   }
-}
-
-interface MissionReviewSubject {
-  readonly diff: string;
-  readonly files: DetectedFiles;
-  readonly hash: string;
-}
-
-async function missionReviewBase(root: string): Promise<string> {
-  try {
-    const result = await execFile('git', ['rev-parse', '--verify', 'HEAD^{commit}'], {
-      cwd: root, encoding: 'utf8', timeout: 5_000, maxBuffer: 1_000,
-    });
-    return result.stdout.trim();
-  } catch {
-    throw new Error('MISSION_REVIEW_BASE_INVALID: a committed Git baseline is required');
+  const identity = missionRuntimeIdentity(inspected.stream.events);
+  const coordinator = coordinatorRuntimeIdentity(process.env);
+  const provenanceRecovery = request.disposition.kind === 'review-provenance';
+  if (identity === undefined || (coordinator.attested && coordinator.runtime !== identity.runtime)
+    || (!provenanceRecovery && (!identity.attested || !coordinator.attested))) {
+    throw new Error('MISSION_RECOVERY_RUNTIME: observe the original native runtime before recovery');
   }
-}
-
-/** Git 2.50: diff <commit> compares the complete worktree with a fixed commit.
- * https://git-scm.com/docs/git-diff/2.50.0 */
-async function captureMissionReviewSubject(
-  root: string,
-  baseCommit: string | undefined,
-): Promise<MissionReviewSubject> {
-  if (baseCommit === undefined) {
-    throw new Error(
-      'MISSION_REVIEW_BASE_MISSING: legacy mission has no review baseline; preserve its history and start a new mission',
-    );
+  const capability = await specialistCapabilityFor(installRoot, identity.runtime);
+  if (capability.status === 'unavailable' && !provenanceRecovery) {
+    throw new Error(`MISSION_RECOVERY_CAPABILITY: ${capability.limitations.join('; ')}`);
   }
-  const options = { cwd: root, encoding: 'utf8' as const, timeout: 10_000, maxBuffer: 4_000_000 };
-  try {
-    await execFile('git', ['merge-base', '--is-ancestor', baseCommit, 'HEAD'], options);
-  } catch {
-    throw new Error('MISSION_REVIEW_BASE_INVALID: baseline is missing or is not an ancestor of HEAD');
-  }
-  try {
-    const paths = ['--', '.', ':(exclude).void/machine/**'];
-    const [patch, names, untracked] = await Promise.all([
-      execFile('git', ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--full-index',
-        '--no-renames', '--relative', baseCommit, ...paths], options),
-      execFile('git', ['diff', '--no-ext-diff', '--no-textconv', '--name-only', '-z',
-        '--no-renames', '--relative', baseCommit, ...paths], options),
-      execFile('git', ['ls-files', '--others', '--exclude-standard', '-z', ...paths], options),
-    ]);
-    if (untracked.stdout !== '') {
-      throw new Error('MISSION_REVIEW_UNTRACKED: stage new files before requesting implementation review');
+  const migration = validatedSpecialistContractMigrations(inspected.stream.events, stored.plan);
+  if (!migration.ok) throw new Error(`SPECIALIST_CONTRACT_MIGRATION_INVALID: ${migration.reasons.join('; ')}`);
+  const catalog = await loadSpecialists(coreRoot);
+  for (const specialist of migration.plan.specialists) {
+    const current = catalog.find(value => value.id === specialist.specialistId);
+    if (!current || current.version !== specialist.contractVersion) {
+      throw new Error(`MISSION_RECOVERY_CONTRACT: ${specialist.specialistId} needs matching candidate assets`);
     }
-    if (/^GIT binary patch$/m.test(patch.stdout)) {
-      throw new Error('MISSION_REVIEW_BINARY_UNSUPPORTED: encoded binary content cannot be safely reviewed');
+  }
+  const implemented = inspected.stream.events.some(event => event.kind === 'lead-writer.completed'
+    && objectField(event.payload, 'actionKind') !== 'run-preparation-correction');
+  const subject = implemented ? await captureMissionReviewSubject(workRoot, stored.baseCommit) : undefined;
+  const live = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject?.files);
+  if (live.ticket.path !== stored.ticket.path || live.ticket.contentHash !== stored.ticket.contentHash) {
+    throw new Error('MISSION_TICKET_CHANGED: recovery cannot replace the original ticket');
+  }
+  const currentInputHashes = Object.fromEntries(live.plan.specialists.map(specialist => [
+    specialist.specialistId, subject === undefined ? specialist.proof.inputHash
+      : canonicalJsonHash({ routing: specialist.proof.inputHash, subject: subject.hash }),
+  ]));
+  if (migration.migration !== undefined) {
+    if (subject === undefined) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: migration requires its post-implementation subject');
     }
-    const files = Object.freeze({
-      files: Object.freeze(names.stdout.split('\0').filter(Boolean).sort()),
-      status: 'known' as const,
-    });
-    return Object.freeze({
-      diff: patch.stdout,
-      files,
-      hash: canonicalJsonHash({ baseCommit, diff: patch.stdout, files: files.files }),
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('MISSION_REVIEW_')) throw error;
-    throw new Error('MISSION_REVIEW_CONTENT_UNAVAILABLE: bounded Git review capture failed');
-  }
-}
-
-/** Token budget one specialist may spend reading, per the expert-team spec. */
-const CONTEXT_PACK_BUDGET_TOKENS = 12_000;
-
-/**
- * Compile what every convened specialist reads instead of exploring.
- *
- * Measured on 2026-08-30: `Grep` and `Glob` spawn a `rg` binary that is absent
- * wherever `rg` is only a shell function, so five specialists convened on a real
- * diff read nothing and answered anyway. Handing them the diff removes the
- * dependency rather than repairing it, and a diff git could not produce is named
- * in the pack rather than rendered as an empty one.
- */
-const ANCHOR_MAX_BYTES = 200_000;
-
-/** Read one repository file for the pack, or return nothing rather than fail the
- * dispatch: a missing anchor is named in the pack, never a reason to convene
- * nobody. */
-async function packArtifact(
-  root: string,
-  path: string,
-): Promise<ContextArtifact | undefined> {
-  try {
-    const loaded = await readBoundedProjectFile({
-      root,
-      inputPath: path,
-      maxBytes: ANCHOR_MAX_BYTES,
-      pathEscapeMessage: 'MISSION_PACK_PATH_ESCAPE: anchor resolves outside project root',
-      invalidMessage: 'MISSION_PACK_INVALID: anchor must be a stable bounded file',
-    });
-    return { path, text: loaded.body };
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Compile what every convened specialist reads instead of exploring, for the
- * stage it is convened at.
- *
- * The two stages ask different questions and need different evidence. At
- * `post-implementation` the subject is the diff. At `pre-implementation` there
- * IS no diff -- nothing has been written, which is the entire point of briefing
- * first -- so the subject is the ticket and the code it names. The first version
- * of this shipped the diff at both stages, and the panel convened on eleven
- * tokens of empty fence while `omitted` claimed nothing had been left out. That
- * is the silent cap this module exists to refuse, in the stage that matters most.
- *
- * Measured on 2026-08-30 by running the cycle: six specialists convened at
- * `pre-implementation` with an empty pack. Unit tests, typecheck and eighteen
- * gates were all green on it.
- */
-async function compileDispatchContent(
-  root: string,
-  files: DetectedFiles,
-  stage: SpecialistInvocationStage,
-  ticketPath: string,
-  reviewSubject: MissionReviewSubject | undefined,
-  profiles: MissionPlan['profiles'],
-): Promise<Omit<ContextPackInput, 'dispatch'>> {
-  const unavailable = profiles.filter((profile) => profile.sourceReviewRequired)
-    .map((profile) => `guidance ${profile.profileId} requires source review: ${profile.reasons.join(', ')}`);
-  const secrets = collectKnownSecrets();
-
-  let diff = '';
-  if (stage === 'post-implementation') {
-    if (reviewSubject === undefined) {
-      throw new Error('MISSION_REVIEW_CONTENT_UNAVAILABLE: review subject is missing');
+    const assets = await observeSpecialistMigrationAssets(coreRoot, installRoot, identity.runtime);
+    if (canonicalJsonHash(assets.declaration) !== migration.migration.receipt.declarationHash
+      || assets.nativeAgentSha256 !== migration.migration.receipt.nativeAgentSha256) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: declared or installed contract changed');
     }
-    diff = reviewSubject.diff;
-  } else {
-    unavailable.push('diff (pre-implementation: nothing is written yet)');
+    const comparisonCatalog = await loadSpecialistMigrationComparisonCatalog(coreRoot, assets.declaration, stored.plan);
+    const comparison = await planBoundMission(workRoot, stored.ticket.path, new Date().toISOString(), subject.files, comparisonCatalog);
+    for (const specialist of comparison.plan.specialists) {
+      if (specialist.specialistId !== assets.declaration.specialistId) {
+        currentInputHashes[specialist.specialistId] = canonicalJsonHash({
+          routing: specialist.proof.inputHash, subject: subject.hash,
+        });
+      }
+    }
   }
-
-  // The completion path already refuses secret-bearing events. The pack reaches
-  // a model runtime and whatever it persists, which is the wider blast radius of
-  // the two, so an in-flight credential is masked here rather than forwarded.
-  const redactedDiff = redactText(diff, secrets);
-  if (redactedDiff !== diff) unavailable.push('diff (secrets redacted)');
-
-  // Ticket first: it is the brief at both stages, and the compiler spends the
-  // budget in the order artifacts arrive.
-  const ticket = await packArtifact(root, ticketPath);
-  if (ticket === undefined) unavailable.push(`${ticketPath} (unreadable)`);
-  const anchors = ticket === undefined
-    ? []
-    : (await Promise.all(citedPaths(ticket.text).map((path) => packArtifact(root, path))));
-  const artifacts = [ticket, ...anchors]
-    .filter((item): item is ContextArtifact => item !== undefined)
-    .map((item) => ({ path: item.path, text: redactText(item.text, secrets) }));
-
-  return {
-    diff: redactedDiff,
-    touchedPaths: stage === 'post-implementation' ? files.files : [],
-    artifacts,
-    lens: 'full',
-    budgetTokens: CONTEXT_PACK_BUDGET_TOKENS,
-    unavailable,
+  const provenance = request.disposition.kind !== 'review-provenance' ? undefined
+    : await readRecoveryReviewBindings(workRoot, request.disposition.resolutionArtifact.path);
+  const resolutionArtifact = provenance?.artifact ?? (request.disposition.kind === 'review-blocker'
+    ? await recoveryResolutionArtifact(workRoot, request.disposition.resolutionArtifact.path) : undefined);
+  const committedSubject = provenance === undefined ? undefined
+    : await captureMissionReviewSubject(workRoot, stored.baseCommit, true);
+  const observation: MissionRecoveryObservation = {
+    ...(provenance === undefined || committedSubject?.baseCommit === undefined
+      || committedSubject.reviewedCommit === undefined ? {} : {
+      reviewBindings: provenance.bindings,
+      reviewSubject: { taskId: missionId, baseCommit: committedSubject.baseCommit,
+        reviewedCommit: committedSubject.reviewedCommit, acceptanceCriteriaHash: stored.ticket.contentHash },
+    }),
+    stage: implemented ? 'post-implementation' : 'pre-implementation', maxRounds: 2,
+    evidenceDependencies: { 'git:working-tree': current.project.diffHash },
+    expectedSource: identity.runtime === 'codex' ? 'runtime:codex' : 'runtime:claude',
+    currentInputHashes,
+    contractVersions: Object.fromEntries(migration.plan.specialists.map(value => [value.specialistId, value.contractVersion])),
+    ...(resolutionArtifact === undefined ? {} : { resolutionArtifact }),
   };
+  const result = await recordStoppedMissionRecovery(installRoot, missionId, request, observation);
+  return { ...result, provenance: { coreRoot, catalogHash: canonicalJsonHash(catalog),
+    routingHash: stored.routingHash, runtime: identity.runtime, capability } };
 }
 
-function detectedStack(root: string, profileInput: ReturnType<typeof detectProfileInput>): {
-  readonly technologies: readonly string[];
-  readonly status: 'known' | 'unknown';
-} {
-  const markers = [
-    'package.json',
-    'pnpm-lock.yaml',
-    'package-lock.json',
-    'yarn.lock',
-    'bun.lock',
-    'bun.lockb',
-  ];
-  if (!markers.some((marker) => existsSync(join(root, marker)))) {
-    return Object.freeze({ technologies: Object.freeze([]), status: 'unknown' });
+async function readRecoveryReviewBindings(root: string, path: string) {
+  const loaded = await readBoundedProjectFile({ root, inputPath: path, maxBytes: 64 * 1024,
+    pathEscapeMessage: 'MISSION_RECOVERY_PROVENANCE: artifact escapes project root',
+    invalidMessage: 'MISSION_RECOVERY_PROVENANCE: artifact must be a bounded stable file' });
+  const value: unknown = JSON.parse(loaded.body);
+  const bindings = isUnknownRecord(value) && Object.keys(value).length === 1
+    ? parseRecoveredReviewBindings(value['bindings']) : undefined;
+  if (bindings === undefined) throw new Error('MISSION_RECOVERY_PROVENANCE: exact original review bindings are required');
+  return { bindings, artifact: { path, sha256: `sha256:${createHash('sha256').update(loaded.body).digest('hex')}` } };
+}
+
+async function evidenceRuntime(roots: ProjectRoots, missionId: string) {
+  const inspected = await inspectMission(roots.installRoot, missionId, { dependencies: {} });
+  const identity = missionRuntimeIdentity(inspected.stream.events);
+  const coordinator = coordinatorRuntimeIdentity(process.env);
+  if (!identity?.attested || !coordinator.attested || coordinator.runtime !== identity.runtime) {
+    throw new Error('SPECIALIST_EVIDENCE_INVALID: observe the original native runtime before author clarification');
   }
-  const stack = detectStack(root);
-  return Object.freeze({
-    technologies: Object.freeze([...new Set([
-      ...Object.values(stack),
-      ...profileInput.projects.flatMap((project) =>
-        project.technologies.map((technology) => technology.id)),
-    ])].sort()),
-    status: 'known',
-  });
+  const capability = await specialistCapabilityFor(roots.installRoot, identity.runtime);
+  if (capability.status === 'unavailable') {
+    throw new Error(`SPECIALIST_EVIDENCE_INVALID: ${capability.limitations.join('; ')}`);
+  }
+  return capability;
 }
 
-export async function planMission(
-  root: string,
-  ticketPath: string,
-  generatedAt = new Date().toISOString(),
-): Promise<MissionPlan> {
-  return (await planBoundMission(root, ticketPath, generatedAt)).plan;
-}
-
-async function compileMission(
-  root: string,
-  ticket: Awaited<ReturnType<typeof readTicket>>,
-  generatedAt: string,
-  detectedFiles?: DetectedFiles,
-): Promise<MissionPlan> {
-  const [coreRoot, diff] = await Promise.all([
-    findCoreSource(),
-    detectedFiles ?? gitFiles(root),
-  ]);
-  const [policies, profiles, specialists] = await Promise.all([
-    loadProjectPolicies(root, join(coreRoot, 'policies')),
-    loadProfiles(root, join(coreRoot, 'profiles')),
-    loadSpecialists(coreRoot),
-  ]);
-  const profileInput = detectProfileInput(root, diff.files);
-  const stack = detectedStack(root, profileInput);
-  return compileMissionPlan({
-    schemaVersion: 2,
-    ticket: { id: ticket.id, title: ticket.title, body: ticket.body },
-    diff,
-    stack,
-    policy: mergePolicies(policies, generatedAt),
-    profiles: {
-      catalog: profiles,
-      input: profileInput,
-    },
-    specialists: { catalog: specialists },
-  }, { generatedAt });
-}
-
-function controllerTicketBinding(
-  ticket: Awaited<ReturnType<typeof readTicket>>,
-): MissionControllerTicketBinding {
-  return Object.freeze({
-    path: ticket.path,
-    contentHash: `sha256:${createHash('sha256').update(ticket.body).digest('hex')}`,
-  });
-}
-
-async function planBoundMission(
-  root: string,
-  ticketPath: string,
-  generatedAt = new Date().toISOString(),
-  detectedFiles?: DetectedFiles,
-): Promise<{
-  readonly plan: MissionPlan;
-  readonly ticket: MissionControllerTicketBinding;
-}> {
-  const ticket = await readTicket(root, ticketPath);
-  const plan = await compileMission(root, ticket, generatedAt, detectedFiles);
-  return Object.freeze({
-    plan,
-    ticket: controllerTicketBinding(ticket),
-  });
+async function recoveryResolutionArtifact(root: string, path: string) {
+  const loaded = await readBoundedProjectFile({ root, inputPath: path, maxBytes: 100_000,
+    pathEscapeMessage: 'MISSION_RECOVERY_INVALID: resolution artifact escaped the project',
+    invalidMessage: 'MISSION_RECOVERY_INVALID: unsafe or oversized resolution artifact' });
+  return { path, sha256: `sha256:${createHash('sha256').update(loaded.body).digest('hex')}` };
 }
 
 /**
@@ -842,19 +741,24 @@ export async function dispatchMissionSpecialists(
   readonly lensPlan?: LensPlan;
 }> {
   const { workRoot, installRoot } = roots;
-  const [stored, inspected] = await Promise.all([
+  const [stored, initialInspection] = await Promise.all([
     loadMissionControllerPlan(installRoot, input.missionId),
     inspectMission(installRoot, input.missionId, { dependencies: {} }),
   ]);
-  if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: specialist dispatch is no longer active');
-  }
+  const current = initialInspection.stream.events.some(event => event.kind === 'evidence.recorded')
+    ? await inspectCurrentMission(roots, input.missionId, collectKnownSecrets()) : undefined;
+  const inspected = current?.inspected ?? initialInspection;
+  requireOpenMission(inspected.stream.events);
   const implemented = inspected.stream.events.some((event) =>
     event.kind === 'lead-writer.completed'
     && isUnknownRecord(event.payload)
     && event.payload.actionKind !== 'run-preparation-correction');
+  const boundedReview = inspected.stream.events.some(event => event.kind === 'mission.started'
+    && objectField(event.payload, 'reviewPolicy') === 'bounded-corrections-v1')
+    || inspected.stream.events.some(event => event.kind === 'mission.recovered'
+      && objectField(objectField(objectField(event.payload, 'request'), 'disposition'), 'kind') === 'review-provenance');
   const reviewSubject = implemented
-    ? await captureMissionReviewSubject(workRoot, stored.baseCommit)
+    ? await captureMissionReviewSubject(workRoot, stored.baseCommit, boundedReview)
     : undefined;
   const live = await planBoundMission(
     workRoot, stored.ticket.path, generatedAt, reviewSubject?.files,
@@ -877,9 +781,46 @@ export async function dispatchMissionSpecialists(
       routing: specialist.proof.inputHash, subject: reviewSubject.hash,
     }),
   ]));
+  const migration = validatedSpecialistContractMigrations(inspected.stream.events, stored.plan);
+  if (!migration.ok) throw new Error(`SPECIALIST_CONTRACT_MIGRATION_INVALID: ${migration.reasons.join('; ')}`);
+  if (migration.migration !== undefined) {
+    const identity = missionRuntimeIdentity(inspected.stream.events);
+    if (identity === undefined || reviewSubject === undefined) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: migration requires its native post-implementation subject');
+    }
+    const coreRoot = await findCoreSource();
+    const assets = await observeSpecialistMigrationAssets(coreRoot, installRoot, identity.runtime);
+    if (canonicalJsonHash(assets.declaration) !== migration.migration.receipt.declarationHash
+      || assets.nativeAgentSha256 !== migration.migration.receipt.nativeAgentSha256) {
+      throw new Error('SPECIALIST_CONTRACT_MIGRATION_INVALID: declared or installed contract changed');
+    }
+    const catalog = await loadSpecialistMigrationComparisonCatalog(coreRoot, assets.declaration, stored.plan);
+    const comparison = await planBoundMission(workRoot, stored.ticket.path, generatedAt, reviewSubject.files, catalog);
+    for (const specialist of comparison.plan.specialists) {
+      if (specialist.specialistId !== assets.declaration.specialistId) {
+        currentInputHashes[specialist.specialistId] = canonicalJsonHash({
+          routing: specialist.proof.inputHash, subject: reviewSubject.hash,
+        });
+      }
+    }
+  }
+  const firstImplementation = inspected.stream.events.find(event => event.kind === 'lead-writer.completed'
+    && objectField(event.payload, 'actionKind') !== 'run-preparation-correction');
+  const implementationRequest = firstImplementation === undefined ? undefined
+    : inspected.stream.events.find(event => event.kind === 'lead-writer.requested'
+      && event.eventId === objectField(firstImplementation.payload, 'requestEventId'));
+  const preparationBoundary = implementationRequest?.seq ?? firstImplementation?.seq;
   const preImplementationInputHashes: Record<string, string> = {};
   for (const specialist of stored.plan.specialists) {
-    const inputHash = specialist.inputHash ?? currentInputHashes[specialist.specialistId];
+    const admittedPreparation = preparationBoundary === undefined ? undefined
+      : inspected.stream.events.filter(event => event.kind === 'specialist.completed'
+        && event.seq < preparationBoundary && event.subject === specialist.specialistId
+        && objectField(event.payload, 'stage') === 'pre-implementation').at(-1);
+    const admittedHash = admittedPreparation === undefined ? undefined
+      : objectField(admittedPreparation.payload, 'inputHash');
+    const inputHash = implemented
+      ? (typeof admittedHash === 'string' ? admittedHash : specialist.inputHash)
+      : currentInputHashes[specialist.specialistId];
     if (inputHash === undefined) {
       throw new Error(
         `MISSION_CONTROLLER_PLAN_INVALID: pre-implementation hash missing for ${specialist.specialistId}`,
@@ -895,10 +836,29 @@ export async function dispatchMissionSpecialists(
   const specialistRuntime = runtimeIdentity === undefined
     ? rawCapability
     : constrainCapabilityByAttestation(runtimeIdentity, rawCapability);
+  const reviewBinding = reviewSubject?.reviewedCommit === undefined || reviewSubject.baseCommit === undefined
+    ? undefined : { taskId: input.missionId, baseCommit: reviewSubject.baseCommit,
+      reviewedCommit: reviewSubject.reviewedCommit, acceptanceCriteriaHash: stored.ticket.contentHash };
+  if (reviewBinding !== undefined) {
+    const restored = validatedRecoveredReviewEvents(inspected.stream.events);
+    if (!restored.ok) throw new Error(`MISSION_RECOVERY_INVALID: ${restored.reasons.join('; ')}`);
+    const hasProvenanceRecovery = inspected.stream.events.some(event => event.kind === 'mission.recovered'
+      && objectField(objectField(objectField(event.payload, 'request'), 'disposition'), 'kind') === 'review-provenance');
+    if (hasProvenanceRecovery) for (const event of restored.events) {
+      if (event.kind !== 'specialist.completed') continue;
+      const receipt = parseSpecialistCompletionValue(objectField(event.payload, 'completion'))?.review;
+      const hash = objectField(event.payload, 'inputHash');
+      if (receipt !== undefined && sameReviewSubject(receipt, reviewBinding) && typeof hash === 'string') {
+        currentInputHashes[event.subject] = hash;
+      }
+    }
+  }
   const decision = orchestrateMissionTeam({
+    ...(reviewBinding === undefined ? {} : { reviewSubject: reviewBinding }),
     plan: stored.plan,
     stream: inspected.stream,
-    evidenceContext: { dependencies: {} },
+    evidenceContext: { dependencies: current === undefined ? {}
+      : { 'git:working-tree': current.project.diffHash } },
     currentInputHashesByStage: {
       'pre-implementation': preImplementationInputHashes,
       'post-implementation': currentInputHashes,
@@ -910,7 +870,9 @@ export async function dispatchMissionSpecialists(
     ? createSpecialistDispatch({
         missionId: input.missionId,
         runtime,
-        plan: stored.plan,
+        plan: migration.plan,
+        ...(decision.action.stage !== 'post-implementation' || reviewBinding === undefined
+          ? {} : { reviewSubject: reviewBinding }),
         action: decision.action,
         currentInputHashes: decision.action.stage === 'pre-implementation'
           ? preImplementationInputHashes
@@ -1018,9 +980,7 @@ function isUnknownRecord(value: unknown): value is Readonly<Record<string, unkno
 }
 
 function rejectClosedMission(events: readonly CanonicalEvent[]): void {
-  if (events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: controller transition is no longer accepted');
-  }
+  requireOpenMission(events);
 }
 
 export async function recordLeadWriterCompletion(
@@ -1028,9 +988,7 @@ export async function recordLeadWriterCompletion(
   input: Extract<MissionArgs, { readonly kind: 'writer-event' }>,
 ): Promise<void> {
   const inspected = await inspectMission(root, input.missionId, { dependencies: {} });
-  if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
-    throw new Error('MISSION_CLOSED: lead-writer completion is no longer accepted');
-  }
+  requireOpenMission(inspected.stream.events);
   const requests = inspected.stream.events.filter((event) =>
     event.kind === 'lead-writer.requested'
     && event.source === 'void-harness:mission.dispatch')
@@ -1166,13 +1124,13 @@ export async function recordMissionClosure(
   source = 'void-harness:mission.close',
 ): Promise<void> {
   const inspected = await inspectMission(root, missionId, { dependencies: {} });
-  const existing = inspected.stream.events.find((event) => event.kind === 'mission.closed');
-  if (existing !== undefined) {
-    if (objectField(existing.payload, 'reason') === reason) return;
+  const lifecycle = observedMissionLifecycle(inspected.stream.events);
+  if (lifecycle.status === 'closed') {
+    if (objectField(lifecycle.closure.payload, 'reason') === reason) return;
     throw new Error('MISSION_CLOSURE_CONFLICT: mission already closed for another reason');
   }
   const eventId = `evt_${createHash('sha256')
-    .update([missionId, 'mission.closed'].join('|'))
+    .update([missionId, 'mission.closed', lifecycle.episodeId].join('|'))
     .digest('hex')}`;
   let result: Awaited<ReturnType<typeof writeSequencedEventOnce>>;
   try {
@@ -1185,7 +1143,13 @@ export async function recordMissionClosure(
         kind: 'mission.closed',
         subject: 'mission',
         correlationId: missionId,
-        payload: { reason },
+        payload: { reason, episodeId: lifecycle.episodeId },
+      },
+      validate: events => {
+        const current = observedMissionLifecycle(events);
+        if (current.status !== 'open' || current.episodeId !== lifecycle.episodeId) {
+          throw new Error('MISSION_CLOSURE_CONFLICT: active episode changed');
+        }
       },
     });
   } catch (error) {
@@ -1245,6 +1209,9 @@ function usage(): string {
   mission start --title <title> [--ticket <markdown-file>] [--mode fast|team|fortress] [--json]
   mission plan --ticket <markdown-file> [--json]
   mission dispatch --id <id> [--json]
+  mission evidence-request --id <id> --input <json-file> [--json]
+  mission evidence-event --id <id> --status started|completed --input <json-file> [--json]
+  mission recover --id <id> --input <json-file> [--json]
   mission specialist-event --id <id> --status started|completed|failed --input <json-file> [--json]
   mission writer-event --id <id> [--json]
   mission close --id <id> --reason interrupted|abandoned [--json]
@@ -1320,6 +1287,34 @@ export async function mission(args: readonly string[]): Promise<void> {
       process.stdout.write(parsed.json ? `${JSON.stringify(plan)}\n` : `${renderPlan(plan)}\n`);
       return;
     }
+    if (parsed.kind === 'evidence-request' || parsed.kind === 'evidence-event') {
+      const capability = await evidenceRuntime(roots, parsed.missionId);
+      const value = await readLifecycleJson(root, parsed.inputPath);
+      if (parsed.kind === 'evidence-request') {
+        const request = await requestSpecialistEvidence(roots, parsed.missionId, parseSpecialistEvidenceRequest(value));
+        process.stdout.write(parsed.json ? `${JSON.stringify({ request, capability })}\n` : `${request.eventId}\n`);
+      } else {
+        await recordSpecialistEvidence(roots, parsed.missionId, parsed.status,
+          parseSpecialistEvidenceResponse(parsed.status, value));
+        process.stdout.write(parsed.json ? `${JSON.stringify({ recorded: true, status: parsed.status, capability })}\n`
+          : `recorded evidence ${parsed.status}\n`);
+      }
+      return;
+    }
+    if (parsed.kind === 'migrate-specialist') {
+      const request = parseSpecialistContractMigrationRequest(await readLifecycleJson(root, parsed.inputPath));
+      const result = await migrateMissionSpecialist(roots, parsed.missionId, request);
+      process.stdout.write(parsed.json ? `${JSON.stringify(result)}\n`
+        : `specialist migration ${result.recorded ? 'recorded' : 'already recorded'}: ${result.migrationEventId}\n`);
+      return;
+    }
+    if (parsed.kind === 'recover') {
+      const request = parseMissionRecoveryRequest(await readLifecycleJson(root, parsed.inputPath));
+      const result = await recoverStoppedMission(roots, parsed.missionId, request);
+      process.stdout.write(parsed.json ? `${JSON.stringify(result)}\n`
+        : `recovery ${result.recorded ? 'recorded' : 'already recorded'}: ${result.recoveryEventId}\n`);
+      return;
+    }
     if (parsed.kind === 'dispatch') {
       const dispatched = await dispatchMissionSpecialists(roots, parsed);
       process.stdout.write(
@@ -1336,7 +1331,7 @@ export async function mission(args: readonly string[]): Promise<void> {
         parsed.status,
         await readLifecycleJson(root, parsed.inputPath),
       );
-      await recordSpecialistLifecycle(journal, parsed.missionId, lifecycle);
+      await recordSpecialistLifecycle(journal, parsed.missionId, lifecycle, root);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify({ recorded: true, status: parsed.status })}\n`
@@ -1413,6 +1408,7 @@ export async function mission(args: readonly string[]): Promise<void> {
                 leadWriterId: 'writer:primary',
                 runtime: runtimeIdentity.runtime,
                 runtimeAttested: runtimeIdentity.attested,
+                reviewPolicy: 'bounded-corrections-v1',
               },
           }),
       });

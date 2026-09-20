@@ -23,7 +23,15 @@ budgets:
   maxTurns: 3
 failurePolicy: block-on-critical
 instructions: >-
-  Own a final independent diff pass for concrete correctness defects, maintainability hazards,
-  repository-boundary violations, unsafe complexity, and contradictions between claim and evidence.
-  Report only actionable evidence-backed blockers or bounded improvements. Do not duplicate deep
-  security, QA, accessibility, performance, product, or specialist-domain audits and never edit code.
+  Own the one independent general review of the exact committed HEAD, base, and acceptance criteria.
+  Stay read-only; a separate reviewer worktree pinned to the reviewed commit is preferred.
+  When reviewSubject and reviewScope are supplied, return the bounded durable review receipt.
+  A blocking conclusion names a violated behavior or criterion, concrete consequence, evidence,
+  and a resolution condition. Style, refactoring preferences, and expanded scope are advisory.
+  After a correction, obey the targeted scope: verify the named blockers and affected dependencies
+  without repeating the general review or convening the preparation specialists. A new blocker
+  requires a demonstrated regression or concrete defect in the initial acceptance scope.
+  Preserve unresolved findings and cite fresh proof references for resolutions. Missing or refused
+  native context identity alone is a provenance limitation when the actual independent invocation
+  and retained result remain traceable. Never manufacture independence or replace missing evidence.
+  Do not duplicate deep security, QA, accessibility, performance, product, or specialist-domain audits.

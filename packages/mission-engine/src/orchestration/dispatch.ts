@@ -1,4 +1,5 @@
-import { compileContextPack, type ContextPack, type ContextPackInput } from '../specialist/context-pack.js';
+import { type ContextPack, type ContextPackInput, compileContextPack } from '../specialist/context-pack.js';
+import type { ReviewScope, ReviewSubject } from '../specialist/review-receipt.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
@@ -20,6 +21,7 @@ export interface SpecialistDispatchInput {
   readonly plan: MissionSpecialistPlan;
   readonly action: InvokeSpecialistsAction;
   readonly currentInputHashes: Readonly<Record<string, string>>;
+  readonly reviewSubject?: ReviewSubject;
   /** What every convened specialist reads instead of exploring the repository.
    * Required, not optional: a dispatch that may omit it is a dispatch that
    * silently reverts to the blind panel measured on 2026-08-30. The binding is
@@ -39,6 +41,8 @@ export interface SpecialistDispatchEnvelope {
   readonly reviewRound: number;
   readonly inputHash: string;
   readonly contextPack: ContextPack;
+  readonly reviewSubject?: ReviewSubject;
+  readonly reviewScope?: ReviewScope;
 }
 
 function invalid(detail: string): never {
@@ -101,6 +105,8 @@ export function createSpecialistDispatch(
     }
     return Object.freeze({
       schemaVersion: 1 as const,
+      ...(input.reviewSubject === undefined ? {} : { reviewSubject: input.reviewSubject }),
+      ...(input.action.reviewScope === undefined ? {} : { reviewScope: input.action.reviewScope }),
       missionId: input.missionId,
       runtime: input.runtime,
       specialistId,

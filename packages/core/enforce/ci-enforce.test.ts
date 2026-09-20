@@ -1,14 +1,16 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // Integration tests for the CI diff driver. It replays the SAME _checks.sh floor
 // the local hooks enforce, but over a PR diff instead of a single edit, and
@@ -48,17 +50,33 @@ function run(cwd: string, base: string): { code: number; stdout: string; stderr:
   return { code: res.status ?? 1, stdout: res.stdout ?? '', stderr: res.stderr ?? '' };
 }
 
-let repo: string;
+let repo = '';
+let baselineRepo = '';
 let base: string;
+
+beforeAll(() => {
+  baselineRepo = mkdtempSync(join(tmpdir(), 'enforce-baseline-'));
+  git(baselineRepo, 'init', '-q', '-b', 'main');
+  write(baselineRepo, 'src/app.ts', 'export const ok = 1;\n');
+  write(baselineRepo, 'pnpm-lock.yaml', 'lockfileVersion: 1\n');
+  git(baselineRepo, 'add', '-A');
+  git(baselineRepo, 'commit', '-q', '-m', 'baseline');
+  base = git(baselineRepo, 'rev-parse', 'HEAD').trim();
+});
+
+afterAll(() => {
+  if (baselineRepo) rmSync(baselineRepo, { recursive: true, force: true });
+});
 
 beforeEach(() => {
   repo = mkdtempSync(join(tmpdir(), 'enforce-'));
-  git(repo, 'init', '-q', '-b', 'main');
-  write(repo, 'src/app.ts', 'export const ok = 1;\n');
-  write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 1\n');
-  git(repo, 'add', '-A');
-  git(repo, 'commit', '-q', '-m', 'baseline');
-  base = git(repo, 'rev-parse', 'HEAD').trim();
+  // Copy the complete .git directory: every scenario owns its index, refs and objects.
+  cpSync(baselineRepo, repo, { recursive: true, verbatimSymlinks: true });
+});
+
+afterEach(() => {
+  if (repo) rmSync(repo, { recursive: true, force: true });
+  repo = '';
 });
 
 describe('ci-enforce — violations become red annotations', () => {

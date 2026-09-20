@@ -1,3 +1,4 @@
+// @test-resource subprocess
 /**
  * `add` / `remove` refresh doctrine docs PER-RUNTIME: they update every doc the
  * project already has (keeping them in parity), but never resurrect the doc of a

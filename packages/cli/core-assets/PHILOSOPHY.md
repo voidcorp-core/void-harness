@@ -101,6 +101,49 @@ These rules apply to ALL my projects regardless of stack. Project-specific excep
 
 Each rule has its enforcement mechanism listed. Rules without enforcement should NOT be added to this file — they belong in `PROJECT-DOCTRINE.md` (project taste) or in a skill (with its own hook).
 
+## Git worktree placement and lifetime
+
+This invariant applies to every project using Git worktree, regardless of language,
+framework, editor, terminal or presentation adapter. It does not require a project
+to use worktrees and is independent of the TypeScript/web stack assumption above.
+
+- **Emplacement des worktrees** : une worktree de travail vit dans
+  `${VOID_WORKTREES:-${XDG_DATA_HOME:-$HOME/.local/share}/git-worktrees}/<dépôt>/<branche>`.
+  Elle n'est créée ni dans `/tmp` ni sous un chemin temporaire du système : ces
+  répertoires sont purgés au redémarrage et emportent ce qui n'a pas été commité.
+  Elle n'est pas créée non plus à l'intérieur du dépôt, fût-ce sous un répertoire
+  ignoré : les outils qui parcourent l'arborescence (compilateur, linter, recherche,
+  watchers) y voient des doublons du même fichier et rendent des résultats faux.
+  - **Réutilisation** : avant de créer, vérifier `git worktree list` : si la branche
+    a déjà une worktree, l'utiliser. Deux worktrees sur une même branche sont
+    refusées par Git, et la deuxième tentative doit être traitée comme un état
+    normal, pas comme une erreur.
+  - **Cycle de vie** : la worktree appartient au ticket, pas au run. Elle est retirée
+    par `git worktree remove` quand le ticket est mergé, jamais laissée à la purge
+    du système. Un run interrompu laisse sa worktree en place : le travail non
+    commité y est en sûreté et sera repris.
+  - **Indépendance** : aucun chemin ne mentionne un multiplexeur, un éditeur ou un
+    outil d'affichage. Ceux-ci découvrent les worktrees par `git worktree list` ;
+    ils n'en fixent pas l'emplacement.
+  - **Reprise de l'existant** : le projet déplace les worktrees situées hors de cet
+    emplacement avec `git worktree move`, jamais en les recréant, ce qui perdrait
+    les modifications non commitées. Les références dont le répertoire a disparu
+    sont nettoyées avec `git worktree prune`.
+  - **Why** : préserver le travail non commité et éviter les doublons dans les
+    outils qui parcourent le dépôt.
+  - **Enforced by** : planification et cycle de vie des worktrees, inventaire Git et revue ; invariant
+    partagé par `void-implement` et `void-autopilot`, sans règle locale à un skill.
+  - **Session et présentation** : le cycle de vie d'un agent et de son affichage
+    est distinct de celui de sa worktree. Après récupération de son retour et des
+    preuves utiles, une session terminée peut libérer sa présentation via
+    l'adaptateur disponible. Fermer une session, un terminal, un éditeur ou un
+    panneau ne déclenche ni retrait de worktree ni nettoyage global des références.
+  - **Stockage** : distinguer le travail durable, les preuves utiles à conserver
+    et les fichiers temporaires ou régénérables possédés par la tâche. Libérer de
+    l'espace ne justifie jamais la suppression de travail non commité ou d'une
+    worktree non mergée. Le nettoyage des fixtures temporaires reste borné à celles
+    créées par la tâche, après conservation des preuves nécessaires.
+
 ## Mobile-first, dual-quality target
 
 Every UI — including web apps that are not primarily mobile — is designed **mobile-first** AND must reach **first-class quality on both mobile and desktop simultaneously**. Not "mobile-first then responsive afterthought." Not "desktop-first then squeeze for mobile." Both experiences are deliverables.
