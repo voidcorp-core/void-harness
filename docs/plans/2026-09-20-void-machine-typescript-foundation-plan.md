@@ -2,7 +2,7 @@
 title: "Void Machine : porter, éprouver et stabiliser un socle TypeScript indépendant"
 date: 2026-09-20
 status: in-progress
-review_status: scope-revised-awaiting-targeted-review
+review_status: m1-green-awaiting-integration-and-independent-review
 spec: docs/specs/2026-09-19-void-machine-typescript-port.md
 related_spec: docs/specs/2026-09-19-supervised-design-orchestration.md
 ticket: ''
@@ -27,9 +27,22 @@ A0 et A1 ont été réalisés et leurs commits/preuves sont conservés. La progr
 automatique A2–A5 est suspendue ; leurs listes sont désormais des propositions
 historiques à réadmettre par besoin. Les sections B/C restent une réserve de cas
 et de décisions futures, pas une permission de construire toute la plateforme.
-La précédente revue CLEARED concernait le plan antérieur ; ce delta attend une
-lecture ciblée du changement d'ordre et de périmètre, sans nouvelle revue générale.
+La revue ciblée M1 est close sans BLOCKER. M1 est implémenté et ses 22 contrats
+passent via RUN ; intégration et revue indépendante du diff entier restent dues.
 Doctrine, programme Linear, ADR acceptées et installation active restent inchangés.
+
+### Disposition des suites après M1 GREEN
+
+Les trois contrats publics A0 visaient exclusivement une bascule CLI A5, désormais
+non livrée. Ils sortent de la suite active, sans skip ; leur contenu est conservé
+par Git (bebbb0e4) et en archive locale avec SHA-256. Les brouillons A2 non exécutés,
+le sujet M1 absent remplacé par la production et Cargo.lock généré par la baseline
+sont conservés hors sources sous `.void/machine/typescript-port/archive/` avec
+motif individuel. Aucun verrou n'est édité manuellement. Les contrats doctor A1,
+les 22 contrats M1 et les régressions existantes du lanceur natif restent actifs.
+Le registre détaille la disposition ; aucune suppression Rust ni bascule n'est
+requise pour faire passer cette tranche. Une future migration réadmettra ses
+contrats à partir de consommateurs identifiés.
 
 ### Impact concret sur les capacités héritées
 

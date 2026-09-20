@@ -1,10 +1,11 @@
 # Void Machine (private workspace)
 
-Retained Machine capabilities, distributed only through the existing voidharness
-CLI at A5. No separate publication, controller, provider or coordinator API.
+Private Machine foundation. Any future distribution uses the existing voidharness
+CLI; the former A5 cutover is deferred under the clean-sheet mandate. No separate
+publication, controller, provider or coordinator API.
 
 A1 candidate entry after build: `node dist/application/cli.js doctor --json`.
-The public npm launcher remains on Rust until A5. Direct application callers
+The public npm launcher remains on Rust; no cutover is delivered here. Direct application callers
 supply cwd and environment. Doctor is read-only; paths follow XDG_CACHE_HOME,
 then HOME/.cache, then repository .void/machine/cache. USERPROFILE is not a new
 fallback. machine.toml path fields remain validated but do not override discovery,
@@ -30,7 +31,7 @@ Source grounding:
 - Node 22 [filesystem API](https://nodejs.org/docs/latest-v22.x/api/fs.html):
   openSync, fstatSync, readSync and closeSync bound the actual file read.
 
-The existing packed CLI budget is 2,000,000 bytes. Measure check:size before A5;
+The existing packed CLI budget is 2,000,000 bytes. Measure check:size before any CLI cutover;
 do not drop maintained parsing or raise the ceiling to make the gate green.
 
 

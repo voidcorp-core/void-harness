@@ -367,3 +367,26 @@ Preuves SHA-256 (stdout ; chaque stderr correspondant est vide) :
 - `m1-typecheck.log` : `f7d246b7c3afd00610a1e6e0689d4aa15d431506d97906c3bc7eb7751e60838d`.
 - `m1-contract-green.log` : `e86f49a3c6b2dda36bceba13f13861c52cd755e8e7020ff51bb85e8d21ced019`.
 - `m1-lint.log` : `76af9f2579cedaf15abbea2ab1fece73bdea71e727ecf69892fd1cde926f1b7e`.
+
+
+### Suites actives et archives après M1
+
+M1 GREEN est committé en edeb6d12. L'archive locale
+`.void/machine/typescript-port/archive/2026-09-20-deferred-compatibility/manifest.json`
+conserve chemins originaux, raisons et SHA-256 de chaque fichier :
+
+| Élément | Disposition et raison |
+| --- | --- |
+| public-cli-contract.test.ts | Retiré de la suite : trois attentes de bascule A5 intentionnellement RED, pas comportement livré. Provenance versionnée bebbb0e4. |
+| skill-contract.test.ts, skill-fixture.ts, fixtures/skill-identities.json | Brouillons A2 jamais exécutés, archivés hors suite ; pas de claim de régression ni de preuve sur leurs vecteurs calculés. |
+| note-subject.ts | Sujet RED absent de f95d350a archivé ; remplacé intégralement par imports production. |
+| native/void-machine/Cargo.lock | Baseline générée archivée sans modification ; aucun changement Rust livré. |
+
+Aucun test skip ajouté. Restent actifs : doctor-contract (19 tests GREEN acquis),
+note-contract (22 tests GREEN acquis), native-doctor-contract du CLI existant.
+Le manifeste d'archive est local, pas une dépendance de build ou de test.
+La suite d'intégration demandée contrôle catalogue de découverte, régressions du
+lanceur livré, garde de frontières, entrées de build versionnées, références/docs,
+ADR et cohérence version/lock workspace. La garde de frontières teste son propre
+mécanisme ; elle ne certifie pas les couches internes M1, qui restent à lire sur
+le diff entier par la revue indépendante. A1 et Rust inchangés ne sont pas relancés.
