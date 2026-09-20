@@ -70,3 +70,46 @@ The package export remains doctor only; note is a private source application
 seam, not a released package API. The accepted package ADR records the original
 A5 sequence as provenance; the revised plan defers that cutover. No separate
 publication is authorized.
+
+## M2 native note entry
+
+The private application entry can run the two-source note path through the installed
+Claude Code CLI without making the generic runtime know a provider. Supply an input
+JSON file, an explicit scratch cwd outside repositories, and two model names:
+
+```text
+node dist/application/cli.js note --input ./request.json --cwd /tmp/void-note-run \
+  --extraction-model haiku --synthesis-model sonnet --timeout-ms 90000
+```
+
+The command performs extraction and synthesis sequentially, validates both untrusted
+payloads with the same vertical schemas. Claude's native JSON Schema contract currently
+accepts Draft-7, so the adapter asks Zod 4.4.3 to emit that target for both calls and
+keeps the objects closed (`additionalProperties: false`). It prints the accepted note plus a receipt
+of requested model, reported `modelUsage`, session id and non-hermetic native context.
+The receipt is evidence from the CLI response, not absolute model or environment
+attestation. Native user and managed settings remain enabled; the adapter does not
+remove installed hooks or protections. The cwd and environment are explicit, but
+the native runtime is not hermetic. A stopped result is printed as structured JSON,
+including usage already observed for an earlier role, and exits 1. Native refusals are
+classified into bounded public actions; raw stderr is never included. Process exit and
+captured byte counts are retained only for otherwise-unclassified failures. Invalid CLI arguments or input files exit 2. Docker, durable recovery,
+and live model quality certification remain outside this tranche.
+
+### M2 observation receipt
+
+The executable pipeline is two sequential native calls: extraction from the two supplied
+sources, then synthesis from the admitted extraction. Each response is untrusted and is
+validated by the sourced-note vertical before the next call or final receipt. Requested
+models, native `modelUsage` when present, session identifiers and role are recorded as
+observations; they are not absolute model attestation. Each role has its own caller
+deadline, and the adapter does not retry or claim remote termination after cancellation.
+
+The first two bounded live attempts stopped during extraction with exit 1 and no accepted
+model result. The confirmed native diagnostic reported stdout 0 bytes, stderr 122 bytes,
+and the public refusal that the generated Draft 2020-12 JSON Schema was unavailable.
+The adapter now emits the supported Zod Draft-7 target; the earlier concrete `-p`
+argument change remains a separate hypothesis and is not recorded as the root cause.
+The final live observation is pending and must use a fresh scratch cwd, explicit native
+settings and the child environment allowlist. User and managed runtime context remain
+non-hermetic by design. Docker execution and durable recovery remain deferred.

@@ -1253,3 +1253,42 @@ locales des liens présentes, références d'assets/skills valides et absence d'
 de whitespace. Aucun code métier modifié : tests, build, couverture et vérifications
 UI ne sont pas applicables à cette livraison documentaire. Ils restent exigés aux
 tranches d'implémentation désignées. Ce document ne lance aucune de ces tranches.
+
+## 21. M2 runtime receipt (20 septembre 2026)
+
+La tranche M2 standalone décrite par le mandat a été livrée sur la branche de travail
+sans bascule Rust, publication, Docker ou reprise durable. Le point d'entrée CLI lance
+deux appels Claude séquentiels : extraction puis synthèse. Leurs sorties non fiables
+passent par les validateurs `sourced-note`; les deux configurations portent des modèles
+distincts et le reçu conserve le rôle, le modèle demandé, le `modelUsage` observé et la
+session native quand elle est fournie.
+
+Le RUN final a produit `live-note-result-3.json` avec exit 0 en 23,967 secondes,
+`live-note-3.json` avec un parcours `completed`, stderr vide, deux sessions distinctes,
+deux sources citées et des limites cohérentes. L'extraction demandait `haiku` et a
+rapporté `claude-haiku-4-5-20251001`; la synthèse demandait `sonnet` et a rapporté
+`claude-sonnet-5`. Les montants natifs observés, 0,025337 et 0,06777, sont des
+estimations au tarif catalogue et ne sont pas une facture d'abonnement.
+
+Preuves : input hash `c36bf28a89900a35614c0f1d42664d1f47294c50a116a55a4fdb12e712b116d1`;
+SHA-256 `732a2562b2f0e10fb9cf2ed71788a4d25a86180ad11541b98f9dd7396b0f162c` pour
+`live-note-result-3.json`, `86dacc85a19e618a29bd441c259d01aaa7bf606a4d81b0784d41536c2d02bd5f`
+pour `live-note-3.json`, et `252289f09adad06a4d1243894db24ba3b46286325cf7352706a51130915d7811`
+pour `review-fix-3-results.json` (le précédent `m2-prelive-results.json` ne couvrait
+que 57 tests). Le gel local compte 64 tests sur 5 suites, build, `tsconfig.tests` et
+lint à zéro.
+
+L'entrée publique de preuve est la fixture versionnée
+[`live-note-input.json`](../../packages/void-machine/test/fixtures/live-note-input.json);
+les reçus et logs détaillés restent des artefacts locaux supervisés. La revue
+indépendante finale a confirmé 64 tests et le live cleared, sans BLOCKER. L'ordre TDD
+initial a été explicitement imparfait (le transport a d'abord été structuré avant RED);
+les régressions et causes découvertes ont ensuite été ajoutées et rejouées dans les
+contrôles finaux, sans réécrire cette histoire en preuve rétroactive.
+
+Deux observations précédentes avaient échoué à l'extraction avec exit 1. Le diagnostic
+borné a confirmé que Claude refusait le Draft 2020-12 produit par défaut ; le code émet
+désormais Draft-7 via Zod 4.4.3. Le changement `-p` demeure une hypothèse de contrat,
+pas la cause revendiquée. Le contexte natif reste explicitement non hermétique, les
+délais sont par rôle sans retry automatique, et Docker ainsi que la récupération durable
+restent des tranches ultérieures.

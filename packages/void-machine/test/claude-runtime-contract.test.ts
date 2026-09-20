@@ -58,6 +58,17 @@ describe('Claude native runtime adapter', () => {
       expect(outcome).toMatchObject({ kind: 'failed', executionId: `real-${mode}` });
     });
 
+  it('classifies a structured native refusal on nonzero exit without exposing its text', async () => {
+    const execute = createClaudeExecutor({ ...base, executable: execPath,
+      spawn: (executable, args, options) =>
+        nodeSpawn(executable, [fixture, 'native-process-error', ...args], options) as never });
+    const outcome = await execute({ executionId: 'native-process-error', instruction: 'read', input: {},
+      timeoutMs: 1000, signal: new AbortController().signal });
+    expect(outcome).toMatchObject({ kind: 'failed', executionId: 'native-process-error',
+      action: 'Check Claude authentication in the child runtime context' });
+    expect(JSON.stringify(outcome)).not.toContain('authentication unavailable');
+  });
+
   it('reports a missing executable as unavailable without starting a process', async () => {
     const execute = createClaudeExecutor({ ...base, executable: '/tmp/void-machine-no-such-claude' });
     await expect(execute({ executionId: 'missing', instruction: 'read', input: {},
@@ -78,6 +89,28 @@ describe('Claude native runtime adapter', () => {
       });
   });
 
+  it('classifies a bounded public schema refusal with exit and byte counters', async () => {
+    const execute = createClaudeExecutor({ ...base, executable: execPath,
+      spawn: (executable, args, options) =>
+        nodeSpawn(executable, [fixture, 'schema-error', ...args], options) as never });
+    const outcome = await execute({ executionId: 'schema-error', instruction: 'read', input: {},
+      timeoutMs: 1000, signal: new AbortController().signal });
+    expect(outcome).toMatchObject({ kind: 'failed', executionId: 'schema-error',
+      action: 'Claude rejected the JSON Schema dialect; use the supported draft-07 target' });
+    expect(JSON.stringify(outcome)).not.toContain('2020-12');
+    expect(JSON.stringify(outcome)).not.toContain('not a valid JSON Schema');
+  });
+
+  it('keeps a schema refusal useful when stdin fails after a large request', async () => {
+    const execute = createClaudeExecutor({ ...base, executable: execPath,
+      spawn: (executable, args, options) =>
+        nodeSpawn(executable, [fixture, 'schema-error', ...args], options) as never });
+    const outcome = await execute({ executionId: 'large-schema-error', instruction: 'x'.repeat(90_000), input: {},
+      timeoutMs: 1000, signal: new AbortController().signal });
+    expect(outcome).toMatchObject({ kind: 'failed', executionId: 'large-schema-error',
+      action: 'Claude rejected the JSON Schema dialect; use the supported draft-07 target' });
+  });
+
   it('requests local cancellation for a real hanging process', async () => {
     const controller = new AbortController();
     const execute = createClaudeExecutor({ ...base, executable: execPath,
@@ -89,6 +122,27 @@ describe('Claude native runtime adapter', () => {
       timeoutMs: 1000, signal: controller.signal });
     controller.abort();
     await expect(pending).resolves.toMatchObject({ kind: 'interrupted', executionId: 'real-abort' });
+  });
+
+  it('escalates a real child that ignores SIGTERM without leaving it alive', async () => {
+    const controller = new AbortController();
+    const execute = createClaudeExecutor({ ...base, executable: execPath,
+      spawn: (executable, args, options) =>
+        nodeSpawn(executable, [fixture, 'ignore-sigterm', ...args], options) as never });
+    const pending = execute({ executionId: 'ignore-sigterm', instruction: 'read', input: {},
+      timeoutMs: 1000, signal: controller.signal });
+    controller.abort();
+    await expect(pending).resolves.toMatchObject({ kind: 'interrupted', executionId: 'ignore-sigterm' });
+  });
+
+  it('turns a real child stdin close into a bounded failure observation', async () => {
+    const execute = createClaudeExecutor({ ...base, executable: execPath,
+      spawn: (executable, args, options) =>
+        nodeSpawn(executable, [fixture, 'stdin-closed', ...args], options) as never });
+    await expect(execute({ executionId: 'stdin-closed', instruction: 'read', input: {},
+      timeoutMs: 1000, signal: new AbortController().signal })).resolves.toMatchObject({
+      kind: 'failed', executionId: 'stdin-closed',
+    });
   });
 
   it('maps structured output and preserves requested versus observed model identity', async () => {

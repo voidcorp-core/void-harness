@@ -18,8 +18,8 @@ export type NoteInput = z.infer<typeof noteInputSchema>;
 const evidenceSchema = z.strictObject({ sourceId: identifier, quote: z.string().min(1).max(65_536) });
 const evidence = z.array(evidenceSchema).min(1).max(16);
 const limitations = z.array(z.string().min(1).max(2000)).max(16);
-const extractionSchema = z.strictObject({ evidence, limitations });
-const noteSchema = z.strictObject({
+export const extractionSchema = z.strictObject({ evidence, limitations });
+export const noteSchema = z.strictObject({
   title: z.string().min(1).max(200), summary: z.string().min(1).max(16_000), evidence, limitations,
 });
 export type Extraction = z.infer<typeof extractionSchema>;
