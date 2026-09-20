@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/void-machine/test/runtime-note-contract.test.ts
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {

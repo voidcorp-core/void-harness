@@ -1,4 +1,4 @@
-// tdd-cover: e2e packages/void-machine/test/doctor-contract.test.ts
+// tdd-cover: e2e packages/void-machine/test/cli-note-contract.test.ts
 import { readFile, stat } from 'node:fs/promises';
 import { z } from 'zod';
 import { renderDoctorJson, renderDoctorText } from '../adapters/formats/doctor-report.js';

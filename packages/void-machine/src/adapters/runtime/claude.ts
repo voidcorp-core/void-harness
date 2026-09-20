@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/void-machine/test/claude-runtime-contract.test.ts
 import { randomUUID } from 'node:crypto';
 import { spawn as nodeSpawn } from 'node:child_process';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
