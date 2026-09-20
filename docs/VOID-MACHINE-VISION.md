@@ -14,10 +14,69 @@ Ne pas interpréter ce cadrage comme une autorisation de réécriture immédiate
 
 Les orientations antérieures incompatibles doivent être réconciliées avec cette
 cible. Les décisions historiques acceptées restent conservées ; leur éventuel
-remplacement doit être explicite. Le choix de Rust reste à réconcilier selon la
-section 15. Le brainstorm avec Folpe est suivi dans
+remplacement doit être explicite. Le socle existant sera porté vers TypeScript strict sur Node.js, selon la décision ci-dessous.
+Le brainstorm avec Folpe est suivi dans
 [DEV-833](https://linear.app/voidcorp/issue/DEV-833), dans la chaîne portée par
 [DEV-807](https://linear.app/voidcorp/issue/DEV-807).
+
+## Décision du 19 septembre : un noyau neuf
+
+Décision explicite de Folpe, consignée dans
+[l’ADR de référence](decisions-log/2026-09-19-void-machine-new-core-demonstrated-needs--873d1c5a-ef12-44c7-84dd-2fcd853b7ab8.md) et traduite dans la
+[spec du noyau](specs/2026-09-19-supervised-design-orchestration.md#new-core-decision-2026-09-19).
+La décision ultérieure de Folpe porte le socle Rust existant vers TypeScript strict
+sur Node.js, avec correction des frontières architecturales. La maintenabilité par
+Folpe prime ; aucun besoin mesuré ne justifie deux langages. Voir
+[la nouvelle ADR](decisions-log/2026-09-19-void-machine-typescript-layer-ownership--e492e50e-86b0-4427-9fdf-2435750ce60d.md) et
+[le périmètre fermé du portage](specs/2026-09-19-void-machine-typescript-port.md).
+Terminer WORK-1/2/3, puis porter les capacités existantes, puis construire le parcours
+complet du moteur. Le portage ne certifie pas ce futur parcours. Ni release ni
+remplacement de l’installation active ne sont autorisés par cette décision.
+
+Nous voulons un noyau neuf, construit à partir de la vision et des enseignements
+des incidents du harnais. L’architecture et les mécanismes de contrôle du harnais ne
+sont pas reconduits par défaut. Chaque mécanisme repris doit répondre à un besoin
+concret et justifier son coût de fonctionnement, de maintenance et de vérification.
+La réutilisation de capacités natives suffisantes reste possible ; elle ne vaut pas
+reconduction du contrôleur du harnais.
+
+L’après-midi consacré à débloquer WORK-1/2/3 est un contre-exemple : le dispositif de
+contrôle ne doit pas devenir plus complexe à faire fonctionner que le travail encadré.
+
+- L’orchestrateur distribue le travail, transmet les questions et collecte les
+  résultats. Le runtime de mission gère transitions, attentes, reprise et clôture
+  de façon déterministe ; les runtimes d’agents gardent leur raisonnement natif.
+  Les opérations décidables mécaniquement sont procédurales ; les instructions
+  spécialisées pour les modèles restent dans des fichiers Markdown versionnés.
+  La supervision des agents appartient au runtime : événements et réconciliation
+  périodique bornée repèrent les attentes oubliées, sans LLM de surveillance
+  permanent. Un signal idle ne suffit jamais à fermer ou relancer un agent.
+- Chaque attente expose une cause, un responsable et une action de résolution.
+  Aucune attente silencieuse.
+- Un complément de contexte conserve la mission et son historique, réutilise les
+  résultats encore valides et ne consomme pas artificiellement un tour.
+- Les contrôles bloquent pour une conséquence concrète : sécurité, permissions,
+  intégrité des données ou critère d’acceptation non satisfait. Les remarques sans
+  incidence démontrée ne bloquent pas.
+- Les revues sont bornées. Après correction, vérifier les points concernés sans
+  rouvrir systématiquement un audit général. Une preuve future ne bloque pas
+  prématurément.
+- Les exigences de développement logiciel appartiennent à cette verticale. Le
+  noyau reste indépendant des langages, frameworks, modèles, éditeurs et affichages.
+- Décisions et état utile sont durables ; la continuité ne dépend pas de la mémoire
+  conversationnelle de l’orchestrateur.
+- Un agent terminé a son résultat collecté et son panneau possédé fermé. Ses preuves
+  et sa worktree suivent un cycle de vie distinct ; les panneaux permanents restent.
+
+Le premier parcours d’acceptation doit aller de l’intention au résultat livré avec
+une clarification, une interruption et une correction, sans perte de travail,
+effet rejoué, validation humaine redondante ni boucle de revue indéfinie. Mesurer
+le temps, le coût et les interventions humaines nécessaires, sans inventer les
+mesures indisponibles. Une architecture reproduisant les blocages de cet après-midi
+est un échec, même si ses composants sont individuellement bien conçus.
+
+Terminer d’abord WORK-1/2/3 dans son périmètre borné, puis construire le noyau en
+référence à cette décision. Elle n’ajoute aucun contrôle au harnais actuel.
 
 ## 1. Vision et objectif
 
@@ -340,7 +399,8 @@ et les configurations globales.
 
 Conserver le dépôt et l’historique Git.
 
-Réutiliser :
+Porter les capacités existantes de Void Machine vers TypeScript strict sur Node.js. Distinguer ce noyau des contrôles hérités du harnais. Évaluer ces
+derniers comme candidats à réutilisation, sans obligation de reprise :
 
 - contrats de mission et preuves utiles ;
 - expertise des skills et spécialistes ;
@@ -373,7 +433,8 @@ décisions remplacées. Ne pas effacer les décisions historiques acceptées.
 
 ## 15. Ordre de mise en œuvre
 
-A. Cartographier les responsabilités actuelles et les capacités natives
+A. Partir du parcours accepté et justifier chaque mécanisme retenu ;
+   cartographier ensuite les responsabilités actuelles et les capacités natives
    de chaque runtime pris en charge.
 
 B. Produire une matrice :
@@ -396,8 +457,8 @@ H. Étendre aux missions concurrentes entre projets.
 Les mécanismes avancés de contexte ou de recherche spéculative restent
 optionnels et doivent démontrer un gain supplémentaire.
 
-Réconcilier le choix du noyau Rust avec les décisions applicables.
-Si confirmé, migrer par capacités complètes avec un seul propriétaire
+Poursuivre le moteur TypeScript après le portage borné,
+en réconciliant les décisions applicables. Faire évoluer les capacités avec un seul propriétaire
 autoritaire de chaque responsabilité.
 
 ## 16. Acceptation et livrables

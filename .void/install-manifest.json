@@ -256,7 +256,7 @@
     },
     {
       "path": ".claude/agents/visual-craft-director.md",
-      "sha256": "36bbc1d5f55ce062e5f4fe00e098e5b5622b849ae6ac4ecfc48750159b90b26e"
+      "sha256": "222c2c518971049821a778b443cdebcb3846bbcad38a7737548058cb49816b83"
     },
     {
       "path": ".claude/settings.json",
@@ -516,7 +516,7 @@
     },
     {
       "path": ".codex/agents/visual-craft-director.toml",
-      "sha256": "3b419a4fc4ada29f910261cee6e2a9f40ab100042b0302ef121ee944c7bfb861"
+      "sha256": "0ddf073e2b1d49c681166513f2ec4c125c6eddf7f02a0afb5de0de4ffa086833"
     },
     {
       "path": ".codex/hooks.json",
@@ -531,8 +531,12 @@
       "sha256": "be5720a8b4646419e7b09afbd617cc6e38ed326151999623ec908ecb2d2558d4"
     },
     {
+      "path": ".void/hooks/_syntax-worker.cjs",
+      "sha256": "12e6a141d5bda6486f285da9af96d09c638ceb26a321f1362a1df064b8eefea3"
+    },
+    {
       "path": ".void/hooks/_void-hook.mjs",
-      "sha256": "9a501ad3c49a374ec604ddb6f29dcfb52fd6b19e19073c347239ebff2cb7692f"
+      "sha256": "0503b82dabc99347fa40edefd52a903ef874cc45dea967cc239eef8fbe390c01"
     },
     {
       "path": ".void/installed/PHILOSOPHY.md",
@@ -540,7 +544,7 @@
     },
     {
       "path": ".void/PROJECT-DOCTRINE.md",
-      "sha256": "5d82f31e72ddf6b056e9e04e7471cb41faffffa8e5b8782385e3a5567fe1719f"
+      "sha256": "98e0222c143b74366fe2b3c7d5ed5d824679537a39379a024f70a861e7778b0b"
     },
     {
       "path": "AGENTS.md",
