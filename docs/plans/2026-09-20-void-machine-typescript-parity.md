@@ -184,3 +184,15 @@ All five observations accepted within A; none requires a new scope or publicatio
 No coordinator port/type/field or core layer is introduced. Runtime agents and
 models remain external to A. TOML/lock corrections require real repository cases
 showing degraded exit 1 before the A5 switch; no silent health compatibility claim.
+
+## A1 pre-implementation evidence
+
+ORCH RUN executed the new doctor corpus once against the already-built Rust
+command: 19 tests, 12 passed and 7 expected behavioral failures, exit 1. Five
+malformed lock/TOML cases returned success; invalid UTF-8 was classified unreadable
+rather than malformed; the 64 KiB limit was absent. Retained nullable output,
+cache precedence, linked worktree paths, no-write checks and usage passed.
+No baseline replay or import/discovery failure is counted as evidence.
+
+- `doctor-contract-red.log` SHA-256: `1ee163f5fefb22653ab3b10ae81b729294343fb2245b7d915d5ff83cd1b616bf`.
+- `doctor-contract-red.log.stderr` SHA-256: `017d9f80dc518d7e3d41eaa0b4b651f0acae3a6328b2fc6f2bc27db5d2ab2345`.
