@@ -390,3 +390,59 @@ lanceur livré, garde de frontières, entrées de build versionnées, référenc
 ADR et cohérence version/lock workspace. La garde de frontières teste son propre
 mécanisme ; elle ne certifie pas les couches internes M1, qui restent à lire sur
 le diff entier par la revue indépendante. A1 et Rust inchangés ne sont pas relancés.
+
+
+### Receipt M1 : intégration acquise, revue indépendante en cours
+
+Périmètre vérifié : HEAD 4396703b (production M1 edeb6d12). ORCH RUN a exécuté
+les sept commandes d'intégration : exit 0 et stderr vide pour chacune. Lecture
+directe du manifeste et des sept logs effectuée par WORK-1. Aucun contrôle
+supplémentaire ni changement de code pour ce receipt.
+
+| Contrôle | Observation |
+| --- | --- |
+| Verrou workspace | Frozen offline, 11 projets ; aucun diff de pnpm-lock.yaml. |
+| Versions | 12 fichiers publiés à 3.8.0. |
+| Docs sœurs | 14 sections concordantes. |
+| Références et chemins | 140 noms connus résolus ; chemins des assets existants. |
+| Décisions | 220 valides, immutabilityChecked true, issues vide. |
+| Contrats intégration | 22/22 sur 4 fichiers, 1,44 s runner ; catalogue, garde de frontières, entrées de build et lanceur natif. |
+
+Checklist de livraison de la tranche (pas de certification du moteur cible) :
+
+| Item | État et preuve/limite |
+| --- | --- |
+| Typecheck et build | GREEN M1 après dernier changement de production ; preuves m1-green-results.json. |
+| Tests | M1 22/22 et intégration 22/22 ; A1 19/19 acquis et inchangé, baseline Rust conservée sans rerun. |
+| Lint | GREEN M1, stderr vide ; deux informations A1 useLiteralKeys déjà disposées, pas des warnings. |
+| Couverture | Parcours et échecs du contrat observés RED puis GREEN ; pourcentage et mutation non mesurés, aucune couverture totale revendiquée. |
+| Hooks | Hooks ordinaires des commits M1 et disposition passés ; pas de certification de tous les hooks par cette seule sortie. |
+| UI | Non applicable : aucune interface visuelle ajoutée. |
+| Observabilité | Résultats/arrêts structurés retournés au caller ; aucun journal persistant ou pipeline de télémétrie livré. |
+| Sécurité | Admissions Zod et erreurs expurgées couvertes par contrats ; lecture indépendante de ces frontières encore attendue. |
+| Documentation | Plan, registre et README portent mandat révisé, limites et archives ; aucune doctrine ni ADR accepté modifié. |
+| Commits | M1 edeb6d12, disposition 4396703b ; motifs et auteur assistant dans les messages. |
+| Revue | Préparation ciblée sans BLOCKER ; revue indépendante du diff entier lancée par ORCH, verdict non encore reçu. Pas de PR demandée. |
+| Plan et suite | M1 implémenté, intégration GREEN ; attendre les findings ORCH. A2-A5 restent suspendus. |
+
+Audit du mandat : A0/A1 conservés avec preuves ; M1 local DONE sur son contrat
+asynchrone injecté ; bascule CLI et parité systématique CHANGED/différées par le
+mandat feuille blanche. Agents/modèles réels, qualité sémantique de note, arrêt
+distant et conteneurisation NOT DONE et hors preuve M1. Le coût observé est celui
+des tests ; ni latence/coût modèle, ni RSS agrégé, ni budget du futur paquet livré
+ne sont certifiés. check:size reste dû avant une distribution modifiée.
+
+Prochaine action : ORCH transmet le verdict sur le diff entier ; WORK-1 reste
+seul auteur des corrections, au maximum deux lots après revue générale. Pas
+d'attente RUN active. Publication/intégration demeurent à ORCH.
+
+Preuves locales sous `.void/machine/typescript-port/`, SHA-256 :
+
+- `m1-integration-results.json` : `f07775cbef3e78d227470856e23d324d19fa142b8e8d792dabf97d45b4859204`.
+- `m1-integration-lock.log` : `5169245804776ee1d01a9029e3406b4a6e4996db753bfadbe38b0aa01a8d7e65`.
+- `m1-integration-version.log` : `b45b1fe708d379285fbe4f6e870ac5d416342c30ed9df1dcc42c4f95137c0454`.
+- `m1-integration-docs.log` : `df6fb867924b919dd64e0f09d2dc863cc8d662aed6a85bcdf91e098c30fb63da`.
+- `m1-integration-references.log` : `37850ccf24aa5ec18eaa55fbed77e8e562b8ebb85f5792f647768b1b0d654d86`.
+- `m1-integration-paths.log` : `f484fccffa9c456dccf46b87aff3aa7bfbaad851c39f0f478f0a782fe724fbea`.
+- `m1-integration-decisions.json` : `267bbc2fd45a382f3c6971c03b004b8795d4270a11238fdf57b894ac5be0b176`.
+- `m1-integration-contracts.log` : `1e42791f6ed2be61e1c10088f8cfdbc6a98758918bf23c691d92c55f64ebf23f`.

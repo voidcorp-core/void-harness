@@ -2,7 +2,7 @@
 title: "Void Machine : porter, éprouver et stabiliser un socle TypeScript indépendant"
 date: 2026-09-20
 status: in-progress
-review_status: m1-green-awaiting-integration-and-independent-review
+review_status: m1-integration-green-independent-review-in-progress
 spec: docs/specs/2026-09-19-void-machine-typescript-port.md
 related_spec: docs/specs/2026-09-19-supervised-design-orchestration.md
 ticket: ''
@@ -28,7 +28,9 @@ automatique A2–A5 est suspendue ; leurs listes sont désormais des proposition
 historiques à réadmettre par besoin. Les sections B/C restent une réserve de cas
 et de décisions futures, pas une permission de construire toute la plateforme.
 La revue ciblée M1 est close sans BLOCKER. M1 est implémenté et ses 22 contrats
-passent via RUN ; intégration et revue indépendante du diff entier restent dues.
+passent via RUN ; intégration GREEN à 4396703b (sept commandes, 22 contrats).
+La revue indépendante du diff entier est en cours sous ORCH ; verdict attendu.
+Le receipt et la checklist figurent à la fin du registre lié ci-dessous.
 Doctrine, programme Linear, ADR acceptées et installation active restent inchangés.
 
 ### Disposition des suites après M1 GREEN
