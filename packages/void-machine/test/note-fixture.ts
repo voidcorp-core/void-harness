@@ -1,4 +1,5 @@
-import type { Clock, ExecutionRequest, NoteDependencies } from './note-subject.js';
+import type { NoteDependencies } from '../src/application/note.js';
+import type { Clock, ExecutionRequest } from '../src/runtime/execution.js';
 
 export function manualClock() {
   let elapsed = 0;

@@ -32,3 +32,22 @@ Source grounding:
 
 The existing packed CLI budget is 2,000,000 bytes. Measure check:size before A5;
 do not drop maintained parsing or raise the ceiling to make the gate green.
+
+
+## M1 private application boundary
+
+`src/application/note.ts` composes two injected asynchronous executors. Model and
+runtime configuration stays in those caller-supplied functions; no provider,
+process protocol or doctor dependency is required. `runtime/execution.ts` owns
+correlation, caller-armed deadlines and explicit stop observations. Its injected
+clock only schedules a callback and returns a cancellation function.
+
+`sourced-note` owns question/two-source validation, exact quotation membership,
+coverage of both sources and bounded JSON deliverables. Completed means this
+structural/sourcing contract passed, not semantic quality certification.
+Timeout requests AbortSignal and returns requested-unconfirmed cancellation;
+it never asserts remote termination, retries or durable recovery.
+
+The first proof uses simulated executors and a manual clock through the real
+application/runtime. It does not prove real model execution. No process fixture
+or general orchestration framework is needed for this transport-neutral seam.

@@ -340,3 +340,30 @@ avant GREEN. Aucune preuve supplémentaire Rust/A1 n'est invoquée.
 
 - `m1-contract-red.log` SHA-256 : `19d6a1dfdce15a3c88e57bec42c4a2a96c1ed0e7e9ebaea4e7ab78f842554ff9`.
 - `m1-contract-red.log.stderr` SHA-256 : `4fa677f506b7785eeb03c35eecc7cf64bd8f5e314961e72297cb1020368ce76e`.
+
+
+### M1 GREEN observé et limites de la tranche
+
+RUN a exécuté build, typecheck et lint avec exit 0 et stderr vide ; les 22
+contrats importent maintenant la production et passent (176 ms runner, 10 ms
+tests). Le sujet absent test-only est retiré. Référence locale :
+`.void/machine/typescript-port/m1-green-results.json`.
+
+Checklist observée : routage extraction puis synthèse, transmission des sources
+et de l'extraction admise, validation verticale des citations et du livrable,
+refus des observations malformées/non corrélées, attente bornée même sans
+résolution et annulation explicitement non confirmée. Aucun fallback simulé
+dans la production ; simulation limitée aux fonctions injectées par les tests.
+
+Limites : aucun modèle réel exécuté, aucune qualité sémantique de synthèse
+certifiée, aucune terminaison distante prouvée, aucune reprise durable. Le
+runtime appelant doit fournir une horloge et des exécuteurs asynchrones ; une
+fonction bloquant synchroniquement le thread ne peut être préemptée par ce
+contrat. M1 est une tranche du socle, pas un moteur complet ni une bascule CLI.
+Revue indépendante du diff entier et vérifications d'intégration restent dues.
+
+Preuves SHA-256 (stdout ; chaque stderr correspondant est vide) :
+- `m1-build.log` : `1cfdfdb8521dbfd67babe4a88258f26d0e97da271170f056b744a9f67dd0492a`.
+- `m1-typecheck.log` : `f7d246b7c3afd00610a1e6e0689d4aa15d431506d97906c3bc7eb7751e60838d`.
+- `m1-contract-green.log` : `e86f49a3c6b2dda36bceba13f13861c52cd755e8e7020ff51bb85e8d21ced019`.
+- `m1-lint.log` : `76af9f2579cedaf15abbea2ab1fece73bdea71e727ecf69892fd1cde926f1b7e`.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noteFixture } from './note-fixture.js';
-import { type ExecutionRequest, runNote } from './note-subject.js';
+import { runNote } from '../src/application/note.js';
+import type { ExecutionRequest } from '../src/runtime/execution.js';
 
 describe('non-Git note relay with asynchronous untrusted agent observations', () => {
   it('routes sources to extraction and admitted extraction to a distinct synthesis function', async () => {
