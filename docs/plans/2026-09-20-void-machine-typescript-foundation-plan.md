@@ -46,6 +46,19 @@ livraison distincte après A, selon son mandat documenté. Ce travail de planifi
 n'exécute ni A ni B. Installation active, publication, dépenses supplémentaires et
 promotion production gardent leurs autorisations distinctes.
 
+### Précision du mandat de réalisation A0-A5
+
+Le démarrage approuvé retient le package unique proposé, à consigner par ADR.
+ORCH assure distribution, relais des questions et collecte ; WORK-1 reste auteur
+unique du code et des corrections, avec avis architecture puis revue indépendante
+fournis par ORCH. Aucun second contrôleur n'est créé pour réaliser ce port.
+Les agents spécialisés pourront employer différents modèles via leurs adaptateurs.
+La cible future Machine/Cortex peut être conteneurisée : les chemins et ressources
+sont explicites, sans dépendance obligatoire au Mac, terminal ou HOME implicite.
+A n'ajoute aucun Dockerfile, déploiement, choix de topologie Docker ni connecteur.
+La [matrice A0](2026-09-20-void-machine-typescript-parity.md) porte l'inventaire et
+les preuves du port ; elle ne remplace pas l'état du programme Linear existant.
+
 ## 2. Sources, précédence et traitement des divergences
 
 ### 2.1 Sources directrices
