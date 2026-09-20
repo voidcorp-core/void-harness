@@ -2,7 +2,7 @@
 title: "Void Machine : porter, éprouver et stabiliser un socle TypeScript indépendant"
 date: 2026-09-20
 status: in-progress
-review_status: independently-cleared-plan-only
+review_status: scope-revised-awaiting-targeted-review
 spec: docs/specs/2026-09-19-void-machine-typescript-port.md
 related_spec: docs/specs/2026-09-19-supervised-design-orchestration.md
 ticket: ''
@@ -12,6 +12,92 @@ baseline: 85f177b1dc4638be75ccc9e265352698cc072969
 ---
 
 # Void Machine : porter, éprouver et stabiliser le socle TypeScript
+
+## Delta directeur du 20 septembre : besoin avant héritage
+
+**Cette section prévaut sur la séquence A0–A5 et sur toute dépendance « A complet
+avant B » décrite plus bas.** Folpe autorise une feuille blanche, en capitalisant
+sur les apprentissages du harnais : conserver ce qui répond à un besoin, corriger
+ou supprimer les erreurs, ne pas reproduire les contrôles parce qu'ils existent.
+Le Rust est une source historique et un instrument de caractérisation, pas une
+spécification produit autoritaire. La compatibilité répond aux consommateurs
+identifiés ; elle n'est pas un préalable universel à une mission nouvelle.
+
+A0 et A1 ont été réalisés et leurs commits/preuves sont conservés. La progression
+automatique A2–A5 est suspendue ; leurs listes sont désormais des propositions
+historiques à réadmettre par besoin. Les sections B/C restent une réserve de cas
+et de décisions futures, pas une permission de construire toute la plateforme.
+La précédente revue CLEARED concernait le plan antérieur ; ce delta attend une
+lecture ciblée du changement d'ordre et de périmètre, sans nouvelle revue générale.
+Doctrine, programme Linear, ADR acceptées et installation active restent inchangés.
+
+### Impact concret sur les capacités héritées
+
+Le [registre révisé](2026-09-20-void-machine-typescript-parity.md#disposition-du-mandat-feuille-blanche)
+porte besoin, preuve de consommateur, propriétaire et disposition par capacité.
+Les exports Rust effets/cluster/merge et leurs ledgers ne montrent aucun appel de
+production dans le périmètre inspecté : leur présence et leurs tests ne gagnent
+pas leur place dans Machine. Ils sont différés, sans suppression actuelle du Rust.
+
+Les commandes doctor/skill check sont des surfaces documentées du CLI, à traiter
+explicitement lors d'une bascule de distribution. Cela ne leur donne pas autorité
+sur toutes les missions. Les lecteurs legacy réellement utilisés, notamment
+`autopilot.ts -> durable-run.ts`, restent chez leur propriétaire existant.
+Le package privé et la direction des couches restent appropriés ; rien ne justifie
+un nouveau service, un port coordinateur, un framework de plugins ou une publication.
+
+### A1 : ce qui a été repris trop vite
+
+Doctor est une capacité de diagnostic développement optionnelle, pas une preuve
+que Machine fonctionne. Son passage healthy dans un dépôt ne contenant aucune
+configuration Machine ne certifie ni installation, ni agent, ni travail livré.
+A1 a été choisi pour sa présence dans le plan de portage, sans usage consommateur
+observé qui le rende préalable au socle de mission. Son maintien comme adaptateur
+isolé est acceptable ; sa généralisation en gate obligatoire ne l'est pas.
+
+Le diagnostic de fichiers machine.toml/machine.lock.json n'a pas de producteur ou
+lecteur métier identifié au-delà du doctor. Valider des champs state_dir/cache_dir
+puis les ignorer reproduit une incohérence ; cette sémantique ne doit pas devenir
+le format du nouveau runtime. Le parsing correct reste utile si cette surface est
+retenue. Son existence ne justifie ni le format ni son coût de paquet à elle seule.
+Les tests v1 protègent seulement cette commande existante, pas une vérité du core.
+
+### Prochaine tranche proposée : M1, relais local et deux spécialistes
+
+**Objectif observable :** une demande non-Git produit une note structurée à partir
+de deux documents locaux fournis, par un rôle d'extraction puis un rôle de synthèse.
+Le relais distribue les entrées et collecte les résultats ; il ne décide ni états
+ni autorisations par sa conversation. Le résultat est jugé sur la note attendue,
+jamais sur le seul exit 0 d'un processus.
+
+Périmètre minimal proposé, avant nouvelle production :
+
+- Un parcours fixe, une mission, deux unités séquentielles et un validateur de
+  livrable propre à ce parcours. Pas de graphe configurable ni de scheduler.
+- Deux configurations d'agent distinctes à la composition/adaptateur, pouvant
+  désigner des modèles différents. Le mécanisme générique ne connaît aucun
+  fournisseur, modèle, Git, SKILL.md, panneau ou règle de revue.
+- Contexte et chemins explicitement fournis ; aucun HOME, terminal ou Mac requis.
+  Un résultat manquant expose cause, responsable et action utile ; un résultat
+  invalide n'est pas livré et ne déclenche pas une boucle de revue implicite.
+- Preuve locale par fonctions injectées et petits processus de fixture déterministes,
+  sans API payante ni invocation de modèles réels. Vérifier deux routages distincts,
+  collecte correcte, livraison valide, résultat absent/invalide et exit 0 trompeur.
+  Cette preuve ne certifie ni modèles réels, ni isolation de conteneur, ni reprise
+  après crash. Ne pas inventer une durabilité pour cette première tranche.
+
+Une seule composition statique, avec le moins de mécanismes génériques nécessaire
+à ces cas. Pas d'API publique stabilisée avant preuve. Le stockage durable, la
+reprise/annulation complète, la route réelle de modèle et le parcours à clarification
+restent des tranches ultérieures nommées, pas des obligations absorbées par M1.
+Aucun Dockerfile, déploiement ou choix de topologie conteneur dans M1.
+
+**Ordre révisé :** disposer du delta avec ORCH (revue ciblée si nécessaire), préciser
+l'entrée et le livrable de M1, écrire ses contrats RED, puis seulement implémenter.
+Les travaux de compatibilité/distribution sont repris séparément lorsqu'une surface
+consommée change ; le retrait de Rust n'est ni oublié ni une condition d'entrée M1.
+La clôture du produit attendra les preuves des capacités effectivement retenues et
+la migration de leurs consommateurs, sans obligation de réimplémenter tout Rust.
 
 ## 1. Résultat recherché et portée de ce document
 

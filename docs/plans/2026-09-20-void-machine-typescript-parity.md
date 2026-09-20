@@ -1,6 +1,6 @@
 # TypeScript port: A0 parity register
 
-Status: A0 inventory and baseline observed; A1 architecture cleared by ORCH; no production implementation yet.
+Status: A1 implemented and verified; systematic A2-A5 suspended by revised user mandate.
 Standalone local unit A0-A5. Writer WORK-1; panel provider ORCH.
 Source HEAD: `cc2cb14a74f70acba18dd5fde2c1c9ce4a092c7f` (approved plan on
 `85f177b1dc4638be75ccc9e265352698cc072969`). No source changes since `1efeedf1`
@@ -148,7 +148,7 @@ These SHA-256 values bind the exact logs read, without committing machine paths.
 - `public-contract-red.log`: `4a1c0d65800fa09f4ffaab6604b716ce7086c71605a74a8512d30a369185091f`.
 - `public-contract-red.log.stderr`: `79597f9b8a89b850dd0507a3e8a32978cf76e41f47c17ceb3a962b597fdd71c0`.
 
-## Next boundary
+## Historical A0 handoff (superseded by the disposition below)
 
 ORCH relayed architecture review with no BLOCKER. WORK-1 owns the package ADR,
 focused doctor contracts and implementation. No structural or
@@ -229,3 +229,68 @@ The earlier startup/build failures remain in their original logs.
 - `a1-green-results-3.json` SHA-256: `a542c714b13214095e4ada3ec3a0e1ee1094ff392c07949de2b1c42369cc6bc9`.
 - `doctor-contract-green-2.log` SHA-256: `b13ba0e9e29cce0bd7ec359160d5b77063dcf83c8095eba703ec4682ade5d61f`.
 - `a1-dogfood-2.json` SHA-256: `2ab0fd61609f9136d07dbb88dcc25a248ee31918123e8ba9e96ec3ba00ebc158`.
+
+
+## Disposition du mandat feuille blanche
+
+Consigne prioritaire transmise par ORCH le 20 septembre : le besoin utilisateur
+prime sur la reproduction du Rust et sur l'ordre A complet avant socle de mission.
+Cette table dispose de la matrice historique ; elle ne prétend pas supprimer les
+sources ni annuler les preuves acquises. « Aucun consommateur » signifie aucun
+appel de production trouvé dans le périmètre inspecté, pas une preuve d'absence
+universelle d'utilisateurs externes. Une documentation de commande identifie une
+surface à migrer ; elle ne démontre pas une fréquence d'usage ni une valeur métier.
+
+| Capacité héritée | Besoin réel et consommateur identifié | Propriétaire | Disposition et raison |
+| --- | --- | --- | --- |
+| doctor, découverte Git/linked worktree | Diagnostiquer un projet de développement ; bin npm, README, schéma et tests consomment la surface, usage humain non mesuré | Adaptateur Git et diagnostic développement optionnel | **Conserver, corriger la portée** : A1 est utile comme diagnostic isolé, jamais préalable universel ou certification d'installation/livraison. Pas de Git obligatoire pour M1 |
+| Rapports doctor/skill v1, exits et champs nullables | Interface CLI documentée et deux tests directs de schémas | Bord CLI/compatibilité | **Conserver pour les consommateurs existants** jusqu'à migration explicite ; nouveau parcours libre d'avoir son propre contrat. Pas d'égalité octet des rapports |
+| machine.toml et machine.lock.json | Aucun producteur/lecteur métier trouvé hors doctor ; tests locaux uniquement | Ancien diagnostic, pas runtime neuf | **Différer leur admission au nouveau socle** ; ne pas fabriquer un format de stockage parce qu'il existe. Parsing sûr acquis A1 conservé tant que doctor lit ces fichiers |
+| Champs config state_dir/cache_dir validés mais ignorés | Aucun effet utile démontré ; incohérence visible dans Rust et A1 | Diagnostic/application | **Corriger ou supprimer cette promesse** dans une évolution explicite de surface, jamais figer ce comportement dans le runtime. Aucun changement de code dans ce delta |
+| Cache XDG/HOME/repo et chemins calculés | Sortie de doctor consommée comme diagnostic, pas stockage Machine utilisé | Adaptateur de chemins ; environnement injecté | **Conserver en compatibilité doctor**, **différer** comme politique globale. M1 reçoit ses chemins ; absence de HOME admissible |
+| skill check, paquet exact SKILL.md/harness.yaml | CLI documenté, fixture/CI ; pas d'exécution ou d'admission de mission consommatrice trouvée | Éventuel outil développement, hors core | **Différer A2** : définir son service concret avant codage. Deux seuls fichiers et schéma de skills ne deviennent pas un format universel d'agent |
+| Identité de paquet / manifestDigest | CLI expose les digests ; aucune référence persistée ou cache métier identifié | Bord de compatibilité de ce paquet | **Conserver si cette commande est maintenue**, sinon migrer explicitement ; ne pas imposer ce cadrage à toute unité ou agent |
+| Canonical effect-v1, u64, état claimed/applied/ambiguous/fence | Exports Rust appelés par tests, aucun flux produit trouvé | Futur mécanisme d'effet, spécialisation Git à l'extérieur | **Différer A3** : reprendre le principe « ambigu ne se rejoue pas » lorsqu'un effet réel existe ; pas de machine d'états ni bigint obligatoires dans M1 pour satisfaire Rust |
+| Observation commits/empreinte/mutations partagées | Besoin réel pour une livraison Git, absent de la première mission non-Git ; pas d'appel produit Rust trouvé | Adaptateur Git + verticale développement | **Différer** jusqu'à ce parcours ; lecture bornée et chemins NUL restent des apprentissages, pas du code à porter maintenant |
+| Rapprochement cluster/ticket/rapport, lane/collision/provenance | Exports Rust testés, pas d'appel de production du nouveau produit | Verticale développement, runtime pour simple collecte | **Différer A4** ; M1 collecte deux résultats attendus sans héritage tickets/lanes/review |
+| ReconciliationLedger et MergeLedger en mémoire | Unicité démontrée dans un processus seulement ; aucun besoin produit actuel identifié | Éventuel runtime/stockage lors d'effets réels | **Supprimer de la cible immédiate** ; conserver sources/preuves historiques. Ne jamais présenter ces sets comme reprise durable |
+| Merge policy, SHA exact, protections, chemins sensibles, argv gh | Nécessaire à une éventuelle fusion autorisée, aucune fusion dans M1 ; exports Rust testés seulement | Développement pour politique, GitHub pour effet | **Différer** ; ne pas reconduire listes de refus, revue obligatoire et dépendance CI dans le socle non-Git |
+| Durable-run TS / SQLite / schema v1 | Consommateur de production identifié : commands/autopilot.ts ; données legacy possibles | CLI autopilot existant | **Conserver chez son propriétaire** ; pas d'import automatique dans Machine, aucune réécriture de données. Réutilisation à décider sur besoin de reprise réel |
+| Legacy oracle v3 | Lecteur et conformance du harnais existants | Conformance legacy | **Conserver** hors nouveau moteur ; ses 24 scénarios ne conditionnent pas une mission sans installation du harnais |
+| Lanceur npm et VOID_MACHINE_BIN | Commande bin publiée et README ; surface réellement distribuée | Composition/packaging CLI | **Corriger au moment de la bascule**, pas avant M1 par principe ; traiter compatibilité explicite et éviter lookup récursif. Aucun second paquet publié |
+| CI Rust, schemas et retrait des sources | Preuves du code livré, deux lecteurs de schémas directs | Distribution/compatibilité | **Différer A5 systématique** ; retirer seulement ce qui est remplacé ou explicitement abandonné, après disposition des consommateurs. Ne pas supprimer une preuve pour verdir |
+| SHA/JSON/parser artisanal | Aucun intérêt à reproduire les erreurs ; primitives standard disponibles | Adaptateurs de formats/identité | **Supprimer de la nouvelle implémentation** ; code historique conservé. Un parseur maintenu n'est ajouté que si le format répond lui-même à un besoin |
+| Contrôleur legacy, gates/review rounds/panels | Aucun besoin de les importer pour un relais simple | Hors du socle nouveau ; politiques spécifiques si demandées | **Supprimer de la cible**, sans toucher au harnais installé. Pas de coordinateur port/type/champ dans le core |
+
+### A1 et tests : limites explicites
+
+A1 a été réalisé conformément au plan antérieur, mais sa priorité était héritée,
+pas justifiée par un parcours métier observé. Le report healthy prouve uniquement
+l'inspection demandée ; il ne certifie pas Machine, ses agents ou sa livraison.
+Les tests de chemins nullable/XDG et report v1 sont des protections de surface,
+pas des invariants universels. L'égalité aux textes/ordre OS et les approximations
+Rust sont écartées. Le seuil 64 KiB, la profondeur TOML 16 et le refus d'encodage
+sont des limites locales documentées, pas de nouveaux gates de mission.
+
+Les brouillons A2 non exécutés anticipaient des choix sans consommateur établi :
+exactement deux fichiers, kind action/standard, capabilities read, permissions none,
+version de manifeste et codes détaillés. Leur présence dans un test n'approuve pas
+ces choix. Ils restent non committés comme brouillons ; aucune demande RUN A2 n'est
+active. Les vecteurs multioctets/CRLF sont calculés, seule la fixture originale a
+été observée en Rust. Les trois tests publics A0 ne constituent plus à eux seuls
+un critère universel de fin ; leur disposition suivra la migration de la surface.
+
+### Prochaine décision bornée
+
+Proposer M1 : une mission locale sans Git, extraction puis synthèse de deux
+sources fournies, deux configurations d'agent à la composition et un livrable
+structuré validé. Le relais distribue/collecte ; il n'accorde aucune autorité.
+Deux configurations de modèles distinctes peuvent être représentées aux adaptateurs
+et testées avec des agents simulés. Cela ne démontre pas l'exécution réelle de deux
+modèles. Protéger résultat manquant/invalide et exit 0 trompeur, avec entrées/chemins
+explicites. Pas de plateforme générale, de paiements, Docker ou publication.
+
+ORCH dispose de la séquence révisée et organise seulement la lecture ciblée utile.
+WORK-1 reste l'auteur des futurs contrats et du code après ce relais. Aucun choix
+de stockage ou API générale n'est décidé ici. Si une décision acceptée doit être
+changée, créer une nouvelle ADR ; aucune ADR acceptée n'est éditée par ce delta.
