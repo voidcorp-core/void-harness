@@ -92,6 +92,83 @@ reprise/annulation complète, la route réelle de modèle et le parcours à clar
 restent des tranches ultérieures nommées, pas des obligations absorbées par M1.
 Aucun Dockerfile, déploiement ou choix de topologie conteneur dans M1.
 
+### M1 : entrées, livrable et frontière vers un runtime réel
+
+Précision de contrat proposée pendant la revue ciblée, pas une API stabilisée.
+M1 est une tranche du socle. Elle ne clôt pas la demande d'agents réellement
+exécutés avec des modèles distincts et n'en remplace pas la preuve par une simulation.
+
+**Entrée métier.** Un identifiant de demande opaque, une question explicite et
+exactement deux sources `{ sourceId, title, text }`, identifiants distincts,
+texte UTF-8 fourni par l'appelant. Les chemins de lecture ne sont pas le texte
+métier et restent chez l'adaptateur d'entrée. Aucun chemin implicite ni lecture
+arbitraire suggérée par un agent. Pour cette tranche, proposition de limites :
+question de 1 à 4 000 caractères, 1 à 65 536 octets par source, réponse d'agent
+limitée à 65 536 octets. Ce sont des bornes locales à éprouver, pas des règles
+du futur moteur ou une affirmation de capacité de chaque modèle.
+
+**Extraction.** Le premier rôle reçoit la question et les deux sources. Il rend
+une liste de 1 à 16 extraits `{ sourceId, quote }` et une liste bornée de lacunes
+pertinentes. Chaque citation doit exister exactement dans la source nommée ; une
+source absente, un identifiant inventé ou un extrait vide refuse ce résultat.
+Aucune normalisation Unicode ou reconstruction de citation ne corrige sa sortie.
+
+**Synthèse.** Le second rôle ne démarre qu'après admission du résultat d'extraction.
+Il reçoit question, sources et extraits admis. Il rend une note JSON comprenant
+`title`, `summary`, `evidence` (extraits avec sourceId) et `limitations`. La note
+doit contenir au moins une référence valide à chaque source et aucune référence
+externe inventée. L'appelant reçoit cette note structurée ; export Markdown ou
+stockage de mission ne sont pas requis pour M1. Les fixtures définissent un cas
+concret de comparaison de deux propositions fournies, sans accès réseau.
+
+**Sens du verdict.** Le validateur de ce parcours vérifie structure, bornes,
+traçabilité des citations, couverture des deux sources et rattachement au travail
+attendu. Il ne sait pas prouver qu'une paraphrase est juste, qu'un résumé est
+exhaustif ou qu'il satisfait l'utilisateur. Le résultat est « note structurée et
+sourcée acceptée par ce contrat », jamais « qualité intellectuelle certifiée ».
+Les fixtures peuvent vérifier une note attendue exactement ; la qualité d'une
+note de modèle réel nécessitera sa propre observation, nommée dans la suite.
+
+**Contrat d'exécution minimal.** La composition reçoit deux fonctions d'exécution
+asynchrones, une par rôle, au lieu d'un registre/plugins ou d'un coordinateur-port.
+Chacune reçoit une demande portant `executionId`, consigne et matériaux bornés,
+ainsi qu'une échéance/durée maximale explicite et un signal d'annulation. Elle
+rend une observation corrélée à ce même executionId :
+
+- `result` avec charge utile non fiable, à parser/valider par le parcours ;
+- `unavailable` avec cause et action possible (runtime/auth/capacité indisponible) ;
+- `interrupted` ou `failed` avec cause, sans résultat accepté implicite.
+
+Le type exact sera dicté par les premiers tests. Une exception de transport est
+convertie à cette frontière, jamais avalée ni transformée en succès. Un exit 0
+sans charge utile valide est un échec de résultat. Aucune répétition automatique.
+Un résultat manquant expose cause, responsable et action utile ; la reprise durable
+ou une boucle de clarification ne sont pas promises par ce retour M1.
+
+**Vrai runtime versus fixture.** Un adaptateur natif pourra utiliser ces mêmes
+fonctions pour lancer une session et collecter son résultat asynchrone ; il ne
+sera pas obligé de prétendre être un processus retournant du JSON sur stdout.
+Configuration runtime/modèle, authentification, cwd/workspace, traduction du
+protocole natif, timeout et arrêt des ressources restent à cette frontière.
+Le parcours et les mécanismes génériques ne contiennent ni fournisseur ni modèle.
+L'annulation demandée n'est pas assimilée à une annulation effective si le runtime
+ne peut pas l'attester ; aucune garantie d'isolation n'est inventée.
+
+Deux routes distinctes seront injectées dans M1. Leur preuve locale dit « fixture »
+et distingue destination configurée de runtime/modèle effectivement observé.
+Une simple chaîne portant un nom de modèle n'est pas une exécution de ce modèle.
+Les agents simulés et processus de fixture doivent passer par le même contrat
+d'admission que le futur adaptateur réel ; aucun shortcut donnant directement
+une note validée au runtime n'est une preuve du parcours.
+
+**Ce qui reste après M1.** Choisir une route native disponible, observer deux agents
+et leurs modèles distincts quand le runtime le permet, juger un vrai livrable et
+mesurer temps/coût/interventions. Si une identité de modèle n'est pas observable,
+la limite reste explicite. Aucun appel payant n'est autorisé par ce document.
+Puis seulement éprouver interruption/reprise durable et les besoins suivants sur
+leur propre tranche. Docker/hébergement, permissions distantes et API publique
+stabilisée restent hors M1. ORCH relaie la revue ciblée avant nouvelle production.
+
 **Ordre révisé :** disposer du delta avec ORCH (revue ciblée si nécessaire), préciser
 l'entrée et le livrable de M1, écrire ses contrats RED, puis seulement implémenter.
 Les travaux de compatibilité/distribution sont repris séparément lorsqu'une surface

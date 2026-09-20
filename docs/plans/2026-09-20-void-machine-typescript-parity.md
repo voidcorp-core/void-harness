@@ -294,3 +294,21 @@ ORCH dispose de la séquence révisée et organise seulement la lecture ciblée 
 WORK-1 reste l'auteur des futurs contrats et du code après ce relais. Aucun choix
 de stockage ou API générale n'est décidé ici. Si une décision acceptée doit être
 changée, créer une nouvelle ADR ; aucune ADR acceptée n'est éditée par ce delta.
+
+
+### Précision M1 pendant la revue ciblée
+
+Le plan précise maintenant l'entrée (question + deux sources explicites), le
+résultat d'extraction et la note structurée sourcée, avec limites locales proposées.
+Le verdict ne prétend pas certifier la justesse sémantique d'une synthèse.
+Deux fonctions asynchrones injectées accueillent les exécutions par rôle, avec
+identité de corrélation, durée maximale/signal et observations result/unavailable/
+interrupted/failed. Les sorties restent non fiables jusqu'au validateur du parcours.
+Le vrai runtime ne doit pas adopter un protocole stdout de fixture : session,
+collecte asynchrone, configuration de modèle et limites d'annulation lui appartiennent.
+
+M1 prouve le relais et l'admission via deux routes simulées, pas l'exécution réelle
+de deux modèles. Une tranche ultérieure doit observer les agents/modèles et un
+livrable réel, sans confondre configuration et observation. Aucune nouvelle
+production, dépendance ou demande RUN n'accompagne cette précision. Revue ciblée
+ORCH en cours ; A2 reste suspendu. Les ADR acceptées ne sont pas modifiées.
