@@ -169,6 +169,40 @@ Puis seulement éprouver interruption/reprise durable et les besoins suivants su
 leur propre tranche. Docker/hébergement, permissions distantes et API publique
 stabilisée restent hors M1. ORCH relaie la revue ciblée avant nouvelle production.
 
+### Disposition finale de revue M1 et signature avant RED
+
+Revue de c554e60c terminée, aucun BLOCKER, aucune nouvelle boucle de préparation.
+La demande antérieure de fixture sous-processus est explicitement retirée : M1
+prouve le routage par deux fonctions asynchrones injectées et l'admission de leur
+observation. Les exemples exit 0/stdout ne créent aucun contrat de transport ni
+adaptateur obligatoire. Aucun type ou diagnostic n'est importé depuis doctor.
+
+Signature de travail minimale, privée et non stabilisée :
+
+- `runNote(input, { extract, synthesize, executionIds, timeoutMs, clock })` rend
+  une promesse de note admise ou d'arrêt nommé au stade input/extraction/synthesis.
+- Chaque exécuteur reçoit `{ executionId, instruction, input, timeoutMs, signal }`
+  et rend une promesse d'observation non fiable. Son enveloppe result/unavailable/
+  interrupted/failed est validée avant emploi, puis le payload par le parcours.
+  Ni code de sortie, ni JSON stdout, ni fournisseur/modèle dans ce contrat.
+- La composition fournit deux executionIds non vides et distincts, nouveaux pour
+  ces invocations ; un résultat ancien, absent ou croisé ne peut être accepté.
+  Aucun ledger global n'est créé. La corrélation a des tests hostiles aux deux stades.
+- L'horloge injectée a une seule opération `schedule(delayMs, onElapsed) -> cancel`.
+  Le runtime appelant arme cette borne **avant** d'appeler l'exécuteur et cesse
+  d'attendre lorsqu'elle expire, même si la promesse ne se résout jamais. Il émet
+  AbortSignal, rend `cancellation: requested-unconfirmed`, ne prétend pas arrêter
+  le runtime distant et ne réessaie pas. Une fin normale désarme la borne.
+- Aucun besoin de Date.now, horloge murale, ordonnanceur, persistance ou polling.
+  Une horloge manuelle de test contrôle les échéances sans sleeps. La composition
+  réelle pourra fournir le simple timer de son hôte, sans changer le parcours.
+
+RED couvre routage A sources / B extraction admise, result avec payload invalide,
+identifiant erroné/ancien, fonction jamais résolue, annulation demandée mais non
+certifiée et absence de second dispatch après refus. Les citations exactes restent
+une règle de **ce parcours**, à réexaminer sur observation d'un modèle réel dans
+une tranche ultérieure. Elles n'entrent ni dans le mécanisme d'attente ni dans le core.
+
 **Ordre révisé :** disposer du delta avec ORCH (revue ciblée si nécessaire), préciser
 l'entrée et le livrable de M1, écrire ses contrats RED, puis seulement implémenter.
 Les travaux de compatibilité/distribution sont repris séparément lorsqu'une surface

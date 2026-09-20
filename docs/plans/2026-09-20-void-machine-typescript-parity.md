@@ -312,3 +312,31 @@ de deux modèles. Une tranche ultérieure doit observer les agents/modèles et u
 livrable réel, sans confondre configuration et observation. Aucune nouvelle
 production, dépendance ou demande RUN n'accompagne cette précision. Revue ciblée
 ORCH en cours ; A2 reste suspendu. Les ADR acceptées ne sont pas modifiées.
+
+
+### Revue M1 close et frontière arrêtée pour RED
+
+ORCH a transmis mission-review.txt : aucun BLOCKER sur c554e60c, proposition de
+fixture processus retirée explicitement. Deux observations sont acceptées :
+corrélation hostile executionId (absent/ancien/croisé) et attente bornée par
+l'appelant indépendamment de l'exécuteur. Le plan précise runNote, les deux fonctions,
+leurs observations non fiables et l'horloge schedule -> cancel. Pas de framework,
+processus imposé ni dépendance aux erreurs doctor. Aucun arrêt réel d'un runtime
+n'est déduit de l'émission d'un signal d'annulation.
+
+La règle de citation exacte est locale au parcours ; sa révision attend une preuve
+réelle de modèle. La revue de préparation est terminée. Prochaine preuve : contrats
+M1 RED via fonctions injectées et horloge manuelle, puis implémentation du même
+contrat. A2 reste suspendu ; la compatibilité Rust n'est pas remise en préalable.
+
+
+### M1 RED observé
+
+ORCH RUN : 22 tests pure:cpu exécutés, 22 échecs attendus sur résultat/dispatch
+absents, exit 1 ; aucune erreur de découverte/import. Le sujet test-only retourne
+explicitement undefined : cette preuve valide le corpus avant implémentation,
+pas un runtime ni des modèles. Il sera retiré au profit des imports production
+avant GREEN. Aucune preuve supplémentaire Rust/A1 n'est invoquée.
+
+- `m1-contract-red.log` SHA-256 : `19d6a1dfdce15a3c88e57bec42c4a2a96c1ed0e7e9ebaea4e7ab78f842554ff9`.
+- `m1-contract-red.log.stderr` SHA-256 : `4fa677f506b7785eeb03c35eecc7cf64bd8f5e314961e72297cb1020368ce76e`.
