@@ -196,3 +196,36 @@ No baseline replay or import/discovery failure is counted as evidence.
 
 - `doctor-contract-red.log` SHA-256: `1ee163f5fefb22653ab3b10ae81b729294343fb2245b7d915d5ff83cd1b616bf`.
 - `doctor-contract-red.log.stderr` SHA-256: `017d9f80dc518d7e3d41eaa0b4b651f0acae3a6328b2fc6f2bc27db5d2ab2345`.
+
+
+## A1 startup failure disposition
+
+RUN build/typecheck succeeded after the discriminant correction. Candidate tests
+then failed 19/19 before doctor behavior, and real-worktree dogfood exited 1 with
+empty stdout. These are startup failures, not additional business RED evidence.
+Root cause: Zod 4.4.3 `$ZodRecord` calls `isPlainObject` before validating values
+(src/v4/core/schemas.ts, util.ts); Node process.env is a special object and fails
+that check. The existing process-level healthy-repository test reproduces it.
+The CLI now snapshots enumerable environment properties into a plain object and
+applies the unchanged record schema there. No validation is relaxed and no
+business adapter reads ambient process.env. GREEN remains pending.
+
+Lint exited 0 with two informational useLiteralKeys diagnostics, not warnings.
+Disposition: retain bracket access to environment keys because the strict baseline
+sets noPropertyAccessFromIndexSignature. No rule is disabled and no unrelated
+style change is introduced. Typecheck/test/dogfood evidence stays individually
+classified; the RUN collection wrapper's exit is not a feature verdict.
+
+
+## A1 candidate GREEN (ORCH RUN, 2026-09-20)
+
+Build a1-build-3, typecheck a1-typecheck-2 and doctor-contract-green-2 all exited 0;
+the doctor corpus passed 19/19. Real-worktree a1-dogfood-2 exited 0 and emitted
+schemaVersion 1, health healthy, findings [], the exact linked-worktree repository
+and shared Git directory. Stderr was empty for all four checks. WORK-1 read the
+result manifest and report. This proves A1 doctor, not public A5 cutover or A2-A4.
+The earlier startup/build failures remain in their original logs.
+
+- `a1-green-results-3.json` SHA-256: `a542c714b13214095e4ada3ec3a0e1ee1094ff392c07949de2b1c42369cc6bc9`.
+- `doctor-contract-green-2.log` SHA-256: `b13ba0e9e29cce0bd7ec359160d5b77063dcf83c8095eba703ec4682ade5d61f`.
+- `a1-dogfood-2.json` SHA-256: `2ab0fd61609f9136d07dbb88dcc25a248ee31918123e8ba9e96ec3ba00ebc158`.
