@@ -55,9 +55,13 @@ Declarations of harness-graph and the packs are emitted by `tsc`, not by tsup's
 dts build; the CLI emits none, as nothing reads them. tsup keeps only JavaScript
 bundling.
 
-The shipped `tsconfig.strict.json` is unchanged: it uses no removed option, and
-a library and a Node consumer extending it compile and emit with TypeScript
-5.0.4, 5.9.3, 6.0.3 and 7.0.2, with the strict options enforced by all four.
+The shipped `tsconfig.strict.json` is unchanged: it uses no removed option.
+A consumer extending it compiles and emits with TypeScript 5.0.4, 5.9.3, 6.0.3
+and 7.0.2, with the strict options enforced by all four, provided it declares
+its own `rootDir` next to `outDir` (TS5011 since 6.0; a `rootDir` in the shared
+file would resolve against the pack) and, for a Node project, `"types":
+["node"]`. The pack README shows that configuration, and a pack test compiles
+the README example itself under the four compilers, pinned as dev aliases.
 
 ## Consequences
 

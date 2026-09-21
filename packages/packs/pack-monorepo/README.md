@@ -47,14 +47,21 @@ In TS configs:
 {
   "extends": "@voidcorp/pack-monorepo/tsconfig.strict.json",
   "compilerOptions": {
-    "outDir": "./dist"
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "types": ["node"]
   }
 }
 ```
 
-The baseline compiles unchanged under TypeScript 5.0 through 7.0. It sets no `types`: since
-TypeScript 6 a project no longer loads every installed `@types/*` package, so a Node project adds
-`"types": ["node"]` to its own `compilerOptions`.
+This example compiles and emits under TypeScript 5.0 through 7.0, and
+`src/tsconfig-strict.test.ts` proves it against each of them. Two lines are the consumer's to
+keep, because the shared file cannot carry them:
+
+- `rootDir`: since TypeScript 6 an `outDir` without it is an error (TS5011). A `rootDir` in the
+  shared file would resolve against the pack, not against your project.
+- `types`: since TypeScript 6 a project no longer loads every installed `@types/*` package. Keep
+  `"node"` for a Node project; a project without Node globals drops the line.
 
 ## Status
 
