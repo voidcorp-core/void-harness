@@ -96,6 +96,11 @@ son RED observé puis GREEN :
   encore `proposed`) : pipeline linéaire d'au plus huit étapes fixes, 32 événements ;
   boucles revue/correction et attente de clarification (B2) feront évoluer le réducteur.
 
+Preuves après la dernière correction : build, typecheck et 137 tests du paquet verts
+sous Node 24.15.0 et 26.9.0 ; à la racine, lint, typecheck, `test:fast` (2 600 tests),
+`decisions:check` (immuabilité vérifiée depuis `origin/develop`) et `derive:check`
+verts. Les fixtures `/1` et `/2` se relisent octet pour octet.
+
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins
 et preuves déjà décrits dans ce plan restent à sélectionner et à éprouver :

@@ -197,9 +197,9 @@ durable wait for a clarification answer (plan B2) is outside it and will change 
 reducer. This split does not change stored note bytes; the [core decision](../../docs/decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md)
 records its boundaries and reversal cost.
 
-The current private suite has 124 passing tests under Node 24.15.0 and Node
-26.8.2, including frozen `/1` and `/2` journal fixtures and a three-step mission
-that resumes in a new context. Build and test typecheck pass on both runtimes.
+The current private suite has 137 passing tests under Node 24.15.0 and Node
+26.9.0, including frozen `/1` and `/2` journal fixtures read byte for byte and a
+three-step mission that resumes in a new context. Build and test typecheck pass on both runtimes.
 Admission is a parser: the vertical's `admit(step, raw, input, config)` returns
 `{ ok: true, value }` or `{ ok: false, reason }`. The codec decodes records into
 untrusted values and encodes only admitted ones. On every read, the driver parses each
