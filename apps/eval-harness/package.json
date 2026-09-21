@@ -17,6 +17,6 @@
     "@voidcorp/mission-engine": "workspace:*",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vitest": "^4.1.9"
+    "vitest": "^5.0.1"
   }
 }

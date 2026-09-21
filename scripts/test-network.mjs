@@ -39,7 +39,7 @@ export function runNetworkLane(execute = spawnSync) {
   const tests = execute(process.execPath, [
     fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url)),
     // Threads die with the bounded parent; a timed-out fork can outlive it.
-    // Vitest 4: https://vitest.dev/config/pool.html
+    // Vitest 5: https://vitest.dev/config/pool.html
     'run', '--project=*:network-browser', '--maxWorkers=1', '--pool=threads',
   ], {
     cwd: fileURLToPath(new URL('..', import.meta.url)),
