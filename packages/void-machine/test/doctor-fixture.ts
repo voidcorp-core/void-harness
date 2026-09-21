@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
@@ -31,15 +31,37 @@ export function doctorFixture() {
   }).trim();
   git(['init', '--quiet', repository]);
   mkdirSync(join(repository, '.void'));
-  const invoke = (args: readonly string[], cwd = repository, extra: NodeJS.ProcessEnv = {}) => {
-    const result = spawnSync(process.execPath, ['--import', loader, entry, ...args], {
+  // Test hosts run through the same source loader as the CLI entry.
+  const invokeScript = (script: string, args: readonly string[], cwd = repository,
+    extra: NodeJS.ProcessEnv = {}) => {
+    const result = spawnSync(process.execPath, ['--import', loader, script, ...args], {
       cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: 5000,
       maxBuffer: 1024 * 1024, windowsHide: true,
     });
     if (result.error) throw result.error;
     return result;
   };
-  return { root, repository, home, git, invoke };
+  const invoke = (args: readonly string[], cwd = repository, extra: NodeJS.ProcessEnv = {}) =>
+    invokeScript(entry, args, cwd, extra);
+  // Concurrent processes need an asynchronous launch; the bound stays explicit.
+  const launch = (args: readonly string[], cwd = repository) => new Promise<{
+    status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string;
+  }>((settle, reject) => {
+    const child = spawn(process.execPath, ['--import', loader, entry, ...args], {
+      cwd, env, windowsHide: true, timeout: 10_000,
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => { stdout += chunk; });
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => { stderr += chunk; });
+    // A RED failure must not leave a Machine process behind the test.
+    onTestFinished(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    });
+    child.once('error', reject);
+    child.once('close', (status, signal) => settle({ status, signal, stdout, stderr }));
+  });
+  return { root, repository, home, git, invoke, invokeScript, launch };
 }
 
 export function contentsDigest(root: string): string {

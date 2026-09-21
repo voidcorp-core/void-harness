@@ -77,6 +77,17 @@ describe('Claude native runtime adapter', () => {
       });
   });
 
+  it('refuses a non-UUID execution identifier as a correlated session without spawning', async () => {
+    let spawned = false;
+    const execute = createClaudeExecutor({ ...base, executable: execPath, sessionFromExecutionId: true,
+      spawn: () => { spawned = true; return child() as never; } });
+    await expect(execute({ executionId: 'not-a-uuid', instruction: 'read', input: {},
+      timeoutMs: 1000, signal: new AbortController().signal })).resolves.toMatchObject({
+        kind: 'failed', executionId: 'not-a-uuid',
+      });
+    expect(spawned).toBe(false);
+  });
+
   it('reports a real nonzero process and native error separately from success', async () => {
     const execute = createClaudeExecutor({ ...base, executable: execPath,
       spawn: (executable, args, options) => {
