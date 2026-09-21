@@ -81,10 +81,11 @@ form of a production `.ts` source. The scan refuses, rather than skips, any file
 known modules of every layer, so it cannot pass by reading nothing.
 The guard reads module edges only; host globals are refused by a second proof.
 `tsconfig.pure.json`, run by `typecheck`, compiles core, runtime and verticals with
-`lib: ["ES2022"]` and `types: []`: no Node and no DOM types, so `process` (and `process.getBuiltinModule`), `fetch`, `Buffer`,
-`require`, `import.meta.url`, timers and `structuredClone` are compile errors there. The
-only host globals it types are listed in `types/pure-globals.d.ts`: `AbortController`,
-`AbortSignal` and `TextEncoder`, WHATWG primitives that do no I/O.
+`lib: ["ES2022"]` and `types: []`: no Node and no DOM types, so `process` (and
+`process.getBuiltinModule`), `fetch`, `Buffer`, `require`, `import.meta.url`, timers
+and `structuredClone` are compile errors there. The only host globals it types are
+listed in `types/pure-globals.d.ts`: `AbortController`, `AbortSignal` and `TextEncoder`,
+WHATWG primitives that do no I/O.
 `test/pure-layer-types.test.ts` asserts that configuration and compiles a negative
 fixture that must fail on each escape.
 Neither proof confines code at run time: a typing boundary is not a sandbox.
@@ -189,12 +190,14 @@ Models and deadline come from the recorded start; executable, cwd and environmen
 are local to each process and never recorded. `--stop-after extraction` ends after the
 accepted extraction is durable, for instance to read it before paying for synthesis.
 
-Receipts: `completed` and `paused` exit 0; `stopped`, `rejected`, `abandoned` and a `cancelled` with
-`stop: confirmed` or `stop: late-result-discarded` exit 1; `blocked` exits 3 with a reason (`missing`, `conflict`,
-`storage`, `unrecordable`, `unreadable`, `incompatible`, `context-changed`,
-`inadmissible`, `outcome-unknown`, `not-abandonable`) and a diagnostic without source
-contents, as does a `cancelled` with `stop: requested-unconfirmed`. Usage errors exit 2. Resuming a finished mission returns the same bytes
-without a model call; a stopped mission replays its stop and is never retried.
+Receipts: `completed` and `paused` exit 0; `stopped`, `rejected`, `abandoned` and a
+`cancelled` with `stop: confirmed` or `stop: late-result-discarded` exit 1; `blocked`
+exits 3 with a reason (`missing`, `conflict`, `storage`, `unrecordable`, `unreadable`,
+`incompatible`, `context-changed`, `inadmissible`, `outcome-unknown`, `not-abandonable`)
+and a diagnostic without source contents, as does a `cancelled` with
+`stop: requested-unconfirmed`. Usage errors exit 2. Resuming a finished mission returns
+the same bytes without a model call; a stopped mission replays its stop and is never
+retried.
 
 The generic mission reducer in `core/mission.ts` validates bounded event order.
 `runtime/mission.ts` drives durable dispatch, revisions, resume and cancellation
@@ -211,7 +214,7 @@ durable wait for a clarification answer (plan B2) is outside it and will change 
 reducer. This split does not change stored note bytes; the [core decision](../../docs/decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md)
 records its boundaries and reversal cost.
 
-The current private suite has 137 passing tests under Node 24.15.0 and Node
+The current private suite has 161 passing tests under Node 24.15.0 and Node
 26.9.0, including frozen `/1` and `/2` journal fixtures read byte for byte and a
 three-step mission that resumes in a new context. Build and test typecheck pass on both runtimes.
 Admission is a parser: the vertical's `admit(step, raw, input, config)` returns
@@ -229,10 +232,10 @@ The CLI and doctor contracts run source-loaded Node subprocesses. Their bounds o
 a hang and never measure speed: every child process is bounded at 20 seconds and every
 test at 30 seconds, above its children, so a hung child is reported by its own bound
 first. A test that must order two processes awaits an event, the line a held fixture
-sends on a local socket when it reaches its barrier, never a file polled under an
-assertion deadline. A performance budget, if one is wanted, belongs in a dedicated
-measurement, not in a timeout. See the
-[Vitest timeout contract](https://vitest.dev/api/vi#setconfig).
+sends to a loopback port the test publishes when it reaches its barrier, never a file
+polled under an assertion deadline. A performance budget, if one is wanted, belongs in a
+dedicated measurement, not in a timeout. See the [Vitest timeout
+contract](https://vitest.dev/api/vi#setconfig).
 
 Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most
 16 records of 262,144 bytes each, measured on the encoded JSON. Not every admitted

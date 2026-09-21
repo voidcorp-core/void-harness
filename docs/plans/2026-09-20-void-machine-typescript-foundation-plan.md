@@ -82,13 +82,14 @@ son RED observé puis GREEN :
   { step, usage }` (note `/3`) ; coût conservé, valeur jamais enregistrée, aucune étape
   suivante, l'effet reste inconnu jusqu'à l'abandon. RED : usage tardif absent du reçu
   et du journal (test générique et deux tests CLI).
-- Délais des tests de processus : bornes de blocage uniformes et généreuses, jamais une
-  mesure de performance (enfant 20 s, test 30 s, au-dessus de ses enfants). Les attentes
-  qui ordonnent deux processus attendent un événement, la ligne qu'un fixture envoie sur
-  une socket locale en entrant dans sa barrière, au lieu de sonder un fichier sous un
-  délai d'assertion. RED : 3 exécutions rouges sur 5 avec `--maxWorkers=2`, le budget du
-  projet CI `contract:subprocess` (délais de 1,25 s du test doctor). GREEN : 20 exécutions
-  vertes consécutives avec `--maxWorkers=2`.
+- Délais des tests de processus : bornes de blocage uniformes et généreuses, jamais
+  une mesure de performance (enfant 20 s, test 30 s, au-dessus de ses enfants). Les
+  attentes qui ordonnent deux processus attendent un événement, la ligne qu'un fixture
+  envoie sur un port loopback publié par le test en entrant dans sa barrière (pas une
+  socket Unix nommée : son chemin est borné à 104 octets sous macOS), au lieu de
+  sonder un fichier sous un délai d'assertion. RED : 3 exécutions rouges sur 5 avec
+  `--maxWorkers=2`, le budget du projet CI `contract:subprocess` (délais de 1,25 s du
+  test doctor). GREEN : 20 exécutions vertes consécutives avec `--maxWorkers=2`.
 - Garde de couches : le scan refuse tout fichier de `src/` hors des cinq couches ou qui
   n'est pas un `.ts` de production, un import local doit nommer un `.js`, et le test
   asserte avoir lu les modules connus de chaque couche. RED : 5 des nouveaux cas
@@ -99,6 +100,23 @@ son RED observé puis GREEN :
   `AbortSignal`, `TextEncoder`), fixture négative qui doit échouer. RED : le test
   échouait avec `types: ["node"]` (`process` accepté) ; sans liste blanche, le code
   réel échouait sur `AbortSignal`, `AbortController` et `TextEncoder`.
+- Signal de barrière : RED 7 échecs `listen EINVAL` dans la lane racine
+  `test:filesystem` (chemin de socket au-delà de 104 octets) ; un test prouve le canal
+  depuis un répertoire plus long que toute limite de socket Unix.
+- Second `discarded` : état dédié du réducteur qui le refuse. RED : le réducteur rendait
+  `cancel-requested` pour un `discarded` répété.
+- Reçu après `discarded` : la mission est réglée, reçu `cancelled` avec
+  `stop: late-result-discarded` et l'usage conservé, sortie 1 au lieu de 3. RED : test
+  générique et deux tests CLI recevaient `requested-unconfirmed, effect: unknown`.
+- Résultat tardif après abandon en vol : `discarded` accepté une fois après `abandoned`
+  pour la même étape (état réglé, `/3`), reçu `abandoned` avec
+  `effect: late-result-discarded`. RED : coût tardif absent (test générique et CLI),
+  réducteur qui refusait la séquence.
+- Panne de stockage du coût tardif : seul un conflit retombe sur le reçu du gagnant ;
+  un échec ou une durabilité non confirmée est rendu `blocked storage` avec sa raison.
+  RED : le rédacteur rendait `cancelled` avec un `append` en échec.
+- Trois lignes de tests de plus de 100 colonnes ajoutées par la plage précédente,
+  repliées.
 - API TypeScript 6 du garde AST : condition de retrait ajoutée à
   [l'ADR du garde](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md),
   encore `proposed` (l'ADR TS 7 ne donnait que la conséquence « jusqu'à une API 7.x »).
@@ -107,10 +125,11 @@ son RED observé puis GREEN :
   encore `proposed`) : pipeline linéaire d'au plus huit étapes fixes, 32 événements ;
   boucles revue/correction et attente de clarification (B2) feront évoluer le réducteur.
 
-Preuves après la dernière correction : build, typecheck et 137 tests du paquet verts
-sous Node 24.15.0 et 26.9.0 ; à la racine, lint, typecheck, `test:fast` (2 600 tests),
-`decisions:check` (immuabilité vérifiée depuis `origin/develop`) et `derive:check`
-verts. Les fixtures `/1` et `/2` se relisent octet pour octet.
+Preuves après la seconde relecture : build, typecheck (dont `tsconfig.pure.json`) et
+161 tests du paquet verts sous Node 24.15.0 et 26.9.0 ; 20 exécutions consécutives
+vertes avec `--maxWorkers=2` ; à la racine, `test:filesystem` (1 937 tests) et
+`test:subprocess` (1 205 tests) verts. Les fixtures `/1` et `/2` se relisent octet
+pour octet.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins
