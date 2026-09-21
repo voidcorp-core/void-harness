@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-// Node 22 listen/error/close semantics: https://nodejs.org/docs/latest-v22.x/api/net.html
+// Node 24 listen/error/close semantics: https://nodejs.org/docs/latest-v24.x/api/net.html
 const PROBE = `
 import { createServer, createConnection } from 'node:net';
 const server = createServer(socket => socket.end('ready'));
