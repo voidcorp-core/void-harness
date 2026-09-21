@@ -72,6 +72,14 @@ sans jamais la relancer. Un résultat tardif après annulation n'est pas journal
 déclenche aucune synthèse. Les records d'annulation sont en `note-mission/2` ; les autres
 restent en `/1`. Aucun arrêt natif, handler de signal ni réconciliation automatique. Les
 limites sont détaillées au [README du paquet](../../packages/void-machine/README.md#durable-note-mission).
+Preuve du 21 septembre 2026 pour cette tranche, observée par ORCH via RUN : RED initial de
+13 nouveaux tests CLI en échec (commandes absentes), 25 anciens verts ; RED ciblé de 1 test
+sur la course où cancel perd sa révision (cancel en 3 face au gagnant `completed` en 0),
+puis correction par une relecture unique. GREEN : 111/111 tests sur 6 suites, build,
+typecheck des tests et lint à zéro, hors les deux infos antérieures de `repository.ts`.
+Revue indépendante finale sans blocker démontré ; ses suggestions restent advisory. Le
+parcours réel supervisé du §22 date de la reprise M2 sous Node 22.12.0 et ne couvre pas
+l'annulation : aucun parcours live externe n'a été exécuté pour cette tranche.
 
 ## Delta directeur du 20 septembre : besoin avant héritage
 
