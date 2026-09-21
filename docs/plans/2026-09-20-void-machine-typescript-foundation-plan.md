@@ -78,6 +78,10 @@ son RED observé puis GREEN :
   des valeurs typées aux étapes et reçus. La triple validation de la note et son `throw`
   disparaissent ; un refus local devient `rejected`, pas `outcome-unknown`. RED :
   typecheck TS2322 et quatre tests (valeur normalisée, refus local, refus live, relecture).
+- Résultat tardif après annulation en vol : le perdant de la révision écrit `discarded
+  { step, usage }` (note `/3`) ; coût conservé, valeur jamais enregistrée, aucune étape
+  suivante, l'effet reste inconnu jusqu'à l'abandon. RED : usage tardif absent du reçu
+  et du journal (test générique et deux tests CLI).
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

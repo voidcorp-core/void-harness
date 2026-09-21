@@ -192,6 +192,7 @@ function settle<Input, Config, Step extends string, Value, Issue, Usage>(
       return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'confirmed', usage };
     case 'cancel-requested':
+    case 'discarded':
       return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'requested-unconfirmed', effect: 'unknown', usage };
     case 'abandoned':
@@ -215,7 +216,7 @@ async function afterConflict<Input, Config, Step extends string, Value, Issue, U
   const last = current.kind === 'loaded' ? current.events.at(-1) : undefined;
   return current.kind === 'loaded' && last !== undefined
     && (last.kind === 'cancelled' || last.kind === 'cancel-requested'
-      || last.kind === 'abandoned')
+      || last.kind === 'discarded' || last.kind === 'abandoned')
     ? settle(store, current.events) : conflict;
 }
 
@@ -244,6 +245,23 @@ function outcomeEvent<Input, Config, Step extends string, Value, Issue, Usage>(
   }
 }
 
+/**
+ * A step whose revision was taken by a cancellation request records only the cost it
+ * observed: its value is discarded, and no later step starts from it.
+ */
+async function keepLateCost<Input, Config, Step extends string, Value, Issue, Usage>(
+  store: MissionStore, description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
+  step: Step, usage: readonly Usage[], conflict: Blocked,
+): Promise<Written<Event<Input, Config, Step, Value, Issue, Usage>>> {
+  const current = await readMission(store, description);
+  if (current.kind === 'blocked') return conflict;
+  const last = current.events.at(-1);
+  if (last?.kind !== 'cancel-requested' || last.step !== step) return conflict;
+  const written = await writeMission(store, description, current.events,
+    { kind: 'discarded', step, usage });
+  return written.kind === 'blocked' ? conflict : written;
+}
+
 async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>(
   store: MissionStore, description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
   runner: MissionRunner<Input, Config, Step, Value, Issue, Usage>,
@@ -268,7 +286,9 @@ async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>
     return unknownOutcome(store.missionId);
   }
   const event = outcomeEvent(description, next.step, outcome, started);
-  return writeMission(store, description, intent.events, event);
+  const written = await writeMission(store, description, intent.events, event);
+  return written.kind === 'blocked' && written.reason === 'conflict' && 'usage' in event
+    ? keepLateCost(store, description, next.step, event.usage, written) : written;
 }
 
 async function advance<Input, Config, Step extends string, Value, Issue, Usage>(

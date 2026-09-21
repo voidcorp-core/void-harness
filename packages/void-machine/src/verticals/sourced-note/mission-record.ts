@@ -14,6 +14,7 @@ export const FORMATS: ReadonlySet<string> = new Set([
 const LATER_FORMATS: ReadonlyMap<string, string> = new Map([
   ['cancelled', CANCELLATION_FORMAT], ['cancel-requested', CANCELLATION_FORMAT],
   ['abandoned', CANCELLATION_FORMAT], ['rejected', REJECTION_FORMAT],
+  ['discarded', REJECTION_FORMAT],
 ]);
 export function formatOf(kind: string): string {
   return LATER_FORMATS.get(kind) ?? FORMAT;
@@ -54,6 +55,8 @@ export const recordSchema = z.discriminatedUnion('kind', [
   z.strictObject({ ...cancellationEnvelope, kind: z.literal('abandoned'), step }),
   // The vertical refused the step's outcome; the usage observed for it is kept.
   z.strictObject({ ...rejectionEnvelope, kind: z.literal('rejected'), step, usage }),
+  // A result returned after cancellation was requested: its value is not recorded.
+  z.strictObject({ ...rejectionEnvelope, kind: z.literal('discarded'), step, usage }),
 ]);
 export type MissionRecord = z.infer<typeof recordSchema>;
 export type Started = Extract<MissionRecord, { kind: 'started' }>;

@@ -47,6 +47,8 @@ const eventSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('abandoned'), step: z.enum(steps) }),
   z.strictObject({ kind: z.literal('rejected'), step: z.enum(steps),
     usage: z.array(usageSchema) }),
+  z.strictObject({ kind: z.literal('discarded'), step: z.enum(steps),
+    usage: z.array(usageSchema) }),
 ]);
 const recordSchema = z.strictObject({
   format: z.literal('test.three-step/1'), revision: z.number().int().min(1).max(16),
@@ -282,7 +284,7 @@ it('keeps a recorded start resumable when execution identity generation fails', 
   expect(f.calls).toEqual(['draft', 'audit', 'publish']);
 });
 
-it('ignores a late result after an unconfirmed cancellation', async () => {
+it('keeps the cost of a late result after an unconfirmed cancellation, never its value', async () => {
   const f = fixture();
   await startMission({ request: 'report' }, { minimumScore: 3 },
     f.store, description, f.runner(), 'draft');
@@ -293,13 +295,19 @@ it('ignores a late result after an unconfirmed cancellation', async () => {
     return accepted(step, { request: 'report' }, { minimumScore: 3 });
   }));
   await entered.promise;
-  expect(await cancelMission(f.store, description)).toMatchObject({
-    kind: 'cancelled', step: 'audit', stop: 'requested-unconfirmed', effect: 'unknown',
-  });
+  expect(await cancelMission(f.store, description)).toEqual({ kind: 'cancelled',
+    missionId: 'three-step', step: 'audit', stop: 'requested-unconfirmed', effect: 'unknown',
+    usage: [{ units: 1 }] });
   release.resolve();
-  expect(await live).toMatchObject({ kind: 'cancelled', step: 'audit' });
-  expect(await abandonMission(f.store, description))
-    .toMatchObject({ kind: 'abandoned', step: 'audit' });
+  const late = { kind: 'cancelled', missionId: 'three-step', step: 'audit',
+    stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ units: 1 }, { units: 2 }] };
+  expect(await live).toEqual(late);
+  expect(await f.journal.read(f.store.missionId)).toMatchObject({ kind: 'records',
+    records: { 5: { event: { kind: 'discarded', step: 'audit', usage: [{ units: 2 }] } } } });
+  expect(await resumeMission(f.store, description, f.runner())).toEqual(late);
+  expect(await abandonMission(f.store, description)).toEqual({ kind: 'abandoned',
+    missionId: 'three-step', step: 'audit', effect: 'unknown',
+    usage: [{ units: 1 }, { units: 2 }] });
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 

@@ -422,7 +422,7 @@ describe('note mission cancellation and explicit abandonment', () => {
     expect(contentsDigest(f.directory)).toBe(before);
   });
 
-  it('reports an in-flight cancel as unconfirmed and never records the late synthesis', async () => {
+  it('reports an in-flight cancel as unconfirmed and keeps only the cost of the late synthesis', async () => {
     const f = cancellationFixture();
     const live = f.launch(f.start('fixture-hold'));
     let requested: ReturnType<typeof f.invoke> | undefined;
@@ -435,15 +435,18 @@ describe('note mission cancellation and explicit abandonment', () => {
     }
     expect(requested?.status).toBe(3);
     expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', missionId: MISSION,
-      stage: 'synthesis', stop: 'requested-unconfirmed', effect: 'unknown' });
-    // The loser of the revision reads the winner's state instead of recording its result.
+      stage: 'synthesis', stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ role: 'extractor' }] });
+    // The loser of the revision records the cost it observed, never its result.
     const writer = await live;
     expect(writer.status).toBe(3);
-    expect(writer.stdout).toBe(requested?.stdout ?? '');
-    expect(f.stored().map((record) => record.kind))
-      .toEqual(['started', 'dispatched', 'accepted', 'dispatched', 'cancel-requested']);
+    expect(f.receipt(writer.stdout)).toMatchObject({ kind: 'cancelled', stage: 'synthesis',
+      stop: 'requested-unconfirmed', effect: 'unknown',
+      usage: [{ role: 'extractor' }, { role: 'synthesizer' }] });
+    expect(f.stored().map((record) => [record.kind, record.format.slice(-1)])).toEqual([
+      ['started', '1'], ['dispatched', '1'], ['accepted', '1'], ['dispatched', '1'],
+      ['cancel-requested', '2'], ['discarded', '3']]);
     const resumed = f.invoke(f.resume());
-    expect(resumed.stdout).toBe(requested?.stdout ?? '');
+    expect(resumed.stdout).toBe(writer.stdout);
     expect(f.calls()).toEqual(['fixture-extract', 'fixture-hold']);
   }, 15_000);
 
@@ -459,11 +462,13 @@ describe('note mission cancellation and explicit abandonment', () => {
       f.release();
     }
     expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', stage: 'extraction',
-      stop: 'requested-unconfirmed', effect: 'unknown' });
+      stop: 'requested-unconfirmed', effect: 'unknown', usage: [] });
     const writer = await live;
-    expect(writer.stdout).toBe(requested?.stdout ?? '');
-    expect(f.stored().map((record) => record.kind)).toEqual(['started', 'dispatched', 'cancel-requested']);
-    expect(f.invoke(f.resume()).stdout).toBe(requested?.stdout ?? '');
+    expect(f.receipt(writer.stdout)).toMatchObject({ kind: 'cancelled', stage: 'extraction',
+      stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ role: 'extractor' }] });
+    expect(f.stored().map((record) => record.kind))
+      .toEqual(['started', 'dispatched', 'cancel-requested', 'discarded']);
+    expect(f.invoke(f.resume()).stdout).toBe(writer.stdout);
     expect(f.calls()).toEqual(['fixture-extract-hold']);
   }, 15_000);
 

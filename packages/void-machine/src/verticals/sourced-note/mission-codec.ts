@@ -47,7 +47,8 @@ function decode(raw: unknown, revision: number): Decode {
       case 'cancelled': return { kind: 'cancelled', step: record.stage };
       case 'cancel-requested': return { kind: 'cancel-requested', step: record.step };
       case 'abandoned': return { kind: 'abandoned', step: record.step };
-      case 'rejected': return { kind: 'rejected', step: record.step, usage: record.usage };
+      case 'rejected':
+      case 'discarded': return { kind: record.kind, step: record.step, usage: record.usage };
       default: { const neverRecord: never = record; return neverRecord; }
     }
   })();
@@ -73,7 +74,8 @@ function bodyOf(event: NoteEvent): Body | undefined {
     case 'cancelled': return { kind: 'cancelled', stage: event.step };
     case 'cancel-requested': return { kind: 'cancel-requested', step: event.step };
     case 'abandoned': return { kind: 'abandoned', step: event.step };
-    case 'rejected': return { kind: 'rejected', step: event.step, usage: [...event.usage] };
+    case 'rejected':
+    case 'discarded': return { kind: event.kind, step: event.step, usage: [...event.usage] };
     default: { const neverEvent: never = event; return neverEvent; }
   }
 }

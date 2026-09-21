@@ -234,7 +234,8 @@ keeps its bytes and an older binary still reads it, while that binary refuses a 
 mission as `incompatible`. A `/2` historical kind or a `/1` cancellation kind is `unreadable`.
 `rejected` (step, usage) is written only in `void-machine.note-mission/3`: the vertical
 refused a step result that had run, so the mission settles as `rejected` with the usage
-observed for that step, exits 1 and is never retried. A resume replays that receipt; it is
+observed for that step, exits 1 and is never retried. `discarded` (see cancellation
+below) is the only other `/3` kind. A resume replays that receipt; it is
 not reported as `outcome-unknown`. Journals in `/1` and `/2` are read unchanged, and a
 `rejected` kind under `/1` or `/2` is `unreadable`.
 
@@ -247,8 +248,12 @@ signal no process:
   extraction stays recorded, and synthesis is never dispatched.
 - `note cancel` on a step in flight or unknown records `cancel-requested` and reports
   `stop: requested-unconfirmed, effect: unknown`: the native call is not killed, and its
-  effect and cost stay unknown. The writer of that step loses its next revision, reads the
-  cancellation and reports it; its late result is not recorded and no next step runs. A
+  effect stays unknown. The writer of that step loses its next revision and reads the
+  cancellation. If its call returned meanwhile, it records `discarded` (step, usage) in
+  `note-mission/3`: the usage it observed is kept and reported by every later receipt,
+  the result itself is never recorded, no next step runs and the step is still reported
+  as `requested-unconfirmed, effect: unknown` until `note abandon`. A result that returns
+  after abandonment is not recorded. A
   cancel recorded after the dispatch intent but before the native spawn cannot prove that
   nothing spawned.
 - `note abandon` settles an unknown or cancel-requested step as `abandoned, effect:
