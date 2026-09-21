@@ -72,8 +72,12 @@ Positive:
 Negative:
 
 - Two TypeScript packages in the lockfile until an official 7.x API exists.
-- The 6.x adapter shares the 5.x extractors. It rests on a full-suite run
-  against the 6.0.3 API, not on a separate audit of every resolution change in 6.0.
+- The 6.x adapter shares the 5.x extractors. It rests on the extractor,
+  resolver, tsconfig and graph-content suites replayed against the 5.9 API
+  (dev alias `typescript5`) and the 6.0 API, not on a separate audit of every
+  resolution change in 6.0. Where the two APIs differ, as their defaults do
+  without a tsconfig (`node10` against `bundler`), the graph follows the
+  project's compiler and the suite pins both readings.
 - harness-graph and pack declarations are one file per module instead of one
   bundle; neither package is published to npm.
 - tsup stays in the build. Its replacement is a separate change to the published
