@@ -65,6 +65,13 @@ GREEN 3 (96 tests), plancher Node 22.12.0 (52 tests), revue indépendante sans b
 parcours réel supervisé sous Node 22.12.0 (pause, reprise dans un nouveau processus, puis
 reprise terminée sans modèle) sont consignés au [§22](#22-reprise-durable-de-la-note-21-septembre-2026). Cette tranche ne
 crée aucun programme, scheduler ni moteur concurrent.
+Curseur : l'annulation de la note est livrée sur cette branche. `note cancel` confirme
+l'arrêt du flux Machine quand aucune étape n'est en vol, et rend `requested-unconfirmed`
+avec effet et usage inconnus sinon. `note abandon` clôt explicitement une étape inconnue
+sans jamais la relancer. Un résultat tardif après annulation n'est pas journalisé et ne
+déclenche aucune synthèse. Les records d'annulation sont en `note-mission/2` ; les autres
+restent en `/1`. Aucun arrêt natif, handler de signal ni réconciliation automatique. Les
+limites sont détaillées au [README du paquet](../../packages/void-machine/README.md#durable-note-mission).
 
 ## Delta directeur du 20 septembre : besoin avant héritage
 

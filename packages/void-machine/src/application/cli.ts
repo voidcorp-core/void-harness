@@ -2,9 +2,11 @@
 import { readFile, stat } from 'node:fs/promises';
 import { z } from 'zod';
 import { renderDoctorJson, renderDoctorText } from '../adapters/formats/doctor-report.js';
-import { MISSION_ID_PATTERN } from '../adapters/store/file-journal.js';
+import { MISSION_ID_PATTERN, createFileJournal } from '../adapters/store/file-journal.js';
 import { inspectDoctor } from './doctor.js';
-import { type MissionReceipt, resumeNoteMission, startNoteMission } from './note-mission.js';
+import {
+  type MissionReceipt, type MissionStore, abandonNoteMission, cancelNoteMission, resumeNoteMission, startNoteMission,
+} from './note-mission.js';
 import { claudeMissionDependencies, runClaudeNote, type RuntimeNoteUsage } from './runtime-note.js';
 
 const safeEnvironment = (): NodeJS.ProcessEnv => {
@@ -47,7 +49,10 @@ async function readInput(inputPath: string): Promise<Input> {
 
 function deliver(receipt: MissionReceipt): void {
   process.stdout.write(`${JSON.stringify(receipt)}\n`);
-  process.exitCode = receipt.kind === 'stopped' ? 1 : receipt.kind === 'blocked' ? 3 : 0;
+  // 1: settled without a deliverable. 3: blocked, or a requested stop whose outcome is unknown.
+  const unresolved = receipt.kind === 'blocked'
+    || (receipt.kind === 'cancelled' && receipt.stop === 'requested-unconfirmed');
+  process.exitCode = unresolved ? 3 : receipt.kind === 'completed' || receipt.kind === 'paused' ? 0 : 1;
 }
 
 const START_USAGE = 'usage: void-machine note start --store <dir> --mission <id> --input <path> --cwd <path> --extraction-model <model> --synthesis-model <model> --timeout-ms <ms> [--executable <path>] [--stop-after extraction]';
@@ -92,6 +97,18 @@ async function noteResume(args: readonly string[]): Promise<void> {
   })));
 }
 
+// Cancel and abandon read and append the journal only: no runtime, no native process.
+async function noteDecision(args: readonly string[], decide: (context: MissionStore) => Promise<MissionReceipt>,
+  usage: string): Promise<void> {
+  const store = option(args, '--store');
+  const missionId = option(args, '--mission');
+  if (store === undefined || missionId === undefined || !MISSION_ID_PATTERN.test(missionId)) {
+    usageError(usage);
+    return;
+  }
+  deliver(await decide({ journal: createFileJournal({ root: store }), missionId }));
+}
+
 async function note(args: readonly string[]): Promise<void> {
   const inputPath = option(args, '--input');
   const cwd = option(args, '--cwd');
@@ -125,6 +142,14 @@ async function main(): Promise<void> {
   }
   if (args[0] === 'note' && args[1] === 'resume') {
     await noteResume(args.slice(2));
+    return;
+  }
+  if (args[0] === 'note' && args[1] === 'cancel') {
+    await noteDecision(args.slice(2), cancelNoteMission, 'usage: void-machine note cancel --store <dir> --mission <id>');
+    return;
+  }
+  if (args[0] === 'note' && args[1] === 'abandon') {
+    await noteDecision(args.slice(2), abandonNoteMission, 'usage: void-machine note abandon --store <dir> --mission <id>');
     return;
   }
   if (args[0] === 'note') {

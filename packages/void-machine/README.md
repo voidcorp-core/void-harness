@@ -127,6 +127,8 @@ node dist/application/cli.js note start --store /data/missions --mission m-42 \
   --input ./request.json --cwd /tmp/void-note-run \
   --extraction-model haiku --synthesis-model sonnet --timeout-ms 90000 [--stop-after extraction]
 node dist/application/cli.js note resume --store /data/missions --mission m-42 --cwd /tmp/void-note-run
+node dist/application/cli.js note cancel --store /data/missions --mission m-42
+node dist/application/cli.js note abandon --store /data/missions --mission m-42
 ```
 
 The mission id is required at start so a host crash can be followed by a resume.
@@ -134,10 +136,11 @@ Models and deadline come from the recorded start; executable, cwd and environmen
 are local to each process and never recorded. `--stop-after extraction` ends after the
 accepted extraction is durable, for instance to read it before paying for synthesis.
 
-Receipts: `completed` and `paused` exit 0, `stopped` exits 1, `blocked` exits 3 with a
-reason (`missing`, `conflict`, `storage`, `unrecordable`, `unreadable`, `incompatible`,
-`context-changed`, `inadmissible`, `outcome-unknown`) and a diagnostic without source
-contents. Usage errors exit 2. Resuming a finished mission returns the same bytes
+Receipts: `completed` and `paused` exit 0; `stopped`, `abandoned` and a `cancelled` with
+`stop: confirmed` exit 1; `blocked` exits 3 with a reason (`missing`, `conflict`,
+`storage`, `unrecordable`, `unreadable`, `incompatible`, `context-changed`,
+`inadmissible`, `outcome-unknown`, `not-abandonable`) and a diagnostic without source
+contents, as does a `cancelled` with `stop: requested-unconfirmed`. Usage errors exit 2. Resuming a finished mission returns the same bytes
 without a model call; a stopped mission replays its stop and is never retried.
 
 Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most
@@ -153,6 +156,35 @@ hidden temporaries and keep them. The store root is trusted as chosen by the cal
 a mission directory that is a symbolic link is refused for reading and writing. Records are `started` (request, models, deadline,
 contract digest), `dispatched`, `accepted` (extraction), `unconfirmed`, `stopped` and
 `completed`; usage observed by the runtime is kept with the step that produced it.
+Cancellation adds `cancelled`, `cancel-requested` and `abandoned`, written only in
+`void-machine.note-mission/2`; every other record keeps `/1`, so a mission never cancelled
+keeps its bytes and an older binary still reads it, while that binary refuses a cancelled
+mission as `incompatible`. A `/2` historical kind or a `/1` cancellation kind is `unreadable`.
+
+Cancellation and abandonment read and append the journal only; they start no runtime and
+signal no process:
+
+- `note cancel` on a mission with no step in flight records `cancelled` with
+  `stop: confirmed`. That confirms only that no Machine step was active or will follow
+  from that point; it is not the proof that a native model call stopped. The accepted
+  extraction stays recorded, and synthesis is never dispatched.
+- `note cancel` on a step in flight or unknown records `cancel-requested` and reports
+  `stop: requested-unconfirmed, effect: unknown`: the native call is not killed, and its
+  effect and cost stay unknown. The writer of that step loses its next revision, reads the
+  cancellation and reports it; its late result is not recorded and no next step runs. A
+  cancel recorded after the dispatch intent but before the native spawn cannot prove that
+  nothing spawned.
+- `note abandon` settles an unknown or cancel-requested step as `abandoned, effect:
+  unknown`; it is never launched again under that identifier, and `note start` still
+  refuses the identifier. On a mission with nothing in flight it is refused as
+  `not-abandonable`, since `note cancel` applies.
+- Repeating either command on a settled mission writes nothing and returns the settled
+  receipt. Missing, unreadable or incompatible records are refused and preserved. A cancel
+  or abandon that loses its revision to a concurrent writer reads the journal once more
+  and decides once more from the winning state: a settled mission returns its receipt, an
+  idle or in-flight one is cancelled accordingly. A second loss reports `conflict`.
+- There is no signal handler, process tracking or automatic reconciliation of an unknown
+  step: the operator decides with `note abandon`.
 
 Guarantees and limits:
 
