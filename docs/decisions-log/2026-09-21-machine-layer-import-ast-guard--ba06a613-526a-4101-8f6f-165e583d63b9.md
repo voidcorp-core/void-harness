@@ -72,6 +72,14 @@ Negative:
 - Keep TypeScript 5 from the repository root: resolution would depend on the
   monorepo layout rather than on the package's declared test dependencies.
 
+## Exit condition
+
+Remove `@typescript/typescript6` from `packages/void-machine` as soon as a released
+TypeScript 7.x ships a documented programmatic parser API. The removal moves the
+layer test to that API in one change, keeps the refused-source table unchanged, and
+must observe the table RED against a detector that reports nothing before going
+GREEN. Until then the pinned 6.x version is raised only for a security fix.
+
 ## Reversal cost
 
 Low: replace the single test parser after TypeScript 7 exposes a stable AST API
