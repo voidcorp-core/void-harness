@@ -71,6 +71,15 @@ Maximum efficiency, minimum motion. Every dependency, every layer, every file ea
 
 If a credible alternative exists, it is logged as one immutable file under `docs/decisions/` (or the detected equivalent) with the reason it was rejected.
 
+Every change is judged against four questions, in this order:
+
+- **Subtract before adding.** Ask what existing rule, file, layer or proof can be removed or fused instead of adding one, or why nothing can. A removal is never invented to show one. The smallest sufficient change is the deliverable.
+- **Simplest design that holds (KISS).** No abstraction, option or indirection that the current requirement does not ask for.
+- **One owner per rule (DRY of knowledge, not of text).** A rule, contract or invariant lives in one place and is referenced elsewhere. Two pieces of code that merely look alike are not mutualised by force: shared code is justified by a shared reason to change, never by resemblance.
+- **Strong separation, minimum useful layers.** Each module owns one responsibility behind an explicit boundary. A layer with neither a responsibility nor a boundary of its own is removed; a port or facade that delegates but protects a real boundary is kept.
+
+These are judgments, not a metric: no hook or linter decides them, and the harness does not pretend otherwise. The review applies them to the actual change. An explanation (what was removed, which owner holds a rule, which boundary was crossed) is written briefly when it helps understand or record a choice; its absence never blocks on its own. A finding blocks only when it demonstrates a concrete defect: a security flaw, broken behavior, or an architecture violation (a boundary or contract broken with a real consequence). A preference, a hypothetical risk or a possible improvement is advisory: it triggers no new review and no loop.
+
 ## "Ultra moderne, exceptionnel" — the Folpe quality bar
 
 - Latest stable libs. React 19, Next 16, TS 6, Tailwind 4. Migration cost accepted.
@@ -81,7 +90,9 @@ A change technically correct but below this bar is pushed back.
 
 ## Anti-rustine — only state of the art
 
-Before any fix, read the official documentation of the SDK / framework / tool concerned. A quick patch to make the test pass at the wrong level of abstraction is rejected. The first implementation that comes to mind is often a patch (tokenize a string where the API expects a typed schema, mock a field where the real adapter does not provide it, disable a flag instead of understanding why it blocks). That is a STOP signal: refactor the approach at the right level.
+Before any implementation or fix, read the official documentation of the SDK / framework / tool concerned, for the version the project actually resolves (lockfile), in its most recent revision for that version. The current docs of a newer major are not a license to write against an API the project does not have, and reading them never triggers an upgrade: an upgrade is its own decided change. For internal code, the equivalent sources are the project's own contracts, types, source and docs, read before the first edit. The reading is systematic; the citation is not. A reference is noted briefly where it helps the next reader understand or accept a choice, and a missing citation or trace never blocks on its own.
+
+A fix addresses the root cause; a change that only makes the symptom disappear is a patch. A quick patch to make the test pass at the wrong level of abstraction is rejected. The first implementation that comes to mind is often a patch (tokenize a string where the API expects a typed schema, mock a field where the real adapter does not provide it, disable a flag instead of understanding why it blocks). That is a STOP signal: refactor the approach at the right level.
 
 A throwaway implementation is not an acceptable initial state. It is debt that has not exploded yet. A V0 mock must mirror the signature of the real adapter cible (Graph API, Dropbox v2, etc.), not a comfort signature.
 

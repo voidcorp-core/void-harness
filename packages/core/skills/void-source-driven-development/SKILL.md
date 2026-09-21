@@ -1,11 +1,11 @@
 ---
 name: void-source-driven-development
-description: Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.
+description: Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version; cite the reference when it helps. Use before writing any tool config.
 ---
 
 # source-driven-development
 
-Training memory drifts. It blends three minor versions of a framework into one plausible-looking config that compiles, runs, and is subtly wrong: a renamed option, a removed flag, a default that flipped between majors. This skill makes the official documentation of the **installed version** the source of truth for any third-party tool, and makes the reference survive in the commit so the "why" outlives the session.
+Training memory drifts. It blends three minor versions of a framework into one plausible-looking config that compiles, runs, and is subtly wrong: a renamed option, a removed flag, a default that flipped between majors. This skill makes the official documentation of the **installed version** the source of truth for any third-party tool. The read is mandatory; the citation is not. Where a choice is not obvious, a brief reference in the commit lets the "why" outlive the session.
 
 This encodes the repo hard rule: *read the official documentation of any third-party tool before writing its config.*
 
@@ -20,7 +20,7 @@ When you configure or call a third-party tool (framework, library, CLI, API, bui
 1. **Find the installed version.** Read the lockfile (`pnpm-lock.yaml`, `package-lock.json`, `Cargo.lock`) or the resolved entry, not just the `^x` range in `package.json`. Options change between majors; the range lies about what is actually resolved.
 2. **Read the docs for that version.** Pin the docs to the resolved major/minor. Latest-docs for an older installed version is a silent mismatch.
 3. **Prefer a clean read.** Use the `defuddle` skill (or WebFetch) on the official docs. Strip nav and ads to the load-bearing prose. Distrust third-party tutorials, blog posts, and Stack Overflow answers: they are dated by construction and rarely say which version they target.
-4. **Cite the reference.** Put the URL + section (or doc path) in the commit body, the PR, or a comment next to non-obvious config. The next reader must be able to re-derive the choice.
+4. **Cite when it helps.** For a non-obvious choice, put the URL + section (or doc path) in the commit body, the PR, or a comment next to the config, so the next reader can re-derive it. A missing citation never blocks on its own.
 
 Memory proposes; docs dispose.
 
@@ -59,7 +59,7 @@ Next to non-obvious config:
 retries: 2,
 ```
 
-A config line a reviewer cannot trace to a source is a config line written from memory. Treat that as unverified.
+What verifies a config line is the read of the version-matched docs, not the presence of a citation. A reviewer who doubts an option checks it against those docs; a concrete mismatch is a defect, a missing reference is not.
 
 ---
 
@@ -84,12 +84,9 @@ Some runs have no egress: a sandboxed autonomous worker, an air-gapped CI step. 
 
 1. **Inject the doc, do not fetch it.** Treat the version-matched reference as an *input*, not a side effect: pass the doc text (or a curated, version-pinned excerpt committed to the repo) into the decision as a parameter — a port — and validate its shape at the boundary with Zod before you trust it (e.g. assert the option you are about to set actually appears in the supplied reference). This is functional core / imperative shell: fetching is an adapter concern, the choice logic takes the doc as data. It composes with `void-hexagonal-architecture` and `void-security-guidance` (untrusted input is validated at the edge).
 
-2. **If no version-matched doc is reachable, incur a `source-debt`.** A `source-debt` is a deliberate, tracked IOU: "this config was authored offline, without the version-matched source; a human must verify it against the real docs before it ships." It is the honest alternative to guessing silently. Record all three:
-   - a **`source-debt` label** on the PR (and the Linear ticket),
-   - a **mandatory PR-body checkbox**: `- [ ] source-debt: <tool@version + option> verified against the version-matched official docs`, which a reviewer clears only by doing the read,
-   - a **commit-body note** naming exactly what is unverified.
+2. **If no version-matched doc is reachable and the semantics you are writing are genuinely uncertain, incur a `source-debt`.** A missing citation is not a source-debt. A `source-debt` is a short, honest note, in the commit body or the PR, naming exactly which `tool@version` option was authored offline and what remains uncertain about it. It is the alternative to guessing silently, not a mandatory field: a label or checkbox may carry it if the project uses one, but neither is the authority.
 
-**Do not auto-merge while a `source-debt` checkbox is unchecked.** The offline bypass is for *authoring* without egress, never for *shipping* unverified config. The autonomous loop enforces this: it refuses to arm auto-merge when the PR body carries an open `source-debt`.
+What matters is the verification itself: the real uncertainty is resolved against the version-matched official docs before the change ships. Once that read is done, a note, label or checkbox not yet updated never blocks on its own. The offline bypass is for *authoring* without egress, never for *shipping* config whose semantics remain unverified.
 
 This widens egress by **zero** (decision A3): offline work defers the verification behind an explicit, reviewable IOU; it never reaches for the network it was denied.
 
@@ -113,7 +110,7 @@ This widens egress by **zero** (decision A3): offline work defers the verificati
 | "It compiled / it ran, so it's right" | Wrong defaults compile fine. Deprecated-but-still-working options run fine. Until they don't. |
 | "This tutorial does exactly this" | Tutorials rarely state their version and rot silently. Match the vendor docs to your lockfile. |
 | "Checking the version is overkill for a config tweak" | The tweak that broke prod was a flag renamed between minors. The check is cheap. |
-| "I'll add the source citation later" | Later never comes; the "why" is lost the moment the session ends. Cite in the same commit. |
+| "I'll read the docs later" | Later never comes. The read happens before the line; a citation, when useful, lands in the same commit. |
 | "Latest docs are close enough" | "Close enough" between majors is how a removed option ships to prod. |
 
 ---
@@ -124,11 +121,10 @@ The work is not done until the source check is done. Before marking any third-pa
 
 - [ ] Installed version identified from the lockfile (not the `package.json` range).
 - [ ] Official docs for **that** version read (via `/defuddle` / WebFetch, not memory or a tutorial).
-- [ ] Every non-obvious option traceable to a doc URL + section.
-- [ ] Source cited in the commit body, PR, or an adjacent comment.
+- [ ] Every non-obvious option checked against that doc; cited briefly where it helps the next reader (never blocking on its own).
 - [ ] Any memory-vs-docs conflict resolved in favor of the docs, or surfaced as an open question if irresolvable.
 
-If any box is unchecked, the config is written from memory. That is the state this skill exists to prevent.
+If the version check or the read is missing, the config is written from memory. That is the state this skill exists to prevent.
 
 ---
 
@@ -137,7 +133,7 @@ If any box is unchecked, the config is written from memory. That is the state th
 - MUST NOT write tool config from training memory alone — read the version-matched docs first.
 - MUST NOT skip the installed-version check — the `^` range is not the resolved version.
 - MUST NOT cite a third-party tutorial as authoritative — the official, versioned doc is the source.
-- MUST NOT land non-obvious config without a traceable source citation.
+- MUST NOT land config whose semantics were not checked against the version-matched docs. A missing citation alone is not that failure.
 - MUST NOT silently pick a side when sources genuinely conflict — surface the divergence.
 
 ---
@@ -157,6 +153,6 @@ If any box is unchecked, the config is written from memory. That is the state th
 ## Final rule
 
 ```
-Third-party config → installed version found, version-matched official docs read, source cited.
+Third-party config → installed version found, version-matched official docs read, source cited when it helps.
 Otherwise → it was written from memory, and memory is not a source.
 ```
