@@ -24,16 +24,32 @@ Source grounding:
 - smol-toml 1.8.0 [README](https://github.com/squirrelchat/smol-toml/blob/v1.8.0/README.md)
   and [parse options](https://github.com/squirrelchat/smol-toml/blob/v1.8.0/src/parse.ts):
   parse, maxDepth, integersAsBigInt; UTF-8 validation belongs to our file adapter.
-- Zod 4.4.3 installed README and src/v4/classic/schemas.ts: strictObject,
-  looseObject and safeParse; [object API](https://zod.dev/api#objects).
-- TypeScript 5.9.3 installed package; [NodeNext module configuration](https://www.typescriptlang.org/tsconfig/module.html).
-  Reuse the repository strict baseline and emit Node ESM. Distribution needs no
+- Zod 4.6.5 [release notes](https://zod.dev/blog/zod-4-6),
+  [object API](https://zod.dev/api#objects) and
+  [JSON Schema guide](https://zod.dev/json-schema): strictObject, safeParse,
+  and Draft-7 output remain the contracts used here.
+- TypeScript 7.0.2 [release notes](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+  and [6.0 transition notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html):
+  the package has an autonomous strict NodeNext configuration with explicit
+  `types: ["node"]` and `rootDir: "./src"`. The consumer pack baseline was not
+  changed. Emit Node ESM. Distribution needs no
   runtime TS loader. Doctor contract tests run current sources with the existing
   CLI test dependency tsx 4.22.4 through Node --import, as the repository stdin
   process test does. Installed tsx package.json exports and dist/loader.mjs are
   the version-specific references; no dependency or configuration was added.
-- Node 22 [filesystem API](https://nodejs.org/docs/latest-v22.x/api/fs.html):
+- Node 24 [filesystem API](https://nodejs.org/docs/latest-v24.x/api/fs.html):
   openSync, fstatSync, readSync and closeSync bound the actual file read.
+
+## Toolchain floor
+
+This private package requires Node >=24.15.0. The foundation build, test typecheck,
+and 111 contracts passed under Node 24.15.0 and Node 26.8.2 on 2026-09-21.
+It uses TypeScript 7.0.2, Vitest 5.0.1, Zod 4.6.5, and Node 24 types.
+Vitest 5's [migration guide](https://vitest.dev/guide/migration/) documents its
+Node/Vite prerequisites and changed defaults. The package test suite remains on
+its own runner; the repository-wide Vitest version is unchanged. The Node-floor
+choice and SQLite implication are recorded in the
+[Node 24 decision](../../docs/decisions-log/2026-09-21-machine-node-24-lts-floor--89f1ec74-3cf3-492a-be98-2ec03c924508.md).
 
 The existing packed CLI budget is 2,000,000 bytes. Measure check:size before any CLI cutover;
 do not drop maintained parsing or raise the ceiling to make the gate green.
