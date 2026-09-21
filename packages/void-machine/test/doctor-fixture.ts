@@ -10,10 +10,10 @@ const project = resolve(import.meta.dirname, '../../..');
 // Same source-loader mechanism as test/autopilot/stdin-process.test.ts.
 const loader = pathToFileURL(resolve(project, 'packages/cli/node_modules/tsx/dist/loader.mjs')).href;
 const entry = resolve(project, 'packages/void-machine/src/application/cli.ts');
-// About three times the worst cold child measured on 2026-09-21 on Node 24.15.0 and 26.9.0,
-// alone and under the root filesystem run: 1,386 ms synchronous, 866 ms asynchronous.
-const childTimeoutMs = 4_000;
-const asyncChildTimeoutMs = 2_500;
+// Bounds stop a hang; they never measure speed. One generous value for every process, and a
+// test bound above it, so a hung child is reported by its own bound before the test's.
+const childTimeoutMs = 20_000;
+export const processTestTimeoutMs = 30_000;
 
 export function doctorFixture() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'machine-doctor-')));
@@ -52,7 +52,7 @@ export function doctorFixture() {
     status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string;
   }>((settle, reject) => {
     const child = spawn(process.execPath, ['--import', loader, script, ...args], {
-      cwd, env, windowsHide: true, timeout: asyncChildTimeoutMs,
+      cwd, env, windowsHide: true, timeout: childTimeoutMs,
     });
     let stdout = '';
     let stderr = '';

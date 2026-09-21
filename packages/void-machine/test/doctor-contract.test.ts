@@ -2,11 +2,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { contentsDigest, doctorFixture } from './doctor-fixture.js';
+import { contentsDigest, doctorFixture, processTestTimeoutMs } from './doctor-fixture.js';
 
-// About three times the slowest cold doctor test measured on 2026-09-21 (411 ms, Node 24.15.0
-// and 26.9.0, alone and in the root subprocess run; CI validate listed none above 300 ms).
-vi.setConfig({ testTimeout: 1_250 });
+vi.setConfig({ testTimeout: processTestTimeoutMs });
 
 // Exercise current TypeScript sources, independent of any previously emitted dist.
 // The historical Rust comparison and its routing remain in Git and RUN evidence.

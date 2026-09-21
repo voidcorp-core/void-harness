@@ -211,14 +211,13 @@ refuses, or a step the vertical refuses locally before launching anything, is re
 as `rejected`, never as `outcome-unknown`. Codec and admission exceptions return typed
 refusals before a step is launched.
 
-The CLI and doctor contracts run source-loaded Node subprocesses. Each bound is about
-three times the worst cold time measured on 2026-09-21 (five package runs on Node 24.15.0
-and 26.9.0, three root filesystem runs, and the CI validate job at `e0e8afa2`): 9 seconds
-per CLI test (worst 3,058 ms), 4 seconds for a test holding a live child (worst 1,244 ms),
-2.5 seconds to observe a held child or bound an asynchronous one (worst 866 ms), 4 seconds
-per synchronous child (worst 1,386 ms) and 1.25 seconds per doctor test (worst 411 ms).
-The measurements are recorded next to each constant. A bound only stops a hang; no
-assertion depends on it. Other tests retain Vitest's 5-second default. See the
+The CLI and doctor contracts run source-loaded Node subprocesses. Their bounds only stop
+a hang and never measure speed: every child process is bounded at 20 seconds and every
+test at 30 seconds, above its children, so a hung child is reported by its own bound
+first. A test that must order two processes awaits an event, the line a held fixture
+sends on a local socket when it reaches its barrier, never a file polled under an
+assertion deadline. A performance budget, if one is wanted, belongs in a dedicated
+measurement, not in a timeout. See the
 [Vitest timeout contract](https://vitest.dev/api/vi#setconfig).
 
 Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most

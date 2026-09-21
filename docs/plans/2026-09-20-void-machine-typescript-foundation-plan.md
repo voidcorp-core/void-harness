@@ -82,12 +82,13 @@ son RED observé puis GREEN :
   { step, usage }` (note `/3`) ; coût conservé, valeur jamais enregistrée, aucune étape
   suivante, l'effet reste inconnu jusqu'à l'abandon. RED : usage tardif absent du reçu
   et du journal (test générique et deux tests CLI).
-- Délais des tests de processus : pire temps à froid mesuré sur cinq exécutions du
-  paquet (Node 24.15.0 et 26.9.0), trois exécutions racine et le job CI `validate` ;
-  chaque délai vaut environ trois fois sa mesure, consignée en commentaire (test CLI
-  9 s pour 3 058 ms, test à enfant vivant 4 s pour 1 244 ms, enfant 4 s et 2,5 s pour
-  1 386 et 866 ms, test doctor 1,25 s pour 411 ms). Pas de RED possible : aucun
-  comportement ne change ; suite verte trois fois à froid sur chaque runtime.
+- Délais des tests de processus : bornes de blocage uniformes et généreuses, jamais une
+  mesure de performance (enfant 20 s, test 30 s, au-dessus de ses enfants). Les attentes
+  qui ordonnent deux processus attendent un événement, la ligne qu'un fixture envoie sur
+  une socket locale en entrant dans sa barrière, au lieu de sonder un fichier sous un
+  délai d'assertion. RED : 3 exécutions rouges sur 5 avec `--maxWorkers=2`, le budget du
+  projet CI `contract:subprocess` (délais de 1,25 s du test doctor). GREEN : 20 exécutions
+  vertes consécutives avec `--maxWorkers=2`.
 - API TypeScript 6 du garde AST : condition de retrait ajoutée à
   [l'ADR du garde](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md),
   encore `proposed` (l'ADR TS 7 ne donnait que la conséquence « jusqu'à une API 7.x »).

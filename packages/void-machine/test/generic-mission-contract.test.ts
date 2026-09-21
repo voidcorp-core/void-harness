@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { expect, it, onTestFinished, vi } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
 import { createFileJournal } from '../src/adapters/store/file-journal.js';
 import {
   MISSION_EVENT_LIMIT, missionPosition, type AcceptedValue, type MissionEvent,
@@ -328,8 +328,10 @@ it('fences two concurrent resumptions to one execution', async () => {
   const second = resumeMission(f.store, description, f.runner(execute))
     .then((receipt) => { secondSettled = true; return receipt; });
   await entered.promise;
+  // The loser settles on its own while the winner is held: await that event, never a poll.
   try {
-    await vi.waitFor(() => expect(Number(firstSettled) + Number(secondSettled)).toBe(1));
+    await Promise.race([first, second]);
+    expect(Number(firstSettled) + Number(secondSettled)).toBe(1);
   } finally { release.resolve(); }
   const outcomes = await Promise.all([first, second]);
   expect(outcomes.filter((outcome) => outcome.kind === 'completed')).toHaveLength(1);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { appendFileSync, chmodSync, existsSync, readdirSync } from 'node:fs';
+import { connect } from 'node:net';
 import { join } from 'node:path';
 
 // Every launch is counted in the child cwd, the only channel the CLI does not filter.
@@ -43,9 +44,10 @@ process.stdin.on('end', () => {
     session_id: session,
   }));
   if (model !== 'fixture-hold' && model !== 'fixture-extract-hold') { respond(); return; }
-  // Explicit barrier: answer only once the test writes ./release. The deadline is a
-  // failure guard, never a success path; a removed test root also ends the wait.
-  const deadline = Date.now() + 8000;
+  // Explicit barrier: announce the hold on the test's socket, then answer only once the test
+  // writes ./release. The deadline is a failure guard, never a success path; a removed test
+  // root also ends the wait.
+  const deadline = Date.now() + 20_000;
   const poll = () => {
     if (existsSync(join(process.cwd(), 'release'))) { respond(); return; }
     if (Date.now() > deadline || !existsSync(join(process.cwd(), 'calls.log'))) {
@@ -54,5 +56,10 @@ process.stdin.on('end', () => {
     }
     setTimeout(poll, 10);
   };
-  poll();
+  const signal = connect(join(process.cwd(), 'signal.sock'));
+  signal.once('error', (error) => {
+    process.stderr.write(`hold signal failed: ${error.message}\n`);
+    process.exitCode = 1;
+  });
+  signal.end(`${model}\n`, poll);
 });

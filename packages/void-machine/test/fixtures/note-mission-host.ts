@@ -4,9 +4,10 @@
 //   unconfirm-after:<kind>  report that confirmed record as linked but not durable
 //   deadline-after-entry    fire the synthesis deadline once the native child has entered
 //   contract:<value>        compose with another contract digest
-//   hold-before:<kind>      signal ./held, then append that record only once ./release exists
+//   hold-before:<kind>      signal `held` on ./signal.sock, append once ./release exists
 //   cancel-held             run note cancel instead, holding its append the same way
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { join } from 'node:path';
 import { cancelNoteMission, startNoteMission } from '../../src/application/note-mission.js';
 import { claudeMissionDependencies } from '../../src/application/runtime-note.js';
@@ -42,8 +43,12 @@ const entryClock: Clock = {
 
 // Explicit barrier: the test orders the other process while this append waits.
 const held = async (): Promise<void> => {
-  writeFileSync(join(cwd, 'held'), '');
-  const deadline = Date.now() + 8000;
+  await new Promise<void>((sent, failed) => {
+    const signal = connect(join(cwd, 'signal.sock'));
+    signal.once('error', failed);
+    signal.end('held\n', sent);
+  });
+  const deadline = Date.now() + 20_000;
   while (!existsSync(join(cwd, 'release'))) {
     if (Date.now() > deadline) throw new Error('hold-before barrier was never released');
     await new Promise((resume) => { setTimeout(resume, 10); });
