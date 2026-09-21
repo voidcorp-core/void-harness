@@ -60,7 +60,7 @@ do not drop maintained parsing or raise the ceiling to make the gate green.
 `test/layer-boundaries.test.ts` parses the complete private source module graph
 with the official TypeScript 6 AST API, installed as a test dependency beside
 TypeScript 7. It checks static/type imports, reexports, import types and dynamic
-imports, then imports the isolated runtime entry points. A forbidden edge names
+imports statically; it loads no module to prove isolation. A forbidden edge names
 its importer and specifier. Core and runtime do not import adapters, application,
 verticals or Node I/O; verticals use their own modules and core; adapters may
 implement vertical-owned ports but cannot import application. Only application
