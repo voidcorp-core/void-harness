@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/main.ts'],
   format: ['esm'],
-  target: 'node20',
+  target: 'node24',
   outDir: 'dist',
   dts: true,
   // No source map in the published CLI: consumers never debug it, and it is the largest file in the

@@ -13,7 +13,7 @@ export async function buildHookRuntime({ root, outfile, writeIdentity = false })
   const license = readFileSync(require.resolve('@typescript/typescript6/LICENSE.txt'), 'utf8');
   await build({
     absWorkingDir: root, entryPoints: [join(source, 'syntax-worker.ts')],
-    bundle: true, platform: 'node', format: 'cjs', target: 'node22',
+    bundle: true, platform: 'node', format: 'cjs', target: 'node24',
     minify: true, legalComments: 'inline', outfile: worker,
     footer: { js: `/*! TypeScript (Apache-2.0)\n${license}*/` },
   });
@@ -25,7 +25,7 @@ export async function buildHookRuntime({ root, outfile, writeIdentity = false })
   await build({
     absWorkingDir: root, entryPoints: [join(root, 'packages/hook-runner/src/cli.ts')],
     alias: { '@voidcorp/mission-engine/events': join(root, 'packages/mission-engine/src/events/index.ts') },
-    bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile,
+    bundle: true, platform: 'node', format: 'esm', target: 'node24', outfile,
     define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify('./_syntax-worker.cjs'),
       __VOID_SYNTAX_WORKER_IDENTITY__: JSON.stringify(identity) },
   });

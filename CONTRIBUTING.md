@@ -9,7 +9,7 @@ pnpm install
 pnpm test          # 1100+ tests, ~30s
 ```
 
-Node `>=22.12` (CI and the maintainer environment run 24). pnpm is pinned via `packageManager`; do not pass a `--version` to `pnpm/action-setup`.
+Node `>=24.15.0` for every package (CI runs 24). pnpm is pinned via `packageManager`; do not pass a `--version` to `pnpm/action-setup`.
 
 ## The rules CI actually enforces
 

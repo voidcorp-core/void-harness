@@ -35,7 +35,7 @@ beforeAll(async () => {
     bundle: true,
     platform: 'node',
     format: 'esm',
-    target: 'node22',
+    target: 'node24',
     outfile: hook,
   });
 }, 30_000);

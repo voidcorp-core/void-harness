@@ -49,7 +49,7 @@
     "prepack": "pnpm -w build:cli && pnpm run build:assets"
   },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=24.15.0"
   },
   "publishConfig": {
     "access": "public",
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@clack/prompts": "^1.5.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.13.6",
     "@types/picomatch": "^4.0.3",
     "@voidcorp/harness-graph": "workspace:*",
     "@voidcorp/hook-runner": "workspace:*",
