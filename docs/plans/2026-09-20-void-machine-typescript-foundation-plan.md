@@ -32,7 +32,8 @@ Cette livraison ne remplace encore ni l'entrée distribuée ni Rust.
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins
 et preuves déjà décrits dans ce plan restent à sélectionner et à éprouver :
 
-- Reprise et annulation durables, résultats ambigus et absence de travail rejoué
+- Reprise et annulation durables au-delà de la note M2 : annulation explicite, question
+  en attente, abandon opérateur d'une étape inconnue et restauration de sauvegarde
   ([cycle de vie, §8](#8-runtime-général-persistance-et-cycle-de-vie) et
   [cas B3](#b3--reprendre-et-annuler-sans-perdre-ni-rejouer-le-travail)).
 - Verticales et consommateurs à retenir sur besoins réels, puis substitution
@@ -47,15 +48,23 @@ et preuves déjà décrits dans ce plan restent à sélectionner et à éprouver
   ([compatibilité, §7](#7-migration-des-capacités-rust-et-compatibilité) et
   [migration et retour arrière, §16](#16-vérification-revue-migration-et-retour-arrière)).
 
-**Prochaine étape proposée, à cadrer avant implémentation :** définir une preuve
-bornée de reprise après interruption sur le parcours réel M2. Partir d'une
-interruption après acceptation de l'extraction et avant synthèse ; préciser ce qui
-est conservé, comment retrouver la même mission et comment éviter de relancer un
-travail déjà accepté. Distinguer arrêt du host et annulation native confirmée,
-avec une issue explicite si l'état de la session est inconnu. Les cas de la
-[réserve B3](#b3--reprendre-et-annuler-sans-perdre-ni-rejouer-le-travail) guident ce
-cadrage sans imposer toute sa séquence historique. Cette proposition ne crée aucun
-nouveau programme.
+**Reprise durable de la note M2, 21 septembre : implémentée, vérifiée et éprouvée en réel, non fusionnée.**
+`note start` et `note resume` persistent la mission dans un journal de fichiers en
+ajout seul, sous une racine explicite (`--store`) : requête, modèles, délai, empreinte du
+contrat, intention de chaque étape, extraction acceptée et note. Un nouveau processus
+reprend la synthèse sans réexécuter l'extraction ; une mission terminée rend le même
+livrable sans modèle. Une étape lancée sans issue enregistrée reste `outcome-unknown`,
+sans relance. Deux reprises concurrentes ne lancent qu'une étape. Données corrompues,
+format inconnu ou contrat changé : octets préservés, diagnostic, aucun appel. Un échec
+observé reste terminal, sans retry dans cette tranche. `node:sqlite` est absent au plancher
+Node 22.12.0 observé ; le choix et ses limites sont dans la
+[décision journal fichier](../decisions-log/2026-09-21-machine-note-mission-file-journal--5450858b-e832-40f2-a066-1f176dda6f5f.md)
+et le [README du paquet](../../packages/void-machine/README.md#durable-note-mission).
+Garantie testée : crash du processus OS ; coupure machine en best-effort non prouvé.
+GREEN 3 (96 tests), plancher Node 22.12.0 (52 tests), revue indépendante sans blocker et
+parcours réel supervisé sous Node 22.12.0 (pause, reprise dans un nouveau processus, puis
+reprise terminée sans modèle) sont consignés au [§22](#22-reprise-durable-de-la-note-21-septembre-2026). Cette tranche ne
+crée aucun programme, scheduler ni moteur concurrent.
 
 ## Delta directeur du 20 septembre : besoin avant héritage
 
@@ -1342,3 +1351,60 @@ désormais Draft-7 via Zod 4.4.3. Le changement `-p` demeure une hypothèse de c
 pas la cause revendiquée. Le contexte natif reste explicitement non hermétique, les
 délais sont par rôle sans retry automatique, et Docker ainsi que la récupération durable
 restent des tranches ultérieures.
+
+## 22. Reprise durable de la note (21 septembre 2026)
+
+La tranche ajoute `note start` et `note resume` sur le parcours M2, sans workflow
+configurable, scheduler, daemon ni moteur concurrent. Le choix du stockage et ses limites
+sont dans la [décision journal fichier](../decisions-log/2026-09-21-machine-note-mission-file-journal--5450858b-e832-40f2-a066-1f176dda6f5f.md) ; le format, les reçus
+et les garanties sont dans le [README du paquet](../../packages/void-machine/README.md#durable-note-mission).
+
+Ordre TDD observé par ORCH. RED initial : 14 nouveaux tests CLI en échec, journal absent
+et TS2307 seul, 60 tests existants verts. GREEN 1 : 89/90, l'unique échec venait de
+l'instrument du test de course. Le perdant pouvait finir avant que l'enfant du gagnant
+ait écrit son entrée ; la cause a été confirmée par le log, et le test attend désormais
+deux signaux distincts, sans délai ajouté ni relance. La revue indépendante a produit un
+batch sans blocker. Un RED ciblé a fait échouer ses 5 tests de comportement (session
+native, annulation non confirmée, durabilité non confirmée, record hors format, lien
+symbolique), 30 autres tests restant verts. Le test de refus d'un identifiant non UUID a
+été ajouté après coup.
+
+GREEN 3 : 96 tests sur 6 suites, build, `tsconfig.tests` et lint à zéro. Les deux infos
+lint de `repository.ts` sont antérieures et hors diff. Le plancher, exécuté avec
+`/Users/folpe/.local/share/fnm/node-versions/v22.12.0/installation/bin/node`, passe
+52 tests sur les suites journal, CLI et adaptateur Claude. Empreintes SHA-256 des
+artefacts locaux : `green3-results.json`
+`b5bc100935e538d1915e326afda64d133da4ced73646fef29f30fd68d71f57a2`, `green3-tests.log`
+`df0684c9c937ccfecde65adee6c8959d143b5b452373c7d29dee40811be8989f`, `green3-floor.log`
+`943ee03bbad6677e6ba44ccd048a9187d7157fd609095e916db1a0a9b0305279`. Une dernière
+correction rédactionnelle des diagnostics de stockage, sans logique ni test, suit
+GREEN 3 ; le rebuild d'ORCH la couvre.
+
+Garantie testée : crash d'un processus OS, y compris SIGKILL juste après l'extraction
+acceptée, juste après la note acceptée et pendant la synthèse, distinct de la pause
+volontaire `--stop-after extraction`. Coupure machine : best-effort non prouvé. Aucune
+promesse d'exactly-once externe.
+
+Parcours réel supervisé par ORCH le 21 septembre, sous Node 22.12.0, sur la fixture
+publique M2 (entrée `c36bf28a89900a35614c0f1d42664d1f47294c50a116a55a4fdb12e712b116d1`,
+octets publics revérifiés en HTTPS non authentifié à `f3146d0c`) et un scratch hors
+dépôt, mission `resume-proof-20260921-01` :
+
+| Étape | Exit | Durée | Dispatches cumulés | Journal SHA-256 |
+| --- | --- | --- | --- | --- |
+| start `--stop-after extraction` (`paused`) | 0 | 12,56 s | 1 | `2c843679105051316d5623dbc5b9172a3d2411b37cc2cf29b1e0c0941e63858a` |
+| resume, nouveau processus (`completed`) | 0 | 16,237 s | 2 | `a2e17b05af42833942beab6adbc26c893e74830e743d552442a4b07576bca2b7` |
+| resume de la mission terminée | 0 | 0,134 s | 2 | identique |
+
+Stderr vide aux trois étapes. Chaque session native rapportée égale l'identifiant de
+l'intention enregistrée. Le troisième passage n'a lancé aucun modèle et rend un reçu et
+un journal identiques. L'extraction demandait `haiku` et a rapporté
+`claude-haiku-4-5-20251001` ; la synthèse demandait `sonnet` et a rapporté
+`claude-sonnet-5`. Les coûts natifs, 0,025104 et 0,070218, sont des estimations au tarif
+catalogue, pas une facture. La note cite deux sources, et ses limites signalent qu'une
+source ne répond qu'indirectement à la question : la validation structurelle ne certifie
+pas la pertinence. Empreintes locales : `live-results.json`
+`8c155cb99f01c3b496a3dd57235e78bacae6973e245466e6cabd582be4a85df3`, `live-resume.json`
+`5b399e2d9818108b170cd64a6e2a8df3734a24d272ebefebc104928284be7cbf`. Ce parcours prouve la
+reprise après pause volontaire en conditions réelles ; les fenêtres de crash brutal sont
+prouvées par les tests en processus réels, pas par ce live.
