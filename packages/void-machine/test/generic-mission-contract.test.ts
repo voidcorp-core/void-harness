@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import { createFileJournal } from '../src/adapters/store/file-journal.js';
-import { MISSION_EVENT_LIMIT, missionPosition, type MissionEvent } from '../src/core/mission.js';
+import {
+  MISSION_EVENT_LIMIT, missionPosition, type AcceptedValue, type MissionEvent,
+} from '../src/core/mission.js';
 import {
   type MissionDescription, type MissionRunner, type MissionStore,
   abandonMission, cancelMission, resumeMission, startMission,
@@ -68,12 +70,21 @@ const description: MissionDescription<Input, Config, Step, Value, string, Usage>
         ? { kind: 'encoded', record: candidate } : { kind: 'invalid' };
     },
   },
-  admit(step, value, input, config) {
-    if (!valueSchema.safeParse(value).success || input.request.length === 0) return false;
+  admit(step, raw, input, config) {
+    const parsed = valueSchema.safeParse(raw);
+    if (!parsed.success) return { ok: false, reason: 'value does not match its schema' };
+    const value = parsed.data;
     switch (step) {
-      case 'draft': return value.kind === 'draft' && value.text.includes(input.request);
-      case 'audit': return value.kind === 'audit' && value.score >= config.minimumScore;
-      case 'publish': return value.kind === 'publish' && value.receipt.startsWith('sent:');
+      case 'draft': {
+        // A parser may normalize: the admitted text, not the raw one, is recorded and reused.
+        const text = value.kind === 'draft' ? value.text.trim() : '';
+        return text.includes(input.request) ? { ok: true, value: { kind: 'draft', text } }
+          : { ok: false, reason: 'draft does not cover the request' };
+      }
+      case 'audit': return value.kind === 'audit' && value.score >= config.minimumScore
+        ? { ok: true, value } : { ok: false, reason: 'audit score is below the minimum' };
+      case 'publish': return value.kind === 'publish' && value.receipt.startsWith('sent:')
+        ? { ok: true, value } : { ok: false, reason: 'publish receipt is not a sent receipt' };
       default: { const neverStep: never = step; return neverStep; }
     }
   },
@@ -99,16 +110,18 @@ function fixture() {
   const journal = createFileJournal({ root });
   const store: MissionStore = { journal, missionId: 'three-step' };
   const calls: Step[] = [];
+  const seen: (readonly AcceptedValue<Step, Value>[])[] = [];
   let nextId = 0;
   const runner = (override?: (step: Step) => Promise<Outcome>): Run => ({
     contract: 'test-contract/1',
     executionId: () => `execution-${++nextId}`,
-    execute: async (step, input, config) => {
+    execute: async (step, input, config, admitted) => {
       calls.push(step);
+      seen.push(admitted);
       return override === undefined ? accepted(step, input, config) : override(step);
     },
   });
-  return { store, calls, runner, journal, root };
+  return { store, calls, seen, runner, journal, root };
 }
 
 function signal() {
@@ -168,6 +181,34 @@ it('keeps an unconfirmed outcome unknown until explicit abandonment', async () =
     .toMatchObject({ kind: 'blocked', reason: 'outcome-unknown' });
   expect(await abandonMission(f.store, description))
     .toMatchObject({ kind: 'abandoned', step: 'audit', effect: 'unknown' });
+  expect(f.calls).toEqual(['draft', 'audit']);
+});
+
+it('passes admitted values, not raw results, to later steps and the journal', async () => {
+  const f = fixture();
+  const input = { request: 'report' };
+  const config = { minimumScore: 3 };
+  const runner = f.runner(async (step) => step === 'draft'
+    ? { kind: 'accepted', value: { kind: 'draft', text: '  report  ' }, usage: [] }
+    : accepted(step, input, config));
+  expect(await startMission(input, config, f.store, description, runner))
+    .toMatchObject({ kind: 'completed' });
+  expect(f.seen[1]).toEqual([{ step: 'draft', value: { kind: 'draft', text: 'report' } }]);
+  expect(await f.journal.read(f.store.missionId)).toMatchObject({ kind: 'records',
+    records: { 2: { event: { kind: 'accepted', value: { text: 'report' } } } } });
+});
+
+it('journals a local refusal as rejected, and a later resume is not blocked', async () => {
+  const f = fixture();
+  await startMission({ request: 'report' }, { minimumScore: 3 },
+    f.store, description, f.runner(), 'draft');
+  const refusing = f.runner(async (step) => step === 'audit'
+    ? { kind: 'refused', usage: [] }
+    : accepted(step, { request: 'report' }, { minimumScore: 3 }));
+  const refused = await resumeMission(f.store, description, refusing);
+  expect(refused).toEqual({ kind: 'rejected', missionId: 'three-step', step: 'audit',
+    usage: [{ units: 1 }] });
+  expect(await resumeMission(f.store, description, f.runner())).toEqual(refused);
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 

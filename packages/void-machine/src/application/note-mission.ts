@@ -4,10 +4,10 @@ import {
   type BlockedReason, type MissionReceipt as GenericReceipt, type MissionRunner, type MissionStore,
   abandonMission, cancelMission, resumeMission, startMission,
 } from '../runtime/mission.js';
+import type { Extraction, Note, NoteInput } from '../verticals/sourced-note/note.js';
 import {
-  type Note, type NoteInput, admitExtraction, noteSchema,
-} from '../verticals/sourced-note/note.js';
-import { noteMissionDescription } from '../verticals/sourced-note/mission-codec.js';
+  type NoteValue, noteMissionDescription,
+} from '../verticals/sourced-note/mission-codec.js';
 import {
   configSchema, type MissionConfig, type MissionIssue, type MissionUsage, type Step,
 } from '../verticals/sourced-note/mission-record.js';
@@ -54,8 +54,8 @@ export type MissionReceipt =
   | BlockedReceipt;
 
 type NoteRunner = MissionRunner<NoteInput, MissionConfig, Step,
-  unknown, MissionIssue, MissionUsage>;
-type NoteGenericReceipt = GenericReceipt<Step, unknown, MissionIssue, MissionUsage>;
+  NoteValue, MissionIssue, MissionUsage>;
+type NoteGenericReceipt = GenericReceipt<Step, NoteValue, MissionIssue, MissionUsage>;
 
 function noteRunner(context: MissionDependencies): NoteRunner {
   return {
@@ -64,16 +64,16 @@ function noteRunner(context: MissionDependencies): NoteRunner {
     execute: async (step, input, config, accepted, executionId) => {
       const runtime = context.runtime(config);
       const stage = { executionId, timeoutMs: config.timeoutMs, clock: context.clock };
-      let outcome: StageOutcome<unknown>;
+      let outcome: StageOutcome<Extraction | Note>;
       switch (step) {
         case 'extraction':
           outcome = await extractStage(input, { ...stage, execute: runtime.extract });
           break;
         case 'synthesis': {
-          const prior = accepted.find((entry) => entry.step === 'extraction');
-          const extraction = admitExtraction(prior?.value, input);
-          if (!extraction.ok) throw new Error('Recorded extraction was not admitted');
-          outcome = await synthesizeStage(input, extraction.value,
+          // The reducer dispatches synthesis only after an admitted extraction.
+          const prior = accepted.find((entry) => entry.step === 'extraction')?.value;
+          if (prior?.kind !== 'extraction') return { kind: 'refused' };
+          outcome = await synthesizeStage(input, prior.extraction,
             { ...stage, execute: runtime.synthesize });
           break;
         }
@@ -91,14 +91,12 @@ function noteRunner(context: MissionDependencies): NoteRunner {
 
 function noteReceipt(receipt: NoteGenericReceipt): MissionReceipt {
   switch (receipt.kind) {
-    case 'completed': {
-      const note = noteSchema.safeParse(receipt.value);
-      return note.success
+    case 'completed':
+      return receipt.value.kind === 'note'
         ? { kind: 'completed', missionId: receipt.missionId,
-          note: note.data, usage: receipt.usage }
-        : { kind: 'blocked', missionId: receipt.missionId, reason: 'inadmissible',
-          diagnostic: 'The recorded note is not admissible for the recorded request' };
-    }
+          note: receipt.value.note, usage: receipt.usage }
+        : { kind: 'blocked', missionId: receipt.missionId, reason: 'unreadable',
+          diagnostic: 'mission records are out of order' };
     case 'paused':
       return receipt.step === 'extraction'
         ? { kind: 'paused', missionId: receipt.missionId,

@@ -73,6 +73,11 @@ son RED observé puis GREEN :
   reçu `rejected` à la reprise, coût observé conservé. La note l'écrit seulement en
   `note-mission/3` ; `/1` et `/2` se relisent à l'identique. RED : reçu `blocked` au
   lieu de `rejected` et codec note incapable d'encoder le refus.
+- Admission en parseur : `admit` rend `{ ok, value }` ou `{ ok: false, reason }`, le
+  codec décode des valeurs non admises et encode des valeurs admises, le runtime passe
+  des valeurs typées aux étapes et reçus. La triple validation de la note et son `throw`
+  disparaissent ; un refus local devient `rejected`, pas `outcome-unknown`. RED :
+  typecheck TS2322 et quatre tests (valeur normalisée, refus local, refus live, relecture).
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

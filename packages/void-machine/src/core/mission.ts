@@ -22,18 +22,25 @@ export type MissionEvent<Input, Config, Step extends string, Value, Issue, Usage
   /** The vertical refused the step's outcome; the cost it observed is kept. */
   | { readonly kind: 'rejected'; readonly step: Step; readonly usage: readonly Usage[] };
 
-export interface MissionCodec<Event> {
+/** Decodes untrusted records and encodes admitted events; the vertical owns both formats. */
+export interface MissionCodec<Recorded, Admitted> {
   readonly decode: (raw: unknown, revision: number) =>
-    | { readonly kind: 'decoded'; readonly event: Event }
+    | { readonly kind: 'decoded'; readonly event: Recorded }
     | { readonly kind: 'incompatible' | 'unreadable' };
-  readonly encode: (event: Event, revision: number) =>
+  readonly encode: (event: Admitted, revision: number) =>
     | { readonly kind: 'encoded'; readonly record: unknown }
     | { readonly kind: 'invalid' };
 }
+/** A parsed step value, or the reason the vertical refuses it. */
+export type Admission<Value> =
+  | { readonly ok: true; readonly value: Value }
+  | { readonly ok: false; readonly reason: string };
 export interface MissionDescription<Input, Config, Step extends string, Value, Issue, Usage> {
   readonly steps: readonly Step[];
-  readonly codec: MissionCodec<MissionEvent<Input, Config, Step, Value, Issue, Usage>>;
-  readonly admit: (step: Step, value: Value, input: Input, config: Config) => boolean;
+  readonly codec: MissionCodec<MissionEvent<Input, Config, Step, unknown, Issue, Usage>,
+    MissionEvent<Input, Config, Step, Value, Issue, Usage>>;
+  /** Parses an untrusted step value against the recorded request and configuration. */
+  readonly admit: (step: Step, raw: unknown, input: Input, config: Config) => Admission<Value>;
 }
 export type AcceptedValue<Step extends string, Value> = {
   readonly step: Step; readonly value: Value;

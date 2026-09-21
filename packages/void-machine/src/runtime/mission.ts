@@ -1,15 +1,18 @@
 // tdd-cover: e2e packages/void-machine/test/generic-mission-contract.test.ts
-import { MISSION_EVENT_LIMIT, missionPosition, type AcceptedValue, type MissionDescription,
-  type MissionEvent, type MissionPosition } from '../core/mission.js';
-export type { MissionDescription, MissionCodec } from '../core/mission.js';
+import { MISSION_EVENT_LIMIT, missionPosition, type AcceptedValue, type Admission,
+  type MissionDescription, type MissionEvent, type MissionPosition } from '../core/mission.js';
+export type { Admission, MissionDescription, MissionCodec } from '../core/mission.js';
 import type { MissionJournal } from './journal.js';
 
 export interface MissionStore {
   readonly journal: MissionJournal;
   readonly missionId: string;
 }
-export type StepOutcome<Value, Issue, Usage> =
-  | { readonly kind: 'accepted'; readonly value: Value; readonly usage: readonly Usage[] }
+/** What one step produced. An accepted value is untrusted until its vertical admits it. */
+export type StepOutcome<Issue, Usage> =
+  | { readonly kind: 'accepted'; readonly value: unknown; readonly usage: readonly Usage[] }
+  /** The vertical refused the step locally, before launching anything. */
+  | { readonly kind: 'refused' }
   | { readonly kind: 'stopped' | 'unconfirmed'; readonly issue: Issue;
     readonly cancellation: 'not-requested' | 'requested-unconfirmed';
     readonly usage: readonly Usage[] };
@@ -18,7 +21,7 @@ export interface MissionRunner<Input, Config, Step extends string, Value, Issue,
   readonly executionId: () => string;
   readonly execute: (step: Step, input: Input, config: Config,
     accepted: readonly AcceptedValue<Step, Value>[], executionId: string)
-    => Promise<StepOutcome<Value, Issue, Usage>>;
+    => Promise<StepOutcome<Issue, Usage>>;
 }
 export type BlockedReason = 'missing' | 'conflict' | 'storage' | 'unrecordable' | 'unreadable'
   | 'incompatible' | 'context-changed' | 'inadmissible' | 'outcome-unknown' | 'not-abandonable';
@@ -44,6 +47,8 @@ export type MissionReceipt<Step extends string, Value, Issue, Usage> =
 
 type Event<Input, Config, Step extends string, Value, Issue, Usage> =
   MissionEvent<Input, Config, Step, Value, Issue, Usage>;
+type Recorded<Input, Config, Step extends string, Issue, Usage> =
+  MissionEvent<Input, Config, Step, unknown, Issue, Usage>;
 type Blocked = Extract<MissionReceipt<string, never, never, never>, { kind: 'blocked' }>;
 type Loaded<EventType> =
   | { readonly kind: 'loaded'; readonly events: readonly EventType[] }
@@ -62,12 +67,39 @@ function unknownOutcome(missionId: string): Blocked {
     + 'and it is not launched again');
 }
 
-function admitted<Input, Config, Step extends string, Value, Issue, Usage>(
+function admission<Input, Config, Step extends string, Value, Issue, Usage>(
   description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
-  step: Step, value: Value, input: Input, config: Config,
-): boolean {
-  try { return description.admit(step, value, input, config); }
-  catch { return false; }
+  step: Step, raw: unknown, input: Input, config: Config,
+): Admission<Value> {
+  try { return description.admit(step, raw, input, config); }
+  catch { return { ok: false, reason: 'the vertical admission failed' }; }
+}
+
+/** Parses every recorded value against the recorded request before anything uses it. */
+function admitHistory<Input, Config, Step extends string, Value, Issue, Usage>(
+  missionId: string, description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
+  recorded: readonly Recorded<Input, Config, Step, Issue, Usage>[],
+): Loaded<Event<Input, Config, Step, Value, Issue, Usage>> {
+  const started = recorded[0];
+  if (started?.kind !== 'started') {
+    return blocked(missionId, 'unreadable', 'mission records are out of order');
+  }
+  const events: Event<Input, Config, Step, Value, Issue, Usage>[] = [];
+  for (const event of recorded) {
+    if (event.kind !== 'accepted' && event.kind !== 'completed') {
+      events.push(event);
+      continue;
+    }
+    const step = event.kind === 'accepted' ? event.step : description.steps.at(-1);
+    const admitted = step === undefined ? { ok: false as const, reason: 'no final step' }
+      : admission(description, step, event.value, started.input, started.config);
+    if (!admitted.ok) {
+      return blocked(missionId, 'inadmissible',
+        `A recorded step result is not admissible for the recorded request: ${admitted.reason}`);
+    }
+    events.push({ ...event, value: admitted.value });
+  }
+  return { kind: 'loaded', events };
 }
 
 async function readMission<Input, Config, Step extends string, Value, Issue, Usage>(
@@ -83,7 +115,7 @@ async function readMission<Input, Config, Step extends string, Value, Issue, Usa
   if (result.records.length > MISSION_EVENT_LIMIT) {
     return blocked(store.missionId, 'unreadable', 'Mission exceeds its record bound');
   }
-  const events: Event<Input, Config, Step, Value, Issue, Usage>[] = [];
+  const recorded: Recorded<Input, Config, Step, Issue, Usage>[] = [];
   for (const [index, raw] of result.records.entries()) {
     let decoded: ReturnType<typeof description.codec.decode>;
     try { decoded = description.codec.decode(raw, index + 1); }
@@ -93,19 +125,9 @@ async function readMission<Input, Config, Step extends string, Value, Issue, Usa
       return blocked(store.missionId, reason,
         `revision ${String(index + 1)}: record does not match its declared format`);
     }
-    events.push(decoded.event);
+    recorded.push(decoded.event);
   }
-  const started = events[0];
-  if (started?.kind === 'started') {
-    for (const event of events) {
-      if (event.kind === 'accepted'
-        && !admitted(description, event.step, event.value, started.input, started.config)) {
-        return blocked(store.missionId, 'inadmissible',
-          'A recorded step result is not admissible for the recorded request');
-      }
-    }
-  }
-  return { kind: 'loaded', events };
+  return admitHistory(store.missionId, description, recorded);
 }
 
 async function writeMission<Input, Config, Step extends string, Value, Issue, Usage>(
@@ -151,8 +173,7 @@ function usageOf<Input, Config, Step extends string, Value, Issue, Usage>(
 }
 
 function settle<Input, Config, Step extends string, Value, Issue, Usage>(
-  store: MissionStore, description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
-  events: readonly Event<Input, Config, Step, Value, Issue, Usage>[],
+  store: MissionStore, events: readonly Event<Input, Config, Step, Value, Issue, Usage>[],
 ): MissionReceipt<Step, Value, Issue, Usage> {
   const first = events[0];
   const last = events.at(-1);
@@ -161,14 +182,8 @@ function settle<Input, Config, Step extends string, Value, Issue, Usage>(
   }
   const usage = usageOf(events);
   switch (last.kind) {
-    case 'completed': {
-      const finalStep = description.steps.at(-1);
-      return finalStep !== undefined
-        && admitted(description, finalStep, last.value, first.input, first.config)
-        ? { kind: 'completed', missionId: store.missionId, value: last.value, usage }
-        : blocked(store.missionId, 'inadmissible',
-          'The recorded result is not admissible for the recorded request');
-    }
+    case 'completed':
+      return { kind: 'completed', missionId: store.missionId, value: last.value, usage };
     case 'unconfirmed': return unknownOutcome(store.missionId);
     case 'stopped':
       return { kind: 'stopped', missionId: store.missionId, step: last.step,
@@ -201,28 +216,30 @@ async function afterConflict<Input, Config, Step extends string, Value, Issue, U
   return current.kind === 'loaded' && last !== undefined
     && (last.kind === 'cancelled' || last.kind === 'cancel-requested'
       || last.kind === 'abandoned')
-    ? settle(store, description, current.events) : conflict;
+    ? settle(store, current.events) : conflict;
 }
 
-/** The event recording what one step produced; a result its vertical refuses is rejected. */
+/** The event recording what one step produced; a refusal by its vertical is rejected. */
 function outcomeEvent<Input, Config, Step extends string, Value, Issue, Usage>(
   description: MissionDescription<Input, Config, Step, Value, Issue, Usage>, step: Step,
-  outcome: StepOutcome<Value, Issue, Usage>,
+  outcome: StepOutcome<Issue, Usage>,
   started: Extract<Event<Input, Config, Step, Value, Issue, Usage>, { kind: 'started' }>,
 ): Event<Input, Config, Step, Value, Issue, Usage> {
-  const { usage } = outcome;
   switch (outcome.kind) {
-    case 'accepted':
-      if (!admitted(description, step, outcome.value, started.input, started.config)) {
-        return { kind: 'rejected', step, usage };
-      }
+    case 'accepted': {
+      const { usage } = outcome;
+      const admitted = admission(description, step, outcome.value,
+        started.input, started.config);
+      if (!admitted.ok) return { kind: 'rejected', step, usage };
       return step === description.steps.at(-1)
-        ? { kind: 'completed', value: outcome.value, usage }
-        : { kind: 'accepted', step, value: outcome.value, usage };
+        ? { kind: 'completed', value: admitted.value, usage }
+        : { kind: 'accepted', step, value: admitted.value, usage };
+    }
+    case 'refused': return { kind: 'rejected', step, usage: [] };
     case 'unconfirmed':
     case 'stopped':
       return { kind: outcome.kind, step, issue: outcome.issue,
-        cancellation: outcome.cancellation, usage };
+        cancellation: outcome.cancellation, usage: outcome.usage };
     default: { const neverOutcome: never = outcome; return neverOutcome; }
   }
 }
@@ -243,7 +260,7 @@ async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>
   const intent = await writeMission(store, description, events,
     { kind: 'dispatched', step: next.step, executionId });
   if (intent.kind === 'blocked') return intent;
-  let outcome: StepOutcome<Value, Issue, Usage>;
+  let outcome: StepOutcome<Issue, Usage>;
   try {
     outcome = await runner.execute(next.step, started.input, started.config,
       next.accepted, executionId);
@@ -268,7 +285,7 @@ async function advance<Input, Config, Step extends string, Value, Issue, Usage>(
     }
     if (next.kind === 'unknown') return unknownOutcome(store.missionId);
     if (next.kind === 'settled' || next.kind === 'cancel-requested') {
-      return settle(store, description, events);
+      return settle(store, events);
     }
     if (started.contract !== runner.contract) {
       return blocked(store.missionId, 'context-changed',
@@ -280,7 +297,7 @@ async function advance<Input, Config, Step extends string, Value, Issue, Usage>(
         ? afterConflict(store, description, written) : written;
     }
     events = written.events;
-    if (events.at(-1)?.kind !== 'accepted') return settle(store, description, events);
+    if (events.at(-1)?.kind !== 'accepted') return settle(store, events);
     if (stopAfter === next.step) {
       return { kind: 'paused', missionId: store.missionId, step: next.step,
         usage: usageOf(events) };
@@ -327,7 +344,7 @@ async function decide<Input, Config, Step extends string, Value, Issue, Usage>(
       return blocked(store.missionId, 'unreadable', 'mission records are out of order');
     }
     if (at.kind === 'settled' || (mode === 'cancel' && at.kind === 'cancel-requested')) {
-      return settle(store, description, loaded.events);
+      return settle(store, loaded.events);
     }
     if (mode === 'abandon' && at.kind === 'dispatch') {
       return blocked(store.missionId, 'not-abandonable',
@@ -339,7 +356,7 @@ async function decide<Input, Config, Step extends string, Value, Issue, Usage>(
         : { kind: 'cancel-requested', step: at.step };
     const written = await writeMission(store, description, loaded.events, event);
     if (written.kind === 'blocked' && written.reason === 'conflict' && attempt === 0) continue;
-    return written.kind === 'blocked' ? written : settle(store, description, written.events);
+    return written.kind === 'blocked' ? written : settle(store, written.events);
   }
   return blocked(store.missionId, 'conflict', 'A second writer changed the mission twice');
 }

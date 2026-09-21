@@ -197,10 +197,16 @@ records its boundaries and reversal cost.
 The current private suite has 124 passing tests under Node 24.15.0 and Node
 26.8.2, including frozen `/1` and `/2` journal fixtures and a three-step mission
 that resumes in a new context. Build and test typecheck pass on both runtimes.
-On every read, the driver re-admits recorded intermediate values before a resume,
-cancel, abandon or completed delivery. A schema-valid value that breaks the
-vertical's rules is blocked without rewriting the journal. Codec and admission
-exceptions also return typed refusals before a step is launched.
+Admission is a parser: the vertical's `admit(step, raw, input, config)` returns
+`{ ok: true, value }` or `{ ok: false, reason }`. The codec decodes records into
+untrusted values and encodes only admitted ones. On every read, the driver parses each
+recorded value once, before a resume, cancel, abandon or completed delivery, and hands
+the typed values to later steps and receipts; nothing downstream parses them again. A
+schema-valid value that breaks the vertical's rules is blocked as `inadmissible`, with
+the vertical's reason, without rewriting the journal. A live result the vertical
+refuses, or a step the vertical refuses locally before launching anything, is recorded
+as `rejected`, never as `outcome-unknown`. Codec and admission exceptions return typed
+refusals before a step is launched.
 
 The CLI and doctor contracts run source-loaded Node subprocesses. Their bounded
 test timeouts cover the measured 5–9-second cases on this host: 15 seconds per

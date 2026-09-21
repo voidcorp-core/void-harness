@@ -1,16 +1,26 @@
 // tdd-cover: e2e packages/void-machine/test/legacy-note-journals.test.ts
 import type { MissionDescription, MissionEvent } from '../../core/mission.js';
-import { admitExtraction, admitNote, type NoteInput } from './note.js';
+import {
+  admitExtraction, admitNote, type Extraction, type Note, type NoteInput,
+} from './note.js';
 import {
   FORMATS, formatOf, noteSteps, recordSchema,
   type Body, type MissionConfig, type MissionIssue, type MissionUsage, type Step,
 } from './mission-record.js';
 
-type NoteEvent = MissionEvent<NoteInput, MissionConfig, Step,
+/** An admitted note value, tagged so a later step can use it without parsing again. */
+export type NoteValue =
+  | { readonly kind: 'extraction'; readonly extraction: Extraction }
+  | { readonly kind: 'note'; readonly note: Note };
+type NoteDescription = MissionDescription<NoteInput, MissionConfig, Step,
+  NoteValue, MissionIssue, MissionUsage>;
+// Decoded values stay unknown until the kernel admits them against the recorded request.
+type RecordedEvent = MissionEvent<NoteInput, MissionConfig, Step,
   unknown, MissionIssue, MissionUsage>;
+type NoteEvent = MissionEvent<NoteInput, MissionConfig, Step,
+  NoteValue, MissionIssue, MissionUsage>;
 
-type Decode = ReturnType<MissionDescription<NoteInput, MissionConfig, Step,
-  unknown, MissionIssue, MissionUsage>['codec']['decode']>;
+type Decode = ReturnType<NoteDescription['codec']['decode']>;
 
 function decode(raw: unknown, revision: number): Decode {
   const format = typeof raw === 'object' && raw !== null && 'format' in raw
@@ -21,7 +31,7 @@ function decode(raw: unknown, revision: number): Decode {
   const parsed = recordSchema.safeParse(raw);
   if (!parsed.success || parsed.data.revision !== revision) return { kind: 'unreadable' };
   const record = parsed.data;
-  const event: NoteEvent = (() => {
+  const event: RecordedEvent = (() => {
     switch (record.kind) {
       case 'started': return { kind: 'started', input: record.input,
         config: record.config, contract: record.contract };
@@ -50,10 +60,12 @@ function bodyOf(event: NoteEvent): Body | undefined {
       config: event.config, contract: event.contract };
     case 'dispatched': return { kind: 'dispatched', step: event.step,
       executionId: event.executionId };
-    case 'accepted': return event.step === 'extraction'
-      ? { kind: 'accepted', step: 'extraction', value: event.value, usage: [...event.usage] }
+    case 'accepted': return event.step === 'extraction' && event.value.kind === 'extraction'
+      ? { kind: 'accepted', step: 'extraction', value: event.value.extraction,
+        usage: [...event.usage] }
       : undefined;
-    case 'completed': return { kind: 'completed', note: event.value, usage: [...event.usage] };
+    case 'completed': return event.value.kind === 'note'
+      ? { kind: 'completed', note: event.value.note, usage: [...event.usage] } : undefined;
     case 'unconfirmed': return { kind: 'unconfirmed', step: event.step,
       issue: event.issue, cancellation: event.cancellation, usage: [...event.usage] };
     case 'stopped': return { kind: 'stopped', stage: event.step,
@@ -66,8 +78,7 @@ function bodyOf(event: NoteEvent): Body | undefined {
   }
 }
 
-export const noteMissionDescription: MissionDescription<NoteInput, MissionConfig, Step,
-  unknown, MissionIssue, MissionUsage> = {
+export const noteMissionDescription: NoteDescription = {
   steps: noteSteps,
   codec: {
     decode,
@@ -79,10 +90,19 @@ export const noteMissionDescription: MissionDescription<NoteInput, MissionConfig
         ? { kind: 'encoded', record: candidate } : { kind: 'invalid' };
     },
   },
-  admit(step, value, input) {
+  admit(step, raw, input) {
     switch (step) {
-      case 'extraction': return admitExtraction(value, input).ok;
-      case 'synthesis': return admitNote(value, input).ok;
+      case 'extraction': {
+        const extraction = admitExtraction(raw, input);
+        return extraction.ok
+          ? { ok: true, value: { kind: 'extraction', extraction: extraction.value } }
+          : { ok: false, reason: 'extraction breaks its schema, size or source quotes' };
+      }
+      case 'synthesis': {
+        const note = admitNote(raw, input);
+        return note.ok ? { ok: true, value: { kind: 'note', note: note.value } }
+          : { ok: false, reason: 'note breaks its schema, size or source coverage' };
+      }
       default: { const neverStep: never = step; return neverStep; }
     }
   },
