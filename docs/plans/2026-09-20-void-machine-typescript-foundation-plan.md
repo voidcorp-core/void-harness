@@ -26,7 +26,13 @@ strictes du pack consommateur, qui n'a pas été modifié. Build, typecheck et
 111 tests du paquet sont verts sous Node 24.15.0 et 26.8.2 ; lint racine vert.
 Le choix du plancher et son incidence sur `node:sqlite` sont dans
 [l'ADR Node 24](../decisions-log/2026-09-21-machine-node-24-lts-floor--89f1ec74-3cf3-492a-be98-2ec03c924508.md).
-La séparation des couches et le noyau générique sont les volets suivants.
+**Volet séparation des couches.** Le test AST du graphe de modules couvre les
+imports statiques, de types et les réexports, puis charge le runtime isolé.
+RED observé avec un import de type `runtime -> verticals/development` (message
+nommant l'arête), puis GREEN après son retrait. Les adaptateurs doctor qui
+importent leur verticale implémentent ses ports et respectent le sens prévu.
+Le [choix du parseur](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md)
+est consigné. Le noyau générique est le volet suivant.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

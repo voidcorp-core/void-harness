@@ -55,6 +55,19 @@ The existing packed CLI budget is 2,000,000 bytes. Measure check:size before any
 do not drop maintained parsing or raise the ceiling to make the gate green.
 
 
+## Layer boundary proof
+
+`test/layer-boundaries.test.ts` parses the complete private source module graph
+with the official TypeScript 6 AST API, installed as a test dependency beside
+TypeScript 7. It checks static/type imports, reexports, import types and dynamic
+imports, then imports the isolated runtime entry points. A forbidden edge names
+its importer and specifier. Core and runtime do not import adapters, application,
+verticals or Node I/O; verticals use their own modules and core; adapters may
+implement vertical-owned ports but cannot import application. Only application
+composes the route. The existing doctor format/Git adapters correctly depend on
+doctor-owned schemas and types. The choice and its limits are in the
+[layer guard decision](../../docs/decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md).
+
 ## M1 private application boundary
 
 `src/application/note.ts` composes two injected asynchronous executors. Model and
