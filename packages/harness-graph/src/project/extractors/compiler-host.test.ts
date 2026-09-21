@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	LOST_WITHOUT_COMPILER,
 	createNodeCompilerLookup,
 	resolveProjectCompiler,
 	selectCompilerAdapter,
@@ -123,6 +124,21 @@ describe('resolveProjectCompiler', () => {
 		});
 
 		expect(resolution.kind).toBe('unloadable');
+	});
+
+	it('names the official alias for a TypeScript 7 project, whose `typescript` has no API', async () => {
+		// The exports of typescript@7.0.2 (`lib/version.cjs`) as `import()` hands them over.
+		const seven = { version: '7.0.2', versionMajorMinor: '7.0' };
+		const resolution = await resolveProjectCompiler('/project', {
+			...lookup(),
+			load: async () => ({ default: seven, ...seven }),
+		});
+
+		expect(resolution.kind).toBe('unsupported');
+		if (resolution.kind === 'resolved') return;
+		expect(resolution.detail).toContain('7.0.2');
+		expect(resolution.detail).toContain('"typescript": "npm:@typescript/typescript6@^6.0.2"');
+		expect(resolution.lost).toEqual(LOST_WITHOUT_COMPILER);
 	});
 
 	it('names the capability lost, so a partial snapshot says what it is missing', async () => {
