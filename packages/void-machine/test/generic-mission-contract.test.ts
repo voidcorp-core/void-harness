@@ -335,6 +335,24 @@ it('keeps the cost of a late result after an abandonment of the step in flight',
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 
+it.each([
+  ['failed', { kind: 'failed', reason: 'disk full' }, 'disk full'],
+  ['unconfirmed', { kind: 'unconfirmed', revision: 6, reason: 'no fsync' }, 'no fsync'],
+] as const)('reports a late cost whose write is %s as storage, not as the cancellation', async (
+  _label, failure, diagnostic,
+) => {
+  const f = fixture();
+  const journal = { ...f.journal, append: async (id: string, revision: number, record: unknown) =>
+    JSON.stringify(record).includes('"kind":"discarded"') ? failure
+      : f.journal.append(id, revision, record) };
+  const held = await heldAudit(f, { journal, missionId: 'three-step' });
+  await cancelMission(f.store, description);
+  held.release();
+  const receipt = await held.live;
+  expect(receipt).toMatchObject({ kind: 'blocked', reason: 'storage' });
+  expect(receipt.kind === 'blocked' ? receipt.diagnostic : '').toContain(diagnostic);
+});
+
 it('refuses a second discarded result for the same step', () => {
   const started: Event = { kind: 'started', input: { request: 'report' },
     config: { minimumScore: 3 }, contract: 'test-contract/1' };

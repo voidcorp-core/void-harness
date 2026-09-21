@@ -262,14 +262,16 @@ async function keepLateCost<Input, Config, Step extends string, Value, Issue, Us
   store: MissionStore, description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
   step: Step, usage: readonly Usage[], conflict: Blocked,
 ): Promise<Written<Event<Input, Config, Step, Value, Issue, Usage>>> {
+  // Only a lost revision falls back to the winner's receipt; a failed read or write is
+  // reported as itself, or the kept cost would vanish without a signal.
   const current = await readMission(store, description);
-  if (current.kind === 'blocked') return conflict;
+  if (current.kind === 'blocked') return current;
   const last = current.events.at(-1);
   if ((last?.kind !== 'cancel-requested' && last?.kind !== 'abandoned')
     || last.step !== step) return conflict;
   const written = await writeMission(store, description, current.events,
     { kind: 'discarded', step, usage });
-  return written.kind === 'blocked' ? conflict : written;
+  return written.kind === 'blocked' && written.reason === 'conflict' ? conflict : written;
 }
 
 async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>(
