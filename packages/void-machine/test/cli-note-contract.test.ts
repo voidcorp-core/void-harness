@@ -420,7 +420,7 @@ describe('note mission cancellation and explicit abandonment', () => {
     expect(contentsDigest(f.directory)).toBe(before);
   });
 
-  it('reports an in-flight cancel as unconfirmed and keeps only the cost of the late synthesis', async () => {
+  it('reports an in-flight cancel as unconfirmed, then keeps only the late cost', async () => {
     const f = cancellationFixture();
     const live = f.launch(f.start('fixture-hold'));
     let requested: ReturnType<typeof f.invoke> | undefined;
@@ -431,8 +431,9 @@ describe('note mission cancellation and explicit abandonment', () => {
       f.release();
     }
     expect(requested?.status).toBe(3);
-    expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', missionId: MISSION,
-      stage: 'synthesis', stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ role: 'extractor' }] });
+    expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled',
+      missionId: MISSION, stage: 'synthesis', stop: 'requested-unconfirmed', effect: 'unknown',
+      usage: [{ role: 'extractor' }] });
     // The loser of the revision records the cost it observed, never its result.
     const writer = await live;
     expect(writer.status).toBe(1);

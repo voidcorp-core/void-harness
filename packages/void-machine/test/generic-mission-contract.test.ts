@@ -298,7 +298,7 @@ async function heldAudit(f: ReturnType<typeof fixture>, store: MissionStore = f.
   return { live, release: release.resolve };
 }
 
-it('keeps the cost of a late result after an unconfirmed cancellation, never its value', async () => {
+it('keeps the cost of a late result after a requested cancellation, never its value', async () => {
   const f = fixture();
   const held = await heldAudit(f);
   expect(await cancelMission(f.store, description)).toEqual({ kind: 'cancelled',
