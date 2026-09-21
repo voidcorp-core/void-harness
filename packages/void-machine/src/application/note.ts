@@ -4,7 +4,7 @@ import {
   type Cancellation, type Clock, type Execute, type ExecutionStop, executeBounded,
 } from '../runtime/execution.js';
 import {
-  type Note, type NoteInput, admitExtraction, admitNote, noteInputSchema,
+  type Extraction, type Note, type NoteInput, admitExtraction, admitNote, noteInputSchema,
 } from '../verticals/sourced-note/note.js';
 
 export interface NoteDependencies {
@@ -24,13 +24,17 @@ export interface NoteStop {
 }
 export type NoteOutcome = { readonly kind: 'completed'; readonly note: Note } | NoteStop;
 
-const optionsSchema = z.strictObject({
-  executionIds: z.strictObject({ extraction: z.string().min(1).max(200),
-    synthesis: z.string().min(1).max(200) })
-    .refine((value) => value.extraction !== value.synthesis),
-  // Compatible with bounded host timers, without requiring a particular clock.
-  timeoutMs: z.number().int().min(1).max(2_147_483_647),
-});
+const executionIdsSchema = z.strictObject({ extraction: z.string().min(1).max(200),
+  synthesis: z.string().min(1).max(200) })
+  .refine((value) => value.extraction !== value.synthesis);
+// Compatible with bounded host timers, without requiring a particular clock.
+const timeoutSchema = z.number().int().min(1).max(2_147_483_647);
+
+/** Instructions are part of the execution contract a durable mission records. */
+export const noteInstructions = {
+  extraction: 'Extract exact quotations relevant to the question from the supplied sources. Return evidence and limitations.',
+  synthesis: 'Return a sourced note with title, summary, evidence and limitations. Cite both supplied sources using exact quotations.',
+} as const;
 
 function stop(stage: Stage, code: string, cause: string, action: string,
   cancellation: Cancellation = 'not-requested'): NoteStop {
@@ -43,37 +47,66 @@ function executionStop(stage: 'extraction' | 'synthesis', outcome: ExecutionStop
   return stop(stage, outcome.issue.code, outcome.issue.cause, outcome.issue.action, outcome.cancellation);
 }
 
+export function noteInputStop(): NoteStop {
+  return stop('input', 'input.invalid', 'Request or execution bounds are invalid',
+    'Provide a question, two distinct bounded sources, distinct execution IDs and a positive deadline');
+}
+
 function materials(input: NoteInput) {
   return { requestId: input.requestId, question: input.question, sources: input.sources };
 }
 
-export async function runNote(raw: unknown, dependencies: NoteDependencies): Promise<NoteOutcome> {
+export type RequestAdmission = { readonly ok: true; readonly input: NoteInput }
+  | { readonly ok: false; readonly stop: NoteStop };
+
+export function admitNoteRequest(raw: unknown, timeoutMs: number): RequestAdmission {
   const input = noteInputSchema.safeParse(raw);
-  const options = optionsSchema.safeParse({ executionIds: dependencies.executionIds,
-    timeoutMs: dependencies.timeoutMs });
-  if (!input.success || !options.success) {
-    return stop('input', 'input.invalid', 'Request or execution bounds are invalid',
-      'Provide a question, two distinct bounded sources, distinct execution IDs and a positive deadline');
-  }
-  const extraction = await executeBounded(dependencies.extract, {
-    executionId: options.data.executionIds.extraction, timeoutMs: options.data.timeoutMs,
-    instruction: 'Extract exact quotations relevant to the question from the supplied sources. Return evidence and limitations.',
-    input: materials(input.data),
-  }, dependencies.clock);
+  if (!input.success || !timeoutSchema.safeParse(timeoutMs).success) return { ok: false, stop: noteInputStop() };
+  return { ok: true, input: input.data };
+}
+
+export interface StageExecution {
+  readonly execute: Execute;
+  readonly executionId: string;
+  readonly timeoutMs: number;
+  readonly clock: Clock;
+}
+export type StageOutcome<T> = { readonly kind: 'accepted'; readonly value: T } | NoteStop;
+
+export async function extractStage(input: NoteInput, stage: StageExecution): Promise<StageOutcome<Extraction>> {
+  const extraction = await executeBounded(stage.execute, {
+    executionId: stage.executionId, timeoutMs: stage.timeoutMs,
+    instruction: noteInstructions.extraction, input: materials(input),
+  }, stage.clock);
   if (extraction.kind === 'stopped') return executionStop('extraction', extraction);
-  const admitted = admitExtraction(extraction.payload, input.data);
-  if (!admitted.ok) {
-    return stop('extraction', 'extraction.invalid', 'Extraction is not bounded and traceable to the supplied sources',
+  const admitted = admitExtraction(extraction.payload, input);
+  return admitted.ok ? { kind: 'accepted', value: admitted.value }
+    : stop('extraction', 'extraction.invalid', 'Extraction is not bounded and traceable to the supplied sources',
       'Supply valid extraction evidence before requesting synthesis');
-  }
-  const synthesis = await executeBounded(dependencies.synthesize, {
-    executionId: options.data.executionIds.synthesis, timeoutMs: options.data.timeoutMs,
-    instruction: 'Return a sourced note with title, summary, evidence and limitations. Cite both supplied sources using exact quotations.',
-    input: { ...materials(input.data), extraction: admitted.value },
-  }, dependencies.clock);
+}
+
+export async function synthesizeStage(input: NoteInput, extraction: Extraction,
+  stage: StageExecution): Promise<StageOutcome<Note>> {
+  const synthesis = await executeBounded(stage.execute, {
+    executionId: stage.executionId, timeoutMs: stage.timeoutMs,
+    instruction: noteInstructions.synthesis, input: { ...materials(input), extraction },
+  }, stage.clock);
   if (synthesis.kind === 'stopped') return executionStop('synthesis', synthesis);
-  const note = admitNote(synthesis.payload, input.data);
-  return note.ok ? { kind: 'completed', note: note.value }
+  const note = admitNote(synthesis.payload, input);
+  return note.ok ? { kind: 'accepted', value: note.value }
     : stop('synthesis', 'note.invalid', 'Note is not bounded, traceable and supported by both sources',
       'Supply a structurally valid note with quotations from each source');
+}
+
+export async function runNote(raw: unknown, dependencies: NoteDependencies): Promise<NoteOutcome> {
+  const request = admitNoteRequest(raw, dependencies.timeoutMs);
+  const executionIds = executionIdsSchema.safeParse(dependencies.executionIds);
+  if (!request.ok || !executionIds.success) return noteInputStop();
+  const stage = { timeoutMs: dependencies.timeoutMs, clock: dependencies.clock };
+  const extraction = await extractStage(request.input,
+    { ...stage, execute: dependencies.extract, executionId: executionIds.data.extraction });
+  if (extraction.kind === 'stopped') return extraction;
+  const note = await synthesizeStage(request.input, extraction.value,
+    { ...stage, execute: dependencies.synthesize, executionId: executionIds.data.synthesis });
+  return note.kind === 'stopped' ? note : { kind: 'completed', note: note.value };
 }

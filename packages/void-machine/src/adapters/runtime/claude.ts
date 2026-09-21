@@ -25,7 +25,15 @@ export interface ClaudeExecutorConfig {
   readonly onUsage?: (usage: ClaudeUsage) => void;
   readonly maxStdoutBytes?: number;
   readonly maxStderrBytes?: number;
+  /**
+   * Use the caller's execution identifier as the native session id, so a recorded
+   * dispatch intent names the native session before it is spawned. A non-UUID
+   * identifier is refused; no session id is invented in that mode.
+   */
+  readonly sessionFromExecutionId?: boolean;
 }
+
+const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface ClaudeChild {
   readonly stdin: NodeJS.WritableStream;
@@ -166,11 +174,16 @@ export function createClaudeExecutor(config: ClaudeExecutorConfig): Execute {
   const stdoutLimit = config.maxStdoutBytes ?? MAX_STDOUT_BYTES;
   const stderrLimit = config.maxStderrBytes ?? MAX_STDERR_BYTES;
   return (request) => new Promise((resolve) => {
-    const sessionId = randomUUID();
     let settled = false;
     const finish = (value: unknown): void => {
       if (!settled) { settled = true; resolve(value); }
     };
+    const correlated = config.sessionFromExecutionId === true;
+    if (correlated && !SESSION_UUID.test(request.executionId)) {
+      finish(failure(request.executionId, 'failed', 'Execution identifier is not a UUID usable as the native session id'));
+      return;
+    }
+    const sessionId = correlated ? request.executionId : randomUUID();
     let process: ClaudeChild;
     try {
       process = spawn(config.executable, args(config, sessionId, request.instruction), {

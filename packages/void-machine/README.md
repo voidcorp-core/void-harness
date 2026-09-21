@@ -93,8 +93,9 @@ remove installed hooks or protections. The cwd and environment are explicit, but
 the native runtime is not hermetic. A stopped result is printed as structured JSON,
 including usage already observed for an earlier role, and exits 1. Native refusals are
 classified into bounded public actions; raw stderr is never included. Process exit and
-captured byte counts are retained only for otherwise-unclassified failures. Invalid CLI arguments or input files exit 2. Docker, durable recovery,
-and live model quality certification remain outside this tranche.
+captured byte counts are retained only for otherwise-unclassified failures. Invalid CLI arguments or input files exit 2. Docker
+and live model quality certification remain outside this tranche; durable recovery is the
+separate mission entry below.
 
 ### M2 observation receipt
 
@@ -112,4 +113,79 @@ The adapter now emits the supported Zod Draft-7 target; the earlier concrete `-p
 argument change remains a separate hypothesis and is not recorded as the root cause.
 The final live observation is pending and must use a fresh scratch cwd, explicit native
 settings and the child environment allowlist. User and managed runtime context remain
-non-hermetic by design. Docker execution and durable recovery remain deferred.
+non-hermetic by design. Docker execution remains deferred.
+
+## Durable note mission
+
+`note start` records the request and each step in a mission directory; `note resume`
+continues it from those records in a new process. Paths are explicit: no home, XDG or
+platform default is used, so the store can be a mounted volume. Relative paths resolve
+against the process working directory, like any other CLI argument.
+
+```text
+node dist/application/cli.js note start --store /data/missions --mission m-42 \
+  --input ./request.json --cwd /tmp/void-note-run \
+  --extraction-model haiku --synthesis-model sonnet --timeout-ms 90000 [--stop-after extraction]
+node dist/application/cli.js note resume --store /data/missions --mission m-42 --cwd /tmp/void-note-run
+```
+
+The mission id is required at start so a host crash can be followed by a resume.
+Models and deadline come from the recorded start; executable, cwd and environment
+are local to each process and never recorded. `--stop-after extraction` ends after the
+accepted extraction is durable, for instance to read it before paying for synthesis.
+
+Receipts: `completed` and `paused` exit 0, `stopped` exits 1, `blocked` exits 3 with a
+reason (`missing`, `conflict`, `storage`, `unrecordable`, `unreadable`, `incompatible`,
+`context-changed`, `inadmissible`, `outcome-unknown`) and a diagnostic without source
+contents. Usage errors exit 2. Resuming a finished mission returns the same bytes
+without a model call; a stopped mission replays its stop and is never retried.
+
+Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most
+16 records of 262,144 bytes each, measured on the encoded JSON. Not every admitted
+request fits: sources near their 65,536-byte limit, or text that JSON escaping enlarges,
+can exceed it, and such a start is refused as `storage` before anything is dispatched.
+Every record is checked against the format before it is written; one the reader would
+refuse is never written (`unrecordable`). Directories are created 0700 and records 0600. An
+append writes `.tmp-<uuid>` in the mission directory, syncs it, then links it to the next
+revision. `link` refuses an existing name, so exactly one writer gets each revision;
+any other link error is a storage failure, never a `rename` fallback. Readers ignore
+hidden temporaries and keep them. The store root is trusted as chosen by the caller;
+a mission directory that is a symbolic link is refused for reading and writing. Records are `started` (request, models, deadline,
+contract digest), `dispatched`, `accepted` (extraction), `unconfirmed`, `stopped` and
+`completed`; usage observed by the runtime is kept with the step that produced it.
+
+Guarantees and limits:
+
+- A dispatch intent is recorded before every native call, and its execution id is the
+  native session id passed to Claude (`--session-id`). An intent with no outcome, from a
+  crash or a timeout whose cancellation is unconfirmed, is reported as `outcome-unknown`
+  from the first receipt on, and never launched again. There is no external exactly-once
+  promise: an unknown or stopped step may still have spent.
+- `blocked` and `paused` write nothing, so a live writer can still record its result
+  after another resume saw it in flight. Two racing resumes launch one step; the
+  loser reports `conflict` or `outcome-unknown` depending on timing.
+- Recorded extraction and notes are re-admitted by `sourced-note` against the recorded
+  request before synthesis or delivery. Corrupt, unknown-format or changed-contract
+  records are preserved byte for byte, and nothing is dispatched.
+- A failure to record the accepted extraction forbids synthesis; the next resume then
+  reports the extraction as unknown. A record that was linked but whose directory sync
+  failed is reported as `storage` with unconfirmed durability. After any uncertain storage
+  outcome, including one that follows a native call, the process launches no further step.
+- The contract digest covers the instructions and the emitted output schemas. It does not
+  cover the native CLI version, user or managed settings, or model behavior: a resume
+  under the same digest is not a hermetic replay.
+- Only survival of an OS process crash is guaranteed and tested. Power loss is best effort:
+  records and the mission directory are synced, but the parent store directories are
+  not, Node on macOS cannot request a full drive flush, and the Docker Desktop mount was
+  not measured. A torn record is refused, never repaired.
+- The Claude runtime runs with `--no-session-persistence`, so an in-flight native call
+  cannot be found again or queried; whether an orphaned native process still completes
+  is not verified.
+
+Observed on 2026-09-21 under Node 22.12.0 with the public M2 fixture: a paused start,
+a resume in a new process that dispatched synthesis only, then a resume of the finished
+mission that returned the same receipt and journal with no model call. Evidence is in the
+[foundation plan](../../docs/plans/2026-09-20-void-machine-typescript-foundation-plan.md#22-reprise-durable-de-la-note-21-septembre-2026).
+
+The choice of a file journal over `node:sqlite` is recorded in
+[the file journal decision](../../docs/decisions-log/2026-09-21-machine-note-mission-file-journal--5450858b-e832-40f2-a066-1f176dda6f5f.md).
