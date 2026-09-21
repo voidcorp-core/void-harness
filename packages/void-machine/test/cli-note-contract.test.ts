@@ -435,10 +435,11 @@ describe('note mission cancellation and explicit abandonment', () => {
       stage: 'synthesis', stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ role: 'extractor' }] });
     // The loser of the revision records the cost it observed, never its result.
     const writer = await live;
-    expect(writer.status).toBe(3);
-    expect(f.receipt(writer.stdout)).toMatchObject({ kind: 'cancelled', stage: 'synthesis',
-      stop: 'requested-unconfirmed', effect: 'unknown',
-      usage: [{ role: 'extractor' }, { role: 'synthesizer' }] });
+    expect(writer.status).toBe(1);
+    expect(JSON.parse(writer.stdout)).toEqual({ kind: 'cancelled', missionId: MISSION,
+      stage: 'synthesis', stop: 'late-result-discarded',
+      usage: [expect.objectContaining({ role: 'extractor' }),
+        expect.objectContaining({ role: 'synthesizer' })] });
     expect(f.stored().map((record) => [record.kind, record.format.slice(-1)])).toEqual([
       ['started', '1'], ['dispatched', '1'], ['accepted', '1'], ['dispatched', '1'],
       ['cancel-requested', '2'], ['discarded', '3']]);
@@ -460,8 +461,10 @@ describe('note mission cancellation and explicit abandonment', () => {
     expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', stage: 'extraction',
       stop: 'requested-unconfirmed', effect: 'unknown', usage: [] });
     const writer = await live;
-    expect(f.receipt(writer.stdout)).toMatchObject({ kind: 'cancelled', stage: 'extraction',
-      stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ role: 'extractor' }] });
+    expect(writer.status).toBe(1);
+    expect(JSON.parse(writer.stdout)).toEqual({ kind: 'cancelled', missionId: MISSION,
+      stage: 'extraction', stop: 'late-result-discarded',
+      usage: [expect.objectContaining({ role: 'extractor' })] });
     expect(f.stored().map((record) => record.kind))
       .toEqual(['started', 'dispatched', 'cancel-requested', 'discarded']);
     expect(f.invoke(f.resume()).stdout).toBe(writer.stdout);

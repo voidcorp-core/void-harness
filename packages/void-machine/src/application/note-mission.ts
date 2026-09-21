@@ -47,6 +47,8 @@ export type MissionReceipt =
   | { readonly kind: 'cancelled'; readonly missionId: string; readonly stage: Step;
     readonly stop: 'requested-unconfirmed'; readonly effect: 'unknown';
     readonly usage: readonly MissionUsage[] }
+  | { readonly kind: 'cancelled'; readonly missionId: string; readonly stage: Step;
+    readonly stop: 'late-result-discarded'; readonly usage: readonly MissionUsage[] }
   | { readonly kind: 'abandoned'; readonly missionId: string; readonly stage: Step;
     readonly effect: 'unknown'; readonly usage: readonly MissionUsage[] }
   | { readonly kind: 'rejected'; readonly missionId: string; readonly stage: Step;

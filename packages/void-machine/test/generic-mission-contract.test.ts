@@ -284,30 +284,39 @@ it('keeps a recorded start resumable when execution identity generation fails', 
   expect(f.calls).toEqual(['draft', 'audit', 'publish']);
 });
 
-it('keeps the cost of a late result after an unconfirmed cancellation, never its value', async () => {
-  const f = fixture();
+/** Resumes the draft-paused mission with an audit held until released. */
+async function heldAudit(f: ReturnType<typeof fixture>, store: MissionStore = f.store) {
   await startMission({ request: 'report' }, { minimumScore: 3 },
     f.store, description, f.runner(), 'draft');
   const entered = signal();
   const release = signal();
-  const live = resumeMission(f.store, description, f.runner(async (step) => {
+  const live = resumeMission(store, description, f.runner(async (step) => {
     if (step === 'audit') { entered.resolve(); await release.promise; }
     return accepted(step, { request: 'report' }, { minimumScore: 3 });
   }));
   await entered.promise;
+  return { live, release: release.resolve };
+}
+
+it('keeps the cost of a late result after an unconfirmed cancellation, never its value', async () => {
+  const f = fixture();
+  const held = await heldAudit(f);
   expect(await cancelMission(f.store, description)).toEqual({ kind: 'cancelled',
     missionId: 'three-step', step: 'audit', stop: 'requested-unconfirmed', effect: 'unknown',
     usage: [{ units: 1 }] });
-  release.resolve();
+  held.release();
+  // The step returned: its stop is known, and the receipt says why its value is absent.
   const late = { kind: 'cancelled', missionId: 'three-step', step: 'audit',
-    stop: 'requested-unconfirmed', effect: 'unknown', usage: [{ units: 1 }, { units: 2 }] };
-  expect(await live).toEqual(late);
+    stop: 'late-result-discarded', usage: [{ units: 1 }, { units: 2 }] };
+  expect(await held.live).toEqual(late);
   expect(await f.journal.read(f.store.missionId)).toMatchObject({ kind: 'records',
     records: { 5: { event: { kind: 'discarded', step: 'audit', usage: [{ units: 2 }] } } } });
-  expect(await resumeMission(f.store, description, f.runner())).toEqual(late);
-  expect(await abandonMission(f.store, description)).toEqual({ kind: 'abandoned',
-    missionId: 'three-step', step: 'audit', effect: 'unknown',
-    usage: [{ units: 1 }, { units: 2 }] });
+  for (const again of [resumeMission(f.store, description, f.runner()),
+    cancelMission(f.store, description), abandonMission(f.store, description)]) {
+    expect(await again).toEqual(late);
+  }
+  expect(await f.journal.read(f.store.missionId))
+    .toMatchObject({ kind: 'records', records: { length: 6 } });
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 

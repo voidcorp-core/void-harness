@@ -38,6 +38,9 @@ export type MissionReceipt<Step extends string, Value, Issue, Usage> =
   | { readonly kind: 'cancelled'; readonly missionId: string; readonly step: Step;
     readonly stop: 'requested-unconfirmed'; readonly effect: 'unknown';
     readonly usage: readonly Usage[] }
+  /** The step returned after its cancellation: it has stopped, its value was discarded. */
+  | { readonly kind: 'cancelled'; readonly missionId: string; readonly step: Step;
+    readonly stop: 'late-result-discarded'; readonly usage: readonly Usage[] }
   | { readonly kind: 'abandoned'; readonly missionId: string; readonly step: Step;
     readonly effect: 'unknown'; readonly usage: readonly Usage[] }
   | { readonly kind: 'rejected'; readonly missionId: string; readonly step: Step;
@@ -192,9 +195,11 @@ function settle<Input, Config, Step extends string, Value, Issue, Usage>(
       return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'confirmed', usage };
     case 'cancel-requested':
-    case 'discarded':
       return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'requested-unconfirmed', effect: 'unknown', usage };
+    case 'discarded':
+      return { kind: 'cancelled', missionId: store.missionId, step: last.step,
+        stop: 'late-result-discarded', usage };
     case 'abandoned':
       return { kind: 'abandoned', missionId: store.missionId, step: last.step,
         effect: 'unknown', usage };

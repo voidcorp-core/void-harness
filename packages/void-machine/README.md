@@ -190,7 +190,7 @@ are local to each process and never recorded. `--stop-after extraction` ends aft
 accepted extraction is durable, for instance to read it before paying for synthesis.
 
 Receipts: `completed` and `paused` exit 0; `stopped`, `rejected`, `abandoned` and a `cancelled` with
-`stop: confirmed` exit 1; `blocked` exits 3 with a reason (`missing`, `conflict`,
+`stop: confirmed` or `stop: late-result-discarded` exit 1; `blocked` exits 3 with a reason (`missing`, `conflict`,
 `storage`, `unrecordable`, `unreadable`, `incompatible`, `context-changed`,
 `inadmissible`, `outcome-unknown`, `not-abandonable`) and a diagnostic without source
 contents, as does a `cancelled` with `stop: requested-unconfirmed`. Usage errors exit 2. Resuming a finished mission returns the same bytes
@@ -270,8 +270,10 @@ signal no process:
   effect stays unknown. The writer of that step loses its next revision and reads the
   cancellation. If its call returned meanwhile, it records `discarded` (step, usage) in
   `note-mission/3`: the usage it observed is kept and reported by every later receipt,
-  the result itself is never recorded, no next step runs and the step is still reported
-  as `requested-unconfirmed, effect: unknown` until `note abandon`. A result that returns
+  the result itself is never recorded and no next step runs. The mission is then settled
+  as `cancelled` with `stop: late-result-discarded`: the step has stopped, so its effect
+  is no longer unknown, and the receipt names why its value is absent. A second late
+  result for the same step is refused as unreadable history. A result that returns
   after abandonment is not recorded. A
   cancel recorded after the dispatch intent but before the native spawn cannot prove that
   nothing spawned.

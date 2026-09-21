@@ -61,7 +61,7 @@ type State<Step extends string, Value> =
   | { readonly kind: 'in-flight'; readonly index: number;
     readonly accepted: readonly AcceptedValue<Step, Value>[] }
   | { readonly kind: 'unknown' | 'cancel-requested'; readonly step: Step }
-  /** A late result was discarded after its cancellation; a second one is refused. */
+  /** A late result was discarded after its cancellation: settled, a second one refused. */
   | { readonly kind: 'discarded'; readonly step: Step }
   | { readonly kind: 'settled' | 'invalid' };
 
@@ -105,8 +105,8 @@ function transition<Input, Config, Step extends string, Value, Issue, Usage>(
         ? { kind: 'discarded', step: event.step } : { kind: 'invalid' };
     case 'abandoned':
       return ((state.kind === 'in-flight' && current === event.step)
-        || ((state.kind === 'unknown' || state.kind === 'cancel-requested'
-          || state.kind === 'discarded') && state.step === event.step))
+        || ((state.kind === 'unknown' || state.kind === 'cancel-requested')
+          && state.step === event.step))
         ? { kind: 'settled' } : { kind: 'invalid' };
     case 'started':
       return { kind: 'invalid' };
@@ -136,6 +136,6 @@ export function missionPosition<Input, Config, Step extends string, Value, Issue
     return step === undefined ? { kind: 'invalid' }
       : { kind: 'dispatch', step, accepted: state.accepted };
   }
-  if (state.kind === 'discarded') return { kind: 'cancel-requested', step: state.step };
+  if (state.kind === 'discarded') return { kind: 'settled' };
   return state;
 }
