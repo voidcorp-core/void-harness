@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const launcher = resolve(HERE, '../../bin/void-machine.mjs');
-const schema = resolve(HERE, '../../../../native/void-machine/schema/doctor-v1.json');
+const schema = resolve(HERE, '../../../void-machine/schema/doctor-v1.json');
 
 describe('native doctor compatibility boundary', () => {
   it('keeps the report schema closed and versioned', () => {

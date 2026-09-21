@@ -9,7 +9,7 @@ vi.setConfig({ testTimeout: processTestTimeoutMs });
 // Exercise current TypeScript sources, independent of any previously emitted dist.
 // The historical Rust comparison and its routing remain in Git and RUN evidence.
 const schema: unknown = JSON.parse(readFileSync(resolve(import.meta.dirname,
-  '../../../native/void-machine/schema/doctor-v1.json'), 'utf8'));
+  '../schema/doctor-v1.json'), 'utf8'));
 
 function expectClosedReport(output: string): unknown {
   const report: unknown = JSON.parse(output);
