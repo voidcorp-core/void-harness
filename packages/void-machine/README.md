@@ -173,7 +173,8 @@ contents, as does a `cancelled` with `stop: requested-unconfirmed`. Usage errors
 without a model call; a stopped mission replays its stop and is never retried.
 
 The note vertical owns the schemas for both recorded formats; the application
-currently applies their lifecycle. No stored byte format changes in this move.
+keeps record admission and append in a separate journal seam while applying the
+mission lifecycle. Neither move changes stored bytes.
 
 Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most
 16 records of 262,144 bytes each, measured on the encoded JSON. Not every admitted

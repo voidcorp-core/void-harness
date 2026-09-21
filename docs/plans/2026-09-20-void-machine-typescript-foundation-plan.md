@@ -33,7 +33,9 @@ nommant l'arête), puis GREEN après son retrait. Les adaptateurs doctor qui
 importent leur verticale implémentent ses ports et respectent le sens prévu.
 Le [choix du parseur](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md)
 est consigné. Remaniement sans comportement : les schémas `/1` et `/2` sont maintenant
-possédés par la verticale note. Le noyau générique est le volet suivant.
+possédés par la verticale note, et admission/écriture ont été extraites dans
+un module journal applicatif. Les 113 tests restent verts à chaque commit.
+Le noyau générique est le volet suivant.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

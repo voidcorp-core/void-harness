@@ -1,14 +1,18 @@
 // tdd-cover: e2e packages/void-machine/test/cli-note-contract.test.ts
 import type { Clock, Execute } from '../runtime/execution.js';
-import type { MissionJournal } from '../runtime/journal.js';
 import {
   type Note, admitExtraction, admitNote,
 } from '../verticals/sourced-note/note.js';
 import {
-  CANCELLATION_FORMAT, CANCELLATION_KINDS, FORMAT, configSchema, recordSchema,
+  CANCELLATION_KINDS, configSchema,
   type Body, type MissionConfig, type MissionRecord, type Started, type Step,
 } from '../verticals/sourced-note/mission-record.js';
 export type { MissionConfig } from '../verticals/sourced-note/mission-record.js';
+import {
+  type BlockedReceipt, type MissionStore, type Written,
+  blocked, recorded, unknownOutcome, write,
+} from './note-mission-journal.js';
+export type { MissionStore } from './note-mission-journal.js';
 import {
   type NoteStop, type StageOutcome, admitNoteRequest, extractStage, noteInputStop, synthesizeStage,
 } from './note.js';
@@ -20,11 +24,6 @@ export interface MissionRuntime {
   /** Usage observed since the previous call, attached to the step that produced it. */
   readonly drainUsage: () => readonly MissionUsage[];
 }
-/** What cancel and abandon need: the records only, never a runtime. */
-export interface MissionStore {
-  readonly journal: MissionJournal;
-  readonly missionId: string;
-}
 export interface MissionDependencies extends MissionStore {
   /** Digest of instructions and output contracts the current code would dispatch. */
   readonly contract: string;
@@ -32,12 +31,6 @@ export interface MissionDependencies extends MissionStore {
   readonly executionId: () => string;
   readonly clock: Clock;
 }
-export type BlockedReason = 'missing' | 'conflict' | 'storage' | 'unrecordable' | 'unreadable'
-  | 'incompatible' | 'context-changed' | 'inadmissible' | 'outcome-unknown' | 'not-abandonable';
-export type BlockedReceipt = {
-  readonly kind: 'blocked'; readonly missionId: string;
-  readonly reason: BlockedReason; readonly diagnostic: string;
-};
 export type MissionReceipt =
   | { readonly kind: 'completed'; readonly missionId: string; readonly note: Note;
     readonly usage: readonly MissionUsage[] }
@@ -64,18 +57,6 @@ type Position =
   | { readonly kind: 'unknown'; readonly step: Step }
   | { readonly kind: 'cancel-requested'; readonly step: Step }
   | { readonly kind: 'settled' } | { readonly kind: 'invalid' };
-type Written = { readonly kind: 'written'; readonly records: readonly MissionRecord[] } | BlockedReceipt;
-
-function blocked(missionId: string, reason: BlockedReason, diagnostic: string): BlockedReceipt {
-  return { kind: 'blocked', missionId, reason, diagnostic };
-}
-
-// Same receipt at first observation and on every resume: the step's fate is not known.
-function unknownOutcome(missionId: string): BlockedReceipt {
-  return blocked(missionId, 'outcome-unknown',
-    'A dispatched step has no accepted outcome; its result and cost are unknown and it is not launched again');
-}
-
 type Transition = Position | { readonly kind: 'in-flight'; readonly step: Step };
 
 // One record applied to where the mission stood; anything out of order is invalid.
@@ -114,45 +95,6 @@ function position(records: readonly MissionRecord[]): Position {
   let state: Transition = { kind: 'dispatch', step: 'extraction' };
   for (const record of rest) state = transition(state, record);
   return state.kind === 'in-flight' ? { kind: 'unknown', step: state.step } : state;
-}
-
-function parseRecords(raw: readonly unknown[], missionId: string): Written {
-  const records: MissionRecord[] = [];
-  for (const [index, value] of raw.entries()) {
-    const parsed = recordSchema.safeParse(value);
-    const format = typeof value === 'object' && value !== null && 'format' in value ? value.format : undefined;
-    const where = `revision ${String(index + 1)}`;
-    if (typeof format === 'string' && format !== FORMAT && format !== CANCELLATION_FORMAT) {
-      return blocked(missionId, 'incompatible', `${where}: unsupported record format`);
-    }
-    if (!parsed.success || parsed.data.revision !== index + 1) {
-      return blocked(missionId, 'unreadable', `${where}: record does not match its declared format`);
-    }
-    records.push(parsed.data);
-  }
-  return { kind: 'written', records };
-}
-
-async function write(context: MissionStore, records: readonly MissionRecord[],
-  body: Body): Promise<Written> {
-  const format = CANCELLATION_KINDS.has(body.kind) ? CANCELLATION_FORMAT : FORMAT;
-  const candidate = { format, revision: records.length + 1, ...body };
-  const revision = String(candidate.revision);
-  // A record the reader would refuse is never written: it would block the mission for good.
-  const record = recordSchema.safeParse(candidate);
-  if (!record.success) {
-    return blocked(context.missionId, 'unrecordable', `Revision ${revision} does not match ${format}; nothing was written`);
-  }
-  const result = await context.journal.append(context.missionId, records.length, candidate);
-  if (result.kind === 'appended') return { kind: 'written', records: [...records, record.data] };
-  if (result.kind === 'conflict') {
-    return blocked(context.missionId, 'conflict', `Another writer recorded revision ${revision} first; no further step will be launched by this process`);
-  }
-  if (result.kind === 'unconfirmed') {
-    return blocked(context.missionId, 'storage',
-      `Revision ${revision} was linked but its durability is unconfirmed (${result.reason}); no further step will be launched by this process`);
-  }
-  return blocked(context.missionId, 'storage', `Revision ${revision} was not recorded (${result.reason}); no further step will be launched by this process`);
 }
 
 function usageOf(records: readonly MissionRecord[]): MissionUsage[] {
@@ -259,13 +201,6 @@ export async function startNoteMission(raw: unknown, config: MissionConfig, cont
     config: parsedConfig.data, contract: context.contract });
   if (started.kind === 'blocked') return started;
   return advance(context, started.records, stopAfter);
-}
-
-async function recorded(context: MissionStore): Promise<Written> {
-  const read = await context.journal.read(context.missionId);
-  if (read.kind === 'missing') return blocked(context.missionId, 'missing', 'No mission is recorded under this identifier');
-  if (read.kind === 'unreadable') return blocked(context.missionId, 'unreadable', read.reason);
-  return parseRecords(read.records, context.missionId);
 }
 
 // The writer that lost its revision to a cancellation or an abandonment reports that
