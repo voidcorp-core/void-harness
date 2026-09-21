@@ -36,7 +36,7 @@ import { pathToFileURL } from 'node:url';
  */
 export type TypeScriptApi = typeof import('typescript');
 
-export type CompilerAdapterId = 'typescript-5';
+export type CompilerAdapterId = 'typescript-5' | 'typescript-6';
 
 export type AdapterSelection =
 	| { readonly kind: 'supported'; readonly adapter: CompilerAdapterId }
@@ -83,8 +83,19 @@ export const LOST_WITHOUT_COMPILER = Object.freeze([
 	'tsconfig inheritance, so path aliases are not applied',
 ]);
 
-/** Majors whose module resolution and tsconfig rules these extractors assume. */
-const SUPPORTED_MAJOR = 5;
+/**
+ * Majors whose module resolution and tsconfig rules these extractors assume.
+ *
+ * 6 is the last major with a JavaScript API. TypeScript 7's `typescript` package
+ * ships none, and a project that still needs it follows Microsoft's migration by
+ * aliasing `typescript` to `@typescript/typescript6`, which this lookup then
+ * resolves like any other 6.x compiler:
+ * https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/
+ */
+const SUPPORTED_ADAPTERS: ReadonlyMap<number, CompilerAdapterId> = new Map([
+	[5, 'typescript-5'],
+	[6, 'typescript-6'],
+]);
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
 function failure(kind: 'absent' | 'unloadable', detail: string): CompilerResolution {
@@ -160,7 +171,7 @@ export async function resolveProjectCompiler(
  * Pick the extractor adapter for a compiler version.
  *
  * Explicit rather than optimistic. An unknown major is refused with its number
- * in the message, because the alternative — running the 5.x adapter against a
+ * in the message, because the alternative — running a known adapter against a
  * compiler whose resolution rules moved — produces a graph that is wrong in a
  * way nothing downstream can detect.
  */
@@ -172,14 +183,14 @@ export function selectCompilerAdapter(version: string): AdapterSelection {
 			detail: `\`${version}\` is not a version this selector can read; it needs major.minor.patch`,
 		});
 	}
-	const major = Number(parsed[1]);
-	if (major !== SUPPORTED_MAJOR) {
+	const adapter = SUPPORTED_ADAPTERS.get(Number(parsed[1]));
+	if (adapter === undefined) {
 		return Object.freeze({
 			kind: 'unsupported',
-			detail: `TypeScript ${version} is outside the ${SUPPORTED_MAJOR}.x range these extractors were written against; a matching adapter has to be added before it is used`,
+			detail: `TypeScript ${version} is outside the 5.x and 6.x ranges these extractors were written against; a matching adapter has to be added before it is used`,
 		});
 	}
-	return Object.freeze({ kind: 'supported', adapter: 'typescript-5' });
+	return Object.freeze({ kind: 'supported', adapter });
 }
 
 /** The real port: Node resolution from the project root, dynamic import. */

@@ -148,6 +148,15 @@ describe('selectCompilerAdapter', () => {
 		}
 	});
 
+	it('selects the TypeScript 6 adapter, the API a TypeScript 7 project exposes under `typescript`', () => {
+		for (const version of ['6.0.0', '6.0.3', '6.1.0-dev.20260901']) {
+			expect(selectCompilerAdapter(version), version).toMatchObject({
+				kind: 'supported',
+				adapter: 'typescript-6',
+			});
+		}
+	});
+
 	it('refuses a major it was not written against, naming the ticket that adds it', () => {
 		const seven = selectCompilerAdapter('7.0.0');
 

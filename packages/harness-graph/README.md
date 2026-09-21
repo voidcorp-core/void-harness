@@ -44,6 +44,11 @@ Bounded, root-confined `tsconfig` inheritance accepts the TypeScript 5.9 string 
 forms and is parsed as a complete graph by the
 official Compiler API so `baseUrl`, `paths`, and their declaring config origins retain compiler
 semantics; cyclic, missing, escaping, or over-deep config chains make the snapshot partial.
+The compiler is the analysed project's own `typescript`, resolved from its root: 5.x and 6.x are
+supported. TypeScript 7 ships no JavaScript API, so a TypeScript 7 project is analysed through the
+6.x API it installs under `typescript` per Microsoft's migration
+(`typescript@npm:@typescript/typescript6`); without it, the snapshot is partial and names the lost
+capabilities rather than borrowing the harness's compiler.
 Vitest test discovery recognizes only the bounded `it`/`test`, `only`, `skip`, `todo`, `concurrent`,
 `sequential`, `fails`, `skipIf`, `runIf`, and `each` call grammar. `extend`, arbitrary members, and
 non-literal dynamic imports are excluded or diagnosed rather than silently inventing topology.
