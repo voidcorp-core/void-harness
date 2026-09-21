@@ -172,6 +172,9 @@ Receipts: `completed` and `paused` exit 0; `stopped`, `abandoned` and a `cancell
 contents, as does a `cancelled` with `stop: requested-unconfirmed`. Usage errors exit 2. Resuming a finished mission returns the same bytes
 without a model call; a stopped mission replays its stop and is never retried.
 
+The note vertical owns the schemas for both recorded formats; the application
+currently applies their lifecycle. No stored byte format changes in this move.
+
 Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most
 16 records of 262,144 bytes each, measured on the encoded JSON. Not every admitted
 request fits: sources near their 65,536-byte limit, or text that JSON escaping enlarges,
