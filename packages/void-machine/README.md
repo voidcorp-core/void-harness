@@ -71,8 +71,14 @@ application, plus `smol-toml` for adapters); any other package is refused. A dyn
 import whose specifier is not a string literal is refused in every layer, and the
 kernel refuses dynamic imports altogether. A fixed table of refused sources (bare
 `fs`, `node:os`, `createRequire`, an unlisted package, `import(name)`, a reexport, a
-type import, an extensionless path) must each report one message naming the import,
-so a detector that stops reporting fails the test. The guard reads module edges only:
+type import, an extensionless path, an imported `.mts`, `export * from 'fs'`,
+`import x = require('fs')`, `type T = import('fs')`, a literal dynamic import in core,
+a root-level file) must each report one message naming the import, so a detector that
+stops reporting fails the test. A local import must name a `.js` specifier, the NodeNext
+form of a production `.ts` source. The scan refuses, rather than skips, any file of
+`src/` outside the five known layers or that is not a production `.ts` source (`.mts`,
+`.cts`, `.js`, `.mjs`, `.tsx`, `.d.ts`, `*.test.ts`), and asserts that it read the
+known modules of every layer, so it cannot pass by reading nothing. The guard reads module edges only:
 Node globals such as `process` or `fetch` are not imports and are not caught here.
 The existing doctor format/Git adapters correctly depend on
 doctor-owned schemas and types. The choice and its limits are in the
