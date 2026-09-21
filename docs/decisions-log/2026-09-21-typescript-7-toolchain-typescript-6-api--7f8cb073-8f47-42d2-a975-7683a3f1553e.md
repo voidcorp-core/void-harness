@@ -38,10 +38,13 @@ which may run any TypeScript from 5.0 onwards.
 
 ## Decision
 
-`tsc` is TypeScript 7 in every package. Packages whose code or tests consume the
-API (root, harness-graph, hook-runner) follow Microsoft's migration:
-`typescript` is `npm:@typescript/typescript6` and `@typescript/native` is
-`npm:typescript@^7.0.2`. The others depend on `typescript@^7.0.2` directly.
+`tsc` is TypeScript 7 in every package. The root and harness-graph, whose tests
+resolve a consumer's `typescript`, follow Microsoft's migration: `typescript` is
+`npm:@typescript/typescript6@^6.0.2` and `@typescript/native` is
+`npm:typescript@^7.0.2`, the ranges of the announcement. hook-runner bundles the
+6.x API into its delivered worker under its own name, `@typescript/typescript6`,
+and its tests link that package as the consumer compiler, so it declares no
+`typescript` alias. The others depend on `typescript@^7.0.2` directly.
 
 harness-graph accepts the 6.x API next to 5.x (adapter `typescript-6`, same
 extractors) and widens its optional peer to `>=5.0.0 <7.0.0`. A TypeScript 7

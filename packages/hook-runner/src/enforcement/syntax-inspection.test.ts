@@ -49,7 +49,7 @@ afterAll(() => { rmSync(bundleDirectory, { recursive: true, force: true }); });
 function project() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-evidence-')));
   mkdirSync(join(root, 'node_modules'));
-  const compiler = createRequire(import.meta.url).resolve('typescript/package.json');
+  const compiler = createRequire(import.meta.url).resolve('@typescript/typescript6/package.json');
   symlinkSync(compiler.slice(0, -'/package.json'.length), join(root, 'node_modules/typescript'), 'junction');
   mkdirSync(join(root, 'apps/web/src'), { recursive: true });
   mkdirSync(join(root, 'tests/e2e'), { recursive: true });
