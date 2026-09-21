@@ -61,10 +61,20 @@ do not drop maintained parsing or raise the ceiling to make the gate green.
 with the official TypeScript 6 AST API, installed as a test dependency beside
 TypeScript 7. It checks static/type imports, reexports, import types and dynamic
 imports statically; it loads no module to prove isolation. A forbidden edge names
-its importer and specifier. Core and runtime do not import adapters, application,
-verticals or Node I/O; verticals use their own modules and core; adapters may
-implement vertical-owned ports but cannot import application. Only application
-composes the route. The existing doctor format/Git adapters correctly depend on
+its importer and specifier. Core and runtime do not import adapters, application or
+verticals; verticals use their own modules and core; adapters may implement
+vertical-owned ports but cannot import application. Only application composes the
+route. Core, runtime and verticals import no Node built-in module, with or without
+the `node:` prefix, as `isBuiltin` from `node:module` reports it. Each layer names
+its external packages in an explicit list (`zod` for core, runtime, verticals and
+application, plus `smol-toml` for adapters); any other package is refused. A dynamic
+import whose specifier is not a string literal is refused in every layer, and the
+kernel refuses dynamic imports altogether. A fixed table of refused sources (bare
+`fs`, `node:os`, `createRequire`, an unlisted package, `import(name)`, a reexport, a
+type import, an extensionless path) must each report one message naming the import,
+so a detector that stops reporting fails the test. The guard reads module edges only:
+Node globals such as `process` or `fetch` are not imports and are not caught here.
+The existing doctor format/Git adapters correctly depend on
 doctor-owned schemas and types. The choice and its limits are in the
 [layer guard decision](../../docs/decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md).
 

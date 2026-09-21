@@ -32,9 +32,13 @@ The ownership rules follow the
 [TypeScript layer ADR](./2026-09-19-void-machine-typescript-layer-ownership--e492e50e-86b0-4427-9fdf-2435750ce60d.md)
 and plan section 5.2: core imports core; runtime imports core/runtime;
 verticals import core/verticals; adapters may implement ports owned by core,
-runtime or verticals but cannot import application; application composes. External
-pure schema libraries are allowed. Kernel/vertical imports of Node I/O or harness
-packages are refused, and dynamic imports in the kernel are refused.
+runtime or verticals but cannot import application; application composes. Each layer lists
+the external packages it may import (today `zod`, plus `smol-toml` for adapters);
+any other package, harness packages included, is refused. Core, runtime and
+verticals import no Node built-in, detected with `isBuiltin` from `node:module`
+whatever the prefix. A dynamic import with a non-literal specifier is refused in
+every layer, and dynamic imports in the kernel are refused. A fixed table of
+synthetic refused sources proves that the detector still reports each case.
 
 The existing doctor adapters importing `verticals/development/doctor.ts` are
 conformant: they implement or render doctor-owned ports and schemas. Moving those
@@ -48,11 +52,13 @@ Positive:
   names the violating edge. One package test keeps the guard out of consumer runs.
 - The parser is the official TypeScript AST, whose use beside TypeScript 7 is
   explicitly documented by the TypeScript team.
+- The refused-source table fails the test if the detector stops reporting.
 
 Negative:
 
 - A test-only TypeScript 6 installation coexists with the TypeScript 7 compiler.
-- This guard proves declared module edges, not runtime confinement of an adapter.
+- This guard proves declared module edges, not runtime confinement of an adapter,
+  and does not see Node globals such as `process` or `fetch`.
 
 ## Alternatives considered
 

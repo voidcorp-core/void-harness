@@ -55,6 +55,15 @@ d'annuler ou de livrer une mission terminée ; une valeur modifiée sans casser 
 schéma est refusée. Les exceptions des codecs et des règles de la verticale donnent
 un refus typé sans lancer une étape.
 
+**Corrections de la relecture du noyau (21 septembre).** Chaque point a son commit,
+son RED observé puis GREEN :
+
+- Frontières : modules intégrés de Node refusés dans core, runtime et verticals via
+  `isBuiltin`, paquets externes en liste blanche par couche, import dynamique calculé
+  refusé partout ; huit sources refusées en dur doivent rester signalées. RED : cinq
+  des huit passaient (`fs` sans préfixe, `node:os`, `createRequire`, paquet hors liste,
+  `import(name)`).
+
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins
 et preuves déjà décrits dans ce plan restent à sélectionner et à éprouver :
