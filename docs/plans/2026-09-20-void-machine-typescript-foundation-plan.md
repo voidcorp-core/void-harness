@@ -82,6 +82,12 @@ son RED observé puis GREEN :
   { step, usage }` (note `/3`) ; coût conservé, valeur jamais enregistrée, aucune étape
   suivante, l'effet reste inconnu jusqu'à l'abandon. RED : usage tardif absent du reçu
   et du journal (test générique et deux tests CLI).
+- Délais des tests de processus : pire temps à froid mesuré sur cinq exécutions du
+  paquet (Node 24.15.0 et 26.9.0), trois exécutions racine et le job CI `validate` ;
+  chaque délai vaut environ trois fois sa mesure, consignée en commentaire (test CLI
+  9 s pour 3 058 ms, test à enfant vivant 4 s pour 1 244 ms, enfant 4 s et 2,5 s pour
+  1 386 et 866 ms, test doctor 1,25 s pour 411 ms). Pas de RED possible : aucun
+  comportement ne change ; suite verte trois fois à froid sur chaque runtime.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

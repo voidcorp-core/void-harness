@@ -6,8 +6,13 @@ import { fileURLToPath } from 'node:url';
 
 const fixture = fileURLToPath(new URL('./fixtures/claude-cli-note.mjs', import.meta.url));
 const hostScript = fileURLToPath(new URL('./fixtures/note-mission-host.ts', import.meta.url));
-// CLI contracts spawn several source-loaded Node processes on the supported runtimes.
-vi.setConfig({ testTimeout: 30_000 });
+// Delays are about three times the worst cold time measured on 2026-09-21: five package runs
+// on Node 24.15.0 and 26.9.0, three root filesystem runs, and the CI validate job at e0e8afa2.
+// Slowest CLI test 3,058 ms, slowest test holding a live child 1,244 ms, slowest asynchronous
+// child from spawn to exit 866 ms. A delay only bounds a hang; it never turns a failure green.
+vi.setConfig({ testTimeout: 9_000 });
+const liveTestTimeoutMs = 4_000;
+const signalTimeoutMs = 2_500;
 
 const request = {
   requestId: 'request-1', question: 'Compare both sources',
@@ -260,7 +265,7 @@ describe('durable note mission across processes', () => {
     try {
       // Signal read only: the held launch is recorded before the barrier.
       await vi.waitFor(() => { expect(f.calls()).toContain('fixture-hold'); },
-        { timeout: 5000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       const observer = f.invoke(f.resume());
       expect(observer.status).toBe(3);
       expect(f.receipt(observer.stdout)).toMatchObject({ kind: 'blocked', reason: 'outcome-unknown' });
@@ -271,7 +276,7 @@ describe('durable note mission across processes', () => {
     expect(writer.status).toBe(0);
     expect(f.receipt(writer.stdout)).toMatchObject({ kind: 'completed', missionId: MISSION });
     expect(f.calls()).toEqual(['fixture-extract', 'fixture-hold']);
-  }, 15_000);
+  }, liveTestTimeoutMs);
 
   it('launches synthesis once when two resumes race for the same mission', async () => {
     const f = missionFixture();
@@ -283,9 +288,9 @@ describe('durable note mission across processes', () => {
       // Two distinct signals, in no assumed order: the loser finishes on its own, and the
       // winner's native child has entered. The loser can settle before that child starts.
       await vi.waitFor(() => { expect(settled.some(Boolean)).toBe(true); },
-        { timeout: 8000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       await vi.waitFor(() => { expect(f.calls()).toContain('fixture-hold'); },
-        { timeout: 8000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       expect(settled.filter(Boolean)).toHaveLength(1);
       expect(f.calls().filter((model) => model === 'fixture-hold')).toHaveLength(1);
     } finally {
@@ -296,7 +301,7 @@ describe('durable note mission across processes', () => {
     expect(results.map((result) => result.status).sort()).toEqual([0, 3]);
     const loser = results.find((result) => result.status === 3);
     expect(['conflict', 'outcome-unknown']).toContain(f.receipt(loser?.stdout ?? '{}').reason);
-  }, 15_000);
+  }, liveTestTimeoutMs);
 
   it('refuses to start a mission identifier that already exists', () => {
     const f = missionFixture();
@@ -428,7 +433,7 @@ describe('note mission cancellation and explicit abandonment', () => {
     let requested: ReturnType<typeof f.invoke> | undefined;
     try {
       await vi.waitFor(() => { expect(f.calls()).toContain('fixture-hold'); },
-        { timeout: 5000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       requested = f.invoke(f.cancel());
     } finally {
       f.release();
@@ -448,7 +453,7 @@ describe('note mission cancellation and explicit abandonment', () => {
     const resumed = f.invoke(f.resume());
     expect(resumed.stdout).toBe(writer.stdout);
     expect(f.calls()).toEqual(['fixture-extract', 'fixture-hold']);
-  }, 15_000);
+  }, liveTestTimeoutMs);
 
   it('never synthesizes from an extraction that returns after its cancellation', async () => {
     const f = cancellationFixture();
@@ -456,7 +461,7 @@ describe('note mission cancellation and explicit abandonment', () => {
     let requested: ReturnType<typeof f.invoke> | undefined;
     try {
       await vi.waitFor(() => { expect(f.calls()).toContain('fixture-extract-hold'); },
-        { timeout: 5000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       requested = f.invoke(f.cancel());
     } finally {
       f.release();
@@ -470,7 +475,7 @@ describe('note mission cancellation and explicit abandonment', () => {
       .toEqual(['started', 'dispatched', 'cancel-requested', 'discarded']);
     expect(f.invoke(f.resume()).stdout).toBe(writer.stdout);
     expect(f.calls()).toEqual(['fixture-extract-hold']);
-  }, 15_000);
+  }, liveTestTimeoutMs);
 
   it('abandons an unknown step once, idempotently, and never runs it again under the same identifier', () => {
     const f = cancellationFixture();
@@ -579,7 +584,7 @@ describe('note mission cancellation ordered by the journal', () => {
     let cancelled: ReturnType<typeof f.invoke> | undefined;
     try {
       await vi.waitFor(() => { expect(existsSync(join(f.root, 'held'))).toBe(true); },
-        { timeout: 5000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       cancelled = f.invoke(f.cancel());
     } finally {
       f.release();
@@ -593,7 +598,7 @@ describe('note mission cancellation ordered by the journal', () => {
     expect(host.stdout.trim()).toBe(cancelled?.stdout.trim() ?? '');
     expect(f.stored().map((record) => record.kind)).toEqual(['started', 'cancelled']);
     expect(f.calls()).toEqual([]);
-  }, 15_000);
+  }, liveTestTimeoutMs);
 });
 
 describe('note cancel losing its revision', () => {
@@ -606,7 +611,7 @@ describe('note cancel losing its revision', () => {
     let completed: ReturnType<typeof f.invoke> | undefined;
     try {
       await vi.waitFor(() => { expect(existsSync(join(f.root, 'held'))).toBe(true); },
-        { timeout: 5000, interval: 20 });
+        { timeout: signalTimeoutMs, interval: 20 });
       completed = f.invoke(f.resume());
     } finally {
       f.release();
@@ -618,5 +623,5 @@ describe('note cancel losing its revision', () => {
     expect(f.stored().map((record) => record.kind))
       .toEqual(['started', 'dispatched', 'accepted', 'dispatched', 'completed']);
     expect(f.calls()).toEqual(['fixture-extract', 'fixture-synthesis']);
-  }, 15_000);
+  }, liveTestTimeoutMs);
 });
