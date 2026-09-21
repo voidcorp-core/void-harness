@@ -5,7 +5,8 @@ export default defineConfig({
   format: ['esm'],
   target: 'node24',
   outDir: 'dist',
-  dts: true,
+  // Declarations are not emitted: the package exposes a binary, no types entry.
+  dts: false,
   // No source map in the published CLI: consumers never debug it, and it is the largest file in the
   // tarball. Rebuild locally with `--sourcemap` if you ever need one for development.
   sourcemap: false,

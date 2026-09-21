@@ -52,6 +52,10 @@ In TS configs:
 }
 ```
 
+The baseline compiles unchanged under TypeScript 5.0 through 7.0. It sets no `types`: since
+TypeScript 6 a project no longer loads every installed `@types/*` package, so a Node project adds
+`"types": ["node"]` to its own `compilerOptions`.
+
 ## Status
 
 MVP. The Result / Option / pipe helpers are shipped. The shared Biome / lefthook / commitlint configs and the `@repo/core` env / logger / errors modules land in subsequent commits.
