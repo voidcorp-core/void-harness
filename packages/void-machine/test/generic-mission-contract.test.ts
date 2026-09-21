@@ -34,13 +34,13 @@ const eventSchema = z.discriminatedUnion('kind', [
     value: valueSchema, usage: z.array(usageSchema) }),
   z.strictObject({ kind: z.literal('completed'), value: valueSchema,
     usage: z.array(usageSchema) }),
-  z.strictObject({ kind: z.literal('stopped'), stage: z.enum(steps),
+  z.strictObject({ kind: z.literal('stopped'), step: z.enum(steps),
     issue: z.string(), cancellation: z.enum(['not-requested', 'requested-unconfirmed']),
     usage: z.array(usageSchema) }),
   z.strictObject({ kind: z.literal('unconfirmed'), step: z.enum(steps),
     issue: z.string(), cancellation: z.literal('requested-unconfirmed'),
     usage: z.array(usageSchema) }),
-  z.strictObject({ kind: z.literal('cancelled'), stage: z.enum(steps) }),
+  z.strictObject({ kind: z.literal('cancelled'), step: z.enum(steps) }),
   z.strictObject({ kind: z.literal('cancel-requested'), step: z.enum(steps) }),
   z.strictObject({ kind: z.literal('abandoned'), step: z.enum(steps) }),
 ]);
@@ -126,7 +126,7 @@ it('starts three different steps and resumes in a new context', async () => {
   const f = fixture();
   const paused = await startMission({ request: 'report' }, { minimumScore: 3 },
     f.store, description, f.runner(), 'draft');
-  expect(paused).toMatchObject({ kind: 'paused', stage: 'draft' });
+  expect(paused).toMatchObject({ kind: 'paused', step: 'draft' });
   const resumedStore: MissionStore = { journal: f.journal, missionId: 'three-step' };
   const finished = await resumeMission(resumedStore, description, f.runner());
   expect(finished).toMatchObject({ kind: 'completed', value: { receipt: 'sent:ok' } });
@@ -146,7 +146,7 @@ it('keeps an unconfirmed outcome unknown until explicit abandonment', async () =
   expect(await resumeMission(f.store, description, f.runner()))
     .toMatchObject({ kind: 'blocked', reason: 'outcome-unknown' });
   expect(await abandonMission(f.store, description))
-    .toMatchObject({ kind: 'abandoned', stage: 'audit', effect: 'unknown' });
+    .toMatchObject({ kind: 'abandoned', step: 'audit', effect: 'unknown' });
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 
@@ -227,12 +227,12 @@ it('ignores a late result after an unconfirmed cancellation', async () => {
   }));
   await entered.promise;
   expect(await cancelMission(f.store, description)).toMatchObject({
-    kind: 'cancelled', stage: 'audit', stop: 'requested-unconfirmed', effect: 'unknown',
+    kind: 'cancelled', step: 'audit', stop: 'requested-unconfirmed', effect: 'unknown',
   });
   release.resolve();
-  expect(await live).toMatchObject({ kind: 'cancelled', stage: 'audit' });
+  expect(await live).toMatchObject({ kind: 'cancelled', step: 'audit' });
   expect(await abandonMission(f.store, description))
-    .toMatchObject({ kind: 'abandoned', stage: 'audit' });
+    .toMatchObject({ kind: 'abandoned', step: 'audit' });
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 

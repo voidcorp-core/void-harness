@@ -100,19 +100,26 @@ function noteReceipt(receipt: NoteGenericReceipt): MissionReceipt {
           diagnostic: 'The recorded note is not admissible for the recorded request' };
     }
     case 'paused':
-      return receipt.stage === 'extraction'
+      return receipt.step === 'extraction'
         ? { kind: 'paused', missionId: receipt.missionId,
           stage: 'extraction', usage: receipt.usage }
         : { kind: 'blocked', missionId: receipt.missionId, reason: 'unreadable',
           diagnostic: 'mission records are out of order' };
     case 'stopped': {
       const { code, cause, owner, action } = receipt.issue;
-      return { kind: 'stopped', missionId: receipt.missionId, stage: receipt.stage,
+      return { kind: 'stopped', missionId: receipt.missionId, stage: receipt.step,
         issue: { code, cause, owner, action }, cancellation: receipt.cancellation,
         usage: receipt.usage };
     }
-    case 'cancelled': return receipt;
-    case 'abandoned': return receipt;
+    // The note receipt keeps its public `stage` field; the kernel names it `step`.
+    case 'cancelled': {
+      const { step, ...rest } = receipt;
+      return { ...rest, stage: step };
+    }
+    case 'abandoned': {
+      const { step, ...rest } = receipt;
+      return { ...rest, stage: step };
+    }
     case 'blocked': return receipt;
     default: { const neverReceipt: never = receipt; return neverReceipt; }
   }

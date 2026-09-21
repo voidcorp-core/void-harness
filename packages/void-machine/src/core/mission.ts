@@ -7,13 +7,13 @@ export type MissionEvent<Input, Config, Step extends string, Value, Issue, Usage
   | { readonly kind: 'accepted'; readonly step: Step; readonly value: Value;
     readonly usage: readonly Usage[] }
   | { readonly kind: 'completed'; readonly value: Value; readonly usage: readonly Usage[] }
-  | { readonly kind: 'stopped'; readonly stage: Step; readonly issue: Issue;
+  | { readonly kind: 'stopped'; readonly step: Step; readonly issue: Issue;
     readonly cancellation: 'not-requested' | 'requested-unconfirmed';
     readonly usage: readonly Usage[] }
   | { readonly kind: 'unconfirmed'; readonly step: Step; readonly issue: Issue;
     readonly cancellation: 'not-requested' | 'requested-unconfirmed';
     readonly usage: readonly Usage[] }
-  | { readonly kind: 'cancelled'; readonly stage: Step }
+  | { readonly kind: 'cancelled'; readonly step: Step }
   | { readonly kind: 'cancel-requested'; readonly step: Step }
   | { readonly kind: 'abandoned'; readonly step: Step };
 
@@ -71,13 +71,13 @@ function transition<Input, Config, Step extends string, Value, Issue, Usage>(
       return state.kind === 'in-flight' && state.index === steps.length - 1
         ? { kind: 'settled' } : { kind: 'invalid' };
     case 'stopped':
-      return state.kind === 'in-flight' && current === event.stage
+      return state.kind === 'in-flight' && current === event.step
         ? { kind: 'settled' } : { kind: 'invalid' };
     case 'unconfirmed':
       return state.kind === 'in-flight' && current === event.step
         ? { kind: 'unknown', step: event.step } : { kind: 'invalid' };
     case 'cancelled':
-      return state.kind === 'dispatch' && current === event.stage
+      return state.kind === 'dispatch' && current === event.step
         ? { kind: 'settled' } : { kind: 'invalid' };
     case 'cancel-requested':
       return ((state.kind === 'in-flight' && current === event.step)

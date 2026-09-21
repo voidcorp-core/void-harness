@@ -63,6 +63,9 @@ son RED observé puis GREEN :
   refusé partout ; huit sources refusées en dur doivent rester signalées. RED : cinq
   des huit passaient (`fs` sans préfixe, `node:os`, `createRequire`, paquet hors liste,
   `import(name)`).
+- Vocabulaire : `step` dans tous les événements et reçus du noyau ; seuls le codec
+  note (records `stage`) et le reçu public de la note traduisent. RED : typecheck
+  TS2322 et cinq tests de la verticale factice exprimée en `step`.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

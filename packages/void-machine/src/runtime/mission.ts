@@ -25,17 +25,17 @@ export type BlockedReason = 'missing' | 'conflict' | 'storage' | 'unrecordable' 
 export type MissionReceipt<Step extends string, Value, Issue, Usage> =
   | { readonly kind: 'completed'; readonly missionId: string; readonly value: Value;
     readonly usage: readonly Usage[] }
-  | { readonly kind: 'paused'; readonly missionId: string; readonly stage: Step;
+  | { readonly kind: 'paused'; readonly missionId: string; readonly step: Step;
     readonly usage: readonly Usage[] }
-  | { readonly kind: 'stopped'; readonly missionId: string; readonly stage: Step;
+  | { readonly kind: 'stopped'; readonly missionId: string; readonly step: Step;
     readonly issue: Issue; readonly cancellation: 'not-requested' | 'requested-unconfirmed';
     readonly usage: readonly Usage[] }
-  | { readonly kind: 'cancelled'; readonly missionId: string; readonly stage: Step;
+  | { readonly kind: 'cancelled'; readonly missionId: string; readonly step: Step;
     readonly stop: 'confirmed'; readonly usage: readonly Usage[] }
-  | { readonly kind: 'cancelled'; readonly missionId: string; readonly stage: Step;
+  | { readonly kind: 'cancelled'; readonly missionId: string; readonly step: Step;
     readonly stop: 'requested-unconfirmed'; readonly effect: 'unknown';
     readonly usage: readonly Usage[] }
-  | { readonly kind: 'abandoned'; readonly missionId: string; readonly stage: Step;
+  | { readonly kind: 'abandoned'; readonly missionId: string; readonly step: Step;
     readonly effect: 'unknown'; readonly usage: readonly Usage[] }
   | { readonly kind: 'blocked'; readonly missionId: string; readonly reason: BlockedReason;
     readonly diagnostic: string };
@@ -169,16 +169,16 @@ function settle<Input, Config, Step extends string, Value, Issue, Usage>(
     }
     case 'unconfirmed': return unknownOutcome(store.missionId);
     case 'stopped':
-      return { kind: 'stopped', missionId: store.missionId, stage: last.stage,
+      return { kind: 'stopped', missionId: store.missionId, step: last.step,
         issue: last.issue, cancellation: last.cancellation, usage };
     case 'cancelled':
-      return { kind: 'cancelled', missionId: store.missionId, stage: last.stage,
+      return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'confirmed', usage };
     case 'cancel-requested':
-      return { kind: 'cancelled', missionId: store.missionId, stage: last.step,
+      return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'requested-unconfirmed', effect: 'unknown', usage };
     case 'abandoned':
-      return { kind: 'abandoned', missionId: store.missionId, stage: last.step,
+      return { kind: 'abandoned', missionId: store.missionId, step: last.step,
         effect: 'unknown', usage };
     case 'started':
     case 'dispatched':
@@ -235,7 +235,7 @@ async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>
     : outcome.kind === 'unconfirmed'
       ? { kind: 'unconfirmed', step: next.step, issue: outcome.issue,
         cancellation: outcome.cancellation, usage: outcome.usage }
-      : { kind: 'stopped', stage: next.step, issue: outcome.issue,
+      : { kind: 'stopped', step: next.step, issue: outcome.issue,
         cancellation: outcome.cancellation, usage: outcome.usage };
   return writeMission(store, description, intent.events, event);
 }
@@ -268,7 +268,7 @@ async function advance<Input, Config, Step extends string, Value, Issue, Usage>(
     events = written.events;
     if (events.at(-1)?.kind !== 'accepted') return settle(store, description, events);
     if (stopAfter === next.step) {
-      return { kind: 'paused', missionId: store.missionId, stage: next.step,
+      return { kind: 'paused', missionId: store.missionId, step: next.step,
         usage: usageOf(events) };
     }
   }
@@ -321,7 +321,7 @@ async function decide<Input, Config, Step extends string, Value, Issue, Usage>(
     }
     const event: Event<Input, Config, Step, Value, Issue, Usage> = mode === 'abandon'
       ? { kind: 'abandoned', step: at.step }
-      : at.kind === 'dispatch' ? { kind: 'cancelled', stage: at.step }
+      : at.kind === 'dispatch' ? { kind: 'cancelled', step: at.step }
         : { kind: 'cancel-requested', step: at.step };
     const written = await writeMission(store, description, loaded.events, event);
     if (written.kind === 'blocked' && written.reason === 'conflict' && attempt === 0) continue;

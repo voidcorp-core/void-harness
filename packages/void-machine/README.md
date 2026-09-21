@@ -184,8 +184,10 @@ without a model call; a stopped mission replays its stop and is never retried.
 
 The generic mission reducer in `core/mission.ts` validates bounded event order.
 `runtime/mission.ts` drives durable dispatch, revisions, resume and cancellation
-through an injected journal. The note vertical supplies its two stages, result
-admission and codecs for both historical formats; the application only composes
+through an injected journal. The kernel names a mission position a `step` in every
+event and receipt; only the note codec, whose stored records say `stage`, and the note
+receipt, whose public field is `stage`, translate it. The note vertical supplies its
+two steps, result admission and codecs for both historical formats; the application only composes
 these parts with the native executor and file journal. The private package export
 remains doctor-only. A three-step test vertical with a distinct journal format
 proves the same core can serve another policy without edits. This split does not

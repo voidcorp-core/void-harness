@@ -32,9 +32,9 @@ function decode(raw: unknown, revision: number): Decode {
       case 'completed': return { kind: 'completed', value: record.note, usage: record.usage };
       case 'unconfirmed': return { kind: 'unconfirmed', step: record.step,
         issue: record.issue, cancellation: record.cancellation, usage: record.usage };
-      case 'stopped': return { kind: 'stopped', stage: record.stage,
+      case 'stopped': return { kind: 'stopped', step: record.stage,
         issue: record.issue, cancellation: record.cancellation, usage: record.usage };
-      case 'cancelled': return { kind: 'cancelled', stage: record.stage };
+      case 'cancelled': return { kind: 'cancelled', step: record.stage };
       case 'cancel-requested': return { kind: 'cancel-requested', step: record.step };
       case 'abandoned': return { kind: 'abandoned', step: record.step };
       default: { const neverRecord: never = record; return neverRecord; }
@@ -55,9 +55,9 @@ function bodyOf(event: NoteEvent): Body | undefined {
     case 'completed': return { kind: 'completed', note: event.value, usage: [...event.usage] };
     case 'unconfirmed': return { kind: 'unconfirmed', step: event.step,
       issue: event.issue, cancellation: event.cancellation, usage: [...event.usage] };
-    case 'stopped': return { kind: 'stopped', stage: event.stage,
+    case 'stopped': return { kind: 'stopped', stage: event.step,
       issue: event.issue, cancellation: event.cancellation, usage: [...event.usage] };
-    case 'cancelled': return { kind: 'cancelled', stage: event.stage };
+    case 'cancelled': return { kind: 'cancelled', stage: event.step };
     case 'cancel-requested': return { kind: 'cancel-requested', step: event.step };
     case 'abandoned': return { kind: 'abandoned', step: event.step };
     default: { const neverEvent: never = event; return neverEvent; }
