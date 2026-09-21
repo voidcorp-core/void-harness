@@ -1,8 +1,11 @@
 // @test-resource subprocess
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { contentsDigest, doctorFixture } from './doctor-fixture.js';
+
+// Doctor contracts spawn a source-loaded Node process and sometimes nested Git calls.
+vi.setConfig({ testTimeout: 15_000 });
 
 // Exercise current TypeScript sources, independent of any previously emitted dist.
 // The historical Rust comparison and its routing remain in Git and RUN evidence.

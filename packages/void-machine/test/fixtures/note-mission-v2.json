@@ -1,0 +1,69 @@
+[
+  {
+    "format": "void-machine.note-mission/1",
+    "revision": 1,
+    "kind": "started",
+    "input": {
+      "requestId": "legacy-request",
+      "question": "Compare both sources",
+      "sources": [
+        {
+          "sourceId": "a",
+          "title": "Alpha",
+          "text": "alpha material"
+        },
+        {
+          "sourceId": "b",
+          "title": "Beta",
+          "text": "beta material"
+        }
+      ]
+    },
+    "config": {
+      "extractionModel": "fixture-extract",
+      "synthesisModel": "fixture-synthesis",
+      "timeoutMs": 1000
+    },
+    "contract": "sha256:e3310d7c92a6f044dc0a8633fac319c02ca7f2ed3a31862ee8aeaf7cc3780ca4"
+  },
+  {
+    "format": "void-machine.note-mission/1",
+    "revision": 2,
+    "kind": "dispatched",
+    "step": "extraction",
+    "executionId": "legacy-extraction"
+  },
+  {
+    "format": "void-machine.note-mission/1",
+    "revision": 3,
+    "kind": "accepted",
+    "step": "extraction",
+    "value": {
+      "evidence": [
+        {
+          "sourceId": "a",
+          "quote": "alpha material"
+        },
+        {
+          "sourceId": "b",
+          "quote": "beta material"
+        }
+      ],
+      "limitations": []
+    },
+    "usage": []
+  },
+  {
+    "format": "void-machine.note-mission/1",
+    "revision": 4,
+    "kind": "dispatched",
+    "step": "synthesis",
+    "executionId": "legacy-synthesis"
+  },
+  {
+    "format": "void-machine.note-mission/2",
+    "revision": 5,
+    "kind": "cancel-requested",
+    "step": "synthesis"
+  }
+]

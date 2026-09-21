@@ -172,9 +172,30 @@ Receipts: `completed` and `paused` exit 0; `stopped`, `abandoned` and a `cancell
 contents, as does a `cancelled` with `stop: requested-unconfirmed`. Usage errors exit 2. Resuming a finished mission returns the same bytes
 without a model call; a stopped mission replays its stop and is never retried.
 
-The note vertical owns the schemas for both recorded formats; the application
-keeps record admission and append in a separate journal seam while applying the
-mission lifecycle. Neither move changes stored bytes.
+The generic mission reducer in `core/mission.ts` validates bounded event order.
+`runtime/mission.ts` drives durable dispatch, revisions, resume and cancellation
+through an injected journal. The note vertical supplies its two stages, result
+admission and codecs for both historical formats; the application only composes
+these parts with the native executor and file journal. The private package export
+remains doctor-only. A three-step test vertical with a distinct journal format
+proves the same core can serve another policy without edits. This split does not
+change stored note bytes; the [core decision](../../docs/decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md)
+records its boundaries and reversal cost.
+
+The current private suite has 124 passing tests under Node 24.15.0 and Node
+26.8.2, including frozen `/1` and `/2` journal fixtures and a three-step mission
+that resumes in a new context. Build and test typecheck pass on both runtimes.
+On every read, the driver re-admits recorded intermediate values before a resume,
+cancel, abandon or completed delivery. A schema-valid value that breaks the
+vertical's rules is blocked without rewriting the journal. Codec and admission
+exceptions also return typed refusals before a step is launched.
+
+The CLI and doctor contracts run source-loaded Node subprocesses. Their bounded
+test timeouts cover the measured 5–9-second cases on this host: 15 seconds per
+synchronous child, 20 seconds for an asynchronous child, and 30 seconds for a
+CLI test that can start several processes. Other tests retain Vitest's 5-second
+default. See the
+[Vitest timeout contract](https://vitest.dev/api/vi#setconfig).
 
 Format `void-machine.note-mission/1`: one JSON record per file `NNNNNN.json`, at most
 16 records of 262,144 bytes each, measured on the encoded JSON. Not every admitted

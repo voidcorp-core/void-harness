@@ -33,9 +33,27 @@ nommant l'arête), puis GREEN après son retrait. Les adaptateurs doctor qui
 importent leur verticale implémentent ses ports et respectent le sens prévu.
 Le [choix du parseur](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md)
 est consigné. Remaniement sans comportement : les schémas `/1` et `/2` sont maintenant
-possédés par la verticale note, et admission/écriture ont été extraites dans
-un module journal applicatif. Les 113 tests restent verts à chaque commit.
-Le noyau générique est le volet suivant.
+possédés par la verticale note. L'admission et l'écriture ont été isolées dans
+un module applicatif intermédiaire avant de rejoindre le driver générique. Les
+113 tests sont restés verts à chaque commit de remaniement.
+**Volet noyau générique.** Le réducteur pur des transitions se trouve dans
+`core/mission.ts`, le driver durable et le fencing des révisions dans
+`runtime/mission.ts`, les étapes, l'admission et les formats `/1` et `/2` dans la
+verticale note ; l'application les compose. Les fixtures historiques se relisent
+sans migration. Une verticale factice à trois étapes, format distinct et politique
+différente prouve démarrage, reprise, effet inconnu, annulation, abandon, résultat
+tardif ignoré et deux reprises concurrentes avec une seule exécution. Les preuves
+RED et GREEN sont dans les tests de contrat. Le stockage fichier reste en place,
+et aucun contrat de mission n'est exporté publiquement. Le choix est consigné dans
+[l'ADR noyau](../decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md).
+Après le dernier changement de code, les 124 tests du paquet, son build et son
+typecheck passent sous Node 24.15.0 et Node 26.8.2. `pnpm test:fast` racine passe
+(2 599 tests) et le typecheck racine passe après compilation des déclarations déjà
+requises de `pack-monorepo`. Le lint Biome racine est vert.
+La lecture réadmet chaque résultat intermédiaire enregistré avant de reprendre,
+d'annuler ou de livrer une mission terminée ; une valeur modifiée sans casser son
+schéma est refusée. Les exceptions des codecs et des règles de la verticale donnent
+un refus typé sans lancer une étape.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

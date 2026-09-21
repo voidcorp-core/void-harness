@@ -10,6 +10,7 @@ const project = resolve(import.meta.dirname, '../../..');
 // Same source-loader mechanism as test/autopilot/stdin-process.test.ts.
 const loader = pathToFileURL(resolve(project, 'packages/cli/node_modules/tsx/dist/loader.mjs')).href;
 const entry = resolve(project, 'packages/void-machine/src/application/cli.ts');
+const childTimeoutMs = 15_000;
 
 export function doctorFixture() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'machine-doctor-')));
@@ -27,7 +28,7 @@ export function doctorFixture() {
     GIT_OPTIONAL_LOCKS: '0',
   };
   const git = (args: readonly string[], cwd = root) => execFileSync('git', [...args], {
-    cwd, env, encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd, env, encoding: 'utf8', timeout: childTimeoutMs, stdio: ['ignore', 'pipe', 'pipe'],
   }).trim();
   git(['init', '--quiet', repository]);
   mkdirSync(join(repository, '.void'));
@@ -35,7 +36,7 @@ export function doctorFixture() {
   const invokeScript = (script: string, args: readonly string[], cwd = repository,
     extra: NodeJS.ProcessEnv = {}) => {
     const result = spawnSync(process.execPath, ['--import', loader, script, ...args], {
-      cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: 5000,
+      cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: childTimeoutMs,
       maxBuffer: 1024 * 1024, windowsHide: true,
     });
     if (result.error) throw result.error;
@@ -48,7 +49,7 @@ export function doctorFixture() {
     status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string;
   }>((settle, reject) => {
     const child = spawn(process.execPath, ['--import', loader, script, ...args], {
-      cwd, env, windowsHide: true, timeout: 10_000,
+      cwd, env, windowsHide: true, timeout: 20_000,
     });
     let stdout = '';
     let stderr = '';

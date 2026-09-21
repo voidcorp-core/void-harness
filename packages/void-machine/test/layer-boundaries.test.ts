@@ -108,6 +108,8 @@ it('keeps the Machine module graph within its layer owners', async () => {
     }
   }
   expect(violations, violations.join('\n')).toEqual([]);
+  await import('../src/core/mission.js');
   await import('../src/runtime/execution.js');
   await import('../src/runtime/journal.js');
+  await import('../src/runtime/mission.js');
 });

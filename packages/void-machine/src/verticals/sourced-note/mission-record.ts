@@ -10,7 +10,8 @@ export const CANCELLATION_FORMAT = 'void-machine.note-mission/2';
 export const CANCELLATION_KINDS: ReadonlySet<string> = new Set([
   'cancelled', 'cancel-requested', 'abandoned',
 ]);
-const step = z.enum(['extraction', 'synthesis']);
+export const noteSteps = ['extraction', 'synthesis'] as const;
+const step = z.enum(noteSteps);
 const usage = z.array(z.record(z.string(), z.unknown())).max(4);
 const issue = z.strictObject({
   code: z.string().min(1).max(200), cause: z.string().min(1).max(2000),
@@ -50,3 +51,5 @@ export type Body = MissionRecord extends infer R
 export type Step = z.infer<typeof step>;
 
 export type MissionConfig = z.infer<typeof configSchema>;
+export type MissionIssue = z.infer<typeof issue>;
+export type MissionUsage = Readonly<Record<string, unknown>>;

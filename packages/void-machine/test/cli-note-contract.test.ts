@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const fixture = fileURLToPath(new URL('./fixtures/claude-cli-note.mjs', import.meta.url));
 const hostScript = fileURLToPath(new URL('./fixtures/note-mission-host.ts', import.meta.url));
+// CLI contracts spawn several source-loaded Node processes on the supported runtimes.
+vi.setConfig({ testTimeout: 30_000 });
 
 const request = {
   requestId: 'request-1', question: 'Compare both sources',
