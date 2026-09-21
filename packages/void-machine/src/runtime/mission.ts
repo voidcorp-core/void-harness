@@ -1,5 +1,5 @@
 // tdd-cover: e2e packages/void-machine/test/generic-mission-contract.test.ts
-import { missionPosition, type AcceptedValue, type MissionDescription,
+import { MISSION_EVENT_LIMIT, missionPosition, type AcceptedValue, type MissionDescription,
   type MissionEvent, type MissionPosition } from '../core/mission.js';
 export type { MissionDescription, MissionCodec } from '../core/mission.js';
 import type { MissionJournal } from './journal.js';
@@ -78,7 +78,7 @@ async function readMission<Input, Config, Step extends string, Value, Issue, Usa
     return blocked(store.missionId, 'missing', 'No mission is recorded under this identifier');
   }
   if (result.kind === 'unreadable') return blocked(store.missionId, 'unreadable', result.reason);
-  if (result.records.length > 32) {
+  if (result.records.length > MISSION_EVENT_LIMIT) {
     return blocked(store.missionId, 'unreadable', 'Mission exceeds its record bound');
   }
   const events: Event<Input, Config, Step, Value, Issue, Usage>[] = [];

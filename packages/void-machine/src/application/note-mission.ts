@@ -1,7 +1,7 @@
 // tdd-cover: e2e packages/void-machine/test/cli-note-contract.test.ts
 import type { Clock, Execute } from '../runtime/execution.js';
 import {
-  type MissionReceipt as GenericReceipt, type MissionRunner, type MissionStore,
+  type BlockedReason, type MissionReceipt as GenericReceipt, type MissionRunner, type MissionStore,
   abandonMission, cancelMission, resumeMission, startMission,
 } from '../runtime/mission.js';
 import {
@@ -16,7 +16,7 @@ import {
 } from './note.js';
 
 export type { MissionConfig, MissionUsage } from '../verticals/sourced-note/mission-record.js';
-export type { MissionStore } from '../runtime/mission.js';
+export type { BlockedReason, MissionStore } from '../runtime/mission.js';
 
 export interface MissionRuntime {
   readonly extract: Execute;
@@ -31,8 +31,6 @@ export interface MissionDependencies extends MissionStore {
   readonly executionId: () => string;
   readonly clock: Clock;
 }
-export type BlockedReason = 'missing' | 'conflict' | 'storage' | 'unrecordable' | 'unreadable'
-  | 'incompatible' | 'context-changed' | 'inadmissible' | 'outcome-unknown' | 'not-abandonable';
 export type BlockedReceipt = {
   readonly kind: 'blocked'; readonly missionId: string;
   readonly reason: BlockedReason; readonly diagnostic: string;

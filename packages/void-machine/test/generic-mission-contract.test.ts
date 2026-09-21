@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import { createFileJournal } from '../src/adapters/store/file-journal.js';
-import { missionPosition, type MissionEvent } from '../src/core/mission.js';
+import { MISSION_EVENT_LIMIT, missionPosition, type MissionEvent } from '../src/core/mission.js';
 import {
   type MissionDescription, type MissionRunner, type MissionStore,
   abandonMission, cancelMission, resumeMission, startMission,
@@ -120,6 +120,25 @@ it('rejects ambiguous duplicate step names before starting', () => {
   const history: Event[] = [{ kind: 'started', input: { request: 'report' },
     config: { minimumScore: 3 }, contract: 'test-contract/1' }];
   expect(missionPosition(history, ['draft', 'draft'])).toEqual({ kind: 'invalid' });
+});
+
+it('bounds recorded and read histories by one kernel event limit', async () => {
+  const f = fixture();
+  await startMission({ request: 'report' }, { minimumScore: 3 },
+    f.store, description, f.runner(), 'draft');
+  const read = await f.journal.read(f.store.missionId);
+  if (read.kind !== 'records') throw new Error('Expected recorded mission');
+  const oversized = Array.from({ length: MISSION_EVENT_LIMIT + 1 }, () => read.records[0]);
+  const journal = { ...f.journal, read: async () => ({ kind: 'records' as const,
+    records: oversized }) };
+  expect(await resumeMission({ journal, missionId: 'three-step' }, description, f.runner()))
+    .toMatchObject({ kind: 'blocked', reason: 'unreadable' });
+  const started: Event = { kind: 'started', input: { request: 'report' },
+    config: { minimumScore: 3 }, contract: 'test-contract/1' };
+  const history = [started, ...Array.from({ length: MISSION_EVENT_LIMIT },
+    (): Event => ({ kind: 'dispatched', step: 'draft', executionId: 'x' }))];
+  expect(missionPosition(history, steps)).toEqual({ kind: 'invalid' });
+  expect(f.calls).toEqual(['draft']);
 });
 
 it('starts three different steps and resumes in a new context', async () => {

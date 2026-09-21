@@ -66,6 +66,9 @@ son RED observé puis GREEN :
 - Vocabulaire : `step` dans tous les événements et reçus du noyau ; seuls le codec
   note (records `stage`) et le reçu public de la note traduisent. RED : typecheck
   TS2322 et cinq tests de la verticale factice exprimée en `step`.
+- Source unique : `BlockedReason` défini dans le runtime et réexporté par l'application,
+  borne `MISSION_EVENT_LIMIT` (32) exportée par core et lue par le runtime. RED : le
+  test de borne importait une constante absente.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

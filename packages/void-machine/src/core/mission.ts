@@ -1,4 +1,7 @@
 // tdd-cover: e2e packages/void-machine/test/generic-mission-contract.test.ts
+/** Largest history a mission may hold, checked when reduced and when read. */
+export const MISSION_EVENT_LIMIT = 32;
+
 /** Pure mission history. A vertical owns the meaning and admission of each value. */
 export type MissionEvent<Input, Config, Step extends string, Value, Issue, Usage> =
   | { readonly kind: 'started'; readonly input: Input; readonly config: Config;
@@ -103,7 +106,7 @@ export function missionPosition<Input, Config, Step extends string, Value, Issue
   steps: readonly Step[],
 ): MissionPosition<Step, Value> {
   if (steps.length < 1 || steps.length > 8 || new Set(steps).size !== steps.length
-    || events.length > 32) return { kind: 'invalid' };
+    || events.length > MISSION_EVENT_LIMIT) return { kind: 'invalid' };
   if (events[0]?.kind !== 'started') return { kind: 'invalid' };
   let state: State<Step, Value> = { kind: 'dispatch', index: 0, accepted: [] };
   for (const event of events.slice(1)) state = transition(state, event, steps);
