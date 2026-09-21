@@ -78,8 +78,16 @@ stops reporting fails the test. A local import must name a `.js` specifier, the 
 form of a production `.ts` source. The scan refuses, rather than skips, any file of
 `src/` outside the five known layers or that is not a production `.ts` source (`.mts`,
 `.cts`, `.js`, `.mjs`, `.tsx`, `.d.ts`, `*.test.ts`), and asserts that it read the
-known modules of every layer, so it cannot pass by reading nothing. The guard reads module edges only:
-Node globals such as `process` or `fetch` are not imports and are not caught here.
+known modules of every layer, so it cannot pass by reading nothing.
+The guard reads module edges only; host globals are refused by a second proof.
+`tsconfig.pure.json`, run by `typecheck`, compiles core, runtime and verticals with
+`lib: ["ES2022"]` and `types: []`: no Node and no DOM types, so `process` (and `process.getBuiltinModule`), `fetch`, `Buffer`,
+`require`, `import.meta.url`, timers and `structuredClone` are compile errors there. The
+only host globals it types are listed in `types/pure-globals.d.ts`: `AbortController`,
+`AbortSignal` and `TextEncoder`, WHATWG primitives that do no I/O.
+`test/pure-layer-types.test.ts` asserts that configuration and compiles a negative
+fixture that must fail on each escape.
+Neither proof confines code at run time: a typing boundary is not a sandbox.
 The existing doctor format/Git adapters correctly depend on
 doctor-owned schemas and types. The choice and its limits are in the
 [layer guard decision](../../docs/decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md).

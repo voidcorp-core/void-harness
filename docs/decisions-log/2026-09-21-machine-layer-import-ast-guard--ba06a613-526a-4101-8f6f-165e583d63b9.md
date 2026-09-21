@@ -58,7 +58,11 @@ Negative:
 
 - A test-only TypeScript 6 installation coexists with the TypeScript 7 compiler.
 - This guard proves declared module edges, not runtime confinement of an adapter,
-  and does not see Node globals such as `process` or `fetch`.
+  and does not see Node globals such as `process` or `fetch`. A second, separate proof
+  covers them for the pure layers: `tsconfig.pure.json` type-checks core, runtime and
+  verticals without Node or DOM types, with an explicit allowlist of three WHATWG
+  primitives, and a negative fixture must fail to compile there. Neither proof is a
+  run-time sandbox.
 
 ## Alternatives considered
 

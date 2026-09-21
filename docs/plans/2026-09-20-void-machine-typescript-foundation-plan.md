@@ -89,6 +89,16 @@ son RED observé puis GREEN :
   délai d'assertion. RED : 3 exécutions rouges sur 5 avec `--maxWorkers=2`, le budget du
   projet CI `contract:subprocess` (délais de 1,25 s du test doctor). GREEN : 20 exécutions
   vertes consécutives avec `--maxWorkers=2`.
+- Garde de couches : le scan refuse tout fichier de `src/` hors des cinq couches ou qui
+  n'est pas un `.ts` de production, un import local doit nommer un `.js`, et le test
+  asserte avoir lu les modules connus de chaque couche. RED : 5 des nouveaux cas
+  passaient (`.mjs` importé, `io.ts` à la racine comme importeur et comme fichier,
+  `.d.ts`, couche inconnue).
+- Globales hôtes : `tsconfig.pure.json` (`lib: ["ES2022"]`, `types: []`) branché sur
+  `typecheck`, liste blanche `types/pure-globals.d.ts` (`AbortController`,
+  `AbortSignal`, `TextEncoder`), fixture négative qui doit échouer. RED : le test
+  échouait avec `types: ["node"]` (`process` accepté) ; sans liste blanche, le code
+  réel échouait sur `AbortSignal`, `AbortController` et `TextEncoder`.
 - API TypeScript 6 du garde AST : condition de retrait ajoutée à
   [l'ADR du garde](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md),
   encore `proposed` (l'ADR TS 7 ne donnait que la conséquence « jusqu'à une API 7.x »).
@@ -621,7 +631,12 @@ effectives des opérations sont une preuve séparée.
 
 Un test architectural ciblé couvre les imports statiques, imports de types,
 réexports et dépendances transitives du noyau ; pas de chargement dynamique dans
-ses modules. Il vérifie l'absence d'I/O et de dépendance au harnais/aux verticales.
+ses modules. Il refuse tout module intégré de Node et toute dépendance au
+harnais/aux verticales. Un typecheck dédié (`tsconfig.pure.json`, sans types Node ni
+DOM) refuse les globales hôtes dans core, runtime et verticals, hormis une liste
+blanche revue de primitives WHATWG sans I/O. Ces deux preuves sont statiques : elles
+ne prouvent pas l'absence d'I/O à l'exécution, une frontière de typage n'est pas un
+sandbox.
 Réutiliser le parseur du tooling de ce dépôt ; ne pas ajouter un moteur de règles.
 Le hook actuel de direction contrôle les packages déclarés, pas les couches
 internes : il ne suffit pas à prouver cette séparation.
@@ -1193,7 +1208,7 @@ exigences ; elle ne demande pas une suite, un hook ou un reviewer par ligne.
 | P02 | Identités exactes | Corpus Rust/TS, UTF-8/tri/séparateurs/nombres aux limites | A2–A4 |
 | P03 | Refus de sécurité conservés | Symlinks, permissions, SHA/fence, mutations et merge interdits | A2–A4 |
 | P04 | Un seul moteur après port | Paquet sans Rust, chemins de build supprimés, lecteurs legacy conservés | A5 |
-| P05 | Noyau indépendant | Imports et exécution sans I/O, Git, projet, modèle ou verticale | A3 puis C0 |
+| P05 | Noyau indépendant | Imports et globales hôtes refusés au typage (I/O, Git, projet, modèle, verticale) ; exécution sans I/O non prouvée | A3 puis C0 |
 | P06 | Aucun cérémonial universel | Collecte sans spec/plan/review/installation projet | B1 |
 | P07 | Autorité avant exposition de données | Route interdite reçoit zéro contexte, coordinateur compris | B0–B2 |
 | P08 | Clarification sans réexécution | Même identité/révision pertinente, résultats valides réutilisés | B2 |
