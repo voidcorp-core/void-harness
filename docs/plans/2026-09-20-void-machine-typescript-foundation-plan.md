@@ -2,7 +2,7 @@
 title: "Void Machine : porter, éprouver et stabiliser un socle TypeScript indépendant"
 date: 2026-09-20
 status: in-progress
-review_status: m1-integration-green-independent-review-in-progress
+review_status: m2-cleared-pr393-open-not-merged
 spec: docs/specs/2026-09-19-void-machine-typescript-port.md
 related_spec: docs/specs/2026-09-19-supervised-design-orchestration.md
 ticket: ''
@@ -12,6 +12,50 @@ baseline: 85f177b1dc4638be75ccc9e265352698cc072969
 ---
 
 # Void Machine : porter, éprouver et stabiliser le socle TypeScript
+
+## État au 21 septembre : implémenté et vérifié, publié en PR, non fusionné
+
+**Fait.** M1, relais local par deux fonctions injectées, est terminé. M2,
+adaptateur Claude réel pour extraction puis synthèse, est terminé et sa revue
+indépendante est **CLEARED**, sans BLOCKER.
+Le [receipt M2 (§21)](#21-m2-runtime-receipt-20-septembre-2026) atteste 64 tests sur
+5 suites, build, typecheck et lint réussis, puis un live en 23,967 secondes avec
+citations des deux sources. Les 13 checks CI verts du **20 septembre 2026** portent
+sur `d8a3fc62`, pas sur cette actualisation documentaire.
+
+La [PR #393](https://github.com/voidcorp-core/void-harness/pull/393) est publiée
+comme PR normale, ouverte et non fusionnée : ORCH a vérifié séparément le
+21 septembre `OPEN`, `isDraft: false`, head `d8a3fc62`, `mergedAt: null`.
+Cette livraison ne remplace encore ni l'entrée distribuée ni Rust.
+
+**Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
+directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins
+et preuves déjà décrits dans ce plan restent à sélectionner et à éprouver :
+
+- Reprise et annulation durables, résultats ambigus et absence de travail rejoué
+  ([cycle de vie, §8](#8-runtime-général-persistance-et-cycle-de-vie) et
+  [cas B3](#b3--reprendre-et-annuler-sans-perdre-ni-rejouer-le-travail)).
+- Verticales et consommateurs à retenir sur besoins réels, puis substitution
+  d'adaptateurs sans modifier le noyau ([réserve B2–B5, §11](#11-séquence-b--éprouver-le-moteur-général-avant-de-le-stabiliser)).
+- Exécution Docker de Machine et articulation avec Cortex à prouver : aucune
+  topologie n'est choisie et aucune garantie hébergée n'est acquise
+  ([frontières, §5](#5-architecture-cible-proposée) et [limites, §17](#17-ce-qui-reste-volontairement-après-le-gel)).
+- Stabilisation des contrats sur ces preuves, sans figer les signatures M1/M2
+  prématurément ([jalon C, §12](#12-jalon-c--stabiliser-le-noyau-sur-des-preuves)).
+- Bascule de l'entrée et de la distribution vers TypeScript, puis retrait de Rust
+  après traitement explicite de la compatibilité des consommateurs retenus
+  ([compatibilité, §7](#7-migration-des-capacités-rust-et-compatibilité) et
+  [migration et retour arrière, §16](#16-vérification-revue-migration-et-retour-arrière)).
+
+**Prochaine étape proposée, à cadrer avant implémentation :** définir une preuve
+bornée de reprise après interruption sur le parcours réel M2. Partir d'une
+interruption après acceptation de l'extraction et avant synthèse ; préciser ce qui
+est conservé, comment retrouver la même mission et comment éviter de relancer un
+travail déjà accepté. Distinguer arrêt du host et annulation native confirmée,
+avec une issue explicite si l'état de la session est inconnu. Les cas de la
+[réserve B3](#b3--reprendre-et-annuler-sans-perdre-ni-rejouer-le-travail) guident ce
+cadrage sans imposer toute sa séquence historique. Cette proposition ne crée aucun
+nouveau programme.
 
 ## Delta directeur du 20 septembre : besoin avant héritage
 
@@ -29,8 +73,9 @@ historiques à réadmettre par besoin. Les sections B/C restent une réserve de 
 et de décisions futures, pas une permission de construire toute la plateforme.
 La revue ciblée M1 est close sans BLOCKER. M1 est implémenté et ses 22 contrats
 passent via RUN ; intégration GREEN à 4396703b (sept commandes, 22 contrats).
-La revue indépendante du diff entier est en cours sous ORCH ; verdict attendu.
-Le receipt et la checklist figurent à la fin du registre lié ci-dessous.
+La revue indépendante finale M2 est désormais close sans BLOCKER ; le
+[receipt §21](#21-m2-runtime-receipt-20-septembre-2026) porte les preuves runtime.
+Le registre lié ci-dessous conserve le receipt et la checklist M1 historiques.
 Doctrine, programme Linear, ADR acceptées et installation active restent inchangés.
 
 ### Disposition des suites après M1 GREEN
@@ -77,7 +122,11 @@ le format du nouveau runtime. Le parsing correct reste utile si cette surface es
 retenue. Son existence ne justifie ni le format ni son coût de paquet à elle seule.
 Les tests v1 protègent seulement cette commande existante, pas une vérité du core.
 
-### Prochaine tranche proposée : M1, relais local et deux spécialistes
+### Tranche M1 réalisée : relais local et deux spécialistes
+
+Cadrage historique conservé ci-dessous ; M1 est terminé. Les propositions de
+transport sont disposées dans la signature finale M1 plus bas. La route réelle
+ultérieure est maintenant prouvée par [M2 (§21)](#21-m2-runtime-receipt-20-septembre-2026).
 
 **Objectif observable :** une demande non-Git produit une note structurée à partir
 de deux documents locaux fournis, par un rôle d'extraction puis un rôle de synthèse.
@@ -85,7 +134,7 @@ Le relais distribue les entrées et collecte les résultats ; il ne décide ni �
 ni autorisations par sa conversation. Le résultat est jugé sur la note attendue,
 jamais sur le seul exit 0 d'un processus.
 
-Périmètre minimal proposé, avant nouvelle production :
+Périmètre minimal proposé à l’époque, avant la production M1 :
 
 - Un parcours fixe, une mission, deux unités séquentielles et un validateur de
   livrable propre à ce parcours. Pas de graphe configurable ni de scheduler.
@@ -169,20 +218,18 @@ Le parcours et les mécanismes génériques ne contiennent ni fournisseur ni mod
 L'annulation demandée n'est pas assimilée à une annulation effective si le runtime
 ne peut pas l'attester ; aucune garantie d'isolation n'est inventée.
 
-Deux routes distinctes seront injectées dans M1. Leur preuve locale dit « fixture »
+Deux routes distinctes ont été injectées dans M1. Leur preuve locale dit « fixture »
 et distingue destination configurée de runtime/modèle effectivement observé.
 Une simple chaîne portant un nom de modèle n'est pas une exécution de ce modèle.
 Les agents simulés et processus de fixture doivent passer par le même contrat
 d'admission que le futur adaptateur réel ; aucun shortcut donnant directement
 une note validée au runtime n'est une preuve du parcours.
 
-**Ce qui reste après M1.** Choisir une route native disponible, observer deux agents
-et leurs modèles distincts quand le runtime le permet, juger un vrai livrable et
-mesurer temps/coût/interventions. Si une identité de modèle n'est pas observable,
-la limite reste explicite. Aucun appel payant n'est autorisé par ce document.
-Puis seulement éprouver interruption/reprise durable et les besoins suivants sur
-leur propre tranche. Docker/hébergement, permissions distantes et API publique
-stabilisée restent hors M1. ORCH relaie la revue ciblée avant nouvelle production.
+**Suite de M1, désormais éprouvée par M2.** La route Claude, les deux sessions,
+les modèles demandés et observés, le livrable et les mesures sont consignés dans le
+[receipt §21](#21-m2-runtime-receipt-20-septembre-2026), avec leurs limites.
+Interruption/reprise durable, Docker/hébergement, permissions distantes et API
+publique stabilisée restent à éprouver selon les besoins retenus.
 
 ### Disposition finale de revue M1 et signature avant RED
 
@@ -218,8 +265,8 @@ certifiée et absence de second dispatch après refus. Les citations exactes res
 une règle de **ce parcours**, à réexaminer sur observation d'un modèle réel dans
 une tranche ultérieure. Elles n'entrent ni dans le mécanisme d'attente ni dans le core.
 
-**Ordre révisé :** disposer du delta avec ORCH (revue ciblée si nécessaire), préciser
-l'entrée et le livrable de M1, écrire ses contrats RED, puis seulement implémenter.
+**Ordre historique M1, exécuté :** disposition du delta avec ORCH, précision de
+l'entrée et du livrable, contrats RED puis implémentation.
 Les travaux de compatibilité/distribution sont repris séparément lorsqu'une surface
 consommée change ; le retrait de Rust n'est ni oublié ni une condition d'entrée M1.
 La clôture du produit attendra les preuves des capacités effectivement retenues et
@@ -253,10 +300,11 @@ Trois jalons distincts :
 | B. Socle général éprouvé | Une mission sans Git survit à clarification, interruption, correction et livraison ; une mission de développement utilise le même noyau | L'hébergement multi-client ou tous les runtimes |
 | C. Contrat stabilisé | Les scénarios consommateurs et d'extension passent sans modifier le noyau ; API, données, limites et retour arrière documentés | Un code intangible ou exempt de tout défaut futur |
 
-Le portage A est déjà autorisé après WORK-1/2/3, désormais livrés. B reste une
-livraison distincte après A, selon son mandat documenté. Ce travail de planification
-n'exécute ni A ni B. Installation active, publication, dépenses supplémentaires et
-promotion production gardent leurs autorisations distinctes.
+Cette décomposition A/B/C est historique : le delta directeur a suspendu A2–A5
+et levé la dépendance « A complet avant B ». A0/A1 puis M1/M2 ont été réalisés ;
+les propositions restantes sont à réadmettre par besoin, sans reprise automatique
+de leur ordre. Installation active, publication de release, dépenses supplémentaires
+et promotion production gardent leurs autorisations distinctes.
 
 ### Précision du mandat de réalisation A0-A5
 
@@ -1212,10 +1260,12 @@ Les artefacts durables attendus sont regroupés, sans multiplication de registre
    liens CI/revue et contrat de stabilité ; les preuves brutes restent locales/CI.
 5. Documentation CLI/API, mise à jour et rollback cohérente avec le code livré.
 
-**Point de reprise de ce plan standalone :** plan proposé, aucune tranche exécutée.
-Après sa revue, préparer A0 à partir du `develop` courant et relever les contrats.
-Le nom des tickets, leur état et leur assignee seront ceux du provider si la
-décomposition est engagée ; aucun état distant n'est déduit de cette liste.
+**Point de reprise de ce plan standalone :** A0/A1 et M1/M2 réalisés ; M2 vérifié,
+revue CLEARED, publié en PR #393 non fusionnée. Le résumé en tête porte l'état daté
+et la prochaine étape proposée : cadrer la preuve de reprise après interruption
+sur le parcours réel M2, avant toute implémentation. A2–A5 restent suspendus.
+Le provider conserve la propriété des tickets, de leur état et de leur assignee ;
+aucun état distant n'est déduit de la séquence historique de ce document.
 
 Le gel n'est accepté que si P01–P20 ont leur preuve à la bonne étape, si les limites
 sont comprises et si les scénarios ne requièrent pas de réparer le harnais pour
@@ -1257,7 +1307,7 @@ tranches d'implémentation désignées. Ce document ne lance aucune de ces tranc
 ## 21. M2 runtime receipt (20 septembre 2026)
 
 La tranche M2 standalone décrite par le mandat a été livrée sur la branche de travail
-sans bascule Rust, publication, Docker ou reprise durable. Le point d'entrée CLI lance
+sans bascule Rust, publication de release, Docker ou reprise durable. Le point d'entrée CLI lance
 deux appels Claude séquentiels : extraction puis synthèse. Leurs sorties non fiables
 passent par les validateurs `sourced-note`; les deux configurations portent des modèles
 distincts et le reçu conserve le rôle, le modèle demandé, le `modelUsage` observé et la
