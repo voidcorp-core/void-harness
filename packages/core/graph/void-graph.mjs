@@ -12675,7 +12675,11 @@ var LOST_WITHOUT_COMPILER = Object.freeze([
   "symbol and export extraction, so file surfaces are empty",
   "tsconfig inheritance, so path aliases are not applied"
 ]);
-var SUPPORTED_MAJOR = 5;
+var SUPPORTED_ADAPTERS = /* @__PURE__ */ new Map([
+  [5, "typescript-5"],
+  [6, "typescript-6"]
+]);
+var FIRST_MAJOR_WITHOUT_API = 7;
 var SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 function failure(kind2, detail) {
   return Object.freeze({ kind: kind2, detail, lost: LOST_WITHOUT_COMPILER });
@@ -12687,6 +12691,18 @@ function unwrap(loaded) {
   if (typeof loaded !== "object" || loaded === null) return loaded;
   const module = loaded;
   return module.default !== void 0 && typeof module.default === "object" ? module.default : loaded;
+}
+function apiLessMajor(candidate) {
+  const version = candidate["version"];
+  if (typeof version !== "string") return void 0;
+  const parsed = SEMVER.exec(version);
+  if (parsed === null || Number(parsed[1]) < FIRST_MAJOR_WITHOUT_API) return void 0;
+  return [
+    `TypeScript ${version} exposes no compiler API under \`typescript\`;`,
+    'keep it as `"@typescript/native": "npm:typescript@^7.0.2"` and add',
+    'Microsoft\'s alias `"typescript": "npm:@typescript/typescript6@^6.0.2"`',
+    "to the project's devDependencies"
+  ].join(" ");
 }
 function missingMember(candidate) {
   if (typeof candidate["version"] !== "string" || candidate["version"] === "") return "version";
@@ -12715,6 +12731,8 @@ async function resolveProjectCompiler(projectRoot, lookup) {
   if (typeof candidate !== "object" || candidate === null) {
     return failure("unloadable", `${modulePath} did not export a compiler object`);
   }
+  const apiLess = apiLessMajor(candidate);
+  if (apiLess !== void 0) return failure("unsupported", `${modulePath}: ${apiLess}`);
   const missing2 = missingMember(candidate);
   if (missing2 !== void 0) {
     return failure(
@@ -12733,14 +12751,14 @@ function selectCompilerAdapter(version) {
       detail: `\`${version}\` is not a version this selector can read; it needs major.minor.patch`
     });
   }
-  const major = Number(parsed[1]);
-  if (major !== SUPPORTED_MAJOR) {
+  const adapter = SUPPORTED_ADAPTERS.get(Number(parsed[1]));
+  if (adapter === void 0) {
     return Object.freeze({
       kind: "unsupported",
-      detail: `TypeScript ${version} is outside the ${SUPPORTED_MAJOR}.x range these extractors were written against; a matching adapter has to be added before it is used`
+      detail: `TypeScript ${version} is outside the 5.x and 6.x ranges these extractors were written against; a matching adapter has to be added before it is used`
     });
   }
-  return Object.freeze({ kind: "supported", adapter: "typescript-5" });
+  return Object.freeze({ kind: "supported", adapter });
 }
 function createNodeCompilerLookup() {
   const resolver = nodeCreateRequire(import.meta.url);

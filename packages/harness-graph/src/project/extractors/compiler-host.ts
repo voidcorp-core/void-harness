@@ -36,11 +36,18 @@ import { pathToFileURL } from 'node:url';
  */
 export type TypeScriptApi = typeof import('typescript');
 
-export type CompilerAdapterId = 'typescript-5';
+export type CompilerAdapterId = 'typescript-5' | 'typescript-6';
 
 export type AdapterSelection =
 	| { readonly kind: 'supported'; readonly adapter: CompilerAdapterId }
 	| { readonly kind: 'unsupported'; readonly detail: string };
+
+/**
+ * Why a project yields no usable compiler: nothing resolves, what resolves is
+ * broken, or it is a compiler whose major ships no API these extractors call.
+ * The fixes differ: install a dependency, repair an installation, add an alias.
+ */
+export type FailureKind = 'absent' | 'unloadable' | 'unsupported';
 
 export type CompilerResolution =
 	| {
@@ -51,7 +58,7 @@ export type CompilerResolution =
 			readonly modulePath: string;
 	  }
 	| {
-			readonly kind: 'absent' | 'unloadable';
+			readonly kind: FailureKind;
 			readonly detail: string;
 			/** What the snapshot cannot carry without a compiler. */
 			readonly lost: readonly string[];
@@ -83,11 +90,23 @@ export const LOST_WITHOUT_COMPILER = Object.freeze([
 	'tsconfig inheritance, so path aliases are not applied',
 ]);
 
-/** Majors whose module resolution and tsconfig rules these extractors assume. */
-const SUPPORTED_MAJOR = 5;
+/**
+ * Majors whose module resolution and tsconfig rules these extractors assume.
+ *
+ * 6 is the last major with a JavaScript API. TypeScript 7's `typescript` package
+ * ships none, and a project that still needs it follows Microsoft's migration by
+ * aliasing `typescript` to `@typescript/typescript6`, which this lookup then
+ * resolves like any other 6.x compiler:
+ * https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/
+ */
+const SUPPORTED_ADAPTERS: ReadonlyMap<number, CompilerAdapterId> = new Map([
+	[5, 'typescript-5'],
+	[6, 'typescript-6'],
+]);
+const FIRST_MAJOR_WITHOUT_API = 7;
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
-function failure(kind: 'absent' | 'unloadable', detail: string): CompilerResolution {
+function failure(kind: FailureKind, detail: string): CompilerResolution {
 	return Object.freeze({ kind, detail, lost: LOST_WITHOUT_COMPILER });
 }
 
@@ -104,6 +123,24 @@ function unwrap(loaded: unknown): unknown {
 		: loaded;
 }
 
+/**
+ * TypeScript 7's `typescript` exports only `version`, so it would otherwise be
+ * refused as a broken installation and the reader sent to repair it. The major
+ * is read before the members to name the fix that works: Microsoft's alias.
+ */
+function apiLessMajor(candidate: Record<string, unknown>): string | undefined {
+	const version = candidate['version'];
+	if (typeof version !== 'string') return undefined;
+	const parsed = SEMVER.exec(version);
+	if (parsed === null || Number(parsed[1]) < FIRST_MAJOR_WITHOUT_API) return undefined;
+	return [
+		`TypeScript ${version} exposes no compiler API under \`typescript\`;`,
+		'keep it as `"@typescript/native": "npm:typescript@^7.0.2"` and add',
+		'Microsoft\'s alias `"typescript": "npm:@typescript/typescript6@^6.0.2"`',
+		"to the project's devDependencies",
+	].join(' ');
+}
+
 function missingMember(candidate: Record<string, unknown>): string | undefined {
 	if (typeof candidate['version'] !== 'string' || candidate['version'] === '') return 'version';
 	return REQUIRED_MEMBERS.find((member) => typeof candidate[member] !== 'function');
@@ -112,9 +149,8 @@ function missingMember(candidate: Record<string, unknown>): string | undefined {
 /**
  * Resolve and load the compiler for one analysed project.
  *
- * Never throws for a project's own shortcomings: a missing compiler and a broken
- * one are results, told apart because the fixes differ — install a dependency,
- * or repair an installation.
+ * Never throws for a project's own shortcomings: a missing compiler, a broken
+ * one and one without an API are results, told apart because the fixes differ.
  */
 export async function resolveProjectCompiler(
 	projectRoot: string,
@@ -144,6 +180,8 @@ export async function resolveProjectCompiler(
 	if (typeof candidate !== 'object' || candidate === null) {
 		return failure('unloadable', `${modulePath} did not export a compiler object`);
 	}
+	const apiLess = apiLessMajor(candidate as Record<string, unknown>);
+	if (apiLess !== undefined) return failure('unsupported', `${modulePath}: ${apiLess}`);
 	const missing = missingMember(candidate as Record<string, unknown>);
 	if (missing !== undefined) {
 		return failure(
@@ -160,7 +198,7 @@ export async function resolveProjectCompiler(
  * Pick the extractor adapter for a compiler version.
  *
  * Explicit rather than optimistic. An unknown major is refused with its number
- * in the message, because the alternative — running the 5.x adapter against a
+ * in the message, because the alternative — running a known adapter against a
  * compiler whose resolution rules moved — produces a graph that is wrong in a
  * way nothing downstream can detect.
  */
@@ -172,14 +210,14 @@ export function selectCompilerAdapter(version: string): AdapterSelection {
 			detail: `\`${version}\` is not a version this selector can read; it needs major.minor.patch`,
 		});
 	}
-	const major = Number(parsed[1]);
-	if (major !== SUPPORTED_MAJOR) {
+	const adapter = SUPPORTED_ADAPTERS.get(Number(parsed[1]));
+	if (adapter === undefined) {
 		return Object.freeze({
 			kind: 'unsupported',
-			detail: `TypeScript ${version} is outside the ${SUPPORTED_MAJOR}.x range these extractors were written against; a matching adapter has to be added before it is used`,
+			detail: `TypeScript ${version} is outside the 5.x and 6.x ranges these extractors were written against; a matching adapter has to be added before it is used`,
 		});
 	}
-	return Object.freeze({ kind: 'supported', adapter: 'typescript-5' });
+	return Object.freeze({ kind: 'supported', adapter });
 }
 
 /** The real port: Node resolution from the project root, dynamic import. */

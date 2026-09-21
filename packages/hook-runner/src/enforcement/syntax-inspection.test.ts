@@ -20,7 +20,7 @@ beforeAll(async () => {
   const outfile = join(bundleDirectory, 'syntax.mjs');
   await build({
     entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
-    bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile,
+    bundle: true, platform: 'node', format: 'esm', target: 'node24', outfile,
     define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify(new URL('../../../core/hooks/_syntax-worker.cjs', import.meta.url).href) },
   });
   bundledInspect = (await import(pathToFileURL(outfile).href)).inspectSourceSyntax;
@@ -34,7 +34,7 @@ beforeAll(async () => {
     writeFileSync(worker, code);
     await build({
       entryPoints: [fileURLToPath(new URL('./syntax-inspection.ts', import.meta.url))],
-      bundle: true, platform: 'node', format: 'esm', target: 'node22', outfile: variant,
+      bundle: true, platform: 'node', format: 'esm', target: 'node24', outfile: variant,
       define: { __VOID_SYNTAX_WORKER_URL__: JSON.stringify(pathToFileURL(worker).href),
         __VOID_SYNTAX_WORKER_IDENTITY__: JSON.stringify({ bytes: Buffer.byteLength(code),
           sha256: createHash('sha256').update(code).digest('hex') }) },
@@ -49,7 +49,7 @@ afterAll(() => { rmSync(bundleDirectory, { recursive: true, force: true }); });
 function project() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-evidence-')));
   mkdirSync(join(root, 'node_modules'));
-  const compiler = createRequire(import.meta.url).resolve('typescript/package.json');
+  const compiler = createRequire(import.meta.url).resolve('@typescript/typescript6/package.json');
   symlinkSync(compiler.slice(0, -'/package.json'.length), join(root, 'node_modules/typescript'), 'junction');
   mkdirSync(join(root, 'apps/web/src'), { recursive: true });
   mkdirSync(join(root, 'tests/e2e'), { recursive: true });

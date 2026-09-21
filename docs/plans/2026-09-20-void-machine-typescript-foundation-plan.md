@@ -13,20 +13,123 @@ baseline: 85f177b1dc4638be75ccc9e265352698cc072969
 
 # Void Machine : porter, éprouver et stabiliser le socle TypeScript
 
-## État au 21 septembre : implémenté et vérifié, publié en PR, non fusionné
+## État au 21 septembre : socle M1/M2 fusionné, fondation en cours
 
-**Fait.** M1, relais local par deux fonctions injectées, est terminé. M2,
-adaptateur Claude réel pour extraction puis synthèse, est terminé et sa revue
-indépendante est **CLEARED**, sans BLOCKER.
-Le [receipt M2 (§21)](#21-m2-runtime-receipt-20-septembre-2026) atteste 64 tests sur
-5 suites, build, typecheck et lint réussis, puis un live en 23,967 secondes avec
-citations des deux sources. Les 13 checks CI verts du **20 septembre 2026** portent
-sur `d8a3fc62`, pas sur cette actualisation documentaire.
+La PR #393 a été fusionnée dans `develop` à `e0e8afa2`. Les receipts M1/M2 et les
+mentions de PR ouverte plus bas sont des observations historiques à leur date.
+Cette branche poursuit le socle privé sans basculer la distribution ni retirer Rust.
 
-La [PR #393](https://github.com/voidcorp-core/void-harness/pull/393) est publiée
-comme PR normale, ouverte et non fusionnée : ORCH a vérifié séparément le
-21 septembre `OPEN`, `isDraft: false`, head `d8a3fc62`, `mergedAt: null`.
-Cette livraison ne remplace encore ni l'entrée distribuée ni Rust.
+**Tranche de fiabilité actuelle, volet outillage.** `packages/void-machine` porte
+seul le plancher Node >=24.15.0, TypeScript 7.0.2, Vitest 5.0.1, Zod 4.6.5 et
+types Node 24. Sa configuration TypeScript est autonome et garde les options
+strictes du pack consommateur, qui n'a pas été modifié. Build, typecheck et
+111 tests du paquet sont verts sous Node 24.15.0 et 26.8.2 ; lint racine vert.
+Le choix du plancher et son incidence sur `node:sqlite` sont dans
+[l'ADR Node 24](../decisions-log/2026-09-21-machine-node-24-lts-floor--89f1ec74-3cf3-492a-be98-2ec03c924508.md).
+**Volet séparation des couches.** Le test AST du graphe de modules couvre les
+imports statiques, de types et les réexports, puis charge le runtime isolé.
+RED observé avec un import de type `runtime -> verticals/development` (message
+nommant l'arête), puis GREEN après son retrait. Les adaptateurs doctor qui
+importent leur verticale implémentent ses ports et respectent le sens prévu.
+Le [choix du parseur](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md)
+est consigné. Remaniement sans comportement : les schémas `/1` et `/2` sont maintenant
+possédés par la verticale note. L'admission et l'écriture ont été isolées dans
+un module applicatif intermédiaire avant de rejoindre le driver générique. Les
+113 tests sont restés verts à chaque commit de remaniement.
+**Volet noyau générique.** Le réducteur pur des transitions se trouve dans
+`core/mission.ts`, le driver durable et le fencing des révisions dans
+`runtime/mission.ts`, les étapes, l'admission et les formats `/1` et `/2` dans la
+verticale note ; l'application les compose. Les fixtures historiques se relisent
+sans migration. Une verticale factice à trois étapes, format distinct et politique
+différente prouve démarrage, reprise, effet inconnu, annulation, abandon, résultat
+tardif ignoré et deux reprises concurrentes avec une seule exécution. Les preuves
+RED et GREEN sont dans les tests de contrat. Le stockage fichier reste en place,
+et aucun contrat de mission n'est exporté publiquement. Le choix est consigné dans
+[l'ADR noyau](../decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md).
+Après le dernier changement de code, les 124 tests du paquet, son build et son
+typecheck passent sous Node 24.15.0 et Node 26.8.2. `pnpm test:fast` racine passe
+(2 599 tests) et le typecheck racine passe après compilation des déclarations déjà
+requises de `pack-monorepo`. Le lint Biome racine est vert.
+La lecture réadmet chaque résultat intermédiaire enregistré avant de reprendre,
+d'annuler ou de livrer une mission terminée ; une valeur modifiée sans casser son
+schéma est refusée. Les exceptions des codecs et des règles de la verticale donnent
+un refus typé sans lancer une étape.
+
+**Corrections de la relecture du noyau (21 septembre).** Chaque point a son commit,
+son RED observé puis GREEN :
+
+- Frontières : modules intégrés de Node refusés dans core, runtime et verticals via
+  `isBuiltin`, paquets externes en liste blanche par couche, import dynamique calculé
+  refusé partout ; huit sources refusées en dur doivent rester signalées. RED : cinq
+  des huit passaient (`fs` sans préfixe, `node:os`, `createRequire`, paquet hors liste,
+  `import(name)`).
+- Vocabulaire : `step` dans tous les événements et reçus du noyau ; seuls le codec
+  note (records `stage`) et le reçu public de la note traduisent. RED : typecheck
+  TS2322 et cinq tests de la verticale factice exprimée en `step`.
+- Source unique : `BlockedReason` défini dans le runtime et réexporté par l'application,
+  borne `MISSION_EVENT_LIMIT` (32) exportée par core et lue par le runtime. RED : le
+  test de borne importait une constante absente.
+- Résultat live refusé : événement terminal `rejected { step, usage }` dans le noyau,
+  reçu `rejected` à la reprise, coût observé conservé. La note l'écrit seulement en
+  `note-mission/3` ; `/1` et `/2` se relisent à l'identique. RED : reçu `blocked` au
+  lieu de `rejected` et codec note incapable d'encoder le refus.
+- Admission en parseur : `admit` rend `{ ok, value }` ou `{ ok: false, reason }`, le
+  codec décode des valeurs non admises et encode des valeurs admises, le runtime passe
+  des valeurs typées aux étapes et reçus. La triple validation de la note et son `throw`
+  disparaissent ; un refus local devient `rejected`, pas `outcome-unknown`. RED :
+  typecheck TS2322 et quatre tests (valeur normalisée, refus local, refus live, relecture).
+- Résultat tardif après annulation en vol : le perdant de la révision écrit `discarded
+  { step, usage }` (note `/3`) ; coût conservé, valeur jamais enregistrée, aucune étape
+  suivante, l'effet reste inconnu jusqu'à l'abandon. RED : usage tardif absent du reçu
+  et du journal (test générique et deux tests CLI).
+- Délais des tests de processus : bornes de blocage uniformes et généreuses, jamais
+  une mesure de performance (enfant 20 s, test 30 s, au-dessus de ses enfants). Les
+  attentes qui ordonnent deux processus attendent un événement, la ligne qu'un fixture
+  envoie sur un port loopback publié par le test en entrant dans sa barrière (pas une
+  socket Unix nommée : son chemin est borné à 104 octets sous macOS), au lieu de
+  sonder un fichier sous un délai d'assertion. RED : 3 exécutions rouges sur 5 avec
+  `--maxWorkers=2`, le budget du projet CI `contract:subprocess` (délais de 1,25 s du
+  test doctor). GREEN : 20 exécutions vertes consécutives avec `--maxWorkers=2`.
+- Garde de couches : le scan refuse tout fichier de `src/` hors des cinq couches ou qui
+  n'est pas un `.ts` de production, un import local doit nommer un `.js`, et le test
+  asserte avoir lu les modules connus de chaque couche. RED : 5 des nouveaux cas
+  passaient (`.mjs` importé, `io.ts` à la racine comme importeur et comme fichier,
+  `.d.ts`, couche inconnue).
+- Globales hôtes : `tsconfig.pure.json` (`lib: ["ES2022"]`, `types: []`) branché sur
+  `typecheck`, liste blanche `types/pure-globals.d.ts` (`AbortController`,
+  `AbortSignal`, `TextEncoder`), fixture négative qui doit échouer. RED : le test
+  échouait avec `types: ["node"]` (`process` accepté) ; sans liste blanche, le code
+  réel échouait sur `AbortSignal`, `AbortController` et `TextEncoder`.
+- Signal de barrière : RED 7 échecs `listen EINVAL` dans la lane racine
+  `test:filesystem` (chemin de socket au-delà de 104 octets) ; un test prouve le canal
+  depuis un répertoire plus long que toute limite de socket Unix.
+- Second `discarded` : état dédié du réducteur qui le refuse. RED : le réducteur rendait
+  `cancel-requested` pour un `discarded` répété.
+- Reçu après `discarded` : la mission est réglée, reçu `cancelled` avec
+  `stop: late-result-discarded` et l'usage conservé, sortie 1 au lieu de 3. RED : test
+  générique et deux tests CLI recevaient `requested-unconfirmed, effect: unknown`.
+- Résultat tardif après abandon en vol : `discarded` accepté une fois après `abandoned`
+  pour la même étape (état réglé, `/3`), reçu `abandoned` avec
+  `effect: late-result-discarded`. RED : coût tardif absent (test générique et CLI),
+  réducteur qui refusait la séquence.
+- Panne de stockage du coût tardif : seul un conflit retombe sur le reçu du gagnant ;
+  un échec ou une durabilité non confirmée est rendu `blocked storage` avec sa raison.
+  RED : le rédacteur rendait `cancelled` avec un `append` en échec.
+- Trois lignes de tests de plus de 100 colonnes ajoutées par la plage précédente,
+  repliées.
+- API TypeScript 6 du garde AST : condition de retrait ajoutée à
+  [l'ADR du garde](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md),
+  encore `proposed` (l'ADR TS 7 ne donnait que la conséquence « jusqu'à une API 7.x »).
+- Limite de généricité documentée (README et
+  [ADR noyau](../decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md),
+  encore `proposed`) : pipeline linéaire d'au plus huit étapes fixes, 32 événements ;
+  boucles revue/correction et attente de clarification (B2) feront évoluer le réducteur.
+
+Preuves après la seconde relecture : build, typecheck (dont `tsconfig.pure.json`) et
+161 tests du paquet verts sous Node 24.15.0 et 26.9.0 ; 20 exécutions consécutives
+vertes avec `--maxWorkers=2` ; à la racine, `test:filesystem` (1 937 tests) et
+`test:subprocess` (1 205 tests) verts. Les fixtures `/1` et `/2` se relisent octet
+pour octet.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins
@@ -547,7 +650,12 @@ effectives des opérations sont une preuve séparée.
 
 Un test architectural ciblé couvre les imports statiques, imports de types,
 réexports et dépendances transitives du noyau ; pas de chargement dynamique dans
-ses modules. Il vérifie l'absence d'I/O et de dépendance au harnais/aux verticales.
+ses modules. Il refuse tout module intégré de Node et toute dépendance au
+harnais/aux verticales. Un typecheck dédié (`tsconfig.pure.json`, sans types Node ni
+DOM) refuse les globales hôtes dans core, runtime et verticals, hormis une liste
+blanche revue de primitives WHATWG sans I/O. Ces deux preuves sont statiques : elles
+ne prouvent pas l'absence d'I/O à l'exécution, une frontière de typage n'est pas un
+sandbox.
 Réutiliser le parseur du tooling de ce dépôt ; ne pas ajouter un moteur de règles.
 Le hook actuel de direction contrôle les packages déclarés, pas les couches
 internes : il ne suffit pas à prouver cette séparation.
@@ -1119,7 +1227,7 @@ exigences ; elle ne demande pas une suite, un hook ou un reviewer par ligne.
 | P02 | Identités exactes | Corpus Rust/TS, UTF-8/tri/séparateurs/nombres aux limites | A2–A4 |
 | P03 | Refus de sécurité conservés | Symlinks, permissions, SHA/fence, mutations et merge interdits | A2–A4 |
 | P04 | Un seul moteur après port | Paquet sans Rust, chemins de build supprimés, lecteurs legacy conservés | A5 |
-| P05 | Noyau indépendant | Imports et exécution sans I/O, Git, projet, modèle ou verticale | A3 puis C0 |
+| P05 | Noyau indépendant | Imports et globales hôtes refusés au typage (I/O, Git, projet, modèle, verticale) ; exécution sans I/O non prouvée | A3 puis C0 |
 | P06 | Aucun cérémonial universel | Collecte sans spec/plan/review/installation projet | B1 |
 | P07 | Autorité avant exposition de données | Route interdite reçoit zéro contexte, coordinateur compris | B0–B2 |
 | P08 | Clarification sans réexécution | Même identité/révision pertinente, résultats valides réutilisés | B2 |

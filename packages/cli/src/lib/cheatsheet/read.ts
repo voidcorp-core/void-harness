@@ -10,8 +10,8 @@ const within = (root: string, target: string): boolean => {
   return path !== '..' && !path.startsWith('../') && !path.startsWith('..\\') && !isAbsolute(path);
 };
 
-/** Node 22 fs contract: bound the descriptor read itself, not just its initial size.
- * https://nodejs.org/docs/latest-v22.x/api/fs.html#filehandlereadbuffer-options
+/** Node 24 fs contract: bound the descriptor read itself, not just its initial size.
+ * https://nodejs.org/docs/latest-v24.x/api/fs.html#filehandlereadbuffer-options
  */
 export async function readData(root: string, path: string, maxBytes: number): Promise<DataRead> {
   try {

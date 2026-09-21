@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "engines": {
+    "node": ">=24.15.0"
+  },
   "scripts": {
     "benchmark": "node benchmarks/context-continuity.mjs",
     "build": "node scripts/build.mjs",
@@ -18,11 +21,10 @@
     "@voidcorp/mission-engine": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@typescript/native": "npm:typescript@7.0.2",
-    "@typescript/typescript6": "6.0.2",
+    "@types/node": "^24.13.6",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@typescript/typescript6": "^6.0.2",
     "esbuild": "^0.28.0",
-    "typescript": "^5.6.0",
-    "vitest": "^4.1.9"
+    "vitest": "^5.0.1"
   }
 }

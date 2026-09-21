@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-// Node 22 listen/error/close semantics: https://nodejs.org/docs/latest-v22.x/api/net.html
+// Node 24 listen/error/close semantics: https://nodejs.org/docs/latest-v24.x/api/net.html
 const PROBE = `
 import { createServer, createConnection } from 'node:net';
 const server = createServer(socket => socket.end('ready'));
@@ -39,7 +39,7 @@ export function runNetworkLane(execute = spawnSync) {
   const tests = execute(process.execPath, [
     fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url)),
     // Threads die with the bounded parent; a timed-out fork can outlive it.
-    // Vitest 4: https://vitest.dev/config/pool.html
+    // Vitest 5: https://vitest.dev/config/pool.html
     'run', '--project=*:network-browser', '--maxWorkers=1', '--pool=threads',
   ], {
     cwd: fileURLToPath(new URL('..', import.meta.url)),
