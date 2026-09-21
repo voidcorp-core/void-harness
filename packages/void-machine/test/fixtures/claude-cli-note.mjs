@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { appendFileSync, chmodSync, existsSync, readdirSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { connect } from 'node:net';
 import { join } from 'node:path';
 
@@ -44,7 +44,8 @@ process.stdin.on('end', () => {
     session_id: session,
   }));
   if (model !== 'fixture-hold' && model !== 'fixture-extract-hold') { respond(); return; }
-  // Explicit barrier: announce the hold on the test's socket, then answer only once the test
+  // Explicit barrier: announce the hold on the test's loopback port (published in
+  // ./signal.port, the same protocol as signal-client.ts), then answer only once the test
   // writes ./release. The deadline is a failure guard, never a success path; a removed test
   // root also ends the wait.
   const deadline = Date.now() + 20_000;
@@ -56,7 +57,8 @@ process.stdin.on('end', () => {
     }
     setTimeout(poll, 10);
   };
-  const signal = connect(join(process.cwd(), 'signal.sock'));
+  const port = Number(readFileSync(join(process.cwd(), 'signal.port'), 'utf8'));
+  const signal = connect({ host: '127.0.0.1', port });
   signal.once('error', (error) => {
     process.stderr.write(`hold signal failed: ${error.message}\n`);
     process.exitCode = 1;

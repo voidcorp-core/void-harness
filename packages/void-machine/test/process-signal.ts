@@ -1,16 +1,18 @@
+import { writeFileSync } from 'node:fs';
 import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
 import { onTestFinished } from 'vitest';
-
-/** Socket a held fixture process connects to, in the directory it runs from. */
-export const SIGNAL_SOCKET = 'signal.sock';
+import { SIGNAL_PORT_FILE } from './fixtures/signal-client.js';
 
 /**
  * Receives the named lines fixture processes send when they reach a barrier, so a test
  * waits on the event itself instead of polling a file under an assertion deadline. The
  * test bound stays the only bound on a signal that never comes.
+ *
+ * The channel is a loopback TCP port published in `directory`, not a named Unix socket:
+ * a socket path is limited to about 104 bytes and test directories are not.
  */
-export function processSignals(directory: string) {
+export async function processSignals(directory: string) {
   const arrived = new Set<string>();
   const waiting = new Map<string, Array<() => void>>();
   const sockets = new Set<Socket>();
@@ -31,13 +33,23 @@ export function processSignals(directory: string) {
     });
     socket.once('close', () => { sockets.delete(socket); });
   });
-  // A listener failure is a broken test environment, never a signal that did not come.
-  server.once('error', (error) => { throw error; });
-  server.listen(join(directory, SIGNAL_SOCKET));
   onTestFinished(() => new Promise<void>((resolve) => {
     for (const socket of sockets) socket.destroy();
     server.close(() => { resolve(); });
   }));
+  // The address is read only once the server reports it is listening, as Node documents.
+  await new Promise<void>((listening, failed) => {
+    server.once('error', failed);
+    server.listen({ host: '127.0.0.1', port: 0 }, () => {
+      server.off('error', failed);
+      listening();
+    });
+  });
+  const address = server.address();
+  if (typeof address !== 'object' || address === null) {
+    throw new Error('Signal listener has no TCP address');
+  }
+  writeFileSync(join(directory, SIGNAL_PORT_FILE), String(address.port));
   const received = (name: string): Promise<void> => arrived.has(name) ? Promise.resolve()
     : new Promise((resolve) => { waiting.set(name, [...(waiting.get(name) ?? []), resolve]); });
   return { received };

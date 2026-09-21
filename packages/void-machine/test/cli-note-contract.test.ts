@@ -113,12 +113,12 @@ function missionFixture() {
   // Starts through the production composition with one deterministic boundary condition.
   const host = (mode: string) => f.invokeScript(hostScript, [store, MISSION, input, f.root, command, mode]);
   const crashAfter = (kind: string) => host(`crash-after:${kind}`);
-  // Held fixtures announce their barrier here; a test awaits that event, never a file.
-  const signals = processSignals(f.root);
   const sessions = () => readFileSync(join(f.root, 'sessions.log'), 'utf8').split('\n')
     .filter((line) => line.length > 0).map((line) => line.split(' '));
   return { ...f, store, directory, start, resume, calls, record, edit, receipt, release, host,
-    crashAfter, sessions, held: signals.received };
+    crashAfter, sessions,
+    // Held fixtures announce their barrier here; a test awaits that event, never a file.
+    listen: () => processSignals(f.root) };
 }
 
 describe('durable note mission across processes', () => {
@@ -210,8 +210,10 @@ describe('durable note mission across processes', () => {
     expect(receipt.usage.map((value) => value.sessionId)).toEqual(intents);
   });
 
-  it('reports an unconfirmed cancellation as unknown at once and on resume, launching nothing again', () => {
+  it('reports an unconfirmed cancellation as unknown at once and on resume, launching nothing again', async () => {
     const f = missionFixture();
+    // The held child announces its barrier; nothing here waits on it.
+    await f.listen();
     const first = f.host('deadline-after-entry');
     expect(first.status).toBe(3);
     expect(f.receipt(first.stdout)).toMatchObject({ kind: 'blocked', reason: 'outcome-unknown' });
@@ -258,10 +260,11 @@ describe('durable note mission across processes', () => {
 
   it('lets the live writer accept its result after another resume observed it in flight', async () => {
     const f = missionFixture();
+    const signals = await f.listen();
     const live = f.launch(f.start('fixture-hold'));
     try {
       // The held launch is recorded before its barrier announces itself.
-      await f.held('fixture-hold');
+      await signals.received('fixture-hold');
       const observer = f.invoke(f.resume());
       expect(observer.status).toBe(3);
       expect(f.receipt(observer.stdout)).toMatchObject({ kind: 'blocked', reason: 'outcome-unknown' });
@@ -276,6 +279,7 @@ describe('durable note mission across processes', () => {
 
   it('launches synthesis once when two resumes race for the same mission', async () => {
     const f = missionFixture();
+    const signals = await f.listen();
     expect(f.invoke(f.start('fixture-hold', ['--stop-after', 'extraction'])).status).toBe(0);
     const settled = [false, false];
     const runs = [f.launch(f.resume()), f.launch(f.resume())].map((run, index) =>
@@ -283,7 +287,7 @@ describe('durable note mission across processes', () => {
     try {
       // Two distinct signals, in no assumed order: the loser finishes on its own, and the
       // winner's native child has entered. The loser can settle before that child starts.
-      await Promise.all([Promise.race(runs), f.held('fixture-hold')]);
+      await Promise.all([Promise.race(runs), signals.received('fixture-hold')]);
       expect(settled.filter(Boolean)).toHaveLength(1);
       expect(f.calls().filter((model) => model === 'fixture-hold')).toHaveLength(1);
     } finally {
@@ -422,10 +426,11 @@ describe('note mission cancellation and explicit abandonment', () => {
 
   it('reports an in-flight cancel as unconfirmed, then keeps only the late cost', async () => {
     const f = cancellationFixture();
+    const signals = await f.listen();
     const live = f.launch(f.start('fixture-hold'));
     let requested: ReturnType<typeof f.invoke> | undefined;
     try {
-      await f.held('fixture-hold');
+      await signals.received('fixture-hold');
       requested = f.invoke(f.cancel());
     } finally {
       f.release();
@@ -451,10 +456,11 @@ describe('note mission cancellation and explicit abandonment', () => {
 
   it('never synthesizes from an extraction that returns after its cancellation', async () => {
     const f = cancellationFixture();
+    const signals = await f.listen();
     const live = f.launch(f.start('fixture-synthesis', [], 'fixture-extract-hold'));
     let requested: ReturnType<typeof f.invoke> | undefined;
     try {
-      await f.held('fixture-extract-hold');
+      await signals.received('fixture-extract-hold');
       requested = f.invoke(f.cancel());
     } finally {
       f.release();
@@ -474,10 +480,11 @@ describe('note mission cancellation and explicit abandonment', () => {
 
   it('keeps only the cost of a synthesis returning after its abandonment', async () => {
     const f = cancellationFixture();
+    const signals = await f.listen();
     const live = f.launch(f.start('fixture-hold'));
     let abandoned: ReturnType<typeof f.invoke> | undefined;
     try {
-      await f.held('fixture-hold');
+      await signals.received('fixture-hold');
       abandoned = f.invoke(f.abandon());
     } finally {
       f.release();
@@ -600,11 +607,12 @@ describe('note mission cancellation and explicit abandonment', () => {
 describe('note mission cancellation ordered by the journal', () => {
   it('confirms a stop recorded before the dispatch intent and never spawns the step', async () => {
     const f = cancellationFixture();
+    const signals = await f.listen();
     const live = f.launchScript(hostScript, [f.store, MISSION, join(f.root, 'request.json'), f.root,
       join(f.root, 'claude-fixture'), 'hold-before:dispatched']);
     let cancelled: ReturnType<typeof f.invoke> | undefined;
     try {
-      await f.held('held');
+      await signals.received('held');
       cancelled = f.invoke(f.cancel());
     } finally {
       f.release();
@@ -624,13 +632,14 @@ describe('note mission cancellation ordered by the journal', () => {
 describe('note cancel losing its revision', () => {
   it('reports the winning state instead of a conflict when a step settles first', async () => {
     const f = cancellationFixture();
+    const signals = await f.listen();
     expect(f.invoke(f.start('fixture-synthesis', ['--stop-after', 'extraction'])).status).toBe(0);
     // The cancel reads an idle mission, then waits before its append.
     const cancel = f.launchScript(hostScript, [f.store, MISSION, join(f.root, 'request.json'), f.root,
       join(f.root, 'claude-fixture'), 'cancel-held']);
     let completed: ReturnType<typeof f.invoke> | undefined;
     try {
-      await f.held('held');
+      await signals.received('held');
       completed = f.invoke(f.resume());
     } finally {
       f.release();
