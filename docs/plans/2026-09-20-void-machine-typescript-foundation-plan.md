@@ -91,6 +91,10 @@ son RED observé puis GREEN :
 - API TypeScript 6 du garde AST : condition de retrait ajoutée à
   [l'ADR du garde](../decisions-log/2026-09-21-machine-layer-import-ast-guard--ba06a613-526a-4101-8f6f-165e583d63b9.md),
   encore `proposed` (l'ADR TS 7 ne donnait que la conséquence « jusqu'à une API 7.x »).
+- Limite de généricité documentée (README et
+  [ADR noyau](../decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md),
+  encore `proposed`) : pipeline linéaire d'au plus huit étapes fixes, 32 événements ;
+  boucles revue/correction et attente de clarification (B2) feront évoluer le réducteur.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

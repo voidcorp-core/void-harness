@@ -190,8 +190,11 @@ receipt, whose public field is `stage`, translate it. The note vertical supplies
 two steps, result admission and codecs for both historical formats; the application only composes
 these parts with the native executor and file journal. The private package export
 remains doctor-only. A three-step test vertical with a distinct journal format
-proves the same core can serve another policy without edits. This split does not
-change stored note bytes; the [core decision](../../docs/decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md)
+proves the same core can serve another policy without edits. The core covers one linear
+pipeline of at most eight fixed, distinct steps, each dispatched once in declared order,
+within 32 events. A review/correction loop that dispatches a step again, a branch, or a
+durable wait for a clarification answer (plan B2) is outside it and will change the
+reducer. This split does not change stored note bytes; the [core decision](../../docs/decisions-log/2026-09-21-machine-generic-mission-core--b9347b31-9053-45e0-a153-0a7104c0191b.md)
 records its boundaries and reversal cost.
 
 The current private suite has 124 passing tests under Node 24.15.0 and Node
