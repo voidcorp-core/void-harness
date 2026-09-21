@@ -5,7 +5,7 @@ CLI; the former A5 cutover is deferred under the clean-sheet mandate. No separat
 publication, controller, provider or coordinator API.
 
 A1 candidate entry after build: `node dist/application/cli.js doctor --json`.
-The public npm launcher remains on Rust; no cutover is delivered here. Direct application callers
+There is no public launcher; the Rust one was removed without a port. Direct application callers
 supply cwd and environment. Doctor is read-only; paths follow XDG_CACHE_HOME,
 then HOME/.cache, then repository .void/machine/cache. USERPROFILE is not a new
 fallback. machine.toml path fields remain validated but do not override discovery,

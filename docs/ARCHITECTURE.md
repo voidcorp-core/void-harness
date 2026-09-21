@@ -192,30 +192,12 @@ storage dependency.
 
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
-The Void Machine native track is the bounded exception: `native/void-machine/`
-contains a Rust workspace for the read-only doctor kernel and host adapter. It
-shares no TypeScript runtime code and is exposed through a thin compatibility
-launcher; platform binaries are built by their native lane rather than bundled
-into the universal npm tarball. A future independent Rust/Go/Python product
-could still live in a sibling repo, reusing mechanics not skills.
-
-The native machine's external Git boundary is split the same way: the Rust core
-defines a provider-neutral effect identity, fencing state machine, and immutable
-commit proof, while the host adapter observes commit ranges and hashes shared
-repository state without retaining its contents. The CLI's SQLite ledger is the
-durable outbox for those effects; a claimed effect cannot be replayed under a
-different fence, and an ambiguous command is closed until a human resolves it.
-The Rust core also owns bounded cluster reconciliation: worker reports must cover
-the declared ticket set, completed work must carry review provenance and observed
-files must stay within declared footprints. Parallel collisions are rejected,
-declared sequential collisions are accepted, and the reconciliation ledger makes
-resume idempotent by refusing a ticket that was already accepted.
-The merge boundary follows the same fail-closed rule: the native policy requires
-positive branch protection, green checks and a fresh clean review on the exact
-head, emits one non-forced `gh pr merge --match-head-commit` command, and records
-the merge once. A target that is missing, protected without required checks, equal
-to or indistinguishable from the deploying branch, or subject to a human gate is
-refused before any remote mutation.
+The Void Machine has no native track. Its Rust workspace was removed without a port, for lack of
+a caller ([decision](decisions-log/2026-09-21-void-machine-rust-removal-without-port--ec77d2de-4719-4fe6-8d21-c0dbe403d6ac.md)).
+The private TypeScript package `packages/void-machine/` is the Machine foundation and ships in no
+tarball. Git observation, cluster reconciliation and the merge policy that autopilot runs live in
+`packages/cli/src/lib/autopilot/`. A future independent Rust/Go/Python product could still live in
+a sibling repo, reusing mechanics not skills.
 
 ## Stack profile compilation
 
