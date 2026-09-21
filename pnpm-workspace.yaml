@@ -10,3 +10,4 @@ packages:
   - 'packages/mission-engine'
   - 'packages/hook-runner'
   - 'apps/*'
+  - 'packages/void-machine'

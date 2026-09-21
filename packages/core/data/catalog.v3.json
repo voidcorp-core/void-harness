@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:7b2007bbfee9f637dccf8eeec52e74b8a5dbb43cb523c2d174de81494974cbe3"
+    "rootHash": "sha256:375282d72a63196f07e9102e8ffb1023f1ebb689c9abe4d8bfd808d64ecc8dc2"
   },
   "nodes": [
     {
@@ -4331,7 +4331,7 @@
             }
           ],
           "id": "skill:void-implement",
-          "lines": 182,
+          "lines": 183,
           "name": "void-implement",
           "owner": "folpe",
           "pack": null,
@@ -4340,7 +4340,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-implement/SKILL.md",
-          "staticTokens": 5373,
+          "staticTokens": 5498,
           "type": "skill"
         }
       },
@@ -5003,7 +5003,7 @@
       "data": {
         "legacy": {
           "activation": "always",
-          "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
+          "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version; cite the reference when it helps. Use before writing any tool config.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -5020,7 +5020,7 @@
             }
           ],
           "id": "skill:void-source-driven-development",
-          "lines": 162,
+          "lines": 158,
           "name": "void-source-driven-development",
           "owner": "folpe",
           "pack": null,
@@ -5029,7 +5029,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-source-driven-development/SKILL.md",
-          "staticTokens": 2384,
+          "staticTokens": 2452,
           "type": "skill"
         }
       },
@@ -5334,7 +5334,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-verify/SKILL.md",
-          "staticTokens": 2228,
+          "staticTokens": 2267,
           "type": "skill"
         }
       },

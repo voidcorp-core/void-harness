@@ -35,7 +35,7 @@ Read item by item. Do not run from memory. Each item is OBSERVED, not assumed.
 | 8 | Security review check for any boundary / auth / secret change | `void-security-guidance` + `void-security-audit` |
 | 9 | Documentation updated if any convention changed | `void-commit-discipline` "always say why" |
 | 10 | Commit message includes the why (not just what) | `void-commit-discipline` |
-| 11 | Review evidence block present in PR body (strict mode) | `void-code-review` |
+| 11 | Independent review ran on the final change with no demonstrated blocking defect left open; review evidence block present in PR body (strict mode). A missing citation or explanation alone never fails this item | `void-code-review` |
 | 12 | Spec / plan linked if work derives from one; plan resume point updated | `void-brainstorm` + `void-plan` |
 
 Items 6, 7, 8 only fire when the change touches their domain.
