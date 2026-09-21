@@ -1,3 +1,4 @@
+// @test-resource network-browser
 import { join } from 'node:path';
 import { chmodSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { contentsDigest, doctorFixture, processTestTimeoutMs } from './doctor-fixture.js';
