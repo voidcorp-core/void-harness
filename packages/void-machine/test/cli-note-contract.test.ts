@@ -471,6 +471,32 @@ describe('note mission cancellation and explicit abandonment', () => {
     expect(f.calls()).toEqual(['fixture-extract-hold']);
   });
 
+  it('keeps only the cost of a synthesis returning after its abandonment', async () => {
+    const f = cancellationFixture();
+    const live = f.launch(f.start('fixture-hold'));
+    let abandoned: ReturnType<typeof f.invoke> | undefined;
+    try {
+      await f.held('fixture-hold');
+      abandoned = f.invoke(f.abandon());
+    } finally {
+      f.release();
+    }
+    expect(abandoned?.status).toBe(1);
+    expect(f.receipt(abandoned?.stdout ?? '{}')).toMatchObject({ kind: 'abandoned',
+      stage: 'synthesis', effect: 'unknown', usage: [{ role: 'extractor' }] });
+    const writer = await live;
+    expect(writer.status).toBe(1);
+    expect(JSON.parse(writer.stdout)).toEqual({ kind: 'abandoned', missionId: MISSION,
+      stage: 'synthesis', effect: 'late-result-discarded',
+      usage: [expect.objectContaining({ role: 'extractor' }),
+        expect.objectContaining({ role: 'synthesizer' })] });
+    expect(f.stored().map((record) => [record.kind, record.format.slice(-1)])).toEqual([
+      ['started', '1'], ['dispatched', '1'], ['accepted', '1'], ['dispatched', '1'],
+      ['abandoned', '2'], ['discarded', '3']]);
+    expect(f.invoke(f.resume()).stdout).toBe(writer.stdout);
+    expect(f.calls()).toEqual(['fixture-extract', 'fixture-hold']);
+  });
+
   it('abandons an unknown step once, idempotently, and never runs it again under the same identifier', () => {
     const f = cancellationFixture();
     expect(f.invoke(f.start('fixture-crash')).signal).toBe('SIGKILL');

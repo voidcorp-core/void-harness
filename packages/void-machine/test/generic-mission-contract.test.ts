@@ -320,14 +320,32 @@ it('keeps the cost of a late result after an unconfirmed cancellation, never its
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 
+it('keeps the cost of a late result after an abandonment of the step in flight', async () => {
+  const f = fixture();
+  const held = await heldAudit(f);
+  expect(await abandonMission(f.store, description)).toEqual({ kind: 'abandoned',
+    missionId: 'three-step', step: 'audit', effect: 'unknown', usage: [{ units: 1 }] });
+  held.release();
+  const late = { kind: 'abandoned', missionId: 'three-step', step: 'audit',
+    effect: 'late-result-discarded', usage: [{ units: 1 }, { units: 2 }] };
+  expect(await held.live).toEqual(late);
+  expect(await f.journal.read(f.store.missionId)).toMatchObject({ kind: 'records',
+    records: { 5: { event: { kind: 'discarded', step: 'audit', usage: [{ units: 2 }] } } } });
+  expect(await resumeMission(f.store, description, f.runner())).toEqual(late);
+  expect(f.calls).toEqual(['draft', 'audit']);
+});
+
 it('refuses a second discarded result for the same step', () => {
   const started: Event = { kind: 'started', input: { request: 'report' },
     config: { minimumScore: 3 }, contract: 'test-contract/1' };
-  const once: Event[] = [started, { kind: 'dispatched', step: 'draft', executionId: 'x' },
-    { kind: 'cancel-requested', step: 'draft' }, { kind: 'discarded', step: 'draft', usage: [] }];
-  expect(missionPosition(once, steps)).not.toEqual({ kind: 'invalid' });
-  expect(missionPosition([...once, { kind: 'discarded', step: 'draft', usage: [] }], steps))
-    .toEqual({ kind: 'invalid' });
+  const inFlight: Event[] = [started, { kind: 'dispatched', step: 'draft', executionId: 'x' }];
+  for (const decision of ['cancel-requested', 'abandoned'] as const) {
+    const once: Event[] = [...inFlight, { kind: decision, step: 'draft' },
+      { kind: 'discarded', step: 'draft', usage: [] }];
+    expect(missionPosition(once, steps)).toEqual({ kind: 'settled' });
+    expect(missionPosition([...once, { kind: 'discarded', step: 'draft', usage: [] }], steps))
+      .toEqual({ kind: 'invalid' });
+  }
 });
 
 it('fences two concurrent resumptions to one execution', async () => {

@@ -273,13 +273,14 @@ signal no process:
   the result itself is never recorded and no next step runs. The mission is then settled
   as `cancelled` with `stop: late-result-discarded`: the step has stopped, so its effect
   is no longer unknown, and the receipt names why its value is absent. A second late
-  result for the same step is refused as unreadable history. A result that returns
-  after abandonment is not recorded. A
+  result for the same step is refused as unreadable history. A
   cancel recorded after the dispatch intent but before the native spawn cannot prove that
   nothing spawned.
 - `note abandon` settles an unknown or cancel-requested step as `abandoned, effect:
   unknown`; it is never launched again under that identifier, and `note start` still
-  refuses the identifier. On a mission with nothing in flight it is refused as
+  refuses the identifier. If the abandoned step's call still returns, its writer records
+  `discarded` the same way: the cost is kept, the value is not, and the receipt becomes
+  `abandoned, effect: late-result-discarded`. On a mission with nothing in flight it is refused as
   `not-abandonable`, since `note cancel` applies.
 - Repeating either command on a settled mission writes nothing and returns the settled
   receipt. Missing, unreadable or incompatible records are refused and preserved. A cancel

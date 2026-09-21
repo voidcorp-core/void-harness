@@ -41,8 +41,9 @@ export type MissionReceipt<Step extends string, Value, Issue, Usage> =
   /** The step returned after its cancellation: it has stopped, its value was discarded. */
   | { readonly kind: 'cancelled'; readonly missionId: string; readonly step: Step;
     readonly stop: 'late-result-discarded'; readonly usage: readonly Usage[] }
+  /** The effect stays unknown unless the abandoned step returned, its value discarded. */
   | { readonly kind: 'abandoned'; readonly missionId: string; readonly step: Step;
-    readonly effect: 'unknown'; readonly usage: readonly Usage[] }
+    readonly effect: 'unknown' | 'late-result-discarded'; readonly usage: readonly Usage[] }
   | { readonly kind: 'rejected'; readonly missionId: string; readonly step: Step;
     readonly usage: readonly Usage[] }
   | { readonly kind: 'blocked'; readonly missionId: string; readonly reason: BlockedReason;
@@ -198,8 +199,11 @@ function settle<Input, Config, Step extends string, Value, Issue, Usage>(
       return { kind: 'cancelled', missionId: store.missionId, step: last.step,
         stop: 'requested-unconfirmed', effect: 'unknown', usage };
     case 'discarded':
-      return { kind: 'cancelled', missionId: store.missionId, step: last.step,
-        stop: 'late-result-discarded', usage };
+      return events.at(-2)?.kind === 'abandoned'
+        ? { kind: 'abandoned', missionId: store.missionId, step: last.step,
+          effect: 'late-result-discarded', usage }
+        : { kind: 'cancelled', missionId: store.missionId, step: last.step,
+          stop: 'late-result-discarded', usage };
     case 'abandoned':
       return { kind: 'abandoned', missionId: store.missionId, step: last.step,
         effect: 'unknown', usage };
@@ -251,8 +255,8 @@ function outcomeEvent<Input, Config, Step extends string, Value, Issue, Usage>(
 }
 
 /**
- * A step whose revision was taken by a cancellation request records only the cost it
- * observed: its value is discarded, and no later step starts from it.
+ * A step whose revision was taken by a cancellation request or an abandonment records only
+ * the cost it observed: its value is discarded, and no later step starts from it.
  */
 async function keepLateCost<Input, Config, Step extends string, Value, Issue, Usage>(
   store: MissionStore, description: MissionDescription<Input, Config, Step, Value, Issue, Usage>,
@@ -261,7 +265,8 @@ async function keepLateCost<Input, Config, Step extends string, Value, Issue, Us
   const current = await readMission(store, description);
   if (current.kind === 'blocked') return conflict;
   const last = current.events.at(-1);
-  if (last?.kind !== 'cancel-requested' || last.step !== step) return conflict;
+  if ((last?.kind !== 'cancel-requested' && last?.kind !== 'abandoned')
+    || last.step !== step) return conflict;
   const written = await writeMission(store, description, current.events,
     { kind: 'discarded', step, usage });
   return written.kind === 'blocked' ? conflict : written;

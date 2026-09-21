@@ -61,7 +61,10 @@ type State<Step extends string, Value> =
   | { readonly kind: 'in-flight'; readonly index: number;
     readonly accepted: readonly AcceptedValue<Step, Value>[] }
   | { readonly kind: 'unknown' | 'cancel-requested'; readonly step: Step }
-  /** A late result was discarded after its cancellation: settled, a second one refused. */
+  /** Settled, but the abandoned step may still return once with a cost to keep. */
+  | { readonly kind: 'abandoned'; readonly step: Step }
+  /** A late result was discarded after its cancellation or abandonment: settled, and a
+   * second one is refused. */
   | { readonly kind: 'discarded'; readonly step: Step }
   | { readonly kind: 'settled' | 'invalid' };
 
@@ -101,13 +104,14 @@ function transition<Input, Config, Step extends string, Value, Issue, Usage>(
         || (state.kind === 'unknown' && state.step === event.step))
         ? { kind: 'cancel-requested', step: event.step } : { kind: 'invalid' };
     case 'discarded':
-      return state.kind === 'cancel-requested' && state.step === event.step
+      return (state.kind === 'cancel-requested' || state.kind === 'abandoned')
+        && state.step === event.step
         ? { kind: 'discarded', step: event.step } : { kind: 'invalid' };
     case 'abandoned':
       return ((state.kind === 'in-flight' && current === event.step)
         || ((state.kind === 'unknown' || state.kind === 'cancel-requested')
           && state.step === event.step))
-        ? { kind: 'settled' } : { kind: 'invalid' };
+        ? { kind: 'abandoned', step: event.step } : { kind: 'invalid' };
     case 'started':
       return { kind: 'invalid' };
     default: {
@@ -136,6 +140,6 @@ export function missionPosition<Input, Config, Step extends string, Value, Issue
     return step === undefined ? { kind: 'invalid' }
       : { kind: 'dispatch', step, accepted: state.accepted };
   }
-  if (state.kind === 'discarded') return { kind: 'settled' };
+  if (state.kind === 'discarded' || state.kind === 'abandoned') return { kind: 'settled' };
   return state;
 }
