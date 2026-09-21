@@ -49,6 +49,8 @@ export type MissionReceipt =
     readonly usage: readonly MissionUsage[] }
   | { readonly kind: 'abandoned'; readonly missionId: string; readonly stage: Step;
     readonly effect: 'unknown'; readonly usage: readonly MissionUsage[] }
+  | { readonly kind: 'rejected'; readonly missionId: string; readonly stage: Step;
+    readonly usage: readonly MissionUsage[] }
   | BlockedReceipt;
 
 type NoteRunner = MissionRunner<NoteInput, MissionConfig, Step,
@@ -115,6 +117,10 @@ function noteReceipt(receipt: NoteGenericReceipt): MissionReceipt {
       return { ...rest, stage: step };
     }
     case 'abandoned': {
+      const { step, ...rest } = receipt;
+      return { ...rest, stage: step };
+    }
+    case 'rejected': {
       const { step, ...rest } = receipt;
       return { ...rest, stage: step };
     }

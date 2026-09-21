@@ -43,6 +43,8 @@ const eventSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('cancelled'), step: z.enum(steps) }),
   z.strictObject({ kind: z.literal('cancel-requested'), step: z.enum(steps) }),
   z.strictObject({ kind: z.literal('abandoned'), step: z.enum(steps) }),
+  z.strictObject({ kind: z.literal('rejected'), step: z.enum(steps),
+    usage: z.array(usageSchema) }),
 ]);
 const recordSchema = z.strictObject({
   format: z.literal('test.three-step/1'), revision: z.number().int().min(1).max(16),
@@ -169,15 +171,20 @@ it('keeps an unconfirmed outcome unknown until explicit abandonment', async () =
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 
-it('applies vertical result rules from the recorded configuration', async () => {
+it('records a live result refused by the vertical as rejected, with its cost', async () => {
   const f = fixture();
   await startMission({ request: 'report' }, { minimumScore: 4 },
     f.store, description, f.runner(), 'draft');
   const runner = f.runner(async (step) => step === 'audit'
-    ? { kind: 'accepted', value: { kind: 'audit', score: 3 }, usage: [] }
+    ? { kind: 'accepted', value: { kind: 'audit', score: 3 }, usage: [{ units: 7 }] }
     : accepted(step, { request: 'report' }, { minimumScore: 4 }));
-  expect(await resumeMission(f.store, description, runner))
-    .toMatchObject({ kind: 'blocked', reason: 'inadmissible' });
+  const rejected = await resumeMission(f.store, description, runner);
+  expect(rejected).toEqual({ kind: 'rejected', missionId: 'three-step', step: 'audit',
+    usage: [{ units: 1 }, { units: 7 }] });
+  expect(await f.journal.read(f.store.missionId)).toMatchObject({ kind: 'records',
+    records: { 4: { event: { kind: 'rejected', step: 'audit' } } } });
+  expect(await resumeMission(f.store, description, f.runner())).toEqual(rejected);
+  expect(await abandonMission(f.store, description)).toEqual(rejected);
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 

@@ -69,6 +69,10 @@ son RED observé puis GREEN :
 - Source unique : `BlockedReason` défini dans le runtime et réexporté par l'application,
   borne `MISSION_EVENT_LIMIT` (32) exportée par core et lue par le runtime. RED : le
   test de borne importait une constante absente.
+- Résultat live refusé : événement terminal `rejected { step, usage }` dans le noyau,
+  reçu `rejected` à la reprise, coût observé conservé. La note l'écrit seulement en
+  `note-mission/3` ; `/1` et `/2` se relisent à l'identique. RED : reçu `blocked` au
+  lieu de `rejected` et codec note incapable d'encoder le refus.
 
 **Restant vers le remplacement Rust.** Le mandat feuille blanche ci-dessous reste
 directeur : A2–A5 sont suspendus, sans portage automatique de l'existant. Les besoins

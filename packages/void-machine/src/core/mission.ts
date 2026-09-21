@@ -18,7 +18,9 @@ export type MissionEvent<Input, Config, Step extends string, Value, Issue, Usage
     readonly usage: readonly Usage[] }
   | { readonly kind: 'cancelled'; readonly step: Step }
   | { readonly kind: 'cancel-requested'; readonly step: Step }
-  | { readonly kind: 'abandoned'; readonly step: Step };
+  | { readonly kind: 'abandoned'; readonly step: Step }
+  /** The vertical refused the step's outcome; the cost it observed is kept. */
+  | { readonly kind: 'rejected'; readonly step: Step; readonly usage: readonly Usage[] };
 
 export interface MissionCodec<Event> {
   readonly decode: (raw: unknown, revision: number) =>
@@ -74,6 +76,7 @@ function transition<Input, Config, Step extends string, Value, Issue, Usage>(
       return state.kind === 'in-flight' && state.index === steps.length - 1
         ? { kind: 'settled' } : { kind: 'invalid' };
     case 'stopped':
+    case 'rejected':
       return state.kind === 'in-flight' && current === event.step
         ? { kind: 'settled' } : { kind: 'invalid' };
     case 'unconfirmed':

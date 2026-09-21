@@ -175,7 +175,7 @@ Models and deadline come from the recorded start; executable, cwd and environmen
 are local to each process and never recorded. `--stop-after extraction` ends after the
 accepted extraction is durable, for instance to read it before paying for synthesis.
 
-Receipts: `completed` and `paused` exit 0; `stopped`, `abandoned` and a `cancelled` with
+Receipts: `completed` and `paused` exit 0; `stopped`, `rejected`, `abandoned` and a `cancelled` with
 `stop: confirmed` exit 1; `blocked` exits 3 with a reason (`missing`, `conflict`,
 `storage`, `unrecordable`, `unreadable`, `incompatible`, `context-changed`,
 `inadmissible`, `outcome-unknown`, `not-abandonable`) and a diagnostic without source
@@ -226,6 +226,11 @@ Cancellation adds `cancelled`, `cancel-requested` and `abandoned`, written only 
 `void-machine.note-mission/2`; every other record keeps `/1`, so a mission never cancelled
 keeps its bytes and an older binary still reads it, while that binary refuses a cancelled
 mission as `incompatible`. A `/2` historical kind or a `/1` cancellation kind is `unreadable`.
+`rejected` (step, usage) is written only in `void-machine.note-mission/3`: the vertical
+refused a step result that had run, so the mission settles as `rejected` with the usage
+observed for that step, exits 1 and is never retried. A resume replays that receipt; it is
+not reported as `outcome-unknown`. Journals in `/1` and `/2` are read unchanged, and a
+`rejected` kind under `/1` or `/2` is `unreadable`.
 
 Cancellation and abandonment read and append the journal only; they start no runtime and
 signal no process:

@@ -37,6 +37,8 @@ export type MissionReceipt<Step extends string, Value, Issue, Usage> =
     readonly usage: readonly Usage[] }
   | { readonly kind: 'abandoned'; readonly missionId: string; readonly step: Step;
     readonly effect: 'unknown'; readonly usage: readonly Usage[] }
+  | { readonly kind: 'rejected'; readonly missionId: string; readonly step: Step;
+    readonly usage: readonly Usage[] }
   | { readonly kind: 'blocked'; readonly missionId: string; readonly reason: BlockedReason;
     readonly diagnostic: string };
 
@@ -180,6 +182,8 @@ function settle<Input, Config, Step extends string, Value, Issue, Usage>(
     case 'abandoned':
       return { kind: 'abandoned', missionId: store.missionId, step: last.step,
         effect: 'unknown', usage };
+    case 'rejected':
+      return { kind: 'rejected', missionId: store.missionId, step: last.step, usage };
     case 'started':
     case 'dispatched':
     case 'accepted':
@@ -198,6 +202,29 @@ async function afterConflict<Input, Config, Step extends string, Value, Issue, U
     && (last.kind === 'cancelled' || last.kind === 'cancel-requested'
       || last.kind === 'abandoned')
     ? settle(store, description, current.events) : conflict;
+}
+
+/** The event recording what one step produced; a result its vertical refuses is rejected. */
+function outcomeEvent<Input, Config, Step extends string, Value, Issue, Usage>(
+  description: MissionDescription<Input, Config, Step, Value, Issue, Usage>, step: Step,
+  outcome: StepOutcome<Value, Issue, Usage>,
+  started: Extract<Event<Input, Config, Step, Value, Issue, Usage>, { kind: 'started' }>,
+): Event<Input, Config, Step, Value, Issue, Usage> {
+  const { usage } = outcome;
+  switch (outcome.kind) {
+    case 'accepted':
+      if (!admitted(description, step, outcome.value, started.input, started.config)) {
+        return { kind: 'rejected', step, usage };
+      }
+      return step === description.steps.at(-1)
+        ? { kind: 'completed', value: outcome.value, usage }
+        : { kind: 'accepted', step, value: outcome.value, usage };
+    case 'unconfirmed':
+    case 'stopped':
+      return { kind: outcome.kind, step, issue: outcome.issue,
+        cancellation: outcome.cancellation, usage };
+    default: { const neverOutcome: never = outcome; return neverOutcome; }
+  }
 }
 
 async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>(
@@ -223,20 +250,7 @@ async function dispatch<Input, Config, Step extends string, Value, Issue, Usage>
   } catch {
     return unknownOutcome(store.missionId);
   }
-  if (outcome.kind === 'accepted'
-    && !admitted(description, next.step, outcome.value, started.input, started.config)) {
-    return blocked(store.missionId, 'inadmissible',
-      'The step result is not admissible for the recorded request');
-  }
-  const final = next.step === description.steps.at(-1);
-  const event: Event<Input, Config, Step, Value, Issue, Usage> = outcome.kind === 'accepted'
-    ? final ? { kind: 'completed', value: outcome.value, usage: outcome.usage }
-      : { kind: 'accepted', step: next.step, value: outcome.value, usage: outcome.usage }
-    : outcome.kind === 'unconfirmed'
-      ? { kind: 'unconfirmed', step: next.step, issue: outcome.issue,
-        cancellation: outcome.cancellation, usage: outcome.usage }
-      : { kind: 'stopped', step: next.step, issue: outcome.issue,
-        cancellation: outcome.cancellation, usage: outcome.usage };
+  const event = outcomeEvent(description, next.step, outcome, started);
   return writeMission(store, description, intent.events, event);
 }
 

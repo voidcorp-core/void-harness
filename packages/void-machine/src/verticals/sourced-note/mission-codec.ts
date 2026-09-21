@@ -2,7 +2,7 @@
 import type { MissionDescription, MissionEvent } from '../../core/mission.js';
 import { admitExtraction, admitNote, type NoteInput } from './note.js';
 import {
-  CANCELLATION_FORMAT, CANCELLATION_KINDS, FORMAT, noteSteps, recordSchema,
+  FORMATS, formatOf, noteSteps, recordSchema,
   type Body, type MissionConfig, type MissionIssue, type MissionUsage, type Step,
 } from './mission-record.js';
 
@@ -15,7 +15,7 @@ type Decode = ReturnType<MissionDescription<NoteInput, MissionConfig, Step,
 function decode(raw: unknown, revision: number): Decode {
   const format = typeof raw === 'object' && raw !== null && 'format' in raw
     ? raw.format : undefined;
-  if (typeof format === 'string' && format !== FORMAT && format !== CANCELLATION_FORMAT) {
+  if (typeof format === 'string' && !FORMATS.has(format)) {
     return { kind: 'incompatible' };
   }
   const parsed = recordSchema.safeParse(raw);
@@ -37,6 +37,7 @@ function decode(raw: unknown, revision: number): Decode {
       case 'cancelled': return { kind: 'cancelled', step: record.stage };
       case 'cancel-requested': return { kind: 'cancel-requested', step: record.step };
       case 'abandoned': return { kind: 'abandoned', step: record.step };
+      case 'rejected': return { kind: 'rejected', step: record.step, usage: record.usage };
       default: { const neverRecord: never = record; return neverRecord; }
     }
   })();
@@ -60,6 +61,7 @@ function bodyOf(event: NoteEvent): Body | undefined {
     case 'cancelled': return { kind: 'cancelled', stage: event.step };
     case 'cancel-requested': return { kind: 'cancel-requested', step: event.step };
     case 'abandoned': return { kind: 'abandoned', step: event.step };
+    case 'rejected': return { kind: 'rejected', step: event.step, usage: [...event.usage] };
     default: { const neverEvent: never = event; return neverEvent; }
   }
 }
@@ -72,8 +74,7 @@ export const noteMissionDescription: MissionDescription<NoteInput, MissionConfig
     encode(event, revision) {
       const body = bodyOf(event);
       if (body === undefined) return { kind: 'invalid' };
-      const format = CANCELLATION_KINDS.has(body.kind) ? CANCELLATION_FORMAT : FORMAT;
-      const candidate = { format, revision, ...body };
+      const candidate = { format: formatOf(body.kind), revision, ...body };
       return recordSchema.safeParse(candidate).success
         ? { kind: 'encoded', record: candidate } : { kind: 'invalid' };
     },
