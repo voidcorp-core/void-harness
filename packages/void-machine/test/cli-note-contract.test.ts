@@ -367,3 +367,249 @@ describe('durable note mission across processes', () => {
     expect(f.calls()).toEqual(['fixture-extract-lock']);
   });
 });
+
+type Stored = { format: string; kind: string };
+
+function cancellationFixture() {
+  const f = missionFixture();
+  const cancel = () => ['note', 'cancel', '--store', f.store, '--mission', MISSION];
+  const abandon = () => ['note', 'abandon', '--store', f.store, '--mission', MISSION];
+  const stored = (): Stored[] => {
+    const records: Stored[] = [];
+    for (let revision = 1; existsSync(f.record(revision)); revision += 1) {
+      records.push(JSON.parse(readFileSync(f.record(revision), 'utf8')) as Stored);
+    }
+    return records;
+  };
+  const bytes = (revision: number) => readFileSync(f.record(revision), 'utf8');
+  return { ...f, cancel, abandon, stored, bytes };
+}
+
+describe('note mission cancellation and explicit abandonment', () => {
+  it('refuses cancel and abandon without a valid mission identifier', () => {
+    const f = cancellationFixture();
+    for (const args of [['note', 'cancel', '--store', f.store], ['note', 'abandon', '--store', f.store],
+      ['note', 'cancel', '--store', f.store, '--mission', '../escape']]) {
+      const result = f.invoke(args);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe('');
+    }
+    expect(existsSync(f.store)).toBe(false);
+  });
+
+  it('confirms the stop of an idle mission, keeps its accepted extraction and never synthesizes', () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-synthesis', ['--stop-after', 'extraction'])).status).toBe(0);
+    const accepted = [1, 2, 3].map(f.bytes);
+    const cancelled = f.invoke(f.cancel());
+    expect(cancelled.status).toBe(1);
+    expect(f.receipt(cancelled.stdout)).toMatchObject({ kind: 'cancelled', missionId: MISSION,
+      stage: 'synthesis', stop: 'confirmed', usage: [{ role: 'extractor' }] });
+    expect(cancelled.stderr).toBe('');
+    expect([1, 2, 3].map(f.bytes)).toEqual(accepted);
+    expect(f.stored().map((record) => record.kind)).toEqual(['started', 'dispatched', 'accepted', 'cancelled']);
+
+    const before = contentsDigest(f.directory);
+    const resumed = f.invoke(f.resume());
+    expect(resumed.status).toBe(1);
+    expect(resumed.stdout).toBe(cancelled.stdout);
+    const again = f.invoke(f.cancel());
+    expect(again.status).toBe(1);
+    expect(again.stdout).toBe(cancelled.stdout);
+    expect(f.calls()).toEqual(['fixture-extract']);
+    expect(contentsDigest(f.directory)).toBe(before);
+  });
+
+  it('reports an in-flight cancel as unconfirmed and never records the late synthesis', async () => {
+    const f = cancellationFixture();
+    const live = f.launch(f.start('fixture-hold'));
+    let requested: ReturnType<typeof f.invoke> | undefined;
+    try {
+      await vi.waitFor(() => { expect(f.calls()).toContain('fixture-hold'); },
+        { timeout: 5000, interval: 20 });
+      requested = f.invoke(f.cancel());
+    } finally {
+      f.release();
+    }
+    expect(requested?.status).toBe(3);
+    expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', missionId: MISSION,
+      stage: 'synthesis', stop: 'requested-unconfirmed', effect: 'unknown' });
+    // The loser of the revision reads the winner's state instead of recording its result.
+    const writer = await live;
+    expect(writer.status).toBe(3);
+    expect(writer.stdout).toBe(requested?.stdout ?? '');
+    expect(f.stored().map((record) => record.kind))
+      .toEqual(['started', 'dispatched', 'accepted', 'dispatched', 'cancel-requested']);
+    const resumed = f.invoke(f.resume());
+    expect(resumed.stdout).toBe(requested?.stdout ?? '');
+    expect(f.calls()).toEqual(['fixture-extract', 'fixture-hold']);
+  }, 15_000);
+
+  it('never synthesizes from an extraction that returns after its cancellation', async () => {
+    const f = cancellationFixture();
+    const live = f.launch(f.start('fixture-synthesis', [], 'fixture-extract-hold'));
+    let requested: ReturnType<typeof f.invoke> | undefined;
+    try {
+      await vi.waitFor(() => { expect(f.calls()).toContain('fixture-extract-hold'); },
+        { timeout: 5000, interval: 20 });
+      requested = f.invoke(f.cancel());
+    } finally {
+      f.release();
+    }
+    expect(f.receipt(requested?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', stage: 'extraction',
+      stop: 'requested-unconfirmed', effect: 'unknown' });
+    const writer = await live;
+    expect(writer.stdout).toBe(requested?.stdout ?? '');
+    expect(f.stored().map((record) => record.kind)).toEqual(['started', 'dispatched', 'cancel-requested']);
+    expect(f.invoke(f.resume()).stdout).toBe(requested?.stdout ?? '');
+    expect(f.calls()).toEqual(['fixture-extract-hold']);
+  }, 15_000);
+
+  it('abandons an unknown step once, idempotently, and never runs it again under the same identifier', () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-crash')).signal).toBe('SIGKILL');
+    const abandoned = f.invoke(f.abandon());
+    expect(abandoned.status).toBe(1);
+    expect(f.receipt(abandoned.stdout)).toMatchObject({ kind: 'abandoned', missionId: MISSION,
+      stage: 'synthesis', effect: 'unknown' });
+    expect(f.stored().map((record) => record.kind))
+      .toEqual(['started', 'dispatched', 'accepted', 'dispatched', 'abandoned']);
+
+    const before = contentsDigest(f.directory);
+    for (const args of [f.abandon(), f.resume(), f.cancel()]) {
+      const again = f.invoke(args);
+      expect(again.status).toBe(1);
+      expect(again.stdout).toBe(abandoned.stdout);
+    }
+    expect(f.invoke(f.start()).status).toBe(3);
+    expect(f.calls()).toEqual(['fixture-extract', 'fixture-crash']);
+    expect(contentsDigest(f.directory)).toBe(before);
+  });
+
+  it('abandons a requested but unconfirmed cancellation', () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-crash')).signal).toBe('SIGKILL');
+    expect(f.invoke(f.cancel()).status).toBe(3);
+    const abandoned = f.invoke(f.abandon());
+    expect(f.receipt(abandoned.stdout)).toMatchObject({ kind: 'abandoned', stage: 'synthesis', effect: 'unknown' });
+    expect(f.stored().map((record) => record.kind).slice(-2)).toEqual(['cancel-requested', 'abandoned']);
+  });
+
+  it('refuses to abandon a mission that can still be cancelled or has already settled', () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-synthesis', ['--stop-after', 'extraction'])).status).toBe(0);
+    const idle = contentsDigest(f.directory);
+    const refused = f.invoke(f.abandon());
+    expect(refused.status).toBe(3);
+    expect(f.receipt(refused.stdout)).toMatchObject({ kind: 'blocked', reason: 'not-abandonable' });
+    expect(contentsDigest(f.directory)).toBe(idle);
+
+    const completed = f.invoke(f.resume());
+    expect(completed.status).toBe(0);
+    const settled = contentsDigest(f.directory);
+    for (const args of [f.abandon(), f.cancel()]) {
+      const result = f.invoke(args);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe(completed.stdout);
+    }
+    expect(contentsDigest(f.directory)).toBe(settled);
+  });
+
+  it.each([
+    ['a missing mission', 'missing', () => { /* Nothing is started. */ }],
+    ['corrupt bytes', 'unreadable', (f: ReturnType<typeof cancellationFixture>) => {
+      writeFileSync(f.record(3), '{"format":');
+    }],
+    ['an unknown format version', 'incompatible', (f: ReturnType<typeof cancellationFixture>) => {
+      f.edit(3, (value) => { value['format'] = 'void-machine.note-mission/9'; });
+    }],
+    ['a historical kind under the new format', 'unreadable', (f: ReturnType<typeof cancellationFixture>) => {
+      f.edit(3, (value) => { value['format'] = 'void-machine.note-mission/2'; });
+    }],
+  ] as const)('refuses to cancel or abandon %s and writes nothing', (label, reason, damage) => {
+    const f = cancellationFixture();
+    if (label !== 'a missing mission') {
+      expect(f.invoke(f.start('fixture-crash')).signal).toBe('SIGKILL');
+    }
+    damage(f);
+    const before = existsSync(f.directory) ? contentsDigest(f.directory) : undefined;
+    for (const args of [f.cancel(), f.abandon()]) {
+      const result = f.invoke(args);
+      expect(result.status).toBe(3);
+      expect(f.receipt(result.stdout)).toMatchObject({ kind: 'blocked', reason });
+    }
+    expect(existsSync(f.directory) ? contentsDigest(f.directory) : undefined).toBe(before);
+  });
+
+  it('refuses a cancellation record written under the historical format', () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-synthesis', ['--stop-after', 'extraction'])).status).toBe(0);
+    expect(f.invoke(f.cancel()).status).toBe(1);
+    f.edit(4, (value) => { value['format'] = 'void-machine.note-mission/1'; });
+    const before = contentsDigest(f.directory);
+    const resumed = f.invoke(f.resume());
+    expect(resumed.status).toBe(3);
+    expect(f.receipt(resumed.stdout)).toMatchObject({ kind: 'blocked', reason: 'unreadable' });
+    expect(f.calls()).toEqual(['fixture-extract']);
+    expect(contentsDigest(f.directory)).toBe(before);
+  });
+
+  it('keeps historical records in the first format and writes only cancellation in the second', () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-synthesis', ['--stop-after', 'extraction'])).status).toBe(0);
+    expect(f.stored().map((record) => record.format)).toEqual(Array(3).fill('void-machine.note-mission/1'));
+    expect(f.invoke(f.cancel()).status).toBe(1);
+    expect(f.stored().map((record) => record.format)).toEqual([
+      ...Array(3).fill('void-machine.note-mission/1'), 'void-machine.note-mission/2']);
+  });
+});
+
+describe('note mission cancellation ordered by the journal', () => {
+  it('confirms a stop recorded before the dispatch intent and never spawns the step', async () => {
+    const f = cancellationFixture();
+    const live = f.launchScript(hostScript, [f.store, MISSION, join(f.root, 'request.json'), f.root,
+      join(f.root, 'claude-fixture'), 'hold-before:dispatched']);
+    let cancelled: ReturnType<typeof f.invoke> | undefined;
+    try {
+      await vi.waitFor(() => { expect(existsSync(join(f.root, 'held'))).toBe(true); },
+        { timeout: 5000, interval: 20 });
+      cancelled = f.invoke(f.cancel());
+    } finally {
+      f.release();
+    }
+    expect(cancelled?.status).toBe(1);
+    expect(f.receipt(cancelled?.stdout ?? '{}')).toMatchObject({ kind: 'cancelled', missionId: MISSION,
+      stage: 'extraction', stop: 'confirmed', usage: [] });
+    // The host lost the revision of its intent: it reads the stop instead of launching.
+    const host = await live;
+    expect(host.status).toBe(1);
+    expect(host.stdout.trim()).toBe(cancelled?.stdout.trim() ?? '');
+    expect(f.stored().map((record) => record.kind)).toEqual(['started', 'cancelled']);
+    expect(f.calls()).toEqual([]);
+  }, 15_000);
+});
+
+describe('note cancel losing its revision', () => {
+  it('reports the winning state instead of a conflict when a step settles first', async () => {
+    const f = cancellationFixture();
+    expect(f.invoke(f.start('fixture-synthesis', ['--stop-after', 'extraction'])).status).toBe(0);
+    // The cancel reads an idle mission, then waits before its append.
+    const cancel = f.launchScript(hostScript, [f.store, MISSION, join(f.root, 'request.json'), f.root,
+      join(f.root, 'claude-fixture'), 'cancel-held']);
+    let completed: ReturnType<typeof f.invoke> | undefined;
+    try {
+      await vi.waitFor(() => { expect(existsSync(join(f.root, 'held'))).toBe(true); },
+        { timeout: 5000, interval: 20 });
+      completed = f.invoke(f.resume());
+    } finally {
+      f.release();
+    }
+    expect(completed?.status).toBe(0);
+    const lost = await cancel;
+    expect(lost.status).toBe(0);
+    expect(lost.stdout.trim()).toBe(completed?.stdout.trim() ?? '');
+    expect(f.stored().map((record) => record.kind))
+      .toEqual(['started', 'dispatched', 'accepted', 'dispatched', 'completed']);
+    expect(f.calls()).toEqual(['fixture-extract', 'fixture-synthesis']);
+  }, 15_000);
+});

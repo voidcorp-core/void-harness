@@ -44,10 +44,10 @@ export function doctorFixture() {
   const invoke = (args: readonly string[], cwd = repository, extra: NodeJS.ProcessEnv = {}) =>
     invokeScript(entry, args, cwd, extra);
   // Concurrent processes need an asynchronous launch; the bound stays explicit.
-  const launch = (args: readonly string[], cwd = repository) => new Promise<{
+  const launchScript = (script: string, args: readonly string[], cwd = repository) => new Promise<{
     status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string;
   }>((settle, reject) => {
-    const child = spawn(process.execPath, ['--import', loader, entry, ...args], {
+    const child = spawn(process.execPath, ['--import', loader, script, ...args], {
       cwd, env, windowsHide: true, timeout: 10_000,
     });
     let stdout = '';
@@ -61,7 +61,8 @@ export function doctorFixture() {
     child.once('error', reject);
     child.once('close', (status, signal) => settle({ status, signal, stdout, stderr }));
   });
-  return { root, repository, home, git, invoke, invokeScript, launch };
+  const launch = (args: readonly string[], cwd = repository) => launchScript(entry, args, cwd);
+  return { root, repository, home, git, invoke, invokeScript, launch, launchScript };
 }
 
 export function contentsDigest(root: string): string {

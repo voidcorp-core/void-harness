@@ -4,9 +4,11 @@
 //   unconfirm-after:<kind>  report that confirmed record as linked but not durable
 //   deadline-after-entry    fire the synthesis deadline once the native child has entered
 //   contract:<value>        compose with another contract digest
-import { existsSync, readFileSync } from 'node:fs';
+//   hold-before:<kind>      signal ./held, then append that record only once ./release exists
+//   cancel-held             run note cancel instead, holding its append the same way
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { startNoteMission } from '../../src/application/note-mission.js';
+import { cancelNoteMission, startNoteMission } from '../../src/application/note-mission.js';
 import { claudeMissionDependencies } from '../../src/application/runtime-note.js';
 import type { Clock } from '../../src/runtime/execution.js';
 import type { MissionJournal } from '../../src/runtime/journal.js';
@@ -38,14 +40,25 @@ const entryClock: Clock = {
   },
 };
 
+// Explicit barrier: the test orders the other process while this append waits.
+const held = async (): Promise<void> => {
+  writeFileSync(join(cwd, 'held'), '');
+  const deadline = Date.now() + 8000;
+  while (!existsSync(join(cwd, 'release'))) {
+    if (Date.now() > deadline) throw new Error('hold-before barrier was never released');
+    await new Promise((resume) => { setTimeout(resume, 10); });
+  }
+};
+
 const base = claudeMissionDependencies({ executable, cwd, store, missionId,
   env: { PATH: process.env['PATH'] ?? '' },
   ...(action === 'deadline-after-entry' ? { clock: entryClock } : {}) });
 const journal: MissionJournal = {
   read: base.journal.read,
   append: async (id, expected, record) => {
-    const result = await base.journal.append(id, expected, record);
     const kind = typeof record === 'object' && record !== null && 'kind' in record ? record.kind : undefined;
+    if ((action === 'hold-before' && kind === argument) || action === 'cancel-held') await held();
+    const result = await base.journal.append(id, expected, record);
     if (result.kind !== 'appended' || kind !== argument) return result;
     if (action === 'crash-after') process.kill(process.pid, 'SIGKILL');
     if (action === 'unconfirm-after') {
@@ -56,8 +69,11 @@ const journal: MissionJournal = {
 };
 const context = { ...base, journal, ...(action === 'contract' ? { contract: argument } : {}) };
 const raw: unknown = JSON.parse(readFileSync(inputPath, 'utf8'));
-const receipt = await startNoteMission(raw, { extractionModel: 'fixture-extract',
+const receipt = action === 'cancel-held' ? await cancelNoteMission(context) : await startNoteMission(raw, { extractionModel: 'fixture-extract',
   synthesisModel: action === 'deadline-after-entry' ? 'fixture-hold' : 'fixture-synthesis',
   timeoutMs: 30_000 }, context);
 process.stdout.write(`${JSON.stringify(receipt)}\n`);
-process.exitCode = receipt.kind === 'stopped' ? 1 : receipt.kind === 'blocked' ? 3 : 0;
+// Same mapping as the CLI: an unconfirmed cancellation leaves an outcome to attend to.
+const unresolved = receipt.kind === 'blocked'
+  || (receipt.kind === 'cancelled' && receipt.stop === 'requested-unconfirmed');
+process.exitCode = unresolved ? 3 : receipt.kind === 'completed' || receipt.kind === 'paused' ? 0 : 1;

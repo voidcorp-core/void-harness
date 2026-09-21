@@ -42,7 +42,7 @@ process.stdin.on('end', () => {
     // Reports the session it was asked to use, as the native CLI does.
     session_id: session,
   }));
-  if (model !== 'fixture-hold') { respond(); return; }
+  if (model !== 'fixture-hold' && model !== 'fixture-extract-hold') { respond(); return; }
   // Explicit barrier: answer only once the test writes ./release. The deadline is a
   // failure guard, never a success path; a removed test root also ends the wait.
   const deadline = Date.now() + 8000;
