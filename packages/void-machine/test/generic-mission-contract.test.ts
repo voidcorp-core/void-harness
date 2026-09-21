@@ -311,6 +311,16 @@ it('keeps the cost of a late result after an unconfirmed cancellation, never its
   expect(f.calls).toEqual(['draft', 'audit']);
 });
 
+it('refuses a second discarded result for the same step', () => {
+  const started: Event = { kind: 'started', input: { request: 'report' },
+    config: { minimumScore: 3 }, contract: 'test-contract/1' };
+  const once: Event[] = [started, { kind: 'dispatched', step: 'draft', executionId: 'x' },
+    { kind: 'cancel-requested', step: 'draft' }, { kind: 'discarded', step: 'draft', usage: [] }];
+  expect(missionPosition(once, steps)).not.toEqual({ kind: 'invalid' });
+  expect(missionPosition([...once, { kind: 'discarded', step: 'draft', usage: [] }], steps))
+    .toEqual({ kind: 'invalid' });
+});
+
 it('fences two concurrent resumptions to one execution', async () => {
   const f = fixture();
   await startMission({ request: 'report' }, { minimumScore: 3 },
