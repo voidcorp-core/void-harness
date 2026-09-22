@@ -13,6 +13,9 @@
 // https://docs.github.com/en/graphql/reference/objects#removedfrommergequeueevent
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { z } from 'zod';
 import { selectBase } from './base-selection.js';
 import { autopilotFailure } from './errors.js';
@@ -306,13 +309,56 @@ export function execGh(args: readonly string[]): string {
   });
 }
 
-const SHARED_STATE_COMMANDS: Readonly<Record<keyof SharedStateReading, readonly string[]>> = {
-  config: ['config', '--local', '--list'],
-  stash: ['stash', 'list', '--format=%H'],
-  tags: ['for-each-ref', '--format=%(objectname) %(refname)', 'refs/tags'],
-  notes: ['for-each-ref', '--format=%(objectname) %(refname)', 'refs/notes'],
-  remotes: ['remote', '-v'],
-};
+/** The shared parts git prints directly; `hooks` and `info` are files, read apart. */
+type CommandPart = Exclude<keyof SharedStateReading, 'hooks' | 'info'>;
+
+function sharedStateCommands(
+  bases: readonly string[],
+): Readonly<Record<CommandPart, readonly string[]>> {
+  const refFormat = '--format=%(objectname) %(refname)';
+  return {
+    // `--includes`: `--local` alone skips the files `include.path` names, and a
+    // unit could change what every worktree reads through one of them.
+    config: ['config', '--local', '--includes', '--list'],
+    stash: ['stash', 'list', '--format=%H'],
+    tags: ['for-each-ref', refFormat, 'refs/tags'],
+    notes: ['for-each-ref', refFormat, 'refs/notes'],
+    remotes: ['remote', '-v'],
+    bases: ['for-each-ref', refFormat, ...bases.map((base) => `refs/heads/${base}`)],
+    replace: ['for-each-ref', refFormat, 'refs/replace'],
+  };
+}
+
+/** A hooks or info directory holds a handful of files; more is not a Git directory. */
+const SHARED_FILES_MAX = 512;
+
+/**
+ * One line per file, `<sha256> <path>`, sorted: the content is hashed here and
+ * never leaves this function. A symbolic link is read as its target, not followed.
+ */
+function directoryDigests(directory: string): string {
+  if (!existsSync(directory)) return '';
+  const entries = readdirSync(directory, { recursive: true, encoding: 'utf8' });
+  if (entries.length > SHARED_FILES_MAX) {
+    throw new Error(`${directory} holds more than ${SHARED_FILES_MAX} entries`);
+  }
+  return entries
+    .flatMap((entry) => {
+      const path = join(directory, entry);
+      const stat = lstatSync(path);
+      if (stat.isDirectory()) return [];
+      const content = stat.isSymbolicLink() ? `link:${readlinkSync(path)}` : readFileSync(path);
+      const hash = createHash('sha256').update(content).digest('hex');
+      return [`${hash} ${relative(directory, path)}`];
+    })
+    .sort()
+    .join('\n');
+}
+
+export interface SharedStateRequest {
+  /** The local branches units must not move: the loop's base candidates. */
+  readonly bases: readonly string[];
+}
 
 /**
  * What git reports for each part the workers of a repository share.
@@ -320,27 +366,43 @@ const SHARED_STATE_COMMANDS: Readonly<Record<keyof SharedStateReading, readonly 
  * Worker branches are deliberately not read: they are each unit's own output.
  * Remote-tracking refs are not read either, since any fetch moves them.
  */
-export function readSharedState(run: GitRunner): SharedStateReading {
-  const read = (part: keyof SharedStateReading): string => {
+export function readSharedState(run: GitRunner, request: SharedStateRequest): SharedStateReading {
+  const attempt = <T>(what: string, read: () => T): T => {
     try {
-      return run(SHARED_STATE_COMMANDS[part]);
+      return read();
     } catch (error) {
       throw autopilotFailure(
         'AUTOPILOT_INPUT',
         'the shared Git state could not be read',
-        `\`git ${SHARED_STATE_COMMANDS[part].join(' ')}\` failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `${what} failed: ${error instanceof Error ? error.message : String(error)}`,
         'run the loop from inside the repository its workers share',
       );
     }
   };
+  // `for-each-ref` with no pattern lists every ref, workers' branches included.
+  if (request.bases.length === 0) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'the shared Git state was read without a base branch',
+      'no base was named, so the local refs a unit must not move are unknown',
+      'pass the loop base candidates from the programme',
+    );
+  }
+  const commands = sharedStateCommands(request.bases);
+  const read = (part: CommandPart): string =>
+    attempt(`\`git ${commands[part].join(' ')}\``, () => run(commands[part]));
+  const commonArgs = ['rev-parse', '--path-format=absolute', '--git-common-dir'];
+  const common = attempt('`git rev-parse --git-common-dir`', () => run(commonArgs).trim());
   return {
     config: read('config'),
     stash: read('stash'),
     tags: read('tags'),
     notes: read('notes'),
     remotes: read('remotes'),
+    bases: read('bases'),
+    replace: read('replace'),
+    hooks: attempt('reading hooks/', () => directoryDigests(join(common, 'hooks'))),
+    info: attempt('reading info/', () => directoryDigests(join(common, 'info'))),
   };
 }
 

@@ -37,15 +37,18 @@ Usage:
 Continuous loop:
   echo '<LoopTracker>'           | void-harness autopilot next [--json]
   void-harness autopilot stop --drain | --now [--json]
-  void-harness autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
+  void-harness autopilot fingerprint [--before <ticket> --branch <branch>
+                                      | --after <ticket>] [--json]
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
 mark-human-wait, enable-auto-merge, drain, freeze, recap. It never acts on them.
 stop writes .void/machine/autopilot/stop, read before every assignment; delete
 the file to start again. fingerprint records (--before, once per ticket) or checks
-(--after) the digests of the shared Git state around one unit; --after fails when
-it moved, and a second --before is refused.
+(--after) the digests of the shared Git state around one unit: local config and
+its includes, stash, tags, notes, remotes, the local base and deploy branches,
+replace refs, hooks/ and info/. Only the upstream of the ticket's own --branch is
+left out. --after fails when it moved, and a second --before is refused.
 
 stdin JSON (LoopTracker):
   { "schemaVersion": 1, "queue": <CuratorQueue judgment>,

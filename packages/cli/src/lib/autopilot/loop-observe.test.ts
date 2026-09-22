@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -252,7 +252,8 @@ describe('readSharedState', () => {
     return root;
   }
 
-  const fingerprint = (root: string) => fingerprintOf(readSharedState(gitIn(root)));
+  const fingerprint = (root: string, branch = 'work/dev-1') =>
+    fingerprintOf(readSharedState(gitIn(root), { bases: ['develop'] }), branch);
   const git = (root: string, ...args: string[]) =>
     spawnSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...args], { cwd: root });
 
@@ -270,6 +271,35 @@ describe('readSharedState', () => {
     );
   });
 
+  it('sees what a worktree shares beyond config and refs: base, replacements, hooks, info', () => {
+    const root = repository();
+    const included = `${root}-included.cfg`;
+    roots.push(included);
+    writeFileSync(included, '[user]\n\tname = before\n');
+    git(root, 'config', 'include.path', included);
+    git(root, 'branch', 'develop');
+    const before = fingerprint(root);
+    // Each is shared by every worktree and none shows in a worker's diff.
+    git(root, 'commit', '-q', '--allow-empty', '-m', 'second');
+    git(root, 'branch', '-f', 'develop', 'HEAD');
+    git(root, 'replace', 'HEAD', 'HEAD~1');
+    writeFileSync(join(root, '.git', 'hooks', 'post-checkout'), '#!/bin/sh\nexit 0\n');
+    appendFileSync(join(root, '.git', 'info', 'exclude'), 'secret/\n');
+    writeFileSync(included, '[user]\n\tname = after\n');
+    expect(changedParts(before, fingerprint(root)).sort()).toEqual(
+      ['bases', 'config', 'hooks', 'info', 'replace'],
+    );
+  });
+
+  it('counts an upstream set on the base, which a later pull of the base would follow', () => {
+    const root = repository();
+    git(root, 'branch', 'develop');
+    const before = fingerprint(root);
+    git(root, 'config', 'branch.develop.remote', '.');
+    git(root, 'config', 'branch.develop.merge', 'refs/heads/work/dev-1');
+    expect(changedParts(before, fingerprint(root))).toEqual(['config']);
+  });
+
   it('ignores the branch a worker pushes and reads the same state from its worktree', () => {
     const root = repository();
     const before = fingerprint(root);
@@ -283,6 +313,6 @@ describe('readSharedState', () => {
   it('refuses to fingerprint outside a repository', () => {
     const root = mkdtempSync(join(tmpdir(), 'void-loop-none-'));
     roots.push(root);
-    expect(() => readSharedState(gitIn(root))).toThrow(/shared Git state/);
+    expect(() => readSharedState(gitIn(root), { bases: ['develop'] })).toThrow(/shared Git state/);
   });
 });

@@ -11,12 +11,13 @@ import {
   loopProgramOf,
   parseStopSignal,
   type PullRequestObservation,
+  protectedBranches,
   pullRequestsToObserve,
   type QueueEvent,
   type StopSignal,
 } from './loop.js';
 import { parseProgramDescriptor } from './program.js';
-import { fingerprintOf, type SharedFingerprint } from './shared-state.js';
+import { fingerprintOf, type SharedFingerprint, type SharedStateReading } from './shared-state.js';
 
 // The kernel decides what each slot does from what Linear and GitHub say, and
 // from nothing else: no memory of the previous tick, no session state. Every
@@ -172,20 +173,35 @@ function pull(spec: PullSpec): PullRequestObservation {
   return { ...parsed, queue: spec.queue ?? 'none' };
 }
 
-/** The shared Git state as it stood, and a record of it for every ticket. */
+const SHARED_READING: SharedStateReading = {
+  config: 'core.bare=false\n',
+  stash: '',
+  tags: '',
+  notes: '',
+  remotes: '',
+  bases: 'dddddddd refs/heads/develop\n',
+  replace: '',
+  hooks: '',
+  info: '',
+};
+
+/** The shared Git state as it stands, and a record of it for every ticket. */
 function sharedState(
   spec: TrackerSpec,
-  options: { changed?: readonly string[]; unrecorded?: readonly string[] } = {},
+  options: {
+    changed?: readonly string[];
+    unrecorded?: readonly string[];
+    recordedBranch?: string;
+  } = {},
 ): LoopInput['sharedState'] {
-  const reading = { config: 'core.bare=false\n', stash: '', tags: '', notes: '', remotes: '' };
-  const current = fingerprintOf(reading);
   const before = new Map<string, SharedFingerprint>();
   for (const ticket of spec.tickets) {
     if (options.unrecorded?.includes(ticket.id) === true) continue;
     const changed = options.changed?.includes(ticket.id) === true;
-    before.set(ticket.id, changed ? fingerprintOf({ ...reading, stash: 'dddddddd\n' }) : current);
+    const reading = changed ? { ...SHARED_READING, stash: 'dddddddd\n' } : SHARED_READING;
+    before.set(ticket.id, fingerprintOf(reading, options.recordedBranch ?? `work/${ticket.id}`));
   }
-  return { current, before };
+  return { current: SHARED_READING, before };
 }
 
 function github(pulls: readonly PullRequestObservation[], mergeQueue = true): GithubObservation {
@@ -569,6 +585,46 @@ describe('shared repository state', () => {
   it('refuses to publish a unit whose state before it was never recorded', () => {
     const actions = decide({ tickets }, { pulls, unrecorded: ['DEV-1'] });
     expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+  });
+
+  it("ignores the upstream the worker set on its own branch, and only that one", () => {
+    const input = (config: string): LoopInput => ({
+      program: program(),
+      tracker: tracker({ tickets }),
+      github: github(pulls),
+      signal: 'none',
+      sharedState: { ...sharedState({ tickets }), current: { ...SHARED_READING, config } },
+    });
+    const own = `${SHARED_READING.config}branch.work/DEV-1.remote=origin\n`;
+    expect(actionFor(decideLoop(input(own)).actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
+    const base = `${SHARED_READING.config}branch.develop.merge=refs/heads/work/DEV-1\n`;
+    expect(actionFor(decideLoop(input(base)).actions, 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'shared-state-changed',
+    });
+  });
+
+  it('refuses a baseline recorded for another branch than the ticket holds', () => {
+    const input: LoopInput = {
+      program: program(),
+      tracker: tracker({ tickets }),
+      github: github(pulls),
+      signal: 'none',
+      sharedState: sharedState({ tickets }, { recordedBranch: 'develop' }),
+    };
+    expect(actionFor(decideLoop(input).actions, 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'ambiguous-state',
+      detail: expect.stringMatching(/develop/),
+    });
+  });
+
+  it('protects the local refs of every branch the loop may merge into or ship from', () => {
+    expect(protectedBranches(program().autopilot)).toEqual(['develop', 'main']);
+    const auto = loopProgramOf(parseProgramDescriptor(programText({ mergeGate: 'human' }).replace('base: develop', 'base: auto')));
+    expect(protectedBranches(auto.autopilot)).toEqual(['develop', 'main']);
+    const human = program({ mergeGate: 'human' });
+    expect(protectedBranches(human.autopilot)).toEqual(['develop']);
   });
 
   it('publishes a unit that left the shared state as it found it', () => {

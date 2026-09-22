@@ -32,6 +32,7 @@ import {
   type LoopTracker,
   loopProgramOf,
   parseStopSignal,
+  protectedBranches,
   type PullRequestObservation,
   pullRequestsToObserve,
   type StopSignal,
@@ -49,6 +50,7 @@ import {
   changedParts,
   fingerprintOf,
   type SharedFingerprint,
+  type SharedStateReading,
 } from '../lib/autopilot/shared-state.js';
 import { flagValue } from './autopilot-usage.js';
 
@@ -217,7 +219,7 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   const tracker = trackerFrom(stdin);
   const program = loopProgram(context.root);
   const signal: StopSignal = parseStopSignal(readIfPresent(join(context.root, STOP_SIGNAL_PATH)));
-  const current = fingerprintOf(readSharedState(runner(context.git, 'git')));
+  const current = sharedReading(program, context);
   if (signal === 'now') {
     const pullRequests = new Map<number, PullRequestObservation>();
     const github = { base: program.autopilot.base, mergeQueue: false, pullRequests };
@@ -236,6 +238,11 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   const sharedState = { current, before };
   const decision = decideLoop({ program, tracker, github, signal, sharedState });
   return { value: decision, human: renderDecision(decision) };
+}
+
+function sharedReading(program: LoopProgram, context: LoopRunners): SharedStateReading {
+  const bases = protectedBranches(program.autopilot);
+  return readSharedState(runner(context.git, 'git'), { bases });
 }
 
 /** `autopilot stop --drain | --now`: write the signal the loop reads each tick. */
@@ -262,16 +269,19 @@ export function stopCommand(argv: readonly string[], context: LoopRunners): Loop
  * `autopilot fingerprint [--before <ticket> | --after <ticket>]`.
  *
  * Bare, it prints the current digests. `--before` records them, once, for a
- * ticket whose unit is about to start; a second record is refused. `--after` compares, and fails when the shared
+ * ticket whose unit is about to start; a second record is refused. It needs the
+ * branch the unit will push (`--branch`), the one whose upstream it leaves out;
+ * `--after` reads that branch back from the record. `--after` compares, and fails when the shared
  * state moved or was never recorded, so a worker can refuse its own push.
  */
 export function fingerprintCommand(
   argv: readonly string[],
   context: LoopRunners,
 ): LoopCommandOutput {
-  const current = fingerprintOf(readSharedState(runner(context.git, 'git')));
+  const reading = sharedReading(loopProgram(context.root), context);
   const before = flagValue(argv, '--before');
   const after = flagValue(argv, '--after');
+  const branch = flagValue(argv, '--branch');
   if (before !== undefined && after !== undefined) {
     throw autopilotFailure(
       'AUTOPILOT_USAGE',
@@ -281,7 +291,17 @@ export function fingerprintCommand(
     );
   }
   if (before !== undefined) {
+    if (branch === undefined) {
+      throw autopilotFailure(
+        'AUTOPILOT_USAGE',
+        'autopilot fingerprint --before needs the branch the unit will push',
+        'without --branch every upstream setting counts, so the worker\'s own push'
+          + ' would refuse its unit',
+        'pass the ticket branch, for example `--before DEV-42 --branch work/dev-42`',
+      );
+    }
     const path = fingerprintPath(context.root, before);
+    const current = fingerprintOf(reading, branch);
     if (!writeOnce(path, `${JSON.stringify(current)}\n`)) {
       throw autopilotFailure(
         'AUTOPILOT_CONTRACT',
@@ -292,9 +312,15 @@ export function fingerprintCommand(
     }
     return { value: { ticketId: before, recorded: current }, human: `recorded for ${before}\n` };
   }
-  if (after === undefined) return { value: current, human: `${JSON.stringify(current)}\n` };
+  if (after === undefined) {
+    const current = fingerprintOf(reading, branch ?? '');
+    return { value: current, human: `${JSON.stringify(current)}\n` };
+  }
   const recorded = recordedFingerprint(context.root, after);
-  const changed = recorded === undefined ? undefined : changedParts(recorded, current);
+  const changed =
+    recorded === undefined
+      ? undefined
+      : changedParts(recorded, fingerprintOf(reading, recorded.branch));
   if (changed === undefined || changed.length > 0) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',

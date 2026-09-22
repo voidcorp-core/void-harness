@@ -27,7 +27,12 @@ import {
   ticketIdSchema,
 } from './judgments.js';
 import type { AutopilotConfig, ProgramDescriptor, ProgressStates } from './program.js';
-import { changedParts, type SharedFingerprint } from './shared-state.js';
+import {
+  changedParts,
+  fingerprintOf,
+  type SharedFingerprint,
+  type SharedStateReading,
+} from './shared-state.js';
 import { sameBranch } from './union-review.js';
 
 /** A tracker scope larger than this is a backlog dump, not a loop observation. */
@@ -172,9 +177,13 @@ export type LoopAction =
       readonly humanWait: readonly string[];
     };
 
-/** The shared Git state now, and as it stood before each ticket's unit began. */
+/**
+ * The shared Git state as git reports it now, and the fingerprint recorded
+ * before each ticket's unit began. The current state stays a reading, not a
+ * digest, because each record leaves out the upstream of its own branch.
+ */
 export interface SharedStateObservation {
-  readonly current: SharedFingerprint;
+  readonly current: SharedStateReading;
   readonly before: ReadonlyMap<string, SharedFingerprint>;
 }
 
@@ -217,6 +226,17 @@ export function admitLoopTracker(value: unknown): Admission<LoopTracker> {
     })
     .join('; ');
   return { ok: false, reason: `tracker observation refused: ${issues}` };
+}
+
+/**
+ * The local branches a unit must never move: every base `auto` can resolve to,
+ * and the branch that deploys. Moving one locally changes what the next
+ * worktree, or the next promotion, starts from.
+ */
+export function protectedBranches(autopilot: AutopilotConfig): string[] {
+  const bases = autopilot.base === 'auto' ? ['develop', 'main'] : [autopilot.base];
+  const deploy = autopilot.deployBranch === undefined ? [] : [autopilot.deployBranch];
+  return [...new Set([...bases, ...deploy])];
 }
 
 /** The stop file holds `drain` or `now`; absent is no stop, anything else is refused. */
@@ -348,7 +368,13 @@ function sharedStateOutcome(
     const detail = 'no shared Git state fingerprint was recorded before the unit began';
     return toHuman(ticket.id, 'ambiguous-state', detail);
   }
-  const changed = changedParts(before, shared.current);
+  if (ticket.branch !== undefined && before.branch !== ticket.branch) {
+    const detail =
+      `the shared Git state was recorded for ${before.branch}, ` +
+      `but the ticket holds ${ticket.branch}`;
+    return toHuman(ticket.id, 'ambiguous-state', detail);
+  }
+  const changed = changedParts(before, fingerprintOf(shared.current, before.branch));
   if (changed.length === 0) return undefined;
   const detail = `the unit changed the shared Git state: ${changed.join(', ')}`;
   return toHuman(ticket.id, 'shared-state-changed', detail);
