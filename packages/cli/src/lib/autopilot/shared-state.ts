@@ -34,10 +34,13 @@ export type SharedStateReading = Readonly<Record<SharedStatePart, string>>;
 
 const digest = z.string().regex(/^[0-9a-f]{64}$/, { error: 'must be a sha256 digest' });
 
+/** The loop's bases and the branch that deploys: two or three names. */
+const PROTECTED_BRANCHES_MAX = 8;
+
 const fingerprintSchema = z.strictObject({
-  schemaVersion: z.literal(2),
-  /** The ticket's branch, whose upstream settings the digest leaves out. */
-  branch: z.string().min(1).max(255),
+  schemaVersion: z.literal(3),
+  /** The branches whose settings the digest keeps whole; every other upstream is left out. */
+  protectedBranches: z.array(z.string().min(1).max(255)).min(1).max(PROTECTED_BRANCHES_MAX),
   digests: z.strictObject({
     config: digest,
     stash: digest,
@@ -54,18 +57,24 @@ const fingerprintSchema = z.strictObject({
 export type SharedFingerprint = z.infer<typeof fingerprintSchema>;
 
 /**
- * `branch.<name>.remote` and `.merge` are what `git push -u` writes for the
- * branch a worker owns, and counting them would refuse every unit the loop ever
- * ran. Only those two, and only for the ticket's own branch: the same keys on
- * the base make its next pull merge the worker's branch, and any other branch
- * setting changes what a neighbour's command does. `git config --list` prints
- * the section and the key in lower case and the branch name as written.
+ * `branch.<name>.remote` and `.merge` are the upstream of a branch. Units in
+ * flight write them for their own branches (`worktree add -b` from a remote
+ * base, `push -u`) and remove them with a merged ticket's branch, so counting
+ * them for every branch would let each unit refuse all the others. They are left
+ * out for every branch but the protected ones: the same keys on a base make its
+ * next pull merge a worker's branch. Every other branch setting stays, since it
+ * changes what a neighbour's command does. `git config --list` prints the
+ * section and the key in lower case and the branch name as written.
  */
-function sharedConfig(config: string, branch: string): string {
-  const own = [`branch.${branch}.remote=`, `branch.${branch}.merge=`];
+function sharedConfig(config: string, protectedBranches: readonly string[]): string {
   return config
     .split('\n')
-    .filter((line) => !own.some((prefix) => line.startsWith(prefix)))
+    .filter((line) => {
+      const equals = line.indexOf('=');
+      const key = equals === -1 ? line : line.slice(0, equals);
+      const branch = /^branch\.(.+)\.(?:remote|merge)$/.exec(key)?.[1];
+      return branch === undefined || protectedBranches.includes(branch);
+    })
     .join('\n');
 }
 
@@ -73,13 +82,16 @@ function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-/** The digests of a reading, leaving out the upstream of `branch`, the ticket's own. */
-export function fingerprintOf(reading: SharedStateReading, branch: string): SharedFingerprint {
+/** The digests of a reading, leaving out the upstream of every unprotected branch. */
+export function fingerprintOf(
+  reading: SharedStateReading,
+  protectedBranches: readonly string[],
+): SharedFingerprint {
   return {
-    schemaVersion: 2,
-    branch,
+    schemaVersion: 3,
+    protectedBranches: [...protectedBranches],
     digests: {
-      config: sha256(sharedConfig(reading.config, branch)),
+      config: sha256(sharedConfig(reading.config, protectedBranches)),
       stash: sha256(reading.stash),
       tags: sha256(reading.tags),
       notes: sha256(reading.notes),

@@ -254,7 +254,8 @@ function sharedState(
   options: {
     changed?: readonly string[];
     unrecorded?: readonly string[];
-    recordedBranch?: string;
+    /** Config lines another unit wrote after every baseline was recorded. */
+    since?: string;
   } = {},
 ): LoopInput['sharedState'] {
   const before = new Map<string, SharedFingerprint>();
@@ -262,9 +263,10 @@ function sharedState(
     if (options.unrecorded?.includes(ticket.id) === true) continue;
     const changed = options.changed?.includes(ticket.id) === true;
     const reading = changed ? { ...SHARED_READING, stash: 'dddddddd\n' } : SHARED_READING;
-    before.set(ticket.id, fingerprintOf(reading, options.recordedBranch ?? `work/${ticket.id}`));
+    before.set(ticket.id, fingerprintOf(reading, ['develop', 'main']));
   }
-  return { current: SHARED_READING, before };
+  const current = { ...SHARED_READING, config: `${SHARED_READING.config}${options.since ?? ''}` };
+  return { current, before };
 }
 
 function github(pulls: readonly PullRequestObservation[], mergeQueue = true): GithubObservation {
@@ -923,18 +925,20 @@ describe('shared repository state', () => {
     });
   });
 
-  it('refuses a baseline recorded for another branch than the ticket holds', () => {
+  it('arms a unit whose neighbour set and removed the upstream of its own branch', () => {
+    const since = 'branch.work/DEV-2.remote=origin\nbranch.work/DEV-2.merge=refs/heads/develop\n';
     const input: LoopInput = {
       program: program(),
       tracker: tracker({ tickets }),
       github: github(pulls),
       signal: 'none',
-      sharedState: sharedState({ tickets }, { recordedBranch: 'develop' }),
+      sharedState: sharedState({ tickets }, { since }),
     };
-    expect(actionFor(decideLoop(input).actions, 'DEV-1')).toMatchObject({
+    expect(actionFor(decideLoop(input).actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
+    const moved = { ...input, sharedState: sharedState({ tickets }, { since: 'branch.develop.merge=refs/heads/work/DEV-2\n' }) };
+    expect(actionFor(decideLoop(moved).actions, 'DEV-1')).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
-      detail: expect.stringMatching(/develop/),
+      reason: 'shared-state-changed',
     });
   });
 

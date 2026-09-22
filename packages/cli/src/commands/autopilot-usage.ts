@@ -37,8 +37,7 @@ Usage:
 Continuous loop:
   echo '<LoopTracker>'           | void-harness autopilot next [--json]
   void-harness autopilot stop --drain | --now [--json]
-  void-harness autopilot fingerprint [--before <ticket> --branch <branch>
-                                      | --after <ticket>] [--json]
+  void-harness autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
   echo '<ReviewVerdict>'          | void-harness autopilot verdict --pr <number> [--json]
   echo '<ConflictClass>'         | void-harness autopilot judgment conflict-class
 
@@ -52,8 +51,9 @@ stop writes .void/machine/autopilot/stop, read before every assignment; delete
 the file to start again. fingerprint records (--before, once per ticket) or checks
 (--after) the digests of the shared Git state around one unit: local config and
 its includes, stash, tags, notes, remotes, the local base and deploy branches,
-replace refs, hooks/ and info/. Only the upstream of the ticket's own --branch is
-left out. --after fails when it moved, and a second --before is refused.
+replace refs, hooks/ and info/. The upstream (remote, merge) of every branch but
+those is left out, since units in flight set and remove their own. --after fails
+when it moved, and a second --before is refused.
 verdict is the only path that writes a review verdict: it admits it, checks its
 headSha is the pull request head now, posts the verdict comment then the
 void/independent-review status on that head, and re-runs the independent-review

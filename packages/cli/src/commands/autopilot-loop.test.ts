@@ -148,7 +148,7 @@ function next(root: string, stdin: string, runner?: (args: readonly string[]) =>
 describe('autopilot next', () => {
   it('seats the head of the queue and arms the merge of a reviewed unit', () => {
     const root = project();
-    expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root)).exitCode).toBe(0);
+    expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
     const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']));
     expect(decision.actions).toEqual([
       {
@@ -163,7 +163,7 @@ describe('autopilot next', () => {
 
   it('withholds the merge of a unit that changed the shared Git state', () => {
     const root = project();
-    runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root));
+    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
     git(root, 'tag', 'stray');
     const { decision } = next(root, trackerJson([heldTicket], []));
     expect(decision.actions[0]).toMatchObject({
@@ -338,7 +338,7 @@ describe('autopilot stop', () => {
 describe('autopilot fingerprint', () => {
   it('passes a unit that left the shared state alone and fails one that did not', () => {
     const root = project();
-    runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root));
+    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
     expect(runAutopilotCommand(['fingerprint', '--after', 'DEV-1'], '', context(root)).exitCode).toBe(0);
     git(root, 'remote', 'add', 'mirror', 'https://example.test/m.git');
     const after = runAutopilotCommand(['fingerprint', '--after', 'DEV-1'], '', context(root));
@@ -348,9 +348,9 @@ describe('autopilot fingerprint', () => {
 
   it('records a baseline once: a second --before cannot launder a change', () => {
     const root = project();
-    expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root)).exitCode).toBe(0);
+    expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
     git(root, 'remote', 'add', 'mirror', 'https://example.test/m.git');
-    const again = runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root));
+    const again = runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
     expect(again.exitCode).toBe(2);
     expect(again.stderr).toMatch(/already recorded/);
     const after = runAutopilotCommand(['fingerprint', '--after', 'DEV-1'], '', context(root));
@@ -358,24 +358,22 @@ describe('autopilot fingerprint', () => {
     expect(after.stderr).toMatch(/remotes/);
   });
 
-  it('needs the branch the unit will push, whose upstream alone it leaves out', () => {
+  it("leaves out the upstream of every unit's branch, never the base's", () => {
     const root = project();
-    const bare = runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    expect(bare.exitCode).toBe(2);
-    expect(bare.stderr).toMatch(/--branch/);
-    runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root));
+    expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
     git(root, 'config', 'branch.work/DEV-1.remote', 'origin');
+    git(root, 'config', 'branch.work/DEV-2.merge', 'refs/heads/develop');
     expect(runAutopilotCommand(['fingerprint', '--after', 'DEV-1'], '', context(root)).exitCode).toBe(0);
-    git(root, 'branch', 'develop');
+    git(root, 'config', 'branch.develop.merge', 'refs/heads/work/DEV-2');
     const moved = runAutopilotCommand(['fingerprint', '--after', 'DEV-1'], '', context(root));
     expect(moved.exitCode).toBe(2);
-    expect(moved.stderr).toMatch(/bases/);
+    expect(moved.stderr).toMatch(/config/);
   });
 
   it('records digests, never the content they were taken from', () => {
     const root = project();
     git(root, 'remote', 'add', 'origin', 'https://token@example.test/r.git');
-    runAutopilotCommand(['fingerprint', '--before', 'DEV-1', '--branch', 'work/DEV-1'], '', context(root));
+    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
     const record = readFileSync(join(root, '.void', 'machine', 'autopilot', 'fingerprints', 'DEV-1.json'), 'utf8');
     expect(record).not.toMatch(/token|example/);
   });

@@ -288,19 +288,22 @@ export function stopCommand(argv: readonly string[], context: LoopRunners): Loop
  * `autopilot fingerprint [--before <ticket> | --after <ticket>]`.
  *
  * Bare, it prints the current digests. `--before` records them, once, for a
- * ticket whose unit is about to start; a second record is refused. It needs the
- * branch the unit will push (`--branch`), the one whose upstream it leaves out;
- * `--after` reads that branch back from the record. `--after` compares, and fails when the shared
- * state moved or was never recorded, so a worker can refuse its own push.
+ * ticket whose unit is about to start; a second record is refused. It keeps the
+ * settings of the bases and the branch that deploys whole and leaves out the
+ * upstream of every other branch, which units in flight set and remove; the
+ * record names the branches it kept, and `--after` reads them back. `--after`
+ * compares, and fails when the shared state moved or was never recorded, so a
+ * worker can refuse its own push.
  */
 export function fingerprintCommand(
   argv: readonly string[],
   context: LoopRunners,
 ): LoopCommandOutput {
-  const reading = sharedReading(loopProgram(context.root), context);
+  const program = loopProgram(context.root);
+  const reading = sharedReading(program, context);
   const before = flagValue(argv, '--before');
   const after = flagValue(argv, '--after');
-  const branch = flagValue(argv, '--branch');
+  const kept = protectedBranches(program.autopilot);
   if (before !== undefined && after !== undefined) {
     throw autopilotFailure(
       'AUTOPILOT_USAGE',
@@ -310,17 +313,8 @@ export function fingerprintCommand(
     );
   }
   if (before !== undefined) {
-    if (branch === undefined) {
-      throw autopilotFailure(
-        'AUTOPILOT_USAGE',
-        'autopilot fingerprint --before needs the branch the unit will push',
-        'without --branch every upstream setting counts, so the worker\'s own push'
-          + ' would refuse its unit',
-        'pass the ticket branch, for example `--before DEV-42 --branch work/dev-42`',
-      );
-    }
     const path = fingerprintPath(context.root, before);
-    const current = fingerprintOf(reading, branch);
+    const current = fingerprintOf(reading, kept);
     if (!writeOnce(path, `${JSON.stringify(current)}\n`)) {
       throw autopilotFailure(
         'AUTOPILOT_CONTRACT',
@@ -332,14 +326,14 @@ export function fingerprintCommand(
     return { value: { ticketId: before, recorded: current }, human: `recorded for ${before}\n` };
   }
   if (after === undefined) {
-    const current = fingerprintOf(reading, branch ?? '');
+    const current = fingerprintOf(reading, kept);
     return { value: current, human: `${JSON.stringify(current)}\n` };
   }
   const recorded = recordedFingerprint(context.root, after);
   const changed =
     recorded === undefined
       ? undefined
-      : changedParts(recorded, fingerprintOf(reading, recorded.branch));
+      : changedParts(recorded, fingerprintOf(reading, recorded.protectedBranches));
   if (changed === undefined || changed.length > 0) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',

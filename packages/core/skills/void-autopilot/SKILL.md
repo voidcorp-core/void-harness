@@ -136,7 +136,7 @@ Act on each returned action, then ask again:
 
 | Action | What you do |
 |---|---|
-| `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket> --branch <its branch>`, create or reuse its worktree, spawn its worker |
+| `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket>`, create or reuse its worktree, spawn its worker |
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
 | `mark-human-wait` | record it in `recent` with its `reason`, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
@@ -160,8 +160,10 @@ presentation shows the loop; it never grants a permission, a proof or a merge.
 
 **The fingerprint.** A worktree isolates the working tree, the index and `HEAD`, and nothing else:
 the local config and the files it includes, the stash, tags, notes, remotes, the local base and
-deploy branches, replace refs, `hooks/` and `info/` are one set for every worktree. Only the upstream
-of the ticket's own branch is left out, which is what its push writes. So start each worktree from
+deploy branches, replace refs, `hooks/` and `info/` are one set for every worktree. The upstream
+(`remote`, `merge`) of every branch but the bases and the one that deploys is left out, since units
+in flight set it when they create or push their branch and drop it with a merged one; the bases'
+own settings still count. So start each worktree from
 `origin/<base>` and never move a local base branch while units are in flight. The baseline
 recorded at `assign` is written once: a second `--before` for the same ticket is refused, so a unit
 cannot re-record the state it left as the state it found. It is compared by the worker before it

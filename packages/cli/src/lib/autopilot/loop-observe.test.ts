@@ -552,8 +552,8 @@ describe('readSharedState', () => {
     return root;
   }
 
-  const fingerprint = (root: string, branch = 'work/dev-1') =>
-    fingerprintOf(readSharedState(gitIn(root), { bases: ['develop'] }), branch);
+  const fingerprint = (root: string) =>
+    fingerprintOf(readSharedState(gitIn(root), { bases: ['develop'] }), ['develop']);
   const git = (root: string, ...args: string[]) =>
     spawnSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...args], { cwd: root });
 
@@ -608,6 +608,36 @@ describe('readSharedState', () => {
     git(root, 'worktree', 'add', '-q', linked, '-b', 'work/dev-1');
     git(linked, 'config', 'branch.work/dev-1.remote', 'origin');
     expect(changedParts(before, fingerprint(linked))).toEqual([]);
+  });
+
+  it('lets units in flight add, push and delete branches without refusing each other', () => {
+    // The three gestures of parallel units, on real git: a worktree created from
+    // the remote base (which sets its upstream), a `push -u`, and the removal of
+    // a merged ticket's branch. None may count against a neighbour's unit.
+    const root = repository();
+    const origin = `${root}-origin.git`;
+    roots.push(origin);
+    spawnSync('git', ['init', '-q', '--bare', origin]);
+    git(root, 'branch', 'develop');
+    git(root, 'remote', 'add', 'origin', origin);
+    git(root, 'push', '-q', 'origin', 'develop');
+    git(root, 'branch', 'work/dev-0', 'develop');
+    git(root, 'push', '-q', '-u', 'origin', 'work/dev-0');
+    const unitA = fingerprint(root);
+    const linked = join(root, '..', `${root.split('/').at(-1) ?? 'x'}-dev-2`);
+    roots.push(linked);
+    git(root, 'worktree', 'add', '-q', '-b', 'work/dev-2', linked, 'origin/develop');
+    expect(git(root, 'config', 'branch.work/dev-2.merge').stdout.toString().trim()).toBe('refs/heads/develop');
+    const unitB = fingerprint(linked);
+    git(linked, 'commit', '-q', '--allow-empty', '-m', 'b');
+    git(linked, 'push', '-q', '-u', 'origin', 'work/dev-2');
+    git(root, 'branch', '-D', 'work/dev-0');
+    expect(changedParts(unitA, fingerprint(root))).toEqual([]);
+    expect(changedParts(unitB, fingerprint(linked))).toEqual([]);
+    // The base's own upstream is still everyone's: moved, it refuses both units.
+    git(root, 'config', 'branch.develop.merge', 'refs/heads/work/dev-2');
+    expect(changedParts(unitA, fingerprint(root))).toEqual(['config']);
+    expect(changedParts(unitB, fingerprint(linked))).toEqual(['config']);
   });
 
   it('refuses to fingerprint outside a repository', () => {

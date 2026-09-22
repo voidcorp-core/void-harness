@@ -539,13 +539,7 @@ function sharedStateOutcome(
     const detail = 'no shared Git state fingerprint was recorded before the unit began';
     return toHuman(ticket.id, 'ambiguous-state', detail);
   }
-  if (ticket.branch !== undefined && before.branch !== ticket.branch) {
-    const detail =
-      `the shared Git state was recorded for ${before.branch}, ` +
-      `but the ticket holds ${ticket.branch}`;
-    return toHuman(ticket.id, 'ambiguous-state', detail);
-  }
-  const changed = changedParts(before, fingerprintOf(shared.current, before.branch));
+  const changed = changedParts(before, fingerprintOf(shared.current, before.protectedBranches));
   if (changed.length === 0) return undefined;
   const detail = `the unit changed the shared Git state: ${changed.join(', ')}`;
   return toHuman(ticket.id, 'shared-state-changed', detail);
