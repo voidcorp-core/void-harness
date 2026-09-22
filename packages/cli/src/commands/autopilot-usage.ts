@@ -39,6 +39,7 @@ Continuous loop:
   void-harness autopilot stop --drain | --now [--json]
   void-harness autopilot fingerprint [--before <ticket> --branch <branch>
                                       | --after <ticket>] [--json]
+  echo '<judgment>' | void-harness autopilot judgment <review-verdict|conflict-class>
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
@@ -49,11 +50,14 @@ the file to start again. fingerprint records (--before, once per ticket) or chec
 its includes, stash, tags, notes, remotes, the local base and deploy branches,
 replace refs, hooks/ and info/. Only the upstream of the ticket's own --branch is
 left out. --after fails when it moved, and a second --before is refused.
+judgment admits a review verdict or a conflict class, each bound to its headSha,
+and prints the comment block to post on the pull request; next reads the latest
+block of each kind back from GitHub, so no session has to remember it.
 
 stdin JSON (LoopTracker):
   { "schemaVersion": 1, "queue": <CuratorQueue judgment>,
     "tickets": [{ "id", "status", "humanWait", "pullRequest"?, "branch"?,
-                  "footprint"?, "readiness"?, "review"?, "conflict"? }],
+                  "footprint"?, "readiness"? }],
     "recent": [{ "ticketId", "outcome": "merged" | "human-wait", "reason"? }],
     "liveWorkers": ["<ticket id>"], "quota": "ok" | "low" }
 
@@ -139,6 +143,7 @@ export const SUBCOMMANDS = Object.freeze({
   next: 'reads-stdin',
   stop: 'no-stdin',
   fingerprint: 'no-stdin',
+  judgment: 'reads-stdin',
 } as const);
 
 export type AutopilotSubcommand = keyof typeof SUBCOMMANDS;

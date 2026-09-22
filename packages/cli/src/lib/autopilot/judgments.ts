@@ -103,7 +103,13 @@ const curatorQueueSchema = z
 export type CuratorQueue = z.infer<typeof curatorQueueSchema>;
 export type CuratorQueueEntry = CuratorQueue['entries'][number];
 
+/** A full commit SHA: a judgment binds to exactly the head it read, never a prefix. */
+const commitSha = z.string().regex(/^[0-9a-f]{40}$/, { error: 'must be a full commit SHA' });
+
+// Bound to the head whose conflict it classifies: once the worker pushes its
+// resolution, a new conflict is a new question.
 const conflictClassSchema = z.strictObject({
+  headSha: commitSha,
   class: z.enum(['mechanical', 'semantic']),
   reason,
 });
@@ -121,9 +127,6 @@ const advisoryFindingSchema = z.strictObject({
   location: location.optional(),
   note: boundedText(REASON_MAX),
 });
-
-/** A full commit SHA: a verdict binds to exactly the head it read, never a prefix. */
-const commitSha = z.string().regex(/^[0-9a-f]{40}$/, { error: 'must be a full commit SHA' });
 
 const reviewVerdictSchema = z.strictObject({
   headSha: commitSha,

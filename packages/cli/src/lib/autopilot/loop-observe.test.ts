@@ -13,6 +13,7 @@ import {
   readSharedState,
   resolveLoopBase,
 } from './loop-observe.js';
+import { renderJudgmentComment } from './judgment-comment.js';
 import { changedParts, fingerprintOf } from './shared-state.js';
 
 // Every double below is a real `gh` output captured read-only (see
@@ -25,8 +26,14 @@ function fixture(name: string): string {
 }
 
 type Raw = Record<string, unknown>;
-const openView = (): Raw => JSON.parse(fixture('pr-view-open.json')) as Raw;
-const armedView = (): Raw => JSON.parse(fixture('pr-view-auto-merge.json')) as Raw;
+/** A captured view with the `comments` of another real capture, as gh prints both together. */
+const view = (name: string): Raw => ({
+  ...(JSON.parse(fixture(name)) as Raw),
+  ...(JSON.parse(fixture('pr-view-comments.json')) as Raw),
+});
+const viewText = (name: string): string => JSON.stringify(view(name));
+const openView = (): Raw => view('pr-view-open.json');
+const armedView = (): Raw => view('pr-view-auto-merge.json');
 const queuedRun = (): Raw => JSON.parse(fixture('check-run-queued.json')) as Raw;
 const statusContexts = (): Raw[] => JSON.parse(fixture('status-contexts.json')) as Raw[];
 
@@ -42,7 +49,7 @@ function verdict(state: string): Raw {
 
 describe('parsePullRequestView', () => {
   it('reads an open pull request whose checks all passed', () => {
-    expect(parsePullRequestView(fixture('pr-view-open.json'))).toEqual({
+    expect(parsePullRequestView(viewText('pr-view-open.json'))).toEqual({
       number: 381,
       state: 'open',
       draft: false,
@@ -58,8 +65,8 @@ describe('parsePullRequestView', () => {
   });
 
   it('reads a merged pull request and an armed auto-merge', () => {
-    expect(parsePullRequestView(fixture('pr-view-merged.json')).state).toBe('merged');
-    const armed = parsePullRequestView(fixture('pr-view-auto-merge.json'));
+    expect(parsePullRequestView(viewText('pr-view-merged.json')).state).toBe('merged');
+    const armed = parsePullRequestView(viewText('pr-view-auto-merge.json'));
     expect(armed.autoMerge).toBe(true);
     // PR 379 carries a failed `publish` run beside a skipped one: skipped passes.
     expect(armed.checks).toBe('failing');
@@ -106,6 +113,25 @@ describe('parsePullRequestView', () => {
     const job = { ...run, name: 'independent-review', conclusion: 'FAILURE' };
     const rollup = [...(view.statusCheckRollup as Raw[]), job];
     expect(parsePullRequestView(withRollup(view, rollup)).checks).toBe('passing');
+  });
+
+  it('reads the latest verdict and conflict class posted as comment blocks', () => {
+    const base = openView();
+    const comments = base.comments as Raw[];
+    const [real] = comments;
+    const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
+    const verdictJudgment = { headSha: head, round: 1, blocking: [], advisory: [] };
+    const conflictJudgment = { headSha: head, class: 'semantic', reason: 'Both sides changed the grant.' };
+    const posted = [
+      { ...real, body: renderJudgmentComment('review-verdict', verdictJudgment) },
+      { ...real, body: renderJudgmentComment('conflict-class', conflictJudgment) },
+    ];
+    const read = parsePullRequestView(JSON.stringify({ ...base, comments: [...comments, ...posted] }));
+    expect(read.verdict).toEqual(verdictJudgment);
+    expect(read.conflict).toEqual(conflictJudgment);
+    const bare = parsePullRequestView(viewText('pr-view-open.json'));
+    expect(bare.verdict).toBeUndefined();
+    expect(bare.conflict).toBeUndefined();
   });
 
   it('reads a conflict and a branch behind its base', () => {
@@ -186,7 +212,7 @@ describe('observeGithub', () => {
   it('reads the queue once and each pull request with its queue event', () => {
     const { run, calls } = runner({
       'mergeQueue(branch': fixture('queue-present.json'),
-      'pr view 381': fixture('pr-view-open.json'),
+      'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
     });
     const observed = observeGithub(run, { base: 'develop', pullRequests: [381] });

@@ -22,6 +22,11 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { autopilotFailure } from '../lib/autopilot/errors.js';
+import {
+  JUDGMENT_KINDS,
+  type JudgmentKind,
+  renderJudgmentComment,
+} from '../lib/autopilot/judgment-comment.js';
 import { ticketIdSchema } from '../lib/autopilot/judgments.js';
 import {
   admitLoopTracker,
@@ -335,4 +340,35 @@ export function fingerprintCommand(
     value: { ticketId: after, unchanged: true },
     human: `${after}: shared state unchanged\n`,
   };
+}
+
+/**
+ * `autopilot judgment <review-verdict | conflict-class>`: the comment block for
+ * the judgment on stdin, admitted before it is printed. The reviewer and the
+ * workers post exactly this, so the kernel finds it on the pull request after a
+ * restart and admits it a second time there.
+ */
+export function judgmentCommand(argv: readonly string[], stdin: string): LoopCommandOutput {
+  let value: unknown;
+  try {
+    value = JSON.parse(stdin);
+  } catch (error) {
+    throw autopilotFailure(
+      'AUTOPILOT_INPUT',
+      'the judgment on stdin is not valid JSON',
+      error instanceof Error ? error.message : String(error),
+      'pipe the typed judgment, unmodified, into `autopilot judgment`',
+    );
+  }
+  const kind = argv.slice(argv.indexOf('judgment') + 1).find((arg) => !arg.startsWith('-'));
+  if (kind === undefined || !(JUDGMENT_KINDS as readonly string[]).includes(kind)) {
+    throw autopilotFailure(
+      'AUTOPILOT_USAGE',
+      'autopilot judgment needs the kind of judgment it renders',
+      `${JSON.stringify(kind ?? '')} is not one of ${JUDGMENT_KINDS.join(', ')}`,
+      'run `autopilot judgment review-verdict` or `autopilot judgment conflict-class`',
+    );
+  }
+  const body = renderJudgmentComment(kind as JudgmentKind, value);
+  return { value: { kind, body }, human: body };
 }

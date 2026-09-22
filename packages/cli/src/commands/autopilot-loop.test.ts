@@ -62,6 +62,7 @@ function reviewedPull(): string {
   const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
+  const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: Record<string, unknown>[] };
   return JSON.stringify({
     ...view,
     number: 11,
@@ -69,7 +70,15 @@ function reviewedPull(): string {
     baseRefName: 'develop',
     mergeStateStatus: 'BLOCKED',
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
+    comments: [...comments, { ...comments[0], body: verdictComment() }],
   });
+}
+
+/** The reviewer's comment, rendered by the command a reviewer runs to post it. */
+function verdictComment(): string {
+  const result = runAutopilotCommand(['judgment', 'review-verdict'], JSON.stringify(cleanVerdict));
+  if (result.exitCode !== 0) throw new Error(result.stderr);
+  return result.stdout;
 }
 
 function gh(args: readonly string[]): string {
@@ -117,8 +126,10 @@ const heldTicket = {
   pullRequest: 11,
   branch: 'work/DEV-1',
   footprint: ['packages/dev-1'],
-  review: { headSha: 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63', round: 1, blocking: [], advisory: [] },
 };
+
+const HEAD = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
+const cleanVerdict = { headSha: HEAD, round: 1, blocking: [], advisory: [] };
 const queuedTicket = { id: 'DEV-2', status: 'Todo', humanWait: false, readiness: ready };
 
 function next(root: string, stdin: string, runner?: (args: readonly string[]) => string) {
@@ -166,6 +177,28 @@ describe('autopilot next', () => {
     const result = next(root, trackerJson([], []));
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toMatch(/AUTOPILOT_PROGRAM/);
+  });
+});
+
+describe('autopilot judgment', () => {
+  it('prints the comment block of a judgment it admits', () => {
+    const result = runAutopilotCommand(['judgment', 'conflict-class'], JSON.stringify({
+      headSha: HEAD,
+      class: 'mechanical',
+      reason: 'Both sides appended to one list.',
+    }));
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/^<!-- void-autopilot:conflict-class -->\n```json\n/);
+    expect(result.stdout).toContain('<!-- /void-autopilot:conflict-class -->');
+  });
+
+  it('refuses a judgment it would not admit, and a kind it does not know', () => {
+    const unbound = runAutopilotCommand(['judgment', 'review-verdict'], JSON.stringify({ round: 1, blocking: [], advisory: [] }));
+    expect(unbound.exitCode).toBe(2);
+    expect(unbound.stderr).toMatch(/headSha/);
+    const unknown = runAutopilotCommand(['judgment', 'opinion'], '{}');
+    expect(unknown.exitCode).toBe(2);
+    expect(unknown.stderr).toMatch(/review-verdict/);
   });
 });
 

@@ -56,7 +56,7 @@ acts. An answer that does not fit is a refusal naming the field, never an interp
 |---|---|---|
 | Is a ticket workable | `readiness`: `ready`, `needs-enrichment` or `ambiguous`, with a reason | only `ready` gets a slot |
 | What comes next | `queue`: ordered entries, each with a justification and a footprint | the head takes a free slot unless it collides |
-| A conflict after ejection | `conflict`: `mechanical` or `semantic`, with a reason | `semantic` waits for a human |
+| A conflict after ejection | `conflict`: the conflicting `headSha`, `mechanical` or `semantic`, with a reason | `semantic` waits for a human |
 | A review | `review`: the `headSha` read, round 1 or 2, `blocking[]` each with location, scenario and correction, `advisory[]` | a blocking finding without a scenario is invalid; no merge without a clean verdict on the exact head; two rounds at most |
 
 Slots, collisions, review rounds, stops, resumption and the merge are the kernel's. No agent may
@@ -120,7 +120,7 @@ signal itself; GitHub is the authority on a merge, so no agent reports it.
 
 What you pipe in is the tracker as you observed it -- `void-harness autopilot --help` gives the
 shape: `schemaVersion: 1`, the curator's `queue`, every ticket in scope with its provider status,
-`humanWait`, pull request, branch, footprint and the raw judgments attached to it, the `recent`
+`humanWait`, pull request, branch, footprint and the raw `readiness` attached to it, the `recent`
 outcomes of this run, the `liveWorkers` you actually have, and `quota` (`low` once the runtime
 reports its limit is near). Pass judgments through raw; the kernel admits each one where it is
 used, so one malformed answer refuses its own decision and nothing else.
@@ -165,9 +165,14 @@ pull request link, the human-wait label); the rest comes from GitHub. After a re
 update, a cut, a saturated context -- the first `next` rebuilds the slots from those two sources,
 and a ticket already held is resumed, never seated twice. Report each ticket's branch and pull
 request whenever they exist, whatever its status: a ticket still ready but with a branch or a pull
-request is a unit in flight, and the kernel resumes it instead of seating a second worker. A ticket whose state is ambiguous goes to
-a human rather than being relaunched. Record judgments where a restart finds them again: the
-reviewer's verdict and a worker's conflict class as a comment on the pull request.
+request is a unit in flight, and the kernel resumes it instead of seating a second worker. A
+ticket whose state is ambiguous goes to a human rather than being relaunched.
+
+**Judgments live on the pull request.** The reviewer's verdict and a worker's conflict class are
+posted as comments, each the exact block `void-harness autopilot judgment <review-verdict |
+conflict-class>` prints for the JSON on its stdin: two HTML comment markers around a fenced JSON
+value, admitted before it is printed. `next` reads the latest block of each kind from GitHub and
+admits it again, so the tracker you pipe in never carries them and a restart loses nothing.
 
 ---
 
@@ -214,9 +219,10 @@ only.
 
 **Publishing the verdict.**
 
-1. Return the typed `review` judgment, with the `headSha` it read, and post it as a comment on
-   the pull request. The kernel arms no merge on the status alone: it needs this verdict, clean
-   and bound to the current head.
+1. Pipe the typed `review` judgment, with the `headSha` it read, into
+   `void-harness autopilot judgment review-verdict` and post its output as a comment on the pull
+   request. The kernel arms no merge on the status alone: it needs this verdict, clean and bound
+   to the current head.
 2. Post the commit status `void/independent-review` on the exact SHA read: `success` with no
    blocking finding, `failure` otherwise, with a short description.
 3. **Re-run the `independent-review` job** of the pull request. A status event starts no workflow,
@@ -233,7 +239,8 @@ and reruns the required checks, `independent-review` included, before it merges.
 alone and broken together cannot reach the base.
 
 A pull request ejected from the queue, or in conflict with the base, goes back to its worker. The
-worker classifies the conflict as the typed `conflict` judgment: `mechanical` it resolves, re-runs
+worker classifies the conflict as the typed `conflict` judgment on the conflicting head, posted
+through `autopilot judgment conflict-class`: `mechanical` it resolves, re-runs
 its proofs and pushes; `semantic` -- two intents that disagree -- it leaves alone, and the kernel
 sends the ticket to a human. A worker never picks a side of a semantic conflict to keep the loop
 moving.

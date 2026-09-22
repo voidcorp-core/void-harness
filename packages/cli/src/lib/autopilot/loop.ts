@@ -65,6 +65,12 @@ export interface PullRequestObservation {
   readonly review: 'absent' | 'pending' | 'success' | 'failure';
   /** The last merge queue event not followed by a commit. */
   readonly queue: QueueEvent;
+  /**
+   * The last judgment blocks posted as comments, raw: admitted where they are
+   * consumed, like every judgment. GitHub keeps them across a restart.
+   */
+  readonly verdict?: unknown;
+  readonly conflict?: unknown;
 }
 
 export interface GithubObservation {
@@ -88,11 +94,11 @@ const trackerTicketSchema = z.strictObject({
   pullRequest: z.int().positive().max(2_147_483_647).optional(),
   branch: z.string().min(1).max(255).optional(),
   footprint: z.array(footprintAreaSchema).min(1).max(FOOTPRINT_AREAS_MAX).optional(),
-  // Raw judgments, admitted where they are consumed so one malformed answer
-  // refuses its own decision rather than the whole observation.
+  // A raw judgment, admitted where it is consumed so one malformed answer
+  // refuses its own decision rather than the whole observation. The review
+  // verdict and the conflict class are not here: they live on the pull request,
+  // and the kernel reads them from GitHub.
   readiness: z.unknown().optional(),
-  review: z.unknown().optional(),
-  conflict: z.unknown().optional(),
 });
 
 export const HUMAN_WAIT_REASONS = [
@@ -354,9 +360,11 @@ interface SlotContext {
 }
 
 function conflictOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
-  if (ticket.conflict === undefined) return handBack(ticket.id, 'conflict', pr.number);
-  const admission = admitConflictClass(ticket.conflict);
+  if (pr.conflict === undefined) return handBack(ticket.id, 'conflict', pr.number);
+  const admission = admitConflictClass(pr.conflict);
   if (!admission.ok) return toHuman(ticket.id, 'ambiguous-state', admission.reason);
+  // A class given on another head answered another conflict: the worker classifies this one.
+  if (admission.value.headSha !== pr.headSha) return handBack(ticket.id, 'conflict', pr.number);
   if (admission.value.class === 'semantic') {
     return toHuman(ticket.id, 'semantic-conflict', admission.value.reason);
   }
@@ -364,10 +372,10 @@ function conflictOutcome(ticket: TrackerTicket, pr: PullRequestObservation): Slo
 }
 
 function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
-  if (ticket.review === undefined) {
-    return toHuman(ticket.id, 'ambiguous-state', 'the review failed and no verdict was reported');
+  if (pr.verdict === undefined) {
+    return toHuman(ticket.id, 'ambiguous-state', 'the review failed and no verdict was posted');
   }
-  const admission = admitReviewVerdict(ticket.review);
+  const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return toHuman(ticket.id, 'ambiguous-state', admission.reason);
   const verdict = admission.value;
   if (verdict.headSha !== pr.headSha) {
@@ -397,9 +405,9 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
  * Nothing here checks the author yet; a dedicated reviewer identity would be
  * checked in this function, beside the head, once it is decided.
  */
-function unapprovedReason(ticket: TrackerTicket, pr: PullRequestObservation): string | undefined {
-  if (ticket.review === undefined) return 'the review passed and no verdict was reported';
-  const admission = admitReviewVerdict(ticket.review);
+function unapprovedReason(pr: PullRequestObservation): string | undefined {
+  if (pr.verdict === undefined) return 'the review passed and no verdict was posted';
+  const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return admission.reason;
   if (admission.value.headSha !== pr.headSha) {
     return `the verdict was given on another head (${admission.value.headSha}), not ${pr.headSha}`;
@@ -490,7 +498,7 @@ function openPullOutcome(
   if (pr.checks === 'failing') return handBack(ticket.id, 'checks-failed', pr.number);
   if (pr.review === 'failure') return reviewFailureOutcome(ticket, pr);
   if (pr.review !== 'success') return wait(ticket.id, 'awaiting-review');
-  const unapproved = unapprovedReason(ticket, pr);
+  const unapproved = unapprovedReason(pr);
   if (unapproved !== undefined) return toHuman(ticket.id, 'ambiguous-state', unapproved);
   return mergeOutcome(ticket, pr, context);
 }

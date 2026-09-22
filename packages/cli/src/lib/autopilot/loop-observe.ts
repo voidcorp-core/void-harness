@@ -19,6 +19,7 @@ import { join, relative } from 'node:path';
 import { z } from 'zod';
 import { selectBase } from './base-selection.js';
 import { autopilotFailure } from './errors.js';
+import { latestJudgment } from './judgment-comment.js';
 import type { GithubObservation, PullRequestObservation, QueueEvent } from './loop.js';
 import type { SharedStateReading } from './shared-state.js';
 
@@ -37,6 +38,7 @@ export const PULL_REQUEST_FIELDS = [
   'mergeStateStatus',
   'autoMergeRequest',
   'statusCheckRollup',
+  'comments',
 ] as const;
 
 /** The reviewer's verdict, a commit status the CI job then enforces. */
@@ -76,6 +78,8 @@ const pullRequestViewSchema = z.object({
   statusCheckRollup: z.array(
     z.discriminatedUnion('__typename', [checkRunSchema, statusContextSchema]),
   ),
+  // Oldest first, as gh prints them; only the body is read, for judgment blocks.
+  comments: z.array(z.object({ body: z.string() })),
 });
 
 type RollupEntry = z.infer<typeof pullRequestViewSchema>['statusCheckRollup'][number];
@@ -143,7 +147,12 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
 /** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its queue event. */
 export function parsePullRequestView(text: string): Omit<PullRequestObservation, 'queue'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
+  const bodies = view.comments.map((comment) => comment.body);
+  const verdict = latestJudgment(bodies, 'review-verdict');
+  const conflict = latestJudgment(bodies, 'conflict-class');
   return {
+    ...(verdict === undefined ? {} : { verdict }),
+    ...(conflict === undefined ? {} : { conflict }),
     number: view.number,
     state: view.state === 'OPEN' ? 'open' : view.state === 'MERGED' ? 'merged' : 'closed',
     draft: view.isDraft,

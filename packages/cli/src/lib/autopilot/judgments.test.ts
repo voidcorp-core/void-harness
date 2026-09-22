@@ -138,22 +138,29 @@ describe('admitCuratorQueue', () => {
   });
 });
 
+const CONFLICT_HEAD = '7d71b1da4f406f9559b1c174553a17282cb3704c';
+
 describe('admitConflictClass', () => {
+  it('binds the class to the head whose conflict it describes', () => {
+    const unbound = { class: 'mechanical', reason: 'Both sides appended to one list.' };
+    expect(refusal(admitConflictClass(unbound))).toContain('headSha');
+  });
+
   it.each(['mechanical', 'semantic'] as const)('admits %s', (conflict) => {
-    const judgment = { class: conflict, reason: 'Both sides reordered the same import block.' };
+    const judgment = { headSha: CONFLICT_HEAD, class: conflict, reason: 'Both sides reordered the same import block.' };
     expect(admitted(admitConflictClass(judgment))).toEqual(judgment);
   });
 
   it('refuses a class outside the enumeration, naming the field', () => {
-    expect(refusal(admitConflictClass({ class: 'trivial', reason: 'x' }))).toContain('class');
+    expect(refusal(admitConflictClass({ headSha: CONFLICT_HEAD, class: 'trivial', reason: 'x' }))).toContain('class');
   });
 
   it('refuses a missing class', () => {
-    expect(refusal(admitConflictClass({ reason: 'x' }))).toContain('class');
+    expect(refusal(admitConflictClass({ headSha: CONFLICT_HEAD, reason: 'x' }))).toContain('class');
   });
 
   it.each(['', '\n', 'x'.repeat(REASON_MAX + 1)])('refuses the reason %j', (reason) => {
-    expect(refusal(admitConflictClass({ class: 'mechanical', reason }))).toContain('reason');
+    expect(refusal(admitConflictClass({ headSha: CONFLICT_HEAD, class: 'mechanical', reason }))).toContain('reason');
   });
 });
 

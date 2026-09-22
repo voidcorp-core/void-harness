@@ -68,8 +68,6 @@ interface TicketSpec {
   readonly branch?: string;
   readonly footprint?: readonly string[] | undefined;
   readonly readiness?: unknown;
-  readonly review?: unknown;
-  readonly conflict?: unknown;
 }
 
 const ready = { verdict: 'ready', reason: 'Scope, footprint and acceptance are explicit.' };
@@ -85,15 +83,9 @@ const headOf = (number: number): string => String(number).padStart(40, 'a');
 /** The reviewer's clean verdict on the head of pull request `number`. */
 const approving = (number: number) => ({ headSha: headOf(number), round: 1, blocking: [], advisory: [] });
 
-/**
- * A ticket already holding a slot, as Linear reports it after `assign`. With a
- * pull request it carries the reviewer's clean verdict on that head, unless the
- * test says otherwise (an explicit `review: undefined` reports none).
- */
+/** A ticket already holding a slot, as Linear reports it after `assign`. */
 function started(id: string, extra: Partial<TicketSpec> = {}): TicketSpec {
-  const verdict =
-    extra.pullRequest === undefined || 'review' in extra ? {} : { review: approving(extra.pullRequest) };
-  return { id, status: 'In Progress', footprint: [`packages/${id.toLowerCase()}`], ...verdict, ...extra };
+  return { id, status: 'In Progress', footprint: [`packages/${id.toLowerCase()}`], ...extra };
 }
 
 interface TrackerSpec {
@@ -151,7 +143,21 @@ interface PullSpec {
   readonly failingCheck?: boolean;
   readonly review?: 'SUCCESS' | 'FAILURE' | 'PENDING' | undefined;
   readonly queue?: QueueEvent;
+  /** The judgment blocks posted as comments; `undefined` posts none. */
+  readonly verdict?: unknown;
+  readonly conflict?: unknown;
 }
+
+/** A judgment block as an agent posts it, written raw so a malformed one can be posted too. */
+const block = (kind: string, value: unknown): string =>
+  `<!-- void-autopilot:${kind} -->\n\`\`\`json\n${JSON.stringify(value)}\n\`\`\`\n<!-- /void-autopilot:${kind} -->\n`;
+
+const realComments = (): Raw[] =>
+  (
+    JSON.parse(
+      readFileSync(new URL('./__fixtures__/gh/pr-view-comments.json', import.meta.url), 'utf8'),
+    ) as { comments: Raw[] }
+  ).comments;
 
 /** A pull request read through the real parser from a real `gh pr view` capture. */
 function pull(spec: PullSpec): PullRequestObservation {
@@ -180,6 +186,11 @@ function pull(spec: PullSpec): PullRequestObservation {
       mergeStateStatus: spec.mergeState ?? 'BLOCKED',
       autoMergeRequest: spec.autoMerge === true ? armed.autoMergeRequest : view.autoMergeRequest,
       statusCheckRollup: rollup,
+      comments: [
+        ...realComments(),
+        ...(spec.verdict === undefined ? [] : [{ ...realComments()[0], body: block('review-verdict', spec.verdict) }]),
+        ...(spec.conflict === undefined ? [] : [{ ...realComments()[0], body: block('conflict-class', spec.conflict) }]),
+      ],
     }),
   );
   return { ...parsed, queue: spec.queue ?? 'none' };
@@ -255,10 +266,12 @@ function actionFor(actions: readonly LoopAction[], ticketId: string): LoopAction
   return actions.find((action) => 'ticketId' in action && action.ticketId === ticketId);
 }
 
+/** A pull request the reviewer passed: a success status and a clean verdict on its head. */
 const reviewed = (id: string, number: number, extra: Partial<PullSpec> = {}): PullSpec => ({
   number,
   branch: `work/${id}`,
   review: 'SUCCESS',
+  verdict: approving(number),
   ...extra,
 });
 
@@ -432,7 +445,7 @@ describe('resumption after a restart', () => {
   });
 
   it('reads the pull request of a ready ticket that already opened one', () => {
-    const tickets = [{ ...queued('DEV-1'), pullRequest: 11, branch: 'work/DEV-1', review: approving(11) }];
+    const tickets = [{ ...queued('DEV-1'), pullRequest: 11, branch: 'work/DEV-1' }];
     const spec = { tickets };
     expect(pullRequestsToObserve(program(), tracker(spec))).toEqual([11]);
     const actions = decide(spec, { pulls: [pull(reviewed('DEV-1', 11))] });
@@ -543,11 +556,11 @@ describe('a held ticket and its pull request', () => {
       correction: 'Free the slot on merge.',
     };
     const round = (value: 1 | 2) => ({ headSha: headOf(11), round: value, blocking: [finding], advisory: [] });
-    expect(one({ review: round(1) }, { review: 'FAILURE' })).toMatchObject({
+    expect(one({}, { verdict: round(1), review: 'FAILURE' })).toMatchObject({
       kind: 'hand-back-to-worker',
       reason: 'review-blocking',
     });
-    expect(one({ review: round(2) }, { review: 'FAILURE' })).toMatchObject({
+    expect(one({}, { verdict: round(2), review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'review-rounds-exhausted',
     });
@@ -556,7 +569,7 @@ describe('a held ticket and its pull request', () => {
   it('sends a verdict it cannot read, or that contradicts its status, to a human', () => {
     expect(one({}, { review: 'FAILURE' })).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
     const unscenarioed = { headSha: headOf(11), round: 1, blocking: [{ location: 'a.ts:1', scenario: '', correction: 'x' }], advisory: [] };
-    expect(one({ review: unscenarioed }, { review: 'FAILURE' })).toMatchObject({
+    expect(one({}, { verdict: unscenarioed, review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
     });
@@ -566,12 +579,12 @@ describe('a held ticket and its pull request', () => {
       blocking: [{ location: 'a.ts:1', scenario: 'Breaks.', correction: 'Fix.' }],
       advisory: [],
     };
-    expect(one({ review: blocking }, { review: 'SUCCESS' })).toMatchObject({
+    expect(one({}, { verdict: blocking, review: 'SUCCESS' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
     });
     // A blocking verdict on an older head says nothing about this one.
-    expect(one({ review: { ...blocking, headSha: headOf(12) } }, { review: 'FAILURE' })).toMatchObject({
+    expect(one({}, { verdict: { ...blocking, headSha: headOf(12) }, review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
       detail: expect.stringMatching(/another head/),
@@ -581,12 +594,12 @@ describe('a held ticket and its pull request', () => {
   it('arms nothing on a success status without a clean verdict bound to that head', () => {
     // Anyone with the same `gh` credentials can post the status; the verdict
     // is what says a reviewer read this head and found nothing blocking.
-    expect(one({ review: undefined }, {})).toMatchObject({
+    expect(one({}, { verdict: undefined })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
       detail: expect.stringMatching(/no verdict/),
     });
-    expect(one({ review: { ...approving(11), headSha: headOf(12) } }, {})).toMatchObject({
+    expect(one({}, { verdict: { ...approving(11), headSha: headOf(12) } })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
       detail: expect.stringMatching(/another head/),
@@ -613,20 +626,31 @@ describe('a held ticket and its pull request', () => {
 
   it('routes a conflict by the class the worker gave it', () => {
     expect(one({}, { mergeState: 'DIRTY' })).toMatchObject({ kind: 'hand-back-to-worker', reason: 'conflict' });
-    const mechanical = { class: 'mechanical', reason: 'Both sides appended to one list.' };
-    expect(one({ conflict: mechanical }, { mergeState: 'DIRTY' })).toMatchObject({
+    const mechanical = { headSha: headOf(11), class: 'mechanical', reason: 'Both sides appended to one list.' };
+    expect(one({}, { conflict: mechanical, mergeState: 'DIRTY' })).toMatchObject({
       kind: 'hand-back-to-worker',
       reason: 'conflict',
     });
-    const semantic = { class: 'semantic', reason: 'Both sides changed the merge grant.' };
-    expect(one({ conflict: semantic }, { mergeState: 'DIRTY' })).toMatchObject({
+    const semantic = { headSha: headOf(11), class: 'semantic', reason: 'Both sides changed the merge grant.' };
+    expect(one({}, { conflict: semantic, mergeState: 'DIRTY' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'semantic-conflict',
     });
-    expect(one({ conflict: { class: 'semantic' } }, { mergeState: 'DIRTY' })).toMatchObject({
+    expect(one({}, { conflict: { headSha: headOf(11), class: 'semantic' }, mergeState: 'DIRTY' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
     });
+    // A class given on an older head answered an older conflict: ask again.
+    expect(one({}, { conflict: { ...semantic, headSha: headOf(12) }, mergeState: 'DIRTY' })).toMatchObject({
+      kind: 'hand-back-to-worker',
+      reason: 'conflict',
+    });
+  });
+
+  it('takes the verdict and the conflict class from GitHub, never from the tracker', () => {
+    const raw = trackerRaw({ tickets: [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })] });
+    const tickets = (raw.tickets as Record<string, unknown>[]).map((ticket) => ({ ...ticket, review: approving(11) }));
+    expect(admitLoopTracker({ ...raw, tickets })).toMatchObject({ ok: false, reason: expect.stringMatching(/review/) });
   });
 
   it('leaves the merge to a human under a human merge gate', () => {

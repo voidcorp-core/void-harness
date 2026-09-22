@@ -9,6 +9,7 @@ import {
 } from './autopilot-usage.js';
 import {
   fingerprintCommand,
+  judgmentCommand,
   type LoopCommandOutput,
   nextCommand,
   stopCommand,
@@ -1472,6 +1473,7 @@ export function runAutopilotCommand(
     if (subcommand === 'base') return baseCommand(stdin, json);
     if (subcommand === 'observe') return observeCommand(stdin, json);
     if (subcommand === 'lifecycle') return lifecycleCommand(stdin, json);
+    if (subcommand === 'judgment') return emitLoop(json, judgmentCommand(argv, stdin));
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
