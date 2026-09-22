@@ -95,10 +95,27 @@ const trackerTicketSchema = z.strictObject({
   conflict: z.unknown().optional(),
 });
 
-const recentOutcomeSchema = z.strictObject({
-  ticketId: ticketIdSchema,
-  outcome: z.enum(['merged', 'human-wait']),
-});
+export const HUMAN_WAIT_REASONS = [
+  'ambiguous-state',
+  'pull-request-closed',
+  'semantic-conflict',
+  'review-rounds-exhausted',
+  'human-merge-gate',
+  'deploy-branch-target',
+  'shared-state-changed',
+] as const;
+export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
+
+// The reason a ticket went to a human is optional: one left out counts in the
+// streak, which is the side that stops the loop.
+const recentOutcomeSchema = z.discriminatedUnion('outcome', [
+  z.strictObject({ ticketId: ticketIdSchema, outcome: z.literal('merged') }),
+  z.strictObject({
+    ticketId: ticketIdSchema,
+    outcome: z.literal('human-wait'),
+    reason: z.enum(HUMAN_WAIT_REASONS).optional(),
+  }),
+]);
 
 const loopTrackerSchema = z
   .strictObject({
@@ -138,14 +155,6 @@ export type HandBackReason =
   | 'conflict'
   | 'ejected'
   | 'update-on-base';
-export type HumanWaitReason =
-  | 'ambiguous-state'
-  | 'pull-request-closed'
-  | 'semantic-conflict'
-  | 'review-rounds-exhausted'
-  | 'human-merge-gate'
-  | 'deploy-branch-target'
-  | 'shared-state-changed';
 export type DrainReason = 'requested' | 'quota-low' | 'human-wait-streak' | 'backlog-exhausted';
 
 export type LoopAction =
@@ -585,9 +594,23 @@ function assignSlots(
   return { actions, exhausted: !open };
 }
 
-function trailingHumanWaits(outcomes: readonly ('merged' | 'human-wait')[]): number {
-  const lastMerge = outcomes.lastIndexOf('merged');
-  return outcomes.length - 1 - lastMerge;
+interface Outcome {
+  readonly outcome: 'merged' | 'human-wait';
+  readonly reason?: HumanWaitReason | undefined;
+}
+
+/**
+ * Tickets sent to a human since the last merge. A pull request that only waits
+ * for a human merge gate is neither: the loop did its part, the programme asked
+ * a person to merge, so it neither counts nor resets the streak.
+ */
+function trailingHumanWaits(outcomes: readonly Outcome[]): number {
+  let count = 0;
+  for (const entry of [...outcomes].reverse()) {
+    if (entry.outcome === 'merged') return count;
+    if (entry.reason !== 'human-merge-gate') count += 1;
+  }
+  return count;
 }
 
 export function decideLoop(input: LoopInput): LoopDecision {
@@ -607,10 +630,15 @@ export function decideLoop(input: LoopInput): LoopDecision {
   const merged = whose('merged').map((ticket) => ticket.id);
   const waited = whose('human-wait').map((ticket) => ticket.id);
   const recent = input.tracker.recent;
-  const history = [
-    ...recent.map((entry) => entry.outcome),
-    ...merged.map(() => 'merged' as const),
-    ...waited.map(() => 'human-wait' as const),
+  const waitedNow = slotActions.flatMap((action) =>
+    action.kind === 'mark-human-wait'
+      ? [{ outcome: 'human-wait' as const, reason: action.reason }]
+      : [],
+  );
+  const history: Outcome[] = [
+    ...recent,
+    ...merged.map(() => ({ outcome: 'merged' as const })),
+    ...waitedNow,
   ];
   let drain: DrainReason | undefined;
   if (input.signal === 'drain') drain = 'requested';

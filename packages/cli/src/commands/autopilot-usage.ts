@@ -54,7 +54,7 @@ stdin JSON (LoopTracker):
   { "schemaVersion": 1, "queue": <CuratorQueue judgment>,
     "tickets": [{ "id", "status", "humanWait", "pullRequest"?, "branch"?,
                   "footprint"?, "readiness"?, "review"?, "conflict"? }],
-    "recent": [{ "ticketId", "outcome": "merged" | "human-wait" }],
+    "recent": [{ "ticketId", "outcome": "merged" | "human-wait", "reason"? }],
     "liveWorkers": ["<ticket id>"], "quota": "ok" | "low" }
 
 --run is optional everywhere. With no run, a single non-terminal run is resumed;

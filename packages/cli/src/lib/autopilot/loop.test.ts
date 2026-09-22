@@ -87,7 +87,7 @@ function started(id: string, extra: Partial<TicketSpec> = {}): TicketSpec {
 interface TrackerSpec {
   readonly tickets: readonly TicketSpec[];
   readonly queue?: unknown;
-  readonly recent?: readonly { ticketId: string; outcome: 'merged' | 'human-wait' }[];
+  readonly recent?: readonly { ticketId: string; outcome: 'merged' | 'human-wait'; reason?: string }[];
   readonly liveWorkers?: readonly string[];
   readonly quota?: 'ok' | 'low';
 }
@@ -754,6 +754,29 @@ describe('stopping', () => {
     // Two in a row is not three: a merge in between resets the count.
     const broken = [...recent.slice(1), { ticketId: 'DEV-6', outcome: 'merged' as const }];
     expect(assigned(decide({ tickets, recent: broken }, { pulls }))).toEqual(['DEV-2']);
+  });
+
+  it('does not count a pull request that only waits for a human merge in the streak', () => {
+    // Under `mergeGate: human` every ready pull request waits for a person by
+    // design; counting those would stop the loop after three good tickets.
+    const gate = (ticketId: string) => ({ ticketId, outcome: 'human-wait' as const, reason: 'human-merge-gate' });
+    const recent = [gate('DEV-7'), gate('DEV-8'), gate('DEV-9')];
+    const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')];
+    const pulls = [pull(reviewed('DEV-1', 11))];
+    const actions = decide({ tickets, recent }, { pulls, mergeGate: 'human' });
+    expect(actions).not.toContainEqual({ kind: 'drain', reason: 'human-wait-streak' });
+    expect(assigned(actions)).toEqual(['DEV-2']);
+    // A wait for any other reason still counts, around the merge gates.
+    const mixed = [
+      { ticketId: 'DEV-6', outcome: 'human-wait' as const, reason: 'semantic-conflict' },
+      gate('DEV-7'),
+      { ticketId: 'DEV-8', outcome: 'human-wait' as const },
+    ];
+    const closed = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
+    expect(decide({ tickets, recent: mixed }, { pulls: closed })).toContainEqual({
+      kind: 'drain',
+      reason: 'human-wait-streak',
+    });
   });
 
   it('drains when no queued ticket is ready or can be made ready', () => {

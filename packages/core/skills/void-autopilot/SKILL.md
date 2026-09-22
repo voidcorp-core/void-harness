@@ -24,8 +24,8 @@ a ticket gets a different standard depending on how it was started.
 It never merges on a flag. Not on the command line, not because the checks are green, not because
 the diff is small. Consent to a machine merge is a durable declaration in the programme --
 `mergeGate: union-reviewed` together with a `deployBranch` -- and there is no `--auto-merge` on
-any path. Under `mergeGate: human` a ready pull request goes to a person, and the loop stops after
-three of them in a row. Promotion from the integration branch to the one that deploys stays human
+any path. Under `mergeGate: human` a ready pull request goes to a person; that wait is by design
+and never counts toward the streak that stops the loop. Promotion from the integration branch to the one that deploys stays human
 under both gates.
 
 It never closes, cancels or deletes a ticket, and it never touches `main`, the secrets or the
@@ -132,7 +132,7 @@ Act on each returned action, then ask again:
 | `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket> --branch <its branch>`, create or reuse its worktree, spawn its worker |
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
-| `mark-human-wait` | label the ticket for a human, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
+| `mark-human-wait` | record it in `recent` with its `reason`, label the ticket for a human, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
 | `drain` | take nothing new; keep acting on the tickets in flight |
 | `freeze` | stop acting, at once |
@@ -245,7 +245,8 @@ merged, then the next. Same guarantee, lower throughput. The kernel keeps the tu
 ## Stopping
 
 **Drain.** Requested by a person (`void-harness autopilot stop --drain`, from any pane) or reached
-on its own: nothing ready or preparable, quota low, or three tickets in a row handed to a human.
+on its own: nothing ready or preparable, quota low, or three tickets in a row handed to a human
+(a pull request waiting only for a human merge gate is not one).
 The loop takes nothing new, carries the tickets in flight to a merge or a human wait, closes its
 agents, cleans the merged worktrees, and writes the recap.
 
