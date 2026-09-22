@@ -150,6 +150,8 @@ interface PullSpec {
   readonly reviewFailures?: number;
   /** Ejections of this head from the queue; one when it was just ejected, by default. */
   readonly ejections?: number;
+  /** The conclusion of the `independent-review` job, absent unless given. */
+  readonly reviewJob?: 'SUCCESS' | 'FAILURE';
 }
 
 /** A judgment block as an agent posts it, written raw so a malformed one can be posted too. */
@@ -171,6 +173,9 @@ function pull(spec: PullSpec): PullRequestObservation {
   const rollup = [
     ...passing,
     ...(spec.failingCheck === true ? [{ ...firstRun, name: 'validate', conclusion: 'FAILURE' }] : []),
+    ...(spec.reviewJob === undefined
+      ? []
+      : [{ ...firstRun, name: 'independent-review', conclusion: spec.reviewJob }]),
     ...(spec.review === undefined
       ? []
       : [{ ...statusShape(), context: 'void/independent-review', state: spec.review }]),
@@ -635,6 +640,21 @@ describe('a held ticket and its pull request', () => {
       pullRequest: 11,
       headSha: String(11).padStart(40, 'a'),
     });
+  });
+
+  it('re-runs the review job that failed before the verdict landed on the same head', () => {
+    // The job ran before the reviewer posted, and a status event starts no
+    // workflow: the required check stays red and the auto-merge never fires.
+    const rerun = {
+      kind: 'rerun-review-check',
+      ticketId: 'DEV-1',
+      pullRequest: 11,
+      headSha: headOf(11),
+      run: 35694132291,
+    };
+    expect(one({}, { reviewJob: 'FAILURE' })).toEqual(rerun);
+    expect(one({}, { reviewJob: 'FAILURE', autoMerge: true })).toEqual(rerun);
+    expect(one({}, { reviewJob: 'SUCCESS' })).toMatchObject({ kind: 'enable-auto-merge' });
   });
 
   it('waits once the auto-merge is armed or the pull request is queued', () => {

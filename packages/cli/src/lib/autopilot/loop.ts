@@ -72,6 +72,10 @@ export interface PullRequestObservation {
   readonly checks: 'pending' | 'passing' | 'failing';
   /** The `void/independent-review` commit status on the head commit. */
   readonly review: 'absent' | 'pending' | 'success' | 'failure';
+  /** The `independent-review` job on the head commit, which enforces that status. */
+  readonly reviewCheck: 'absent' | 'pending' | 'passing' | 'failing';
+  /** The GitHub Actions run holding that job, when its URL names one. */
+  readonly reviewCheckRun?: number;
   /** The last merge queue event not followed by a commit. */
   readonly queue: QueueEvent;
   /** Ejections of the current head from the merge queue since its last commit. */
@@ -196,6 +200,14 @@ export type LoopAction =
       readonly ticketId: string;
       readonly pullRequest: number;
       readonly headSha: string;
+    }
+  | {
+      readonly kind: 'rerun-review-check';
+      readonly ticketId: string;
+      readonly pullRequest: number;
+      readonly headSha: string;
+      /** The Actions run to re-run with `gh run rerun <run> --failed`. */
+      readonly run: number;
     }
   | {
       readonly kind: 'requeue';
@@ -523,6 +535,22 @@ function openPullOutcome(
   if (pr.review !== 'success') return wait(ticket.id, 'awaiting-review');
   const unapproved = unapprovedReason(pr);
   if (unapproved !== undefined) return toHuman(ticket.id, 'ambiguous-state', unapproved);
+  // The job ran before the verdict landed on this same head, and a status event
+  // starts no workflow: without a re-run the required check stays red and an
+  // armed auto-merge waits forever.
+  if (pr.reviewCheck === 'failing') {
+    if (pr.reviewCheckRun === undefined) {
+      const detail = `the independent-review job of #${pr.number} failed and names no run`;
+      return toHuman(ticket.id, 'ambiguous-state', detail);
+    }
+    return held({
+      kind: 'rerun-review-check',
+      ticketId: ticket.id,
+      pullRequest: pr.number,
+      headSha: pr.headSha,
+      run: pr.reviewCheckRun,
+    });
+  }
   return mergeOutcome(ticket, pr, context);
 }
 

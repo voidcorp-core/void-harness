@@ -134,6 +134,7 @@ Act on each returned action, then ask again:
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
 | `mark-human-wait` | record it in `recent` with its `reason`, label the ticket for a human, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
+| `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
 | `freeze` | stop acting, at once |
@@ -228,8 +229,10 @@ only.
    to the current head.
 2. Post the commit status `void/independent-review` on the exact SHA read: `success` with no
    blocking finding, `failure` otherwise, with a short description.
-3. **Re-run the `independent-review` job** of the pull request. A status event starts no workflow,
-   so without this the required check keeps its old answer and the pull request never moves.
+3. **Re-run the `independent-review` job** of the pull request (`gh run rerun <run> --failed`;
+   the kernel also answers `rerun-review-check` when it sees that job still red on an approved
+   head). A status event starts no workflow, so without this the required check keeps its old
+   answer and the pull request never moves.
 
 Any new push changes the head SHA and needs a new verdict.
 

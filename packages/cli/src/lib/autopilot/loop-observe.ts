@@ -57,7 +57,14 @@ const checkRunSchema = z.object({
   name: z.string(),
   status: z.string(),
   conclusion: z.string(),
+  // Read only on the review job, where a GitHub Actions run URL names the run.
+  detailsUrl: z.unknown().optional(),
 });
+
+// `https://github.com/<owner>/<repo>/actions/runs/<run>/job/<id>`: the run is
+// what `gh run rerun <run> --failed` takes. The trailing id is not a job id gh
+// accepts (see `gh run rerun --help`), so it is not read.
+const ACTIONS_RUN_URL = /\/actions\/runs\/([1-9][0-9]{0,18})\//;
 
 const statusContextSchema = z.object({
   __typename: z.literal('StatusContext'),
@@ -111,6 +118,20 @@ function checksOf(rollup: readonly RollupEntry[]): CheckState {
   // Nothing registered yet is not a pass: the checks of a fresh push are pending.
   if (states.length === 0 || states.includes('pending')) return 'pending';
   return 'passing';
+}
+
+type ReviewCheck = Pick<PullRequestObservation, 'reviewCheck' | 'reviewCheckRun'>;
+
+/** The `independent-review` job, which only enforces the verdict, and the run that holds it. */
+function reviewCheckOf(rollup: readonly RollupEntry[]): ReviewCheck {
+  const job = rollup.find(
+    (entry) => entry.__typename === 'CheckRun' && entry.name === REVIEW_CHECK_NAME,
+  );
+  if (job === undefined || job.__typename !== 'CheckRun') return { reviewCheck: 'absent' };
+  const url = typeof job.detailsUrl === 'string' ? job.detailsUrl : '';
+  const run = ACTIONS_RUN_URL.exec(url)?.[1];
+  const state = checkStateOf(job);
+  return { reviewCheck: state, ...(run === undefined ? {} : { reviewCheckRun: Number(run) }) };
 }
 
 function reviewOf(rollup: readonly RollupEntry[]): PullRequestObservation['review'] {
@@ -167,6 +188,7 @@ export function parsePullRequestView(
     autoMerge: view.autoMergeRequest !== null, // allow-null: the absence gh reports
     checks: checksOf(view.statusCheckRollup),
     review: reviewOf(view.statusCheckRollup),
+    ...reviewCheckOf(view.statusCheckRollup),
   };
 }
 

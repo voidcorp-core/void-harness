@@ -96,6 +96,7 @@ describe('parsePullRequestView', () => {
       autoMerge: false,
       checks: 'passing',
       review: 'absent',
+      reviewCheck: 'absent',
     });
   });
 
@@ -142,12 +143,17 @@ describe('parsePullRequestView', () => {
     }
   });
 
-  it('leaves the independent review job to the verdict it enforces', () => {
+  it('reads the independent review job apart from the checks, with the run to re-run', () => {
     const view = openView();
     const [run] = view.statusCheckRollup as Raw[];
     const job = { ...run, name: 'independent-review', conclusion: 'FAILURE' };
     const rollup = [...(view.statusCheckRollup as Raw[]), job];
-    expect(parsePullRequestView(withRollup(view, rollup)).checks).toBe('passing');
+    const read = parsePullRequestView(withRollup(view, rollup));
+    // A worker has nothing to repair in it: it only enforces the verdict.
+    expect(read.checks).toBe('passing');
+    // The run id of the captured `detailsUrl`, which `gh run rerun` takes.
+    expect(read).toMatchObject({ reviewCheck: 'failing', reviewCheckRun: 35694132291 });
+    expect(parsePullRequestView(viewText('pr-view-open.json')).reviewCheck).toBe('absent');
   });
 
   it('reads the latest verdict and conflict class posted as comment blocks', () => {
