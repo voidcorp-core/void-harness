@@ -32,6 +32,8 @@ const GOVERNING_SKILL = {
   'no-focused-test': 'void-testing',
   'no-null': 'void-functional',
   'protected-file': 'void-security-guidance',
+  // The verdict it protects is the loop's own contract, written by one command.
+  'review-verdict-write': 'void-autopilot',
   'secret-content': 'void-security-guidance',
   'tdd-order': 'void-tdd',
   'test-name': 'void-testing',
@@ -53,6 +55,7 @@ export const RULE_NAMES = [
   'no-focused-test',
   'no-null',
   'protected-file',
+  'review-verdict-write',
   'secret-content',
   'tdd-order',
   'test-name',

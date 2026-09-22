@@ -56,6 +56,7 @@ export const PROTECTED_PATHS_FLOOR = [
   'scripts/independent-review-check.mjs',
   '.void/program.md',
   'packages/core/hooks/**',
+  'packages/hook-runner/src/rules/review-verdict-write.ts',
 ] as const;
 /** Outcomes kept for the recap; the stop rule reads only the last three. */
 export const RECENT_MAX = 64;

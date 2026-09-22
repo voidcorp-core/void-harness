@@ -22,6 +22,7 @@ import { noConsole } from '../rules/no-console.js';
 import { noFocusedTest } from '../rules/no-focused-test.js';
 import { noNull } from '../rules/no-null.js';
 import { protectedFile } from '../rules/protected-file.js';
+import { reviewVerdictWrite } from '../rules/review-verdict-write.js';
 import { secretContent } from '../rules/secret-content.js';
 import { isTestPath } from '../rules/source-helpers.js';
 import {
@@ -57,6 +58,7 @@ export type RuleName =
   | 'no-focused-test'
   | 'no-null'
   | 'protected-file'
+  | 'review-verdict-write'
   | 'secret-content'
   | 'tdd-order'
   | 'test-name';
@@ -368,6 +370,20 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     ? tddOperationLimit('operation exhausted its five-second work budget') : verdict;
 }
 
+/**
+ * A file a shell command sends, read from the project, or undefined. Bounded
+ * like a hook payload: a body GitHub would take is far smaller.
+ */
+function sentFileText(root: string, path: string): string | undefined {
+  try {
+    const absolute = resolve(root, path);
+    if (statSync(absolute).size > MAX_HOOK_INPUT_BYTES) return undefined;
+    return readFileSync(absolute, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
 export function evaluateRule(
   rule: RuleName,
   rawInput: unknown,
@@ -380,6 +396,10 @@ export function evaluateRule(
     if (call.tool !== 'Bash' && call.tool !== 'shell') return allow();
     if (env['VOID_HARNESS_ALLOW_DANGEROUS'] === '1') return allow('OVERRIDE', 'one-shot override');
     return dangerousCommand(call.command);
+  }
+  if (rule === 'review-verdict-write') {
+    if (call.tool !== 'Bash' && call.tool !== 'shell') return allow();
+    return reviewVerdictWrite(call.command, (path) => sentFileText(options.root, path));
   }
   if (
     call.tool !== 'Edit'

@@ -106,7 +106,15 @@ describe('safety-floor matcher coverage', () => {
   // list meant a rule could reach the runner and be wired on neither runtime
   // without one test going red: it proved only that somebody had once typed the
   // same twelve names twice.
-  const FILE_EDIT_RULES = RULE_NAMES.filter((rule) => rule !== 'dangerous-command');
+  const SHELL_RULES: readonly string[] = ['dangerous-command', 'review-verdict-write'];
+  const FILE_EDIT_RULES = RULE_NAMES.filter((rule) => !SHELL_RULES.includes(rule));
+
+  it('matches Bash and legacy shell on every shell rule', () => {
+    const matchers = preToolUseMatchers();
+    for (const rule of SHELL_RULES) {
+      expect(matchers.get(rule), `${rule} must be wired`).toMatch(/Bash\|shell/);
+    }
+  });
 
   // Codex edits files through apply_patch; a matcher stuck on Claude's
   // Edit|Write would leave every content-scanning hook dead on that runtime.

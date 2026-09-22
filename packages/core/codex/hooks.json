@@ -9,6 +9,12 @@
         ]
       },
       {
+        "matcher": "Bash|shell",
+        "hooks": [
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce review-verdict-write codex" }
+        ]
+      },
+      {
         "matcher": "apply_patch|Edit|Write|Bash|shell",
         "hooks": [
           { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce protected-file codex" }

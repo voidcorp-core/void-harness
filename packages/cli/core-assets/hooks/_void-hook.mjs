@@ -15,6 +15,8 @@ var GOVERNING_SKILL = {
   "no-focused-test": "void-testing",
   "no-null": "void-functional",
   "protected-file": "void-security-guidance",
+  // The verdict it protects is the loop's own contract, written by one command.
+  "review-verdict-write": "void-autopilot",
   "secret-content": "void-security-guidance",
   "tdd-order": "void-tdd",
   "test-name": "void-testing"
@@ -30,6 +32,7 @@ var RULE_NAMES = [
   "no-focused-test",
   "no-null",
   "protected-file",
+  "review-verdict-write",
   "secret-content",
   "tdd-order",
   "test-name"
@@ -541,6 +544,55 @@ function protectedFile(paths, options = {}) {
   return allow();
 }
 
+var STATUS_CONTEXT = "void/independent-review";
+var VERDICT_MARKER = "void-autopilot:review-verdict";
+var API_CLIENT = /\b(?:gh\s+api|curl)\b/;
+var STATUS_ENDPOINT = /\/statuses\/[^\s/'"]/;
+var WRITES = /(?:^|\s)(?:-[fFdX]|--(?:field|raw-field|input|method|request|data[a-z-]*|json))(?:[\s=]|$)/;
+var COMMENT_WRITE = [
+  /\bgh\s+(?:pr|issue)\s+comment\b/,
+  /\bgh\s+api\b[^\n]*\/comments\b/,
+  /\bgh\s+api\s+graphql\b[^\n]*\baddComment\b/,
+  /\bcurl\b[^\n]*\/comments\b/
+];
+var FILE_FLAGS = /* @__PURE__ */ new Set(["--body-file", "-F", "--input", "<", "cat"]);
+function unquote2(text2) {
+  return text2.replaceAll('"', "").replaceAll("'", "");
+}
+function sentFiles(command) {
+  const words = unquote2(command).split(/\s+/).filter(Boolean);
+  return words.flatMap((word, index) => {
+    const previous = words[index - 1];
+    if (previous !== void 0 && FILE_FLAGS.has(previous) && !word.includes("=")) return [word];
+    const reference = /(?:^|=)@(.+)$/.exec(word)?.[1];
+    return reference === void 0 ? [] : [reference];
+  }).filter((path) => path !== "-");
+}
+function carries(command, needle, read) {
+  if (unquote2(command).includes(needle)) return true;
+  return sentFiles(command).some((path) => read(path)?.includes(needle) === true);
+}
+function violation2(command, read) {
+  const text2 = unquote2(command);
+  const statusWrite = API_CLIENT.test(text2) && STATUS_ENDPOINT.test(text2) && WRITES.test(text2);
+  if (statusWrite && carries(command, STATUS_CONTEXT, read)) {
+    return `a ${STATUS_CONTEXT} status written by hand`;
+  }
+  const commentWrite = COMMENT_WRITE.some((pattern) => pattern.test(text2));
+  if (commentWrite && carries(command, VERDICT_MARKER, read)) {
+    return "a review verdict comment posted by hand";
+  }
+  return void 0;
+}
+function reviewVerdictWrite(command, read) {
+  const evidence = violation2(command, read);
+  return evidence === void 0 ? allow() : block(
+    "REVIEW_VERDICT_WRITE",
+    "refusing to write the review verdict by hand; pipe it into `void-harness autopilot verdict --pr <number>`, which binds it to the head and writes the comment and the status together",
+    [evidence]
+  );
+}
+
 var HIGH_CONFIDENCE = [
   /\b(?:AKIA|ASIA)[0-9A-Z]{16}/,
   /\bgh[posru]_[A-Za-z0-9]{36}/,
@@ -728,7 +780,7 @@ function testName(edits) {
 
 var REDIRECTION = /(?:^|\s)(?:\d*|&)>{1,2}\s*("[^"]*"|'[^']*'|[^\s;|&<>]+)/g;
 var TEE = /(?:^|[\s|])tee\s+(?:-a\s+)?("[^"]*"|'[^']*'|[^\s;|&<>-][^\s;|&<>]*)/g;
-function unquote2(target) {
+function unquote3(target) {
   const quoted = /^(["'])(.*)\1$/.exec(target);
   return quoted?.[2] ?? target;
 }
@@ -738,7 +790,7 @@ function shellWriteTargets(command) {
     for (const match of command.matchAll(pattern)) {
       const target = match[1];
       if (target === void 0) continue;
-      const path = unquote2(target);
+      const path = unquote3(target);
       if (path !== "") targets.add(path);
     }
   }
@@ -1302,6 +1354,15 @@ function tddVerdict(root, edits, raw, checkedOut, syntaxInspector) {
   });
   return governed.length > 0 && performance.now() >= deadline ? tddOperationLimit("operation exhausted its five-second work budget") : verdict;
 }
+function sentFileText(root, path) {
+  try {
+    const absolute = resolve4(root, path);
+    if (statSync2(absolute).size > MAX_HOOK_INPUT_BYTES) return void 0;
+    return readFileSync5(absolute, "utf8");
+  } catch {
+    return void 0;
+  }
+}
 function evaluateRule(rule, rawInput, options) {
   const call = normalizeToolCall(
     rawInput,
@@ -1312,6 +1373,10 @@ function evaluateRule(rule, rawInput, options) {
     if (call.tool !== "Bash" && call.tool !== "shell") return allow();
     if (env["VOID_HARNESS_ALLOW_DANGEROUS"] === "1") return allow("OVERRIDE", "one-shot override");
     return dangerousCommand(call.command);
+  }
+  if (rule === "review-verdict-write") {
+    if (call.tool !== "Bash" && call.tool !== "shell") return allow();
+    return reviewVerdictWrite(call.command, (path) => sentFileText(options.root, path));
   }
   if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch" && call.tool !== "Bash" && call.tool !== "shell") {
     return allow();
