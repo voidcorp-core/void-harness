@@ -56,6 +56,18 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
 - **Drain and immediate stops** through a local signal file any pane can write, and a recap
   written from observed state.
 
+### Merge authority, tightened after the loop's review
+
+- **One verdict writer.** `autopilot verdict` posts the comment and the status together, bound to
+  the current head; the `review-verdict-write` hook refuses the same writes typed by hand, and the
+  loop believes a comment only when the status on the same head agrees. Rejected: a GitHub App or
+  dedicated reviewer identity, which Folpe declined; the ADR states that these guards stop a
+  mistake or an injection, not an actor holding the credentials.
+- **Protected paths.** The loop never merges a change to its own judge; the floor is a constant
+  the programme can only extend.
+- **Auto-merge by default into develop**, never into main; the release back-merge is exempt from
+  the verdict by its bot author's id. The promotion audit is left for a release decision.
+
 ### Still shipped until the engine is removed
 
 `workflows/autopilot.workflow.js` and `references/codex-subagents.md` drive the cluster engine's

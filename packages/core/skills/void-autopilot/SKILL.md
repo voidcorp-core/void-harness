@@ -28,6 +28,11 @@ any path. Under `mergeGate: human` a ready pull request goes to a person; that w
 and never counts toward the streak that stops the loop. Promotion from the integration branch to the one that deploys stays human
 under both gates.
 
+It never merges a change to the machinery that judges merges. A pull request touching
+`.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`, `packages/core/hooks/**`
+or the verdict hook's source goes to a person with the file named (`protected-path`). The programme
+adds paths through `autopilot.protectedPaths`; nothing removes from that floor.
+
 It never closes, cancels or deletes a ticket, and it never touches `main`, the secrets or the
 repository settings.
 
@@ -134,7 +139,7 @@ Act on each returned action, then ask again:
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
 | `mark-human-wait` | record it in `recent` with its `reason`, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
-| `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head |
+| `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head; twice at most per run, then `review-check-reruns-exhausted` |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
 | `freeze` | stop acting, at once |

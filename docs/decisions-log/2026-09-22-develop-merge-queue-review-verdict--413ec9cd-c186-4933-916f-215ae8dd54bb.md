@@ -45,8 +45,22 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
 `merge_group`, on the head SHA of every pull request the group contains.
 
 - The reviewer is the independent pass of `void-implement`, run in a fresh
-  context on the exact SHA. It posts the status; the job only verifies it. Any
-  new push changes the head SHA and demands a new verdict.
+  context on the exact SHA. No GitHub App or dedicated identity: the reviewer
+  is an agent like the others, and its verdict is written through one command.
+  `void-harness autopilot verdict --pr <n>` admits the typed verdict, refuses it
+  unless its `headSha` is the head the pull request has now, posts the verdict
+  comment then the `void/independent-review` status on that head, and re-runs
+  the `independent-review` job when its completed run disagrees. It is the only
+  write path. The job only verifies the status. Any new push changes the head
+  SHA and demands a new verdict.
+- The loop believes a verdict comment only when the status on the same head
+  agrees with it (clean with `success`, blocking with `failure`); a comment the
+  status does not confirm is not read.
+- A PreToolUse hook, `review-verdict-write`, wired on Claude and Codex, refuses
+  a shell command that writes a `void/independent-review` status (`gh api` or
+  curl to `/statuses/`) or posts a comment carrying the verdict block (`gh pr
+  comment`, `gh issue comment`, the REST and GraphQL comment endpoints, a body
+  sent from a file), and names `autopilot verdict` instead.
 - The job finds the group from the queue itself: the `head_ref` of the event
   (`gh-readonly-queue/<base>/pr-<n>-<sha>`) names the last pull request, and the
   GraphQL `mergeQueue` entries are followed through their `baseCommit` down to
@@ -62,8 +76,27 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
 - Every workflow carrying a required check of `develop` answers `merge_group`,
   and steps that read pull_request-only context fall back to the group's
   `base_sha`.
+- Auto-merge is the default way into `develop`: native auto-merge waits for
+  protection and every required check. `void-enforce` refuses an armed
+  auto-merge only on a pull request into `main`; the promotion and the release
+  pull request are both merged by a person (`release.yml` merges nothing), so no
+  exception is carved for release-please.
 - `main` keeps no queue and no automatic merge. The promotion of `develop` to
-  `main` stays human.
+  `main` stays human, and the loop never arms a pull request whose head is a
+  branch it merges into or ships from.
+- The loop never arms a pull request that touches the machinery judging merges:
+  `.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`,
+  `packages/core/hooks/**` and the source of the hook above. That floor is a
+  constant; `autopilot.protectedPaths` in the programme adds to it and cannot
+  remove from it. Such a pull request goes to a person with the file named, as
+  does one whose change list gh could not read in full.
+- The release back-merge (`chore/back-merge-main` into `develop`) needs no
+  verdict. The check recognises it only by facts a pull request cannot choose:
+  the release App's bot account by numeric id and `Bot` type, the branch, the
+  base and a same-repository head, in the event payload and in the queue alike.
+- The loop re-runs a red `independent-review` job at most twice per run, the
+  verdict command's own re-run included, reading the attempt number GitHub
+  keeps; past that, a person looks.
 
 Adopted in two steps. The workflows ship first and change nothing on their own.
 Turning the queue on and adding `independent-review` to the protection of
@@ -95,22 +128,28 @@ Negative:
 - The union of several tickets is no longer read as a whole; an interaction the
   tests do not cover can merge. The queue proves the combination builds and
   passes, not that it is coherent.
-- A status event starts no workflow, so after posting a verdict the reviewer must
-  rerun the `independent-review` job of the pull request.
+- A status event starts no workflow, so the verdict command re-runs the
+  `independent-review` job after posting, and the loop re-runs it at most twice.
 - The workflow file is the change's own: a pull request that replaces the
   `independent-review` job with one that always passes keeps the required check
-  green. Checking the script out from the base does not close this. Pinning the
-  workflow (a required workflow ruleset on `develop`) or refusing workflow
-  changes without a human is a decision still to take before activation.
-- The verdict is only as trustworthy as the identity allowed to post it. Any
-  actor with write access to statuses can post `void/independent-review`; this
-  record does not bind the verdict to a dedicated reviewer identity.
-- The canonical back-merge of `main` into `develop` carries no verdict. Once the
-  check is required it must receive one, or an explicit exemption must be
-  decided before activation.
-- The `enforce` step that rejects auto-merge outside the back-merge still
-  applies to ticket pull requests; it must be revisited before the loop enables
-  auto-merge on them.
+  green. The loop never merges such a pull request (protected paths), but a
+  person or any other actor arming auto-merge still can. Pinning the workflow
+  (a required workflow ruleset on `develop`) remains open.
+- **The verdict protections guard against a mistake and an injected
+  instruction, not against a malicious actor holding the credentials.** Any
+  identity with write access to statuses and comments can still post both
+  through the API; the hook is a string match a program can step around, and
+  the loop's agreement rule only stops a comment and a status that disagree.
+  Binding the verdict to a dedicated identity was considered and not taken.
+- The back-merge exemption trusts the author of the pull request, not of its
+  commits: anyone able to push to `chore/back-merge-main` adds commits the
+  exemption then passes unread. Branch protection on that branch, or a check
+  that its head is the merge `back-merge.yml` produced, would close it.
+- `promotion.yml` audits every promoted commit as merged by the named human or
+  by the back-merge, and refuses one whose pull request armed any other
+  auto-merge. Once the loop merges into `develop`, that audit fails and stops
+  maintaining the promotion pull request. Aligning it is a release-authority
+  decision still to take before activation.
 - The merge queue requires a repository owned by an organization. Consumers
   outside one fall back to serial merges, per the spec.
 
