@@ -3,28 +3,18 @@
  *
  * For days `void-autopilot/SKILL.md` said "`mergeGate: human` is the only value
  * the programme descriptor accepts" and "You stay the merge gate", while
- * `program.ts` accepted `union-reviewed` and `judgeMergeGrant` could merge on its
- * own. A consumer reading that skill believed their merges stayed theirs.
+ * `program.ts` accepted `union-reviewed` and a machine could merge on its own. A
+ * consumer reading that skill believed their merges stayed theirs.
  *
- * Line 96 of the same file described `union-reviewed` correctly, so the file
- * contradicted itself and nothing noticed: prose has no compiler. This is the
- * closest thing it gets — the skill must name every refusal the grant can return,
- * and must not re-assert the claim that was false.
- *
- * Naming them was not enough. The first version of this file asserted only that
- * each refusal TOKEN appeared, and the skill went on to describe `sensitive-path`
- * as firing on `ownership.sequential` — the opposite of what the code does. The
- * token was there, so the test stayed green while a consumer was told the wrong
- * thing. What the skill owes the reader is the CONDITION, so the condition is
- * exported next to the check that raises it and compared here.
+ * The continuous loop moved the merge itself to GitHub: the kernel arms
+ * auto-merge on the exact head SHA, the merge queue reruns the required checks,
+ * and `independent-review` reads the reviewer's verdict. What the skill owes the
+ * reader is therefore that gate, stated by the kernel's own vocabulary, and never
+ * the claim that was false.
  */
 
 import { globSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  MERGE_REFUSALS,
-  MERGE_REFUSAL_TRIGGERS,
-} from '../../packages/cli/src/lib/autopilot/union-review.js';
 
 const SKILL = readFileSync(
   new URL('../../packages/core/skills/void-autopilot/SKILL.md', import.meta.url),
@@ -33,35 +23,21 @@ const SKILL = readFileSync(
 
 const FLAT = SKILL.replace(/\s+/g, ' ');
 
-/** The refusal table, one row per line, whitespace flattened inside each row. */
-const ROWS = SKILL.split('\n')
-  .filter((line) => line.startsWith('| `'))
-  .map((line) => line.replace(/\s+/g, ' '));
-
-describe('the autopilot skill describes the gate the CLI applies', () => {
-  it.each(MERGE_REFUSALS)('names the %s refusal, so a reader can act on it', (refusal) => {
-    expect(SKILL).toContain(refusal);
+describe('the autopilot skill describes the gate the loop applies', () => {
+  // The kernel returns `enable-auto-merge` with the head SHA it judged; arming
+  // the merge on anything broader would merge a commit nobody reviewed.
+  it('arms a merge only on the head SHA the kernel names, never around protection', () => {
+    expect(FLAT).toMatch(/--auto --match-head-commit <headSha>/);
+    expect(FLAT).toMatch(/never `--admin`/);
   });
 
-  // Paired to the refusal, not merely present in the file. The version before
-  // this one asserted the sentence appeared anywhere in the flattened skill, so
-  // SWAPPING the `production-downstream` and `human-gate` cells left the shipped
-  // skill saying production ships when a unit is listed in `humanGates` -- and
-  // the whole suite stayed green. Presence is not description.
-  it.each(MERGE_REFUSALS)('puts what raises %s on that refusal own row', (refusal) => {
-    const row = ROWS.find((line) => line.startsWith(`| \`${refusal}\` |`));
-    expect(row, `no table row names ${refusal}`).toBeDefined();
-    expect(row).toContain(MERGE_REFUSAL_TRIGGERS[refusal].replace(/\s+/g, ' '));
+  it('names the merge queue and the required review check that gate the merge', () => {
+    expect(FLAT).toMatch(/merge queue/i);
+    expect(FLAT).toMatch(/`independent-review`/);
   });
 
-  // The specific lie this file exists to make impossible. `ownership.sequential`
-  // answers which paths two workers cannot write at once; the merge blocks answer
-  // which paths a machine must not take unread. Describing one as the other
-  // refuses clusters that are safe and reads as a guard that is not there.
-  it('does not describe the path guard as reading sequential ownership', () => {
-    const sentence = MERGE_REFUSAL_TRIGGERS['sensitive-path'].replace(/\s+/g, ' ');
-    expect(sentence).toContain('deliberately not `ownership.sequential`');
-    expect(FLAT).not.toMatch(/touches a path under `ownership\.sequential`/);
+  it('keeps a serial fallback where no merge queue exists', () => {
+    expect(FLAT).toMatch(/Serial fallback/);
   });
 
   it('does not claim human is the only accepted merge gate', () => {

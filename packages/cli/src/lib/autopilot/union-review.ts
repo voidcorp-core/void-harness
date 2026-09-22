@@ -115,57 +115,6 @@ export type MergeRefusal =
   | 'union-contradicted'
   | 'review-stale';
 
-/**
- * Every refusal the grant can return, in a stable order. Written out rather than
- * derived from the union type, so the compiler proves the list exhaustive instead
- * of a cast asserting it -- and so a test can hold the shipped skill to it.
- *
- * That test exists because the skill shipped for days telling consumers
- * "`mergeGate: human` is the only value the programme descriptor accepts" while
- * the CLI accepted `union-reviewed` and could merge on its own. Prose has no
- * compiler; this list is the closest thing it gets.
- */
-export const MERGE_REFUSALS = [
-  'production-downstream',
-  'human-gate',
-  'base-unprotected',
-  'sensitive-path',
-  'union-unread',
-  'union-contradicted',
-  'review-stale',
-] as const satisfies readonly MergeRefusal[];
-
-/**
- * What actually raises each refusal, in the words the shipped skill must use.
- *
- * The list of refusal NAMES above was not enough. `SKILL.md` named every one of
- * them and still described `sensitive-path` as firing on `ownership.sequential`,
- * which is the opposite of what the code does -- the token was present, so the
- * test stayed green while the documentation told a consumer the wrong thing.
- *
- * So the condition lives here, next to the code that applies it, and the skill
- * quotes it. A test compares the two. Changing the behaviour without changing
- * the sentence now fails, which is the only way prose keeps up with a compiler.
- */
-export const MERGE_REFUSAL_TRIGGERS = {
-  'production-downstream':
-    'the target resolves to the branch that deploys, or one of the two cannot be read as a branch name at all',
-  'human-gate':
-    'the cluster carries a unit listed in `humanGates`, compared on a normalised identity'
-    + ' (case, surrounding space and one leading `#` folded), or an identity on either side'
-    + ' could not be read at all',
-  'base-unprotected':
-    'server-side protection of the base was not positively observed, and unknown counts as unprotected',
-  'sensitive-path':
-    'the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS`'
-    + ' (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed',
-  'union-unread': 'no reading ran, or the one that ran could not finish',
-  'union-contradicted':
-    'the reading found at least one blocking contradiction, or reports a refutation it names nothing for'
-    + ' (an advisory finding is carried over and does not stop the merge)',
-  'review-stale': 'the reading is about a tree the branch head has moved away from',
-} as const satisfies Readonly<Record<MergeRefusal, string>>;
-
 export type MergeGrant =
   | {
       readonly kind: 'granted';

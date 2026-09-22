@@ -1686,7 +1686,7 @@
       "type": "skill"
     },
     {
-      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.",
+      "description": "Use to run the continuous delivery loop, where a curator ranks the backlog, up to four workers each run void-implement to a PR, and a bounded review gates the GitHub merge queue until drained or stopped.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1703,7 +1703,7 @@
         }
       ],
       "id": "skill:void-autopilot",
-      "lines": 399,
+      "lines": 288,
       "name": "void-autopilot",
       "owner": "folpe",
       "pack": null,
@@ -1712,7 +1712,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-autopilot/SKILL.md",
-      "staticTokens": 6823,
+      "staticTokens": 4054,
       "type": "skill"
     },
     {
@@ -2204,7 +2204,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-implement/SKILL.md",
-      "staticTokens": 5498,
+      "staticTokens": 5527,
       "type": "skill"
     },
     {
