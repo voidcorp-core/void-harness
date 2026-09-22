@@ -52,7 +52,12 @@ export const GATES = Object.freeze([
     'contract',
     'subprocess',
     ['decisions', 'source'],
-    { ciEnv: { DECISIONS_BASE: '${{ github.event.pull_request.base.sha }}' } },
+    {
+      ciEnv: {
+        DECISIONS_BASE:
+          '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}',
+      },
+    },
   ),
   gate(
     'hook-runner-current',

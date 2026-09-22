@@ -14,6 +14,13 @@ on:
   pull_request:
     branches: [main, develop]
     types: [opened, synchronize, reopened, auto_merge_enabled, auto_merge_disabled]
+  # The merge queue on `develop` waits for its required checks on this event
+  # only. `enforce` then diffs the group commit against the group base, which
+  # the composite reads from the merge_group payload.
+  # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
+  merge_group:
+    types: [checks_requested]
+    branches: [develop]
   # release.yml dispatches this workflow on Release Please PRs so the same
   # doctrine floor required by branch protection runs before their merge.
   workflow_dispatch:
@@ -76,3 +83,35 @@ jobs:
       - uses: ./.github/actions/void-enforce
         with:
           base-ref: ${{ inputs.base-ref }}
+
+  # The verdict of the independent reviewer, required on `develop`. The reviewer
+  # posts a `void/independent-review` commit status on the head SHA it read; this
+  # job only verifies it, on the pull request head and, in the merge queue, on
+  # the head of every pull request the group contains. It lives beside `enforce`
+  # because both decide whether a change may merge, not whether it builds.
+  # A new push changes the head SHA and therefore demands a new verdict. After
+  # posting one, the reviewer re-runs this job: a status event triggers no run.
+  independent-review:
+    if: ${{ github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.base_ref == 'develop') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    steps:
+      # The verifier comes from the base branch, never from the change it
+      # judges: a pull request must not be able to rewrite its own gate.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          persist-credentials: false
+          sparse-checkout: scripts/independent-review-check.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Verify the review verdict on every head SHA about to merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/independent-review-check.mjs

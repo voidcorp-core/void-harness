@@ -7,6 +7,13 @@ on:
   # set on both branches — no reduced coverage on the autonomous side.
   pull_request:
     branches: [main, develop]
+  # The merge queue on `develop` replays the required checks on the combined
+  # result before merging, and waits for them on this event only. GITHUB_SHA is
+  # then the merge group commit, so every GATE_SHA below proves that commit.
+  # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
+  merge_group:
+    types: [checks_requested]
+    branches: [develop]
   push:
     branches: [main, develop]
   # Release Please uses GITHUB_TOKEN, so its PR events do not run unattended.
@@ -249,7 +256,7 @@ jobs:
       - name: "[decisions] Decision records"
         continue-on-error: true
         env:
-          DECISIONS_BASE: ${{ github.event.pull_request.base.sha }}
+          DECISIONS_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: >-
           node scripts/verify.mjs --gate decisions
           --sha "$GATE_SHA"
