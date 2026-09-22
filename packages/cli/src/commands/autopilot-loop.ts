@@ -11,7 +11,15 @@
 // by an explicit command: the stop signal, and one digest-only fingerprint per
 // ticket, recorded before its unit begins.
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { autopilotFailure } from '../lib/autopilot/errors.js';
 import { ticketIdSchema } from '../lib/autopilot/judgments.js';
@@ -81,6 +89,26 @@ function writeAtomically(path: string, text: string): void {
   const temporary = `${path}.tmp`;
   writeFileSync(temporary, text, 'utf8');
   renameSync(temporary, path);
+}
+
+/**
+ * Write a record that must never be replaced: the complete file is linked into
+ * place, and a link onto an existing path fails, so a second writer loses
+ * without ever exposing half a record. Returns false when one already exists.
+ */
+function writeOnce(path: string, text: string): boolean {
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, text, 'utf8');
+  try {
+    linkSync(temporary, path);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return false;
+    throw error;
+  } finally {
+    unlinkSync(temporary);
+  }
 }
 
 function fingerprintPath(root: string, ticket: string): string {
@@ -233,8 +261,8 @@ export function stopCommand(argv: readonly string[], context: LoopRunners): Loop
 /**
  * `autopilot fingerprint [--before <ticket> | --after <ticket>]`.
  *
- * Bare, it prints the current digests. `--before` records them for a ticket
- * whose unit is about to start. `--after` compares, and fails when the shared
+ * Bare, it prints the current digests. `--before` records them, once, for a
+ * ticket whose unit is about to start; a second record is refused. `--after` compares, and fails when the shared
  * state moved or was never recorded, so a worker can refuse its own push.
  */
 export function fingerprintCommand(
@@ -253,7 +281,15 @@ export function fingerprintCommand(
     );
   }
   if (before !== undefined) {
-    writeAtomically(fingerprintPath(context.root, before), `${JSON.stringify(current)}\n`);
+    const path = fingerprintPath(context.root, before);
+    if (!writeOnce(path, `${JSON.stringify(current)}\n`)) {
+      throw autopilotFailure(
+        'AUTOPILOT_CONTRACT',
+        `a baseline is already recorded for ${before}`,
+        'a second --before would replace the state the unit started from with the state it left',
+        'keep the recorded baseline; only a person who has checked the unit deletes it',
+      );
+    }
     return { value: { ticketId: before, recorded: current }, human: `recorded for ${before}\n` };
   }
   if (after === undefined) return { value: current, human: `${JSON.stringify(current)}\n` };

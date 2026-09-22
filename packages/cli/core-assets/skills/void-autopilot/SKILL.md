@@ -151,9 +151,11 @@ presentation shows the loop; it never grants a permission, a proof or a merge.
 
 **The fingerprint.** A worktree isolates the working tree, the index and `HEAD`, and nothing else:
 the local config, the stash, tags, notes and remotes are one set for every worktree. The baseline
-recorded at `assign` is compared by the worker before it pushes, with
-`autopilot fingerprint --after <ticket>`, and again by the kernel before it arms a merge. A changed
-or missing baseline sends the ticket to a human, unpublished.
+recorded at `assign` is written once: a second `--before` for the same ticket is refused, so a unit
+cannot re-record the state it left as the state it found. It is compared by the worker before it
+pushes, with `autopilot fingerprint --after <ticket>`, and again by the kernel before it arms a
+merge. A changed or missing baseline sends the ticket to a human, unpublished; only that person
+deletes the record.
 
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
 pull request link, the human-wait label); the rest comes from GitHub. After a restart -- an OS

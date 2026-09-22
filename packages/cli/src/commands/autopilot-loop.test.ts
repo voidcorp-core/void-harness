@@ -207,6 +207,18 @@ describe('autopilot fingerprint', () => {
     expect(after.stderr).toMatch(/remotes/);
   });
 
+  it('records a baseline once: a second --before cannot launder a change', () => {
+    const root = project();
+    expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
+    git(root, 'remote', 'add', 'mirror', 'https://example.test/m.git');
+    const again = runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
+    expect(again.exitCode).toBe(2);
+    expect(again.stderr).toMatch(/already recorded/);
+    const after = runAutopilotCommand(['fingerprint', '--after', 'DEV-1'], '', context(root));
+    expect(after.exitCode).toBe(2);
+    expect(after.stderr).toMatch(/remotes/);
+  });
+
   it('records digests, never the content they were taken from', () => {
     const root = project();
     git(root, 'remote', 'add', 'origin', 'https://token@example.test/r.git');
