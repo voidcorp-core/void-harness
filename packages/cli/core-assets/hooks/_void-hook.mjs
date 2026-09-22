@@ -508,8 +508,8 @@ function protectedReason(path, root) {
       return "delivered harness asset; change the harness through void-learn";
     }
   }
-  const normalized = path.replaceAll("\\", "/").toLowerCase();
-  const base = basename(normalized);
+  const normalized2 = path.replaceAll("\\", "/").toLowerCase();
+  const base = basename(normalized2);
   if (/^\.env(?:\..+)?$/.test(base) && !/\.(?:example|sample|template|dist)$/.test(base)) {
     return "environment file with secrets";
   }
@@ -530,7 +530,7 @@ function protectedReason(path, root) {
   ])).has(base)) {
     return "lockfile (regenerate via the package manager, do not hand-edit)";
   }
-  if (/(^|\/)\.git\//.test(normalized)) return "internal git metadata";
+  if (/(^|\/)\.git\//.test(normalized2)) return "internal git metadata";
   return void 0;
 }
 function protectedFile(paths, options = {}) {
@@ -544,52 +544,514 @@ function protectedFile(paths, options = {}) {
   return allow();
 }
 
+var COMMAND_CHARS_MAX = 256 * 1024;
+function expansionEnd(source2, index) {
+  const open2 = source2[index + 1];
+  const close = open2 === "(" ? ")" : open2 === "{" ? "}" : void 0;
+  if (close === void 0) {
+    const name = /^[A-Za-z_][A-Za-z0-9_]*|^[0-9@*#?$!-]/.exec(source2.slice(index + 1));
+    return index + (name?.[0].length ?? 0);
+  }
+  let depth = 0;
+  for (let at = index + 1; at < source2.length; at += 1) {
+    if (source2[at] === open2) depth += 1;
+    if (source2[at] === close) depth -= 1;
+    if (depth === 0) return at;
+  }
+  return source2.length - 1;
+}
+function closingQuote(source2, index) {
+  const quote = source2[index];
+  for (let at = index + 1; at < source2.length; at += 1) {
+    if (source2[at] === "\\") at += 1;
+    else if (source2[at] === quote) return at;
+  }
+  return source2.length - 1;
+}
+var Splitter = class {
+  commands = [];
+  current = { words: [], stdin: { kind: "none" } };
+  text = "";
+  dynamic = false;
+  quoted = false;
+  started = false;
+  redirect;
+  heredocs = [];
+  source;
+  constructor(source2) {
+    this.source = source2;
+  }
+  split() {
+    const source2 = this.source;
+    let at = 0;
+    while (at < source2.length) at = this.step(at);
+    this.endWord();
+    this.endCommand("none");
+    return this.commands;
+  }
+  step(at) {
+    const source2 = this.source;
+    const char = source2[at] ?? "";
+    if (char === "\\") {
+      this.quoted = true;
+      if (source2[at + 1] !== "\n") this.append(source2[at + 1] ?? "");
+      return at + 2;
+    }
+    if (char === "'") {
+      this.quoted = true;
+      const close = source2.indexOf("'", at + 1);
+      const end = close === -1 ? source2.length : close;
+      this.append(source2.slice(at + 1, end));
+      return end + 1;
+    }
+    if (char === '"') return this.doubleQuoted(at + 1);
+    if (char === "$" || char === "`") return this.expansion(at);
+    if (char === " " || char === "	") {
+      this.endWord();
+      return at + 1;
+    }
+    if (char === "\n") {
+      this.endWord();
+      this.endCommand("none");
+      return this.readHeredocs(at + 1);
+    }
+    if (char === ";" || char === "&" || char === "|" || char === "(" || char === ")") {
+      return this.operator(at);
+    }
+    if (char === "<" || char === ">") return this.redirection(at);
+    this.append(char);
+    return at + 1;
+  }
+  doubleQuoted(start) {
+    const source2 = this.source;
+    let at = start;
+    this.started = true;
+    this.quoted = true;
+    while (at < source2.length && source2[at] !== '"') {
+      const char = source2[at] ?? "";
+      if (char === "\\" && '"$`\\'.includes(source2[at + 1] ?? "")) {
+        this.append(source2[at + 1] ?? "");
+        at += 2;
+      } else if (char === "$" || char === "`") {
+        at = this.expansion(at);
+      } else {
+        this.append(char);
+        at += 1;
+      }
+    }
+    return at + 1;
+  }
+  expansion(at) {
+    const source2 = this.source;
+    const last = source2[at] === "`" || source2[at + 1] === "'" ? closingQuote(source2, at + (source2[at] === "`" ? 0 : 1)) : expansionEnd(source2, at);
+    this.append(source2.slice(at, last + 1));
+    if (last > at) this.dynamic = true;
+    return last + 1;
+  }
+  operator(at) {
+    const source2 = this.source;
+    const char = source2[at];
+    const next = source2[at + 1];
+    this.endWord();
+    if (char === "|" && next !== "|") {
+      this.endCommand("pipe");
+      return at + (next === "&" ? 2 : 1);
+    }
+    this.endCommand("none");
+    return at + (next === char ? 2 : 1);
+  }
+  redirection(at) {
+    const source2 = this.source;
+    if (/^[0-9]+$/.test(this.text) && !this.dynamic && !this.quoted) {
+      this.text = "";
+      this.started = false;
+    }
+    this.endWord();
+    if (source2.startsWith("<<<", at)) {
+      this.redirect = "here-string";
+      return at + 3;
+    }
+    if (source2.startsWith("<<", at)) {
+      this.redirect = "heredoc";
+      return at + (source2[at + 2] === "-" ? 3 : 2);
+    }
+    this.redirect = source2[at] === "<" ? "in" : "out";
+    let end = at + 1;
+    while (">&|".includes(source2[end] ?? " ")) end += 1;
+    return end;
+  }
+  readHeredocs(start) {
+    const source2 = this.source;
+    let at = start;
+    for (const pending of this.heredocs.splice(0)) {
+      const lines = [];
+      while (at < source2.length) {
+        const newline = source2.indexOf("\n", at);
+        const end = newline === -1 ? source2.length : newline;
+        const line = source2.slice(at, end);
+        at = end + 1;
+        if (line.replace(/^\t+/, "") === pending.delimiter) break;
+        lines.push(line);
+      }
+      const body = lines.join("\n");
+      const dynamic = !pending.quoted && /[$`]/.test(body);
+      pending.command.stdin = { kind: "text", word: { text: body, dynamic } };
+    }
+    return at;
+  }
+  append(text2) {
+    this.text += text2;
+    this.started = true;
+  }
+  endWord() {
+    if (!this.started) return;
+    const word = { text: this.text, dynamic: this.dynamic };
+    const redirect = this.redirect;
+    const quoted = this.quoted;
+    this.text = "";
+    this.dynamic = false;
+    this.quoted = false;
+    this.started = false;
+    this.redirect = void 0;
+    if (redirect === "out") return;
+    if (redirect === "in") this.current.stdin = { kind: "file", word };
+    else if (redirect === "here-string") this.current.stdin = { kind: "text", word };
+    else if (redirect === "heredoc") {
+      this.heredocs.push({ delimiter: word.text, quoted, command: this.current });
+    } else this.current.words.push(word);
+  }
+  endCommand(next) {
+    if (this.current.words.length > 0) this.commands.push(this.current);
+    this.current = { words: [], stdin: next === "pipe" ? { kind: "pipe" } : { kind: "none" } };
+  }
+};
+function shellCommands(source2) {
+  if (source2.length > COMMAND_CHARS_MAX) return void 0;
+  return new Splitter(source2).split();
+}
+
 var STATUS_CONTEXT = "void/independent-review";
 var VERDICT_MARKER = "void-autopilot:review-verdict";
-var API_CLIENT = /\b(?:gh\s+api|curl)\b/;
-var STATUS_ENDPOINT = /\/statuses\/[^\s/'"]/;
-var WRITES = /(?:^|\s)(?:-[fFdX]|--(?:field|raw-field|input|method|request|data[a-z-]*|json))(?:[\s=]|$)/;
-var COMMENT_WRITE = [
-  /\bgh\s+(?:pr|issue)\s+comment\b/,
-  /\bgh\s+api\b[^\n]*\/comments\b/,
-  /\bgh\s+api\s+graphql\b[^\n]*\baddComment\b/,
-  /\bcurl\b[^\n]*\/comments\b/
-];
-var FILE_FLAGS = /* @__PURE__ */ new Set(["--body-file", "-F", "--input", "<", "cat"]);
-function unquote2(text2) {
-  return text2.replaceAll('"', "").replaceAll("'", "");
+var STATUS_WHAT = `a ${STATUS_CONTEXT} status written by hand`;
+var COMMENT_WHAT = "a review verdict comment posted by hand";
+var GH_API = {
+  long: /* @__PURE__ */ new Set([
+    "field",
+    "raw-field",
+    "input",
+    "method",
+    "header",
+    "jq",
+    "template",
+    "preview",
+    "hostname",
+    "cache"
+  ]),
+  short: /* @__PURE__ */ new Set(["f", "F", "X", "H", "q", "t", "p"])
+};
+var GH_COMMENT = {
+  long: /* @__PURE__ */ new Set(["body", "body-file", "repo"]),
+  short: /* @__PURE__ */ new Set(["b", "F", "R"])
+};
+var CURL = {
+  long: /* @__PURE__ */ new Set([
+    "data",
+    "data-raw",
+    "data-binary",
+    "data-ascii",
+    "data-urlencode",
+    "json",
+    "form",
+    "form-string",
+    "request",
+    "header",
+    "output",
+    "user",
+    "upload-file",
+    "url",
+    "cookie",
+    "cookie-jar",
+    "user-agent",
+    "referer",
+    "config",
+    "write-out",
+    "proxy",
+    "max-time",
+    "connect-timeout",
+    "retry",
+    "output-dir",
+    "variable"
+  ]),
+  short: /* @__PURE__ */ new Set([
+    "d",
+    "F",
+    "X",
+    "H",
+    "o",
+    "u",
+    "T",
+    "b",
+    "c",
+    "A",
+    "e",
+    "K",
+    "w",
+    "x",
+    "m",
+    "r",
+    "C",
+    "U",
+    "Y",
+    "y",
+    "z",
+    "E"
+  ])
+};
+var CURL_PAYLOAD = /* @__PURE__ */ new Set([
+  "d",
+  "data",
+  "data-raw",
+  "data-binary",
+  "data-ascii",
+  "data-urlencode",
+  "json",
+  "F",
+  "form",
+  "form-string",
+  "T",
+  "upload-file"
+]);
+var SHELLS = /* @__PURE__ */ new Set(["sh", "bash", "zsh", "dash", "ksh"]);
+var WRAPPERS = /* @__PURE__ */ new Set(["env", "command", "exec", "nohup", "time", "sudo", "builtin", "nice"]);
+var ALL_TARGETS = ["status", "comment", "graphql"];
+var NESTING_MAX = 4;
+var unknown = (reason) => ({ unknown: reason });
+var isDynamic = (text2) => /[$`]/.test(text2);
+var decoded = (hex) => String.fromCharCode(Number.parseInt(hex, 16));
+function normalized(text2) {
+  return text2.replace(/\\u([0-9a-fA-F]{4})/g, (_all, hex) => decoded(hex)).replace(/%([0-9a-fA-F]{2})/g, (_all, hex) => decoded(hex)).replaceAll("\\", "").replaceAll('"', "").replaceAll("'", "");
 }
-function sentFiles(command) {
-  const words = unquote2(command).split(/\s+/).filter(Boolean);
-  return words.flatMap((word, index) => {
-    const previous = words[index - 1];
-    if (previous !== void 0 && FILE_FLAGS.has(previous) && !word.includes("=")) return [word];
-    const reference = /(?:^|=)@(.+)$/.exec(word)?.[1];
-    return reference === void 0 ? [] : [reference];
-  }).filter((path) => path !== "-");
-}
-function carries(command, needle, read) {
-  if (unquote2(command).includes(needle)) return true;
-  return sentFiles(command).some((path) => read(path)?.includes(needle) === true);
-}
-function violation2(command, read) {
-  const text2 = unquote2(command);
-  const statusWrite = API_CLIENT.test(text2) && STATUS_ENDPOINT.test(text2) && WRITES.test(text2);
-  if (statusWrite && carries(command, STATUS_CONTEXT, read)) {
-    return `a ${STATUS_CONTEXT} status written by hand`;
+function parseOptions(words, spec) {
+  const options = [];
+  const positionals = [];
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    const { text: text2 } = word;
+    if (text2 === "--") {
+      positionals.push(...words.slice(index + 1));
+      break;
+    }
+    if (text2.startsWith("--")) {
+      const equals = text2.indexOf("=");
+      const name = equals === -1 ? text2.slice(2) : text2.slice(2, equals);
+      if (equals !== -1) {
+        options.push({ name, value: { text: text2.slice(equals + 1), dynamic: word.dynamic } });
+      } else if (spec.long.has(name)) {
+        index += 1;
+        options.push(withValue(name, words[index]));
+      } else options.push({ name });
+    } else if (text2.startsWith("-") && text2.length > 1) {
+      index = shortOptions(words, index, spec, options);
+    } else positionals.push(word);
   }
-  const commentWrite = COMMENT_WRITE.some((pattern) => pattern.test(text2));
-  if (commentWrite && carries(command, VERDICT_MARKER, read)) {
-    return "a review verdict comment posted by hand";
+  return { options, positionals };
+}
+var withValue = (name, value) => value === void 0 ? { name } : { name, value };
+function shortOptions(words, index, spec, options) {
+  const word = words[index];
+  for (let at = 1; at < word.text.length; at += 1) {
+    const name = word.text[at];
+    if (!spec.short.has(name)) {
+      options.push({ name });
+      continue;
+    }
+    const rest = word.text.slice(at + 1);
+    if (rest !== "") {
+      options.push({ name, value: { text: rest, dynamic: word.dynamic } });
+      return index;
+    }
+    options.push(withValue(name, words[index + 1]));
+    return index + 1;
+  }
+  return index;
+}
+function stdinContent(stdin, read) {
+  if (stdin.kind === "text") {
+    return stdin.word.dynamic ? unknown("input built at run time") : { text: stdin.word.text };
+  }
+  if (stdin.kind === "file") return fileContent(stdin.word, stdin, read);
+  return unknown(stdin.kind === "pipe" ? "input piped from another command" : "no input given");
+}
+function fileContent(path, stdin, read) {
+  if (path.text === "-") return stdinContent(stdin, read);
+  if (path.dynamic && isDynamic(path.text)) return unknown(`a file named at run time (${path.text})`);
+  const text2 = read(path.text);
+  return text2 === void 0 ? unknown(`a file that cannot be read (${path.text})`) : { text: text2 };
+}
+function valueContent(value, files, stdin, read) {
+  if (value === void 0) return unknown("a flag without its value");
+  if (files && value.text.startsWith("@")) {
+    return fileContent({ text: value.text.slice(1), dynamic: value.dynamic }, stdin, read);
+  }
+  return value.dynamic && isDynamic(value.text) ? unknown(`a value built at run time (${value.text})`) : { text: value.text };
+}
+function judge(pieces, needle, what) {
+  for (const piece of pieces) {
+    if ("text" in piece && normalized(piece.text).includes(needle)) {
+      return { kind: "forged", evidence: what };
+    }
+  }
+  for (const piece of pieces) {
+    if ("unknown" in piece) {
+      return { kind: "unknown", evidence: `${what}, unreadable before it runs: ${piece.unknown}` };
+    }
+  }
+  return void 0;
+}
+function targetsOf(endpoint) {
+  if (endpoint.dynamic && isDynamic(endpoint.text)) return [...ALL_TARGETS];
+  const text2 = normalized(endpoint.text);
+  const targets = [];
+  if (/(?:^|\/)statuses\//.test(text2)) targets.push("status");
+  if (/\/comments\b/.test(text2)) targets.push("comment");
+  if (text2 === "graphql" || /\/graphql\b/.test(text2)) targets.push("graphql");
+  return targets;
+}
+function ghFields(options, stdin, read) {
+  return options.flatMap((option) => {
+    const typed = option.name === "F" || option.name === "field";
+    if (!typed && option.name !== "f" && option.name !== "raw-field") return [];
+    const text2 = option.value?.text ?? "";
+    const dynamic = option.value?.dynamic === true;
+    const equals = text2.indexOf("=");
+    const key = equals === -1 ? text2 : text2.slice(0, equals);
+    if (equals === -1 || dynamic && isDynamic(key)) {
+      return [{ key: void 0, value: unknown(`a field built at run time (${text2})`) }];
+    }
+    const value = { text: text2.slice(equals + 1), dynamic };
+    return [{ key, value: valueContent(value, typed, stdin, read) }];
+  });
+}
+function graphql(fields, inputs) {
+  const every = judge([...fields.map((f) => f.value), ...inputs], VERDICT_MARKER, COMMENT_WHAT);
+  if (every?.kind === "forged") return every;
+  const query = [
+    ...fields.filter((f) => f.key === "query" || f.key === void 0).map((f) => f.value),
+    ...inputs
+  ];
+  const unreadQuery = judge(query, VERDICT_MARKER, COMMENT_WHAT);
+  if (unreadQuery !== void 0) return unreadQuery;
+  const mutation = query.some((piece) => "text" in piece && /\bmutation\b/.test(piece.text));
+  return mutation ? every : void 0;
+}
+function ghApi(words, stdin, read) {
+  const { options, positionals } = parseOptions(words, GH_API);
+  const method = options.filter((o) => o.name === "X" || o.name === "method").at(-1)?.value;
+  const fields = ghFields(options, stdin, read);
+  const inputs = options.filter((o) => o.name === "input").map((o) => o.value === void 0 ? unknown("--input alone") : fileContent(o.value, stdin, read));
+  const readOnly = method !== void 0 && !method.dynamic && /^(?:GET|HEAD)$/i.test(method.text);
+  const writes = fields.length > 0 || inputs.length > 0 || method !== void 0;
+  if (!writes || readOnly) return void 0;
+  const [endpoint] = positionals;
+  const targets = positionals.length > 1 ? [...ALL_TARGETS] : endpoint ? targetsOf(endpoint) : [];
+  const keyed = (key) => fields.filter((f) => f.key === void 0 || f.key === key).map((f) => f.value);
+  for (const target of targets) {
+    const finding = target === "status" ? judge([...keyed("context"), ...inputs], STATUS_CONTEXT, STATUS_WHAT) : target === "comment" ? judge([...keyed("body"), ...inputs], VERDICT_MARKER, COMMENT_WHAT) : graphql(fields, inputs);
+    if (finding !== void 0) return finding;
+  }
+  return void 0;
+}
+function ghComment(words, stdin, read) {
+  const { options } = parseOptions(words, GH_COMMENT);
+  const bodies = options.flatMap((option) => {
+    if (option.name === "b" || option.name === "body") {
+      return [valueContent(option.value, false, stdin, read)];
+    }
+    if (option.name !== "F" && option.name !== "body-file") return [];
+    return [option.value === void 0 ? unknown("--body-file alone") : fileContent(option.value, stdin, read)];
+  });
+  return judge(bodies, VERDICT_MARKER, COMMENT_WHAT);
+}
+function curlFile(name, text2) {
+  if (name === "F" || name === "form") return /^[^=]*=[@<]([^;]+)/.exec(text2)?.[1];
+  if (name === "T" || name === "upload-file") return text2;
+  if (name === "data-urlencode") return /^[^=@]*@(.+)$/.exec(text2)?.[1];
+  if (name === "data-raw" || name === "form-string") return void 0;
+  return text2.startsWith("@") ? text2.slice(1) : void 0;
+}
+function curl(words, stdin, read) {
+  const { options, positionals } = parseOptions(words, CURL);
+  const urls = [...positionals, ...options.flatMap((o) => o.name === "url" && o.value ? [o.value] : [])];
+  const method = options.filter((o) => o.name === "X" || o.name === "request").at(-1)?.value;
+  const payload = options.filter((o) => CURL_PAYLOAD.has(o.name)).map((o) => {
+    const file = o.value === void 0 ? void 0 : curlFile(o.name, o.value.text);
+    return file === void 0 || o.value === void 0 ? valueContent(o.value, false, stdin, read) : fileContent({ text: file, dynamic: o.value.dynamic }, stdin, read);
+  });
+  const config = options.some((o) => o.name === "K" || o.name === "config");
+  const pieces = [...payload, ...config ? [unknown("a curl config file")] : []];
+  const readOnly = method !== void 0 && !method.dynamic && /^GET$/i.test(method.text);
+  if (readOnly || pieces.length === 0 && method === void 0) return void 0;
+  for (const target of new Set(urls.flatMap(targetsOf))) {
+    const finding = target === "status" ? judge(pieces, STATUS_CONTEXT, STATUS_WHAT) : judge(pieces, VERDICT_MARKER, COMMENT_WHAT);
+    if (finding !== void 0) return finding;
+  }
+  return void 0;
+}
+function unwrap(words) {
+  let rest = [...words];
+  while (rest.length > 0) {
+    const first = rest[0];
+    const name = first.text.split("/").at(-1) ?? "";
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first.text)) rest = rest.slice(1);
+    else if (WRAPPERS.has(name)) {
+      rest = rest.slice(1);
+      while (rest[0]?.text.startsWith("-") === true) rest = rest.slice(rest[0].text === "-u" ? 2 : 1);
+    } else if (name === "timeout") rest = rest.slice(2);
+    else if (name === "xargs") {
+      rest = rest.slice(1);
+      while (rest[0]?.text.startsWith("-") === true) rest = rest.slice(1);
+      return [...rest, { text: "$XARGS", dynamic: true }];
+    } else break;
+  }
+  return rest;
+}
+function inspect(command, read, depth) {
+  const [program, ...args] = unwrap(command.words);
+  if (program === void 0) return void 0;
+  if (depth > 0 && program.dynamic && isDynamic(program.text)) {
+    const evidence = `a nested command whose program is decided at run time (${program.text})`;
+    return { kind: "unknown", evidence };
+  }
+  const name = program.text.split("/").at(-1) ?? "";
+  if (name === "eval") return inspectLine(args.map((w) => w.text).join(" "), read, depth + 1);
+  if (SHELLS.has(name)) {
+    const flag = args.findIndex((w) => /^-[a-z]*c[a-z]*$/.test(w.text));
+    const script = flag === -1 ? void 0 : args[flag + 1];
+    return script === void 0 ? void 0 : inspectLine(script.text, read, depth + 1);
+  }
+  if (name === "curl") return curl(args, command.stdin, read);
+  if (name !== "gh") return void 0;
+  const [sub, verb, ...rest] = args;
+  if (sub?.text === "api") return ghApi(args.slice(1), command.stdin, read);
+  const commenting = (sub?.text === "pr" || sub?.text === "issue") && verb?.text === "comment";
+  return commenting ? ghComment(rest, command.stdin, read) : void 0;
+}
+function inspectLine(line, read, depth) {
+  if (depth > NESTING_MAX) return { kind: "unknown", evidence: "a command nested too deep to read" };
+  const commands = shellCommands(line);
+  if (commands === void 0) return { kind: "unknown", evidence: "a command too long to read" };
+  for (const command of commands) {
+    const finding = inspect(command, read, depth);
+    if (finding !== void 0) return finding;
   }
   return void 0;
 }
 function reviewVerdictWrite(command, read) {
-  const evidence = violation2(command, read);
-  return evidence === void 0 ? allow() : block(
+  const finding = inspectLine(command, read, 0);
+  return finding === void 0 ? allow() : block(
     "REVIEW_VERDICT_WRITE",
     "refusing to write the review verdict by hand; pipe it into `void-harness autopilot verdict --pr <number>`, which binds it to the head and writes the comment and the status together",
-    [evidence]
+    [finding.evidence]
   );
 }
 
@@ -780,7 +1242,7 @@ function testName(edits) {
 
 var REDIRECTION = /(?:^|\s)(?:\d*|&)>{1,2}\s*("[^"]*"|'[^']*'|[^\s;|&<>]+)/g;
 var TEE = /(?:^|[\s|])tee\s+(?:-a\s+)?("[^"]*"|'[^']*'|[^\s;|&<>-][^\s;|&<>]*)/g;
-function unquote3(target) {
+function unquote2(target) {
   const quoted = /^(["'])(.*)\1$/.exec(target);
   return quoted?.[2] ?? target;
 }
@@ -790,7 +1252,7 @@ function shellWriteTargets(command) {
     for (const match of command.matchAll(pattern)) {
       const target = match[1];
       if (target === void 0) continue;
-      const path = unquote3(target);
+      const path = unquote2(target);
       if (path !== "") targets.add(path);
     }
   }

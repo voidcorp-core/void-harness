@@ -242,7 +242,10 @@ describe('evaluateRule', () => {
     const post = (command: string) =>
       evaluateRule('review-verdict-write', { tool_name: 'Bash', tool_input: { command } }, { root });
     expect(post('gh pr comment 3 --body-file verdict.md').allow).toBe(false);
-    expect(post('gh pr comment 3 --body-file absent.md').allow).toBe(true);
+    // A body the hook cannot read before the comment is posted is refused, not trusted.
+    expect(post('gh pr comment 3 --body-file absent.md').allow).toBe(false);
+    write(root, 'notes.md', 'Looks fine.\n');
+    expect(post('gh pr comment 3 --body-file notes.md').allow).toBe(true);
     const edit = evaluateRule('review-verdict-write', {
       tool_name: 'Write',
       tool_input: { file_path: 'verdict.md', content: 'gh pr comment 3 --body-file verdict.md' },

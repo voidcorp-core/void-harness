@@ -60,7 +60,17 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   a shell command that writes a `void/independent-review` status (`gh api` or
   curl to `/statuses/`) or posts a comment carrying the verdict block (`gh pr
   comment`, `gh issue comment`, the REST and GraphQL comment endpoints, a body
-  sent from a file), and names `autopilot verdict` instead.
+  sent from a file), and names `autopilot verdict` instead. It reads the words
+  the program receives, not the characters typed: quotes and escapes removed,
+  glued flags (`-fcontext=...`) and `--flag=value` split, `sh -c` and `eval`
+  read again, JSON and URL escapes undone in the payload. A status whose context
+  or a comment whose body it cannot read before the command runs (a variable, a
+  command substitution, a pipe, a file it cannot open, an endpoint decided at
+  run time) is refused too.
+- The hook runs from the installed bundle in `.void/hooks/`, which carries the
+  published harness. In this repository it is active only once a release ships
+  it and `void-harness init` reinstalls it; until then the loop's agreement rule
+  is the only check on a hand-written verdict.
 - The job finds the group from the queue itself: the `head_ref` of the event
   (`gh-readonly-queue/<base>/pr-<n>-<sha>`) names the last pull request, and the
   GraphQL `mergeQueue` entries are followed through their `baseCommit` down to
@@ -144,9 +154,16 @@ Negative:
 - **The verdict protections guard against a mistake and an injected
   instruction, not against a malicious actor holding the credentials.** Any
   identity with write access to statuses and comments can still post both
-  through the API; the hook is a string match a program can step around, and
-  the loop's agreement rule only stops a comment and a status that disagree.
-  Binding the verdict to a dedicated identity was considered and not taken.
+  through the API; the hook reads `gh` and curl commands, and a script or
+  another HTTP client reaches the API unseen; the loop's agreement rule only
+  stops a comment and a status that disagree. Binding the verdict to a
+  dedicated identity was considered and not taken.
+- Nothing stops a worker from running `autopilot verdict` on its own pull
+  request. Refusing it without a dedicated identity was considered: the
+  reviewer is the independent pass the worker itself convenes, so both share a
+  session, a user and the gh credentials, and any identifier the command could
+  compare would be declared by its caller. A check built on it would prove
+  nothing and would refuse the legitimate path.
 - The back-merge exemption trusts the author of the pull request, not of its
   commits: anyone able to push to `chore/back-merge-main` adds commits the
   exemption then passes unread. Branch protection on that branch, or a check

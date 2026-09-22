@@ -16519,6 +16519,13 @@ var ROOT_TARGETS = /* @__PURE__ */ new Set([
   "*"
 ]);
 
+// ../hook-runner/src/enforcement/shell-words.ts
+var COMMAND_CHARS_MAX = 256 * 1024;
+
+// ../hook-runner/src/rules/review-verdict-write.ts
+var STATUS_CONTEXT = "void/independent-review";
+var STATUS_WHAT = `a ${STATUS_CONTEXT} status written by hand`;
+
 // ../hook-runner/src/enforcement/normalize.ts
 var MAX_FIELD_BYTES = 1024 * 1024;
 

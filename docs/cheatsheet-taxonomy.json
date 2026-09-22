@@ -89,7 +89,7 @@
         "protect-sensitive-files": "Refuses edits to secrets, keys, lockfiles and other single-writer paths.",
         "control-character-grep": "Refuses an invisible control byte in a source file, which no diff shows and which drops the file out of the project graph entirely.",
         "secret-in-content": "Refuses a write whose content carries a credential, even into an unprotected file.",
-        "review-verdict-write": "Refuses a review verdict status or comment written by hand, so autopilot verdict stays its only writer."
+        "review-verdict-write": "Refuses a review verdict status or comment written by hand, or one it cannot read before it runs, so autopilot verdict stays its only writer."
       }
     },
     {
