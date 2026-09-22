@@ -45,9 +45,9 @@ export function renderJudgmentComment(kind: JudgmentKind, value: unknown): strin
 
 function blockPattern(kind: JudgmentKind): RegExp {
   // The markers are fixed ASCII, so escaping only the regex specials they hold suffices.
-  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
   return new RegExp(
-    `${escape(opening(kind))}\\s*\`\`\`json\\n([\\s\\S]*?)\\n\`\`\`\\s*${escape(closing(kind))}`,
+    `${literal(opening(kind))}\\s*\`\`\`json\\n([\\s\\S]*?)\\n\`\`\`\\s*${literal(closing(kind))}`,
     'g',
   );
 }
