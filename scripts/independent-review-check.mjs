@@ -10,6 +10,12 @@
 //
 // Every doubt fails: an unknown event, a malformed ref, an API error, an entry
 // missing from the queue. A missing verdict is never read as approval.
+//
+// One pull request needs no verdict: the release back-merge (back-merge.yml),
+// which carries only the release output a person approved by merging the
+// release pull request. It is recognised by what GitHub reports and a pull
+// request cannot choose: opened by the release App's bot account, matched by
+// its numeric id, from `chore/back-merge-main` in this repository into develop.
 // Refs: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
 // https://docs.github.com/en/graphql/reference/objects#mergequeueentry
 // https://docs.github.com/en/graphql/reference/objects#status
@@ -19,6 +25,17 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export const VERDICT_CONTEXT = 'void/independent-review';
+
+// Observed on every back-merge so far (#287 to #379). The login carries the
+// `[bot]` suffix only in REST, which a user account cannot register.
+const BACK_MERGE = {
+  repository: 'voidcorp-core/void-harness',
+  head: 'chore/back-merge-main',
+  base: 'develop',
+  botId: 311374965,
+  restLogin: 'voidcorp-release[bot]',
+  graphqlLogin: 'voidcorp-release',
+};
 
 // A queue holds at most 100 entries per page; a longer queue is refused rather
 // than paged, because a truncated walk could miss a pull request of the group.
@@ -42,7 +59,13 @@ const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!, $q
     mergeQueue(branch: $branch) {
       entries(first: ${QUEUE_PAGE_SIZE}) {
         totalCount
-        nodes { headCommit { oid } baseCommit { oid } pullRequest { number headRefOid } }
+        nodes {
+          headCommit { oid } baseCommit { oid }
+          pullRequest {
+            number headRefOid headRefName baseRefName isCrossRepository
+            author { __typename login ... on Bot { databaseId } }
+          }
+        }
       }
     }
     ref(qualifiedName: $qualified) { target { oid } }
@@ -116,18 +139,45 @@ async function requireVerdict(graphql, coordinates, pull) {
   if (state !== 'SUCCESS') fail(`${label}: ${VERDICT_CONTEXT} verdict is ${state}`);
 }
 
-function readEntry(node) {
-  const number = field(field(node, 'pullRequest'), 'number');
+/** The back-merge, from the queue's GraphQL view of a pull request. */
+function queuedBackMerge(pull, repository) {
+  const author = field(pull, 'author');
+  return repository === BACK_MERGE.repository
+    && field(pull, 'headRefName') === BACK_MERGE.head
+    && field(pull, 'baseRefName') === BACK_MERGE.base
+    && field(pull, 'isCrossRepository') === false
+    && field(author, '__typename') === 'Bot'
+    && field(author, 'login') === BACK_MERGE.graphqlLogin
+    && field(author, 'databaseId') === BACK_MERGE.botId;
+}
+
+/** The back-merge, from the REST view a `pull_request` event carries. */
+function eventBackMerge(pull, repository) {
+  const user = field(pull, 'user');
+  return repository === BACK_MERGE.repository
+    && field(field(pull, 'head'), 'ref') === BACK_MERGE.head
+    && field(field(field(pull, 'head'), 'repo'), 'full_name') === BACK_MERGE.repository
+    && field(field(pull, 'base'), 'ref') === BACK_MERGE.base
+    && field(user, 'type') === 'Bot'
+    && field(user, 'login') === BACK_MERGE.restLogin
+    && field(user, 'id') === BACK_MERGE.botId;
+}
+
+function readEntry(node, repository) {
+  const pull = field(node, 'pullRequest');
+  const number = field(pull, 'number');
   if (!Number.isInteger(number)) fail('merge queue entry has no pull request number');
   return {
     number,
     head: field(field(node, 'headCommit'), 'oid'),
     base: field(field(node, 'baseCommit'), 'oid'),
-    sha: requireSha(field(field(node, 'pullRequest'), 'headRefOid'), `#${number} head`),
+    sha: requireSha(field(pull, 'headRefOid'), `#${number} head`),
+    exempt: queuedBackMerge(pull, repository),
   };
 }
 
 async function queueEntries(graphql, coordinates, branch) {
+  const nameWithOwner = `${coordinates.owner}/${coordinates.name}`;
   const variables = { ...coordinates, branch, qualified: `refs/heads/${branch}` };
   const repository = await query(graphql, QUEUE_QUERY, variables);
   const entries = field(field(repository, 'mergeQueue'), 'entries');
@@ -137,7 +187,7 @@ async function queueEntries(graphql, coordinates, branch) {
     fail(`${branch} merge queue exceeds ${QUEUE_PAGE_SIZE} entries`);
   }
   const branchHead = requireSha(field(field(field(repository, 'ref'), 'target'), 'oid'), branch);
-  return { entries: nodes.map(readEntry), branchHead };
+  return { entries: nodes.map((node) => readEntry(node, nameWithOwner)), branchHead };
 }
 
 // The group commit of an entry is built on the group commit of the entry ahead
@@ -176,25 +226,26 @@ async function mergeGroupPulls(event, graphql, coordinates) {
   if (pulls[0].number !== queued.number) {
     fail(`queue ref names #${queued.number} but the queue entry is #${pulls[0].number}`);
   }
-  return pulls.map(({ number, sha }) => ({ number, sha }));
+  return pulls.map(({ number, sha, exempt }) => ({ number, sha, exempt }));
 }
 
-function pullRequestPulls(event) {
+function pullRequestPulls(event, repository) {
   const pull = field(event, 'pull_request');
   const number = field(pull, 'number');
   if (!Number.isInteger(number)) fail('pull request event has no number');
   const sha = requireSha(field(field(pull, 'head'), 'sha'), 'pull request head SHA');
-  return [{ number, sha }];
+  return [{ number, sha, exempt: eventBackMerge(pull, repository) }];
 }
 
 export async function checkIndependentReview({ eventName, event, repository, graphql }) {
   const coordinates = splitRepository(repository);
   let pulls = [];
-  if (eventName === 'pull_request') pulls = pullRequestPulls(event);
+  if (eventName === 'pull_request') pulls = pullRequestPulls(event, repository);
   else if (eventName === 'merge_group') pulls = await mergeGroupPulls(event, graphql, coordinates);
   else fail(`unsupported event ${String(eventName)}`);
-  for (const pull of pulls) await requireVerdict(graphql, coordinates, pull);
-  return pulls;
+  for (const pull of pulls) if (!pull.exempt) await requireVerdict(graphql, coordinates, pull);
+  return pulls.map(({ number, sha, exempt }) =>
+    exempt ? { number, sha, exempt: 'back-merge' } : { number, sha });
 }
 
 function ghGraphql(text, variables) {
@@ -213,7 +264,8 @@ async function main() {
     graphql: async (text, variables) => ghGraphql(text, variables),
   });
   for (const pull of pulls) {
-    process.stdout.write(`independent-review: #${pull.number} ${pull.sha} approved\n`);
+    const outcome = pull.exempt === undefined ? 'approved' : `exempt (${pull.exempt})`;
+    process.stdout.write(`independent-review: #${pull.number} ${pull.sha} ${outcome}\n`);
   }
 }
 

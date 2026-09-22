@@ -92,6 +92,8 @@ jobs:
   # because both decide whether a change may merge, not whether it builds.
   # A new push changes the head SHA and therefore demands a new verdict. After
   # posting one, the reviewer re-runs this job: a status event triggers no run.
+  # The release back-merge alone needs none; the script recognises it by its
+  # bot author's id, branch and base, which no pull request can choose.
   independent-review:
     if: ${{ github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.base_ref == 'develop') }}
     runs-on: ubuntu-latest

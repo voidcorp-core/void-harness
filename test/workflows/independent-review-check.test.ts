@@ -19,7 +19,26 @@ interface QueueEntry {
   readonly head: string;
   readonly base: string;
   readonly prHead: string;
+  /** Who opened the pull request and from where; a person's work branch unless given. */
+  readonly pull?: Readonly<Record<string, unknown>>;
 }
+
+// The back-merge as GitHub reports it, observed live on #379: REST in the
+// `pull_request` event payload, GraphQL in the merge queue.
+const BACK_MERGE_USER = { login: 'voidcorp-release[bot]', id: 311374965, type: 'Bot' };
+const BACK_MERGE_AUTHOR = { __typename: 'Bot', login: 'voidcorp-release', databaseId: 311374965 };
+const backMergePull = {
+  headRefName: 'chore/back-merge-main',
+  baseRefName: 'develop',
+  isCrossRepository: false,
+  author: BACK_MERGE_AUTHOR,
+};
+const workPull = {
+  headRefName: 'work/dev-42',
+  baseRefName: 'develop',
+  isCrossRepository: false,
+  author: { __typename: 'User', login: 'folpe' },
+};
 
 interface Fixture {
   readonly verdicts?: Readonly<Record<string, string>>;
@@ -39,7 +58,7 @@ function queue(entries: readonly QueueEntry[], baseHead: string): unknown {
     position: index + 1,
     headCommit: { oid: entry.head },
     baseCommit: { oid: entry.base },
-    pullRequest: { number: entry.number, headRefOid: entry.prHead },
+    pullRequest: { number: entry.number, headRefOid: entry.prHead, ...(entry.pull ?? workPull) },
   }));
   const mergeQueue = { entries: { totalCount: nodes.length, nodes } };
   return { data: { repository: { mergeQueue, ref: { target: { oid: baseHead } } } } };
@@ -280,6 +299,97 @@ describe('independent review verdict check', () => {
         graphql,
       }),
     ).rejects.toThrow(/head SHA/);
+  });
+});
+
+describe('the release back-merge', () => {
+  // It carries only the release output a person approved by merging the
+  // release pull request, so it needs no review verdict. It is recognised by
+  // what GitHub reports and no pull request can choose: the author is the
+  // release App's bot account, by numeric id, on a same-repository branch.
+  function backMergeEvent(overrides: {
+    user?: Record<string, unknown>;
+    head?: string;
+    base?: string;
+    repo?: string;
+  } = {}): Record<string, unknown> {
+    return {
+      pull_request: {
+        number: 379,
+        user: overrides.user ?? BACK_MERGE_USER,
+        head: {
+          sha: sha('5'),
+          ref: overrides.head ?? 'chore/back-merge-main',
+          repo: { full_name: overrides.repo ?? repository },
+        },
+        base: { ref: overrides.base ?? 'develop' },
+      },
+    };
+  }
+
+  it('passes the back-merge without a verdict, asking GitHub nothing', async () => {
+    const { graphql, asked } = fakeGithub({});
+    const verified = await checkIndependentReview({
+      eventName: 'pull_request',
+      event: backMergeEvent(),
+      repository,
+      graphql,
+    });
+    expect(verified).toEqual([{ number: 379, sha: sha('5'), exempt: 'back-merge' }]);
+    expect(asked).toEqual([]);
+  });
+
+  it.each([
+    ['a person named like the bot', { user: { ...BACK_MERGE_USER, type: 'User' } }],
+    ['another bot', { user: { ...BACK_MERGE_USER, id: 1 } }],
+    ['another branch', { head: 'chore/back-merge-main-2' }],
+    ['another base', { base: 'main' }],
+    ['a fork', { repo: 'attacker/void-harness' }],
+  ])('still demands a verdict from %s', async (_name, overrides) => {
+    const { graphql } = fakeGithub({});
+    await expect(
+      checkIndependentReview({
+        eventName: 'pull_request',
+        event: backMergeEvent(overrides),
+        repository,
+        graphql,
+      }),
+    ).rejects.toThrow(/carries no void\/independent-review verdict/);
+  });
+
+  it('exempts the back-merge inside a merge group and checks every other entry', async () => {
+    const entries: readonly QueueEntry[] = [
+      { ...twoEntries[0], pull: backMergePull } as QueueEntry,
+      twoEntries[1] as QueueEntry,
+    ];
+    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    const verified = await checkIndependentReview({
+      eventName: 'merge_group',
+      event: mergeGroupEvent(9, sha('b')),
+      repository,
+      graphql,
+    });
+    expect(verified).toEqual([
+      { number: 9, sha: sha('2') },
+      { number: 7, sha: sha('1'), exempt: 'back-merge' },
+    ]);
+  });
+
+  it('checks a queued entry whose author only resembles the back-merge', async () => {
+    const impostor = { ...backMergePull, author: { ...BACK_MERGE_AUTHOR, databaseId: 1 } };
+    const entries: readonly QueueEntry[] = [
+      { ...twoEntries[0], pull: impostor } as QueueEntry,
+      twoEntries[1] as QueueEntry,
+    ];
+    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    await expect(
+      checkIndependentReview({
+        eventName: 'merge_group',
+        event: mergeGroupEvent(9, sha('b')),
+        repository,
+        graphql,
+      }),
+    ).rejects.toThrow(/#7 head .* carries no/);
   });
 });
 
