@@ -280,11 +280,35 @@ function heldTickets(program: LoopProgram, tracker: LoopTracker): readonly Track
   });
 }
 
-/** The pull requests the loop needs GitHub to report, in tracker order. */
+/**
+ * The pull requests the loop needs GitHub to report, in tracker order: those of
+ * the held tickets, and of every ticket in human wait that is not done, whose
+ * open pull request still reserves its ground.
+ */
 export function pullRequestsToObserve(program: LoopProgram, tracker: LoopTracker): number[] {
-  return heldTickets(program, tracker).flatMap((ticket) =>
-    ticket.pullRequest === undefined ? [] : [ticket.pullRequest],
-  );
+  const held = new Set(heldTickets(program, tracker));
+  return tracker.tickets.flatMap((ticket) => {
+    if (ticket.pullRequest === undefined) return [];
+    const waiting = ticket.humanWait && roleOf(program.states, ticket.status) !== 'done';
+    return held.has(ticket) || waiting ? [ticket.pullRequest] : [];
+  });
+}
+
+/**
+ * Tickets that hold no slot but still hold ground: not done, and an open pull
+ * request whose code is not on the base yet. A ticket handed to a human frees
+ * its slot, never its footprint.
+ */
+function reservedTickets(
+  input: LoopInput,
+  stillHeld: readonly TrackerTicket[],
+): readonly TrackerTicket[] {
+  const holding = new Set(stillHeld);
+  return input.tracker.tickets.filter((ticket) => {
+    if (holding.has(ticket) || ticket.pullRequest === undefined) return false;
+    if (roleOf(input.program.states, ticket.status) === 'done') return false;
+    return input.github.pullRequests.get(ticket.pullRequest)?.state === 'open';
+  });
 }
 
 type SlotOutcome =
@@ -538,10 +562,10 @@ function assignSlots(
   const entries = queue.value.entries;
   const sequential = input.program.autopilot.ownership.sequential.map(compileArea);
   const claims: Claim[] = [];
-  for (const ticket of stillHeld) {
+  for (const ticket of [...stillHeld, ...reservedTickets(input, stillHeld)]) {
     const queued = entries.find((entry) => entry.ticketId === ticket.id);
     const footprint = ticket.footprint ?? queued?.footprint;
-    // A held ticket whose ground nobody declared could collide with anything.
+    // A held or reserved ticket whose ground nobody declared could collide with anything.
     if (footprint === undefined) return { actions: [], exhausted: false };
     claims.push(claimOf(footprint, sequential));
   }

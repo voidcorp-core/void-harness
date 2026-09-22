@@ -354,6 +354,28 @@ describe('slot assignment', () => {
     expect(assigned(decide({ tickets, queue }))).toEqual(['DEV-4']);
   });
 
+  it('keeps the ground of a ticket in human wait while its pull request is open', () => {
+    // Under `mergeGate: human` every ready pull request waits for a person, and
+    // its code is not on the base yet: an overlapping ticket seated now would
+    // build on a base that lacks it, a conflict no footprint or Git would see.
+    const waiting = started('DEV-1', { status: 'In Review', humanWait: true, pullRequest: 11, branch: 'work/DEV-1' });
+    const overlapping = queued('DEV-2', ['packages/dev-1/src']);
+    const spec = { tickets: [waiting, overlapping, queued('DEV-3')] };
+    expect(pullRequestsToObserve(program(), tracker(spec))).toEqual([11]);
+    const open = decide(spec, { clusterSize: 1, pulls: [pull(reviewed('DEV-1', 11))] });
+    expect(assigned(open)).toEqual(['DEV-3']);
+    const closed = decide(spec, { clusterSize: 1, pulls: [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })] });
+    expect(assigned(closed)).toEqual(['DEV-2']);
+  });
+
+  it('keeps the ground of a pull request handed to a human in the same tick', () => {
+    const held = started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' });
+    const spec = { tickets: [held, queued('DEV-2', ['packages/dev-1/src']), queued('DEV-3')] };
+    const actions = decide(spec, { clusterSize: 1, mergeGate: 'human', pulls: [pull(reviewed('DEV-1', 11))] });
+    expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'mark-human-wait', reason: 'human-merge-gate' });
+    expect(assigned(actions)).toEqual(['DEV-3']);
+  });
+
   it('does not seat a queued ticket the tracker does not report', () => {
     const queue = {
       entries: [{ ticketId: 'DEV-7', justification: 'Next.', footprint: ['packages/dev-7'] }],
@@ -772,13 +794,16 @@ describe('boundaries', () => {
     expect(() => parseStopSignal('pause')).toThrow(/stop signal/);
   });
 
-  it('observes the pull requests of held tickets only', () => {
+  it('observes the pull requests of held tickets and of undone tickets in human wait', () => {
     const tickets = [
       started('DEV-1', { pullRequest: 11 }),
       started('DEV-2'),
       { ...queued('DEV-3'), pullRequest: 13 },
       started('DEV-4', { pullRequest: 14, humanWait: true }),
+      started('DEV-5', { status: 'Done', pullRequest: 15, humanWait: true }),
+      { ...queued('DEV-6'), status: 'Backlog', pullRequest: 16 },
     ];
-    expect(pullRequestsToObserve(program(), tracker({ tickets, liveWorkers: ['DEV-3'] }))).toEqual([11, 13]);
+    const observed = pullRequestsToObserve(program(), tracker({ tickets, liveWorkers: ['DEV-3'] }));
+    expect(observed).toEqual([11, 13, 14]);
   });
 });

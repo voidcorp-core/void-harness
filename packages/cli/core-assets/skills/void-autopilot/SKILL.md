@@ -132,7 +132,7 @@ Act on each returned action, then ask again:
 | `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket> --branch <its branch>`, create or reuse its worktree, spawn its worker |
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
-| `mark-human-wait` | label the ticket for a human, comment the reason and detail, free the slot |
+| `mark-human-wait` | label the ticket for a human, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
 | `drain` | take nothing new; keep acting on the tickets in flight |
 | `freeze` | stop acting, at once |
