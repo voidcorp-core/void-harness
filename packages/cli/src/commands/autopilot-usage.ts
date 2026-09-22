@@ -20,9 +20,9 @@ void-harness autopilot — deterministic planning for the attended cluster mode.
 
 Invoked by the /void-autopilot skill, which hydrates observations from the
 tracker and pipes them in. The CLI computes; it never contacts Linear and spawns
-no agent. Only the continuous loop commands (next, fingerprint) read GitHub
-through gh and the shared Git state themselves, because GitHub is the authority
-on a merge and the shared state is what a unit must not have touched.
+no agent. Only the continuous loop commands (next, fingerprint, verdict) reach
+GitHub through gh and the shared Git state themselves, because GitHub is the
+authority on a merge and the shared state is what a unit must not have touched.
 
 Usage:
   void-harness autopilot scaffold <plan|start|status|marker> [--json]
@@ -39,7 +39,8 @@ Continuous loop:
   void-harness autopilot stop --drain | --now [--json]
   void-harness autopilot fingerprint [--before <ticket> --branch <branch>
                                       | --after <ticket>] [--json]
-  echo '<judgment>' | void-harness autopilot judgment <review-verdict|conflict-class>
+  echo '<ReviewVerdict>'          | void-harness autopilot verdict --pr <number> [--json]
+  echo '<ConflictClass>'         | void-harness autopilot judgment conflict-class
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
@@ -53,9 +54,13 @@ the file to start again. fingerprint records (--before, once per ticket) or chec
 its includes, stash, tags, notes, remotes, the local base and deploy branches,
 replace refs, hooks/ and info/. Only the upstream of the ticket's own --branch is
 left out. --after fails when it moved, and a second --before is refused.
-judgment admits a review verdict or a conflict class, each bound to its headSha,
-and prints the comment block to post on the pull request; next reads the latest
-block of each kind back from GitHub, so no session has to remember it.
+verdict is the only path that writes a review verdict: it admits it, checks its
+headSha is the pull request head now, posts the verdict comment then the
+void/independent-review status on that head, and re-runs the independent-review
+job when its completed run disagrees. next believes a verdict comment only when
+that status on the same head agrees with it. judgment admits a conflict class,
+bound to its headSha, and prints the comment block to post; next reads the latest
+one back from GitHub, so no session has to remember it.
 
 stdin JSON (LoopTracker):
   { "schemaVersion": 1, "queue": <CuratorQueue judgment>,
@@ -147,6 +152,7 @@ export const SUBCOMMANDS = Object.freeze({
   stop: 'no-stdin',
   fingerprint: 'no-stdin',
   judgment: 'reads-stdin',
+  verdict: 'reads-stdin',
 } as const);
 
 export type AutopilotSubcommand = keyof typeof SUBCOMMANDS;

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { renderJudgmentComment } from '../lib/autopilot/judgment-comment.js';
 import { gitIn } from '../lib/autopilot/loop-observe.js';
 import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
 
@@ -77,11 +78,9 @@ function reviewedPull(): string {
   });
 }
 
-/** The reviewer's comment, rendered by the command a reviewer runs to post it. */
+/** The reviewer's comment, as `autopilot verdict` posts it. */
 function verdictComment(): string {
-  const result = runAutopilotCommand(['judgment', 'review-verdict'], JSON.stringify(cleanVerdict));
-  if (result.exitCode !== 0) throw new Error(result.stderr);
-  return result.stdout;
+  return renderJudgmentComment('review-verdict', cleanVerdict);
 }
 
 function gh(args: readonly string[]): string {
@@ -197,12 +196,110 @@ describe('autopilot judgment', () => {
   });
 
   it('refuses a judgment it would not admit, and a kind it does not know', () => {
-    const unbound = runAutopilotCommand(['judgment', 'review-verdict'], JSON.stringify({ round: 1, blocking: [], advisory: [] }));
+    const unbound = runAutopilotCommand(['judgment', 'conflict-class'], JSON.stringify({ class: 'mechanical' }));
     expect(unbound.exitCode).toBe(2);
     expect(unbound.stderr).toMatch(/headSha/);
     const unknown = runAutopilotCommand(['judgment', 'opinion'], '{}');
     expect(unknown.exitCode).toBe(2);
-    expect(unknown.stderr).toMatch(/review-verdict/);
+    expect(unknown.stderr).toMatch(/conflict-class/);
+  });
+
+  it('no longer renders a review verdict: `autopilot verdict` is its only writer', () => {
+    const result = runAutopilotCommand(['judgment', 'review-verdict'], JSON.stringify(cleanVerdict));
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/autopilot verdict/);
+  });
+});
+
+describe('autopilot verdict', () => {
+  // The only way a verdict reaches a pull request: admitted, bound to the head
+  // the pull request has now, posted as a comment and a status together, and
+  // the job that enforces it re-run when it disagrees.
+  const RUN = 35694132291;
+  function pullView(options: { head?: string; state?: string; reviewJob?: string } = {}): string {
+    const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
+    const rollup = view.statusCheckRollup as Record<string, unknown>[];
+    const [firstRun] = rollup;
+    const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: unknown[] };
+    const { files, changedFiles } = JSON.parse(fixture('pr-view-files.json')) as Record<string, unknown>;
+    const job = options.reviewJob === undefined ? [] : [{ ...firstRun, name: 'independent-review', conclusion: options.reviewJob }];
+    return JSON.stringify({
+      ...view,
+      number: 11,
+      state: options.state ?? 'OPEN',
+      headRefName: 'work/DEV-1',
+      headRefOid: options.head ?? HEAD,
+      baseRefName: 'develop',
+      statusCheckRollup: [...rollup, ...job],
+      comments,
+      files,
+      changedFiles,
+    });
+  }
+
+  function recorder(view: string) {
+    const calls: string[][] = [];
+    const run = (args: readonly string[]): string => {
+      calls.push([...args]);
+      if (args[0] === 'pr' && args[1] === 'view') return view;
+      return '{}';
+    };
+    return { run, calls };
+  }
+
+  function verdict(root: string, stdin: unknown, view: string, argv: readonly string[] = ['--pr', '11']) {
+    const { run, calls } = recorder(view);
+    const result = runAutopilotCommand(['verdict', ...argv, '--json'], JSON.stringify(stdin), context(root, run));
+    return { result, calls, writes: calls.filter((call) => !(call[0] === 'pr' && call[1] === 'view')) };
+  }
+
+  it('posts the comment, then the status, on the head it read, and re-runs the red job', () => {
+    const { result, writes } = verdict(project(), cleanVerdict, pullView({ reviewJob: 'FAILURE' }));
+    expect(result.exitCode).toBe(0);
+    expect(writes).toHaveLength(3);
+    const [comment, status, rerun] = writes;
+    expect(comment?.slice(0, 2)).toEqual(['api', 'repos/{owner}/{repo}/issues/11/comments']);
+    const body = comment?.find((arg) => arg.startsWith('body=')) ?? '';
+    expect(body).toBe(`body=${renderJudgmentComment('review-verdict', cleanVerdict)}`);
+    expect(status?.slice(0, 2)).toEqual(['api', `repos/{owner}/{repo}/statuses/${HEAD}`]);
+    expect(status).toEqual(expect.arrayContaining(['state=success', 'context=void/independent-review']));
+    expect(rerun).toEqual(['run', 'rerun', String(RUN), '--failed']);
+    expect(JSON.parse(result.stdout)).toMatchObject({ pullRequest: 11, headSha: HEAD, state: 'success', rerun: RUN });
+  });
+
+  it('writes a failure for a blocking verdict and leaves a job already red alone', () => {
+    const blocking = {
+      ...cleanVerdict,
+      blocking: [{ location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' }],
+    };
+    const { result, writes } = verdict(project(), blocking, pullView({ reviewJob: 'FAILURE' }));
+    expect(result.exitCode).toBe(0);
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toEqual(expect.arrayContaining(['state=failure']));
+  });
+
+  it('writes nothing for a head the pull request has moved past', () => {
+    const { result, writes } = verdict(project(), cleanVerdict, pullView({ head: 'b'.repeat(40) }));
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/head/);
+    expect(writes).toEqual([]);
+  });
+
+  it('writes nothing on a pull request that is no longer open', () => {
+    const { result, writes } = verdict(project(), cleanVerdict, pullView({ state: 'MERGED' }));
+    expect(result.exitCode).toBe(2);
+    expect(writes).toEqual([]);
+  });
+
+  it('asks GitHub nothing for a verdict it refuses, or without the pull request', () => {
+    const refused = verdict(project(), { ...cleanVerdict, round: 3 }, pullView());
+    expect(refused.result.exitCode).toBe(2);
+    expect(refused.result.stderr).toMatch(/round/);
+    expect(refused.calls).toEqual([]);
+    const unnamed = verdict(project(), cleanVerdict, pullView(), []);
+    expect(unnamed.result.exitCode).toBe(2);
+    expect(unnamed.result.stderr).toMatch(/--pr/);
+    expect(unnamed.calls).toEqual([]);
   });
 });
 

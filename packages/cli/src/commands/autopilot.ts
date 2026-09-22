@@ -13,6 +13,7 @@ import {
   type LoopCommandOutput,
   nextCommand,
   stopCommand,
+  verdictCommand,
 } from './autopilot-loop.js';
 
 export { type AutopilotSubcommand, readsStdin, SUBCOMMANDS } from './autopilot-usage.js';
@@ -1507,6 +1508,8 @@ export function runAutopilotCommand(
         return emitLoop(json, stopCommand(argv, context));
       case 'fingerprint':
         return emitLoop(json, fingerprintCommand(argv, context));
+      case 'verdict':
+        return emitLoop(json, verdictCommand(argv, stdin, context));
       case 'start':
         return startCommand(stdin, json, context);
       case 'status':

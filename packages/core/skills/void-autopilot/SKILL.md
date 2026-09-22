@@ -173,10 +173,12 @@ request is a unit in flight, and the kernel resumes it instead of seating a seco
 ticket whose state is ambiguous goes to a human rather than being relaunched.
 
 **Judgments live on the pull request.** The reviewer's verdict and a worker's conflict class are
-posted as comments, each the exact block `void-harness autopilot judgment <review-verdict |
-conflict-class>` prints for the JSON on its stdin: two HTML comment markers around a fenced JSON
-value, admitted before it is printed. `next` reads the latest block of each kind from GitHub and
-admits it again, so the tracker you pipe in never carries them and a restart loses nothing.
+comments carrying a machine block: two HTML comment markers around a fenced JSON value. The verdict
+is written only by `void-harness autopilot verdict`, which posts it together with the
+`void/independent-review` status; `next` believes a verdict comment only when that status on the
+same head agrees. The conflict class is the block `void-harness autopilot judgment conflict-class`
+prints for the JSON on its stdin. `next` reads both from GitHub and admits them again, so the
+tracker you pipe in never carries them and a restart loses nothing.
 
 ---
 
@@ -223,20 +225,14 @@ a human with the finding. The kernel counts rounds on GitHub, one per head whose
 restarted without memory cannot reopen the count. After an update on the base, the same targeted check covers the new diff
 only.
 
-**Publishing the verdict.**
-
-1. Pipe the typed `review` judgment, with the `headSha` it read, into
-   `void-harness autopilot judgment review-verdict` and post its output as a comment on the pull
-   request. The kernel arms no merge on the status alone: it needs this verdict, clean and bound
-   to the current head.
-2. Post the commit status `void/independent-review` on the exact SHA read: `success` with no
-   blocking finding, `failure` otherwise, with a short description.
-3. **Re-run the `independent-review` job** of the pull request (`gh run rerun <run> --failed`;
-   the kernel also answers `rerun-review-check` when it sees that job still red on an approved
-   head). A status event starts no workflow, so without this the required check keeps its old
-   answer and the pull request never moves.
-
-Any new push changes the head SHA and needs a new verdict.
+**Publishing the verdict.** Pipe the typed `review` judgment, with the `headSha` it read, into
+`void-harness autopilot verdict --pr <number>`. It is the only path: it refuses a head the pull
+request has moved past, posts the verdict comment, then the `void/independent-review` status on
+that head (`success` with no blocking finding, `failure` otherwise), and re-runs the
+`independent-review` job when its completed run disagrees, since a status event starts no
+workflow. Never post the comment or the status yourself: a hook refuses both, and the kernel would
+not believe a comment the status does not confirm. Any new push changes the head SHA and needs a
+new verdict.
 
 ---
 

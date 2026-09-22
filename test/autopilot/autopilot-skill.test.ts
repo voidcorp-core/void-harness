@@ -151,10 +151,11 @@ describe('the reviewer publishes a verdict GitHub can read', () => {
   // A commit status triggers no workflow run, so the required check keeps its
   // previous answer until the job is re-run: a verdict posted and not re-run
   // leaves the pull request stuck while every agent believes it passed.
-  it('posts the status on the exact SHA, then re-runs the check that reads it', () => {
-    expect(flat(body(SKILL))).toMatch(/`void\/independent-review` on the exact SHA read/);
-    expect(flat(body(SKILL))).toMatch(/Re-run the `independent-review` job/);
+  it('publishes the verdict through the one command that writes comment and status together', () => {
+    expect(flat(body(SKILL))).toMatch(/`void-harness autopilot verdict --pr <number>`\. It is the only path/);
+    expect(flat(body(SKILL))).toMatch(/re-runs the `independent-review` job when its completed run disagrees/);
     expect(flat(body(SKILL))).toMatch(/status event starts no workflow/i);
+    expect(flat(body(SKILL))).toMatch(/Never post the comment or the status yourself/);
   });
 
   it('blocks only on a scenario, files advisories once, and stops at two rounds', () => {

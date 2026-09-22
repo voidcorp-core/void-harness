@@ -1,4 +1,5 @@
-// `autopilot next | stop | fingerprint`: the continuous loop's operator surface.
+// `autopilot next | stop | fingerprint | verdict | judgment`: the continuous
+// loop's operator surface.
 //
 // Unlike the cluster subcommands, `next` observes GitHub and git itself. GitHub
 // is the authority on a merge and the shared Git state is what a unit must not
@@ -27,7 +28,7 @@ import {
   type JudgmentKind,
   renderJudgmentComment,
 } from '../lib/autopilot/judgment-comment.js';
-import { ticketIdSchema } from '../lib/autopilot/judgments.js';
+import { admitReviewVerdict, type ReviewVerdict, ticketIdSchema } from '../lib/autopilot/judgments.js';
 import {
   admitLoopTracker,
   decideLoop,
@@ -46,6 +47,9 @@ import {
   type GhRunner,
   type GitRunner,
   observeGithub,
+  PULL_REQUEST_FIELDS,
+  parsePullRequestView,
+  REVIEW_STATUS_CONTEXT,
   readSharedState,
   resolveLoopBase,
 } from '../lib/autopilot/loop-observe.js';
@@ -353,32 +357,126 @@ export function fingerprintCommand(
 }
 
 /**
- * `autopilot judgment <review-verdict | conflict-class>`: the comment block for
- * the judgment on stdin, admitted before it is printed. The reviewer and the
- * workers post exactly this, so the kernel finds it on the pull request after a
- * restart and admits it a second time there.
+ * `autopilot judgment conflict-class`: the comment block for the conflict class
+ * on stdin, admitted before it is printed. The worker posts exactly this, so the
+ * kernel finds it on the pull request after a restart and admits it a second
+ * time there. A review verdict is not rendered here: `autopilot verdict` is the
+ * only path that writes one.
  */
 export function judgmentCommand(argv: readonly string[], stdin: string): LoopCommandOutput {
-  let value: unknown;
-  try {
-    value = JSON.parse(stdin);
-  } catch (error) {
+  const value = jsonFrom(stdin, 'judgment');
+  const kind = argv.slice(argv.indexOf('judgment') + 1).find((arg) => !arg.startsWith('-'));
+  if (kind === 'review-verdict') {
     throw autopilotFailure(
-      'AUTOPILOT_INPUT',
-      'the judgment on stdin is not valid JSON',
-      error instanceof Error ? error.message : String(error),
-      'pipe the typed judgment, unmodified, into `autopilot judgment`',
+      'AUTOPILOT_USAGE',
+      'a review verdict is not rendered for posting by hand',
+      'the comment and the `void/independent-review` status must be written together',
+      'pipe the verdict into `void-harness autopilot verdict --pr <number>`',
     );
   }
-  const kind = argv.slice(argv.indexOf('judgment') + 1).find((arg) => !arg.startsWith('-'));
-  if (kind === undefined || !(JUDGMENT_KINDS as readonly string[]).includes(kind)) {
+  const kinds = JUDGMENT_KINDS.filter((known) => known !== 'review-verdict');
+  if (kind === undefined || !(kinds as readonly string[]).includes(kind)) {
     throw autopilotFailure(
       'AUTOPILOT_USAGE',
       'autopilot judgment needs the kind of judgment it renders',
-      `${JSON.stringify(kind ?? '')} is not one of ${JUDGMENT_KINDS.join(', ')}`,
-      'run `autopilot judgment review-verdict` or `autopilot judgment conflict-class`',
+      `${JSON.stringify(kind ?? '')} is not one of ${kinds.join(', ')}`,
+      'run `autopilot judgment conflict-class`',
     );
   }
   const body = renderJudgmentComment(kind as JudgmentKind, value);
   return { value: { kind, body }, human: body };
+}
+
+function jsonFrom(stdin: string, command: string): unknown {
+  try {
+    return JSON.parse(stdin);
+  } catch (error) {
+    throw autopilotFailure(
+      'AUTOPILOT_INPUT',
+      `the ${command} on stdin is not valid JSON`,
+      error instanceof Error ? error.message : String(error),
+      `pipe the typed ${command}, unmodified, into \`autopilot ${command}\``,
+    );
+  }
+}
+
+function pullRequestNumber(argv: readonly string[]): number {
+  const text = flagValue(argv, '--pr');
+  const number = Number(text);
+  if (text !== undefined && /^[1-9][0-9]{0,9}$/.test(text)) return number;
+  throw autopilotFailure(
+    'AUTOPILOT_USAGE',
+    'autopilot verdict needs the pull request it judges',
+    text === undefined ? '--pr was not given' : `--pr ${JSON.stringify(text)} is not a number`,
+    'pass the pull request number, for example `--pr 42`',
+  );
+}
+
+/** A status description is at most 140 characters on GitHub. */
+function statusDescription(verdict: ReviewVerdict): string {
+  const count = verdict.blocking.length;
+  if (count === 0) return `round ${verdict.round}: nothing blocking`;
+  return `round ${verdict.round}: ${count} blocking finding${count === 1 ? '' : 's'}`;
+}
+
+/**
+ * `autopilot verdict --pr <n>`: the only path that writes a review verdict.
+ *
+ * The verdict on stdin is admitted, then bound to the head the pull request has
+ * now: a verdict on any other head judged code that is no longer there. The
+ * comment goes first and the status second, so a failure between the two leaves
+ * a comment no status confirms, which the loop does not believe, rather than a
+ * status with no verdict behind it. The job that enforces the status is re-run
+ * when its completed run disagrees, because a status event starts no workflow.
+ */
+export function verdictCommand(
+  argv: readonly string[],
+  stdin: string,
+  context: LoopRunners,
+): LoopCommandOutput {
+  const value = jsonFrom(stdin, 'verdict');
+  const number = pullRequestNumber(argv);
+  const admission = admitReviewVerdict(value);
+  if (!admission.ok) {
+    throw autopilotFailure(
+      'AUTOPILOT_INPUT',
+      'the review verdict was refused',
+      admission.reason,
+      'correct the named field; a refused verdict is never posted',
+    );
+  }
+  const verdict = admission.value;
+  const gh = runner(context.gh, 'gh');
+  const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
+  const pr = parsePullRequestView(gh(viewArgs));
+  if (pr.state !== 'open' || pr.headSha !== verdict.headSha) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      `the verdict does not judge #${number} as it stands`,
+      pr.state !== 'open'
+        ? `#${number} is ${pr.state}`
+        : `the verdict reads head ${verdict.headSha}; #${number} is now at ${pr.headSha}`,
+      'review the current head and post a verdict bound to it',
+    );
+  }
+  const clean = verdict.blocking.length === 0;
+  const state = clean ? 'success' : 'failure';
+  const body = renderJudgmentComment('review-verdict', verdict);
+  gh(['api', `repos/{owner}/{repo}/issues/${number}/comments`, '-f', `body=${body}`]);
+  gh([
+    'api', `repos/{owner}/{repo}/statuses/${verdict.headSha}`,
+    '-f', `state=${state}`,
+    '-f', `context=${REVIEW_STATUS_CONTEXT}`,
+    '-f', `description=${statusDescription(verdict)}`,
+  ]);
+  const run = pr.reviewCheckRun;
+  const disagrees = clean ? pr.reviewCheck === 'failing' : pr.reviewCheck === 'passing';
+  if (run !== undefined && disagrees) {
+    gh(['run', 'rerun', String(run), ...(clean ? ['--failed'] : [])]);
+  }
+  const rerun = run !== undefined && disagrees ? { rerun: run } : {};
+  return {
+    value: { pullRequest: number, headSha: verdict.headSha, state, ...rerun },
+    human: `#${number} at ${verdict.headSha}: ${state}${run !== undefined && disagrees ? `, run ${run} re-run` : ''}\n`,
+  };
 }
