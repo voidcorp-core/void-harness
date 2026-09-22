@@ -285,6 +285,49 @@ describe('observeGithub', () => {
     ]);
   });
 
+  describe('without a merge queue', () => {
+    // Serial merges are only safe when the base demands a branch up to date
+    // before it merges: otherwise two pull requests merge one after the other
+    // on a combination nobody tested.
+    const classic = (strict: boolean): string =>
+      JSON.stringify({ ...(JSON.parse(fixture('protection-required-checks-strict.json')) as Raw), strict });
+    const rules = (strict: boolean): string =>
+      JSON.stringify(
+        (JSON.parse(fixture('rules-branch-required-checks.json')) as Raw[]).map((rule) =>
+          rule.type === 'required_status_checks'
+            ? { ...rule, parameters: { ...(rule.parameters as Raw), strict_required_status_checks_policy: strict } }
+            : rule,
+        ),
+      );
+    const notFound = (): string => {
+      throw new Error('gh: Required status checks not enabled (HTTP 404)');
+    };
+    function observe(answers: { classic: () => string; rules: () => string }) {
+      const run = (args: readonly string[]): string => {
+        const line = args.join(' ');
+        if (line.includes('mergeQueue(branch')) return fixture('queue-absent.json');
+        if (line.includes('/protection/required_status_checks')) return answers.classic();
+        if (line.includes('/rules/branches/')) return answers.rules();
+        throw new Error(`unexpected gh call: ${line}`);
+      };
+      return () => observeGithub(run, { base: 'develop', pullRequests: [] });
+    }
+
+    it('proceeds when classic protection requires the branch up to date', () => {
+      expect(observe({ classic: () => classic(true), rules: () => '[]' })().mergeQueue).toBe(false);
+    });
+
+    it('proceeds when a ruleset requires the branch up to date', () => {
+      expect(observe({ classic: notFound, rules: () => rules(true) })().mergeQueue).toBe(false);
+    });
+
+    it('refuses the serial fallback when nothing requires the branch up to date', () => {
+      expect(observe({ classic: notFound, rules: () => rules(false) })).toThrow(/up to date/);
+      expect(observe({ classic: () => classic(false), rules: () => '[]' })).toThrow(/up to date/);
+      expect(observe({ classic: notFound, rules: notFound })).toThrow(/HTTP 404/);
+    });
+  });
+
   it('refuses to decide on a partial observation', () => {
     const run = (args: readonly string[]): string => {
       if (args.includes('view')) throw new Error('HTTP 502');

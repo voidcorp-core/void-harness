@@ -257,6 +257,9 @@ moving.
 **Serial fallback.** Without a merge queue, merges run one at a time: the oldest ready pull request
 (or the one already merging) holds the turn, is updated on the base when it is behind, re-checked,
 merged, then the next. Same guarantee, lower throughput. The kernel keeps the turn; you do not.
+It holds only if the base refuses a pull request that is not up to date, so `next` checks that the
+base requires it (classic protection or a ruleset) and refuses the tick, naming the fix, when
+nothing readable says so.
 
 ---
 

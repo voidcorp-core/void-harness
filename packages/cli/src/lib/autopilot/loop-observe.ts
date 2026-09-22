@@ -371,6 +371,60 @@ function observed<T>(what: string, read: () => T): T {
   }
 }
 
+const classicChecksSchema = z.object({ strict: z.boolean() });
+const branchRulesSchema = z.array(
+  z.object({ type: z.string(), parameters: z.unknown().optional() }),
+);
+
+const strictParameters = z.object({ strict_required_status_checks_policy: z.literal(true) });
+
+/**
+ * Without a merge queue the loop merges one pull request at a time, and that is
+ * only safe when the base refuses a pull request that is not up to date: a
+ * second one would otherwise merge on a combination no check ever ran. GitHub
+ * says so in two places, classic protection (`strict`, readable with admin
+ * rights) and rulesets (`strict_required_status_checks_policy`, readable by
+ * anyone); either one suffices. Nothing readable saying so is a refusal.
+ * https://docs.github.com/en/rest/branches/branch-protection#get-status-checks-protection
+ * https://docs.github.com/en/rest/repos/rules#get-rules-for-a-branch
+ */
+function requireUpToDateBase(run: GhRunner, base: string): void {
+  const causes: string[] = [];
+  const read = <T>(
+    what: string,
+    schema: z.ZodType<T>,
+    args: readonly string[],
+  ): T | undefined => {
+    try {
+      return parseJson(what, schema, run(args));
+    } catch (error) {
+      causes.push(`${what}: ${error instanceof Error ? error.message : String(error)}`);
+      return undefined;
+    }
+  };
+  const classicEndpoint = `repos/{owner}/{repo}/branches/${base}/protection/required_status_checks`;
+  const classicArgs = ['api', classicEndpoint];
+  const classic = read('classic protection', classicChecksSchema, classicArgs);
+  if (classic?.strict === true) return;
+  if (classic !== undefined) causes.push('classic protection: `strict` is false');
+  const rulesArgs = ['api', `repos/{owner}/{repo}/rules/branches/${base}`];
+  const rules = read('branch rules', branchRulesSchema, rulesArgs);
+  const strict = rules?.some(
+    (rule) =>
+      rule.type === 'required_status_checks' && strictParameters.safeParse(rule.parameters).success,
+  );
+  if (strict === true) return;
+  if (rules !== undefined) {
+    causes.push('branch rules: no required status check demands an up to date branch');
+  }
+  throw autopilotFailure(
+    'AUTOPILOT_PROGRAM',
+    `${base} has no merge queue and does not require a branch up to date before merging`,
+    causes.join('; '),
+    `turn on the merge queue for ${base}, or require branches to be up to date before merging`,
+  );
+}
+
 export interface GithubRequest {
   readonly base: string;
   readonly pullRequests: readonly number[];
@@ -406,6 +460,7 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     );
     pullRequests.set(number, { ...view, queue, ejections, reviewFailures });
   }
+  if (!mergeQueue) requireUpToDateBase(run, request.base);
   return { base: request.base, mergeQueue, pullRequests };
 }
 
