@@ -163,6 +163,7 @@ export const HUMAN_WAIT_REASONS = [
   'ejections-exhausted',
   'protected-path',
   'review-check-reruns-exhausted',
+  'promotion-pull-request',
 ] as const;
 export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
 
@@ -576,6 +577,12 @@ function openPullOutcome(
 ): SlotOutcome {
   if (pr.state === 'closed') {
     return toHuman(ticket.id, 'pull-request-closed', `#${pr.number} was closed without a merge`);
+  }
+  // A head the loop merges into, or that ships, is a promotion, never a ticket:
+  // promoting develop to main is a release action a person takes.
+  if (protectedBranches(context.input.program.autopilot).includes(pr.headRef)) {
+    const detail = `#${pr.number} promotes ${pr.headRef} into ${pr.baseRef}`;
+    return toHuman(ticket.id, 'promotion-pull-request', detail);
   }
   const base = context.input.github.base;
   const branchDiffers = ticket.branch !== undefined && pr.headRef !== ticket.branch;

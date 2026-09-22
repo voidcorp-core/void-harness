@@ -830,6 +830,21 @@ describe('protected paths', () => {
   });
 });
 
+describe('promotion', () => {
+  it('never arms a pull request whose head is a branch the loop merges into or ships from', () => {
+    // A ticket that names no branch accepts any head, so the head itself is
+    // checked: develop into main is a promotion, and a promotion is a person's.
+    for (const head of ['develop', 'main']) {
+      const tickets = [started('DEV-1', { pullRequest: 12 })];
+      const pulls = [pull(reviewed('DEV-1', 12, { branch: head }))];
+      expect(actionFor(decide({ tickets }, { pulls }), 'DEV-1'), head).toMatchObject({
+        kind: 'mark-human-wait',
+        reason: 'promotion-pull-request',
+      });
+    }
+  });
+});
+
 describe('the human-wait label', () => {
   const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
   const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];

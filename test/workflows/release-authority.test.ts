@@ -43,7 +43,7 @@ describe('release automation authority', () => {
     expect(autoMergeActions).toEqual([]);
   });
 
-  it('rechecks live auto-merge state on every pull request transition', () => {
+  it('rechecks live auto-merge state on every pull request transition and refuses it into main', () => {
     expect(voidEnforce).toMatch(
       /types:\s*\[[^\]]*auto_merge_enabled[^\]]*auto_merge_disabled[^\]]*\]/,
     );
@@ -51,9 +51,8 @@ describe('release automation authority', () => {
     expect(voidEnforce).toContain('gh pr view "$PR_NUMBER"');
     expect(voidEnforce).toContain('autoMergeRequest');
     expect(voidEnforce).toContain("EXPECTED_REPOSITORY: voidcorp-core/void-harness");
-    expect(voidEnforce).toContain("EXPECTED_HEAD: chore/back-merge-main");
-    expect(voidEnforce).toContain("EXPECTED_BASE: develop");
-    expect(voidEnforce).toContain('isCrossRepository');
+    expect(voidEnforce).toContain('FORBIDDEN_BASE: main');
+    expect(voidEnforce).toContain('assertAutoMergeAllowed');
   });
 
   it('audits every promotion commit and its merge authority', () => {
@@ -103,7 +102,8 @@ describe('release operator contract', () => {
     expect(RELEASING).toMatch(/Release\s+action 1:/);
     expect(RELEASING).toMatch(/Release\s+action 2:/);
     expect(RELEASING).toContain('There is no normal-path workflow dispatch, deployment approval');
-    expect(RELEASING).toContain('sole canonical native auto-merge path');
+    expect(RELEASING).toContain('the one pull request\n   the review verdict exempts');
+    expect(RELEASING).toContain('refuses an armed auto-merge');
   });
 
   it('documents tag-bound recovery and every external authority boundary', () => {
