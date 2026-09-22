@@ -157,3 +157,7 @@ export function admitConflictClass(value: unknown): Admission<ConflictClass> {
 export function admitReviewVerdict(value: unknown): Admission<ReviewVerdict> {
   return admit('review verdict', reviewVerdictSchema, value);
 }
+
+// The loop admits the tracker observation with the same two readings, so a
+// ticket id or an area means one thing on both sides of the boundary.
+export { area as footprintAreaSchema, ticketId as ticketIdSchema };
