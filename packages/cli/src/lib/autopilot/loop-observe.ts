@@ -17,9 +17,11 @@ import { z } from 'zod';
 import { selectBase } from './base-selection.js';
 import { autopilotFailure } from './errors.js';
 import type { GithubObservation, PullRequestObservation, QueueEvent } from './loop.js';
+import type { SharedStateReading } from './shared-state.js';
 
-/** Runs `gh` with argv, never through a shell, and returns its stdout. */
+/** Runs `gh` (or `git`) with argv, never through a shell, and returns its stdout. */
 export type GhRunner = (args: readonly string[]) => string;
+export type GitRunner = (args: readonly string[]) => string;
 
 /** The only fields the loop reads, requested as they are named by `gh`. */
 export const PULL_REQUEST_FIELDS = [
@@ -302,4 +304,54 @@ export function execGh(args: readonly string[]): string {
     timeout: GH_TIMEOUT_MS,
     maxBuffer: GH_OUTPUT_MAX,
   });
+}
+
+const SHARED_STATE_COMMANDS: Readonly<Record<keyof SharedStateReading, readonly string[]>> = {
+  config: ['config', '--local', '--list'],
+  stash: ['stash', 'list', '--format=%H'],
+  tags: ['for-each-ref', '--format=%(objectname) %(refname)', 'refs/tags'],
+  notes: ['for-each-ref', '--format=%(objectname) %(refname)', 'refs/notes'],
+  remotes: ['remote', '-v'],
+};
+
+/**
+ * What git reports for each part the workers of a repository share.
+ *
+ * Worker branches are deliberately not read: they are each unit's own output.
+ * Remote-tracking refs are not read either, since any fetch moves them.
+ */
+export function readSharedState(run: GitRunner): SharedStateReading {
+  const read = (part: keyof SharedStateReading): string => {
+    try {
+      return run(SHARED_STATE_COMMANDS[part]);
+    } catch (error) {
+      throw autopilotFailure(
+        'AUTOPILOT_INPUT',
+        'the shared Git state could not be read',
+        `\`git ${SHARED_STATE_COMMANDS[part].join(' ')}\` failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        'run the loop from inside the repository its workers share',
+      );
+    }
+  };
+  return {
+    config: read('config'),
+    stash: read('stash'),
+    tags: read('tags'),
+    notes: read('notes'),
+    remotes: read('remotes'),
+  };
+}
+
+/** The real git runner for one checkout: argv only, bounded in time and output. */
+export function gitIn(root: string): GitRunner {
+  return (args) =>
+    execFileSync('git', args, {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: GH_TIMEOUT_MS,
+      maxBuffer: GH_OUTPUT_MAX,
+    });
 }

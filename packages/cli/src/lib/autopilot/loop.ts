@@ -27,6 +27,7 @@ import {
   ticketIdSchema,
 } from './judgments.js';
 import type { AutopilotConfig, ProgramDescriptor, ProgressStates } from './program.js';
+import { changedParts, type SharedFingerprint } from './shared-state.js';
 
 /** A tracker scope larger than this is a backlog dump, not a loop observation. */
 export const TRACKED_TICKETS_MAX = 256;
@@ -134,7 +135,8 @@ export type HumanWaitReason =
   | 'pull-request-closed'
   | 'semantic-conflict'
   | 'review-rounds-exhausted'
-  | 'human-merge-gate';
+  | 'human-merge-gate'
+  | 'shared-state-changed';
 export type DrainReason = 'requested' | 'quota-low' | 'human-wait-streak' | 'backlog-exhausted';
 
 export type LoopAction =
@@ -166,11 +168,18 @@ export type LoopAction =
       readonly humanWait: readonly string[];
     };
 
+/** The shared Git state now, and as it stood before each ticket's unit began. */
+export interface SharedStateObservation {
+  readonly current: SharedFingerprint;
+  readonly before: ReadonlyMap<string, SharedFingerprint>;
+}
+
 export interface LoopInput {
   readonly program: LoopProgram;
   readonly tracker: LoopTracker;
   readonly github: GithubObservation;
   readonly signal: StopSignal;
+  readonly sharedState: SharedStateObservation;
 }
 
 export interface LoopDecision {
@@ -321,6 +330,26 @@ function contradictedApproval(ticket: TrackerTicket): string | undefined {
   return undefined;
 }
 
+/**
+ * Publication is refused when the unit changed what its neighbours share, and
+ * when nobody recorded that state before it began: an unrecorded baseline cannot
+ * tell a clean unit from one that changed everything.
+ */
+function sharedStateOutcome(
+  ticket: TrackerTicket,
+  shared: SharedStateObservation,
+): SlotOutcome | undefined {
+  const before = shared.before.get(ticket.id);
+  if (before === undefined) {
+    const detail = 'no shared Git state fingerprint was recorded before the unit began';
+    return toHuman(ticket.id, 'ambiguous-state', detail);
+  }
+  const changed = changedParts(before, shared.current);
+  if (changed.length === 0) return undefined;
+  const detail = `the unit changed the shared Git state: ${changed.join(', ')}`;
+  return toHuman(ticket.id, 'shared-state-changed', detail);
+}
+
 function mergeOutcome(
   ticket: TrackerTicket,
   pr: PullRequestObservation,
@@ -331,6 +360,8 @@ function mergeOutcome(
   if (autopilot.mergeGate === 'human') {
     return toHuman(ticket.id, 'human-merge-gate', `pull request #${pr.number} is ready to merge`);
   }
+  const sharedStateRefusal = sharedStateOutcome(ticket, context.input.sharedState);
+  if (sharedStateRefusal !== undefined) return sharedStateRefusal;
   if (!context.input.github.mergeQueue) {
     if (context.serialTurn !== pr.number) return wait(ticket.id, 'serial-merge-turn');
     if (pr.behind) return handBack(ticket.id, 'update-on-base', pr.number);
