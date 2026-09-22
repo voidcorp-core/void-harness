@@ -134,6 +134,7 @@ Act on each returned action, then ask again:
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
 | `mark-human-wait` | record it in `recent` with its `reason`, label the ticket for a human, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
+| `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
 | `freeze` | stop acting, at once |
 | `recap` | write the final recap and end the run |
@@ -186,8 +187,8 @@ It runs `void-implement` whole in that worktree. When its proofs are green it ru
 base, and moves the ticket to In Review. The reviewer's pass is that cycle's independent review; its
 blocking findings come back as a hand-back and are corrected as a batch, per `void-implement`.
 
-On a hand-back the worker reads the reason: failing checks, blocking findings, a conflict, an
-ejection from the queue, or a base that moved. It updates its branch by merging the base into it,
+On a hand-back the worker reads the reason: failing checks, blocking findings, a conflict, or a
+base that moved. It updates its branch by merging the base into it,
 never by rewriting pushed history, re-runs its proofs, and pushes again.
 
 May: run every `void-implement` pass whose predicate fires, run its own gates, apply a migration in
@@ -240,7 +241,10 @@ When the base has a merge queue, GitHub rebuilds the combined commit of every pu
 and reruns the required checks, `independent-review` included, before it merges. Two tickets green
 alone and broken together cannot reach the base.
 
-A pull request ejected from the queue, or in conflict with the base, goes back to its worker. The
+A pull request ejected from the queue whose head still passes its checks and carries a clean
+verdict has nothing for its worker to fix: the kernel answers `requeue`, at most twice for the same
+head, then sends the ticket to a human. An ejected head whose own checks fail goes back to its
+worker as failing checks. A pull request in conflict with the base goes back to its worker. The
 worker classifies the conflict as the typed `conflict` judgment on the conflicting head, posted
 through `autopilot judgment conflict-class`: `mechanical` it resolves, re-runs
 its proofs and pushes; `semantic` -- two intents that disagree -- it leaves alone, and the kernel

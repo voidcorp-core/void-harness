@@ -148,6 +148,8 @@ interface PullSpec {
   readonly conflict?: unknown;
   /** Distinct heads GitHub shows the review failed on; one when the head failed, by default. */
   readonly reviewFailures?: number;
+  /** Ejections of this head from the queue; one when it was just ejected, by default. */
+  readonly ejections?: number;
 }
 
 /** A judgment block as an agent posts it, written raw so a malformed one can be posted too. */
@@ -196,7 +198,8 @@ function pull(spec: PullSpec): PullRequestObservation {
     }),
   );
   const reviewFailures = spec.reviewFailures ?? (spec.review === 'FAILURE' ? 1 : 0);
-  return { ...parsed, queue: spec.queue ?? 'none', reviewFailures };
+  const ejections = spec.ejections ?? (spec.queue === 'ejected' ? 1 : 0);
+  return { ...parsed, queue: spec.queue ?? 'none', ejections, reviewFailures };
 }
 
 const SHARED_READING: SharedStateReading = {
@@ -639,8 +642,28 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { autoMerge: true, queue: 'queued' })).toMatchObject({ kind: 'wait', reason: 'merging' });
   });
 
-  it('hands an ejected pull request back to its worker', () => {
-    expect(one({}, { queue: 'ejected' })).toMatchObject({ kind: 'hand-back-to-worker', reason: 'ejected' });
+  it('re-queues an ejected head that still passes, twice at most, then asks a human', () => {
+    // zed 64434: two `failed_checks` ejections with no commit between, then a
+    // re-queue that merged. The worker has nothing to fix; the loop re-queues.
+    expect(one({}, { queue: 'ejected', ejections: 1 })).toEqual({
+      kind: 'requeue',
+      ticketId: 'DEV-1',
+      pullRequest: 11,
+      headSha: headOf(11),
+      ejections: 1,
+    });
+    expect(one({}, { queue: 'ejected', ejections: 2 })).toMatchObject({ kind: 'requeue', ejections: 2 });
+    expect(one({}, { queue: 'ejected', ejections: 3 })).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'ejections-exhausted',
+    });
+  });
+
+  it('hands an ejected head back to its worker when its own checks fail', () => {
+    expect(one({}, { queue: 'ejected', failingCheck: true })).toMatchObject({
+      kind: 'hand-back-to-worker',
+      reason: 'checks-failed',
+    });
   });
 
   it('routes a conflict by the class the worker gave it', () => {

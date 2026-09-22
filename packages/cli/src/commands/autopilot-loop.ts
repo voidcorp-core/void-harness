@@ -196,6 +196,11 @@ function renderAction(action: LoopAction): string {
       return `mark-human-wait ${action.ticketId}: ${action.reason} - ${action.detail}`;
     case 'enable-auto-merge':
       return `enable-auto-merge ${action.ticketId}: #${action.pullRequest} at ${action.headSha}`;
+    case 'requeue':
+      return (
+        `requeue ${action.ticketId}: #${action.pullRequest} at ${action.headSha},` +
+        ` ejected ${action.ejections}x`
+      );
     case 'drain':
       return `drain: ${action.reason}`;
     case 'freeze':

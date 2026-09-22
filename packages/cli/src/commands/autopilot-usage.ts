@@ -43,7 +43,8 @@ Continuous loop:
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
-mark-human-wait, enable-auto-merge, drain, freeze, recap. It never acts on them.
+mark-human-wait, enable-auto-merge, requeue, drain, freeze, recap. It never acts
+on them.
 stop writes .void/machine/autopilot/stop, read before every assignment; delete
 the file to start again. fingerprint records (--before, once per ticket) or checks
 (--after) the digests of the shared Git state around one unit: local config and

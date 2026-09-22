@@ -8,7 +8,8 @@
 //
 // gh 2.100: `gh pr view --json` exposes no merge queue field, so the queue is
 // read with `gh api graphql`: `repository.mergeQueue(branch)` for its presence,
-// `pullRequest.timelineItems` for the last queue event of each pull request.
+// `pullRequest.timelineItems` for the last queue event of each pull request and
+// the ejections of its head, `pullRequest.commits` for its review rounds.
 // https://docs.github.com/en/graphql/reference/objects#mergequeue
 // https://docs.github.com/en/graphql/reference/objects#removedfrommergequeueevent
 
@@ -147,7 +148,7 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
 /** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL-only parts. */
 export function parsePullRequestView(
   text: string,
-): Omit<PullRequestObservation, 'queue' | 'reviewFailures'> {
+): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
   const verdict = latestJudgment(bodies, 'review-verdict');
@@ -287,15 +288,45 @@ const REVIEW_ROUNDS_QUERY = `query(
   }
 }`;
 
+/**
+ * The ejections of the current head: removals from the queue for any reason but
+ * `merged`, since the last commit or force push. A re-queue does not reset the
+ * count, because the head it re-queued is the same one.
+ */
+export function parseEjections(text: string): number {
+  const answer = parseJson('pull request timeline', timelineSchema, text);
+  if (answer.errors !== undefined) {
+    const messages = answer.errors.map((error) => error.message).join('; ');
+    return unreadable('pull request timeline', messages);
+  }
+  const nodes = answer.data.repository.pullRequest.timelineItems.nodes;
+  let ejections = 0;
+  for (const node of [...nodes].reverse()) {
+    if (node.__typename === 'PullRequestCommit' || node.__typename === 'HeadRefForcePushedEvent') {
+      break;
+    }
+    if (node.__typename === 'RemovedFromMergeQueueEvent' && node.reason !== 'merged') {
+      ejections += 1;
+    }
+  }
+  return ejections;
+}
+
 const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!) {
   repository(owner: $owner, name: $name) { mergeQueue(branch: $branch) { url } }
 }`;
 
+/**
+ * Queue events and commits read per pull request: enough to see past the bound
+ * on ejections. A window with no commit in it undercounts only beyond that bound.
+ */
+const TIMELINE_WINDOW = 20;
+
 const TIMELINE_QUERY = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      timelineItems(last: 1, itemTypes: [ADDED_TO_MERGE_QUEUE_EVENT, REMOVED_FROM_MERGE_QUEUE_EVENT,
-        PULL_REQUEST_COMMIT, HEAD_REF_FORCE_PUSHED_EVENT]) {
+      timelineItems(last: ${TIMELINE_WINDOW}, itemTypes: [ADDED_TO_MERGE_QUEUE_EVENT,
+        REMOVED_FROM_MERGE_QUEUE_EVENT, PULL_REQUEST_COMMIT, HEAD_REF_FORCE_PUSHED_EVENT]) {
         nodes { __typename ... on RemovedFromMergeQueueEvent { reason } }
       }
     }
@@ -342,14 +373,16 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
     const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs)));
     const timelineArgs = ['api', 'graphql', ...REPOSITORY_FIELDS, '-F', `number=${number}`];
-    const queue = observed(`#${number}`, () =>
-      parseQueueTimeline(run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`])),
+    const timeline = observed(`#${number}`, () =>
+      run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`]),
     );
+    const queue = observed(`#${number}`, () => parseQueueTimeline(timeline));
+    const ejections = observed(`#${number}`, () => parseEjections(timeline));
     const roundArgs = [...timelineArgs, '-F', `context=${REVIEW_STATUS_CONTEXT}`];
     const reviewFailures = observed(`#${number}`, () =>
       parseReviewRounds(run([...roundArgs, '-f', `query=${REVIEW_ROUNDS_QUERY}`])),
     );
-    pullRequests.set(number, { ...view, queue, reviewFailures });
+    pullRequests.set(number, { ...view, queue, ejections, reviewFailures });
   }
   return { base: request.base, mergeQueue, pullRequests };
 }

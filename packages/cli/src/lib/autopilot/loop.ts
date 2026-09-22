@@ -40,6 +40,13 @@ export const TRACKED_TICKETS_MAX = 256;
 /** Outcomes kept for the recap; the stop rule reads only the last three. */
 export const RECENT_MAX = 64;
 const LIVE_WORKERS_MAX = 16;
+/**
+ * An ejected head that still passes is re-queued this many times. Ejections
+ * without a commit usually come from a neighbour of the group or an unstable
+ * check; past this, the same head keeps failing on the combined commit and a
+ * person has to look.
+ */
+const EJECTIONS_PER_HEAD_MAX = 2;
 /** A blocking review is answered twice at most; the third failure goes to a human. */
 const REVIEW_ROUNDS_MAX = 2;
 /** Three tickets in a row handed to a human means the loop is no longer helping. */
@@ -67,6 +74,8 @@ export interface PullRequestObservation {
   readonly review: 'absent' | 'pending' | 'success' | 'failure';
   /** The last merge queue event not followed by a commit. */
   readonly queue: QueueEvent;
+  /** Ejections of the current head from the merge queue since its last commit. */
+  readonly ejections: number;
   /** Distinct heads of this pull request whose review status failed: the rounds used. */
   readonly reviewFailures: number;
   /**
@@ -113,6 +122,7 @@ export const HUMAN_WAIT_REASONS = [
   'human-merge-gate',
   'deploy-branch-target',
   'shared-state-changed',
+  'ejections-exhausted',
 ] as const;
 export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
 
@@ -163,7 +173,6 @@ export type HandBackReason =
   | 'checks-failed'
   | 'review-blocking'
   | 'conflict'
-  | 'ejected'
   | 'update-on-base';
 export type DrainReason = 'requested' | 'quota-low' | 'human-wait-streak' | 'backlog-exhausted';
 
@@ -187,6 +196,14 @@ export type LoopAction =
       readonly ticketId: string;
       readonly pullRequest: number;
       readonly headSha: string;
+    }
+  | {
+      readonly kind: 'requeue';
+      readonly ticketId: string;
+      readonly pullRequest: number;
+      readonly headSha: string;
+      /** How many times the queue already ejected this head. */
+      readonly ejections: number;
     }
   | { readonly kind: 'drain'; readonly reason: DrainReason }
   | { readonly kind: 'freeze' }
@@ -472,12 +489,13 @@ function mergeOutcome(
     if (context.serialTurn !== pr.number) return wait(ticket.id, 'serial-merge-turn');
     if (pr.behind) return handBack(ticket.id, 'update-on-base', pr.number);
   }
-  return held({
-    kind: 'enable-auto-merge',
-    ticketId: ticket.id,
-    pullRequest: pr.number,
-    headSha: pr.headSha,
-  });
+  const target = { ticketId: ticket.id, pullRequest: pr.number, headSha: pr.headSha };
+  if (pr.queue !== 'ejected') return held({ kind: 'enable-auto-merge', ...target });
+  if (pr.ejections > EJECTIONS_PER_HEAD_MAX) {
+    const detail = `#${pr.number} was ejected ${pr.ejections} times on ${pr.headSha}`;
+    return toHuman(ticket.id, 'ejections-exhausted', detail);
+  }
+  return held({ kind: 'requeue', ...target, ejections: pr.ejections });
 }
 
 function openPullOutcome(
@@ -500,7 +518,6 @@ function openPullOutcome(
   }
   if (pr.draft) return handBack(ticket.id, 'resume', pr.number);
   if (pr.conflicted) return conflictOutcome(ticket, pr);
-  if (pr.queue === 'ejected') return handBack(ticket.id, 'ejected', pr.number);
   if (pr.checks === 'failing') return handBack(ticket.id, 'checks-failed', pr.number);
   if (pr.review === 'failure') return reviewFailureOutcome(ticket, pr);
   if (pr.review !== 'success') return wait(ticket.id, 'awaiting-review');

@@ -8,6 +8,7 @@ import {
   observeGithub,
   parseMergeQueuePresence,
   parsePullRequestView,
+  parseEjections,
   parseQueueTimeline,
   parseReviewRounds,
   PULL_REQUEST_FIELDS,
@@ -229,6 +230,19 @@ describe('parseQueueTimeline', () => {
     const odd = { data: { repository: { pullRequest: { timelineItems: { nodes: [{ __typename: 'X' }] } } } } };
     expect(() => parseQueueTimeline(JSON.stringify(odd))).toThrow(/timeline/);
   });
+
+  it('counts the ejections since the last commit, which a re-queue does not reset', () => {
+    // Two `failed_checks` removals with no commit between them: the same head
+    // was ejected twice, typically for a neighbour of its group.
+    expect(parseEjections(upTo(requeued(), 1))).toBe(1);
+    expect(parseEjections(upTo(requeued(), 2))).toBe(1);
+    expect(parseEjections(upTo(requeued(), 3))).toBe(2);
+    // The removal that merged it is no ejection.
+    expect(parseEjections(upTo(requeued(), 5))).toBe(2);
+    const afterCommit = JSON.parse(fixture('timeline-commit-then-ejection.json')) as Timeline;
+    expect(parseEjections(upTo(afterCommit, 1))).toBe(0);
+    expect(parseEjections(upTo(afterCommit, 3))).toBe(1);
+  });
 });
 
 describe('observeGithub', () => {
@@ -255,6 +269,7 @@ describe('observeGithub', () => {
     expect(observed.pullRequests.get(381)).toMatchObject({
       headSha: expect.any(String),
       queue: 'none',
+      ejections: 2,
       reviewFailures: 0,
     });
     expect(calls.filter((call) => call.includes('view'))).toHaveLength(1);
