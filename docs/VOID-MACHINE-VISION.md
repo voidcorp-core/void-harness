@@ -13,6 +13,11 @@ Plan de réalisation proposé le 20 septembre :
 Il rassemble les sources, les frontières de couches et les critères empêchant de
 reproduire les blocages du harnais ; il ne déclare aucune implémentation réalisée.
 
+Patterns externes confrontés à cette vision le 22 septembre :
+[OpenClaw, Hermes Agent et TypeSafe](audits/2026-09-22-void-machine-external-patterns.md).
+Référence de conception, pas décision : une adoption passe par une ADR qui cite
+l'identifiant du pattern et le besoin démontré.
+
 Ce document fixe la direction cible. Commencer par la confronter au dépôt
 et aux décisions applicables, puis proposer une spec et une migration.
 Ne pas interpréter ce cadrage comme une autorisation de réécriture immédiate.
