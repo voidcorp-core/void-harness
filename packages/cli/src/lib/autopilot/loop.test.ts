@@ -416,6 +416,27 @@ describe('a held ticket and its pull request', () => {
     expect(actionFor(decision.actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
   });
 
+  it('never arms a merge into the branch that deploys, once `auto` resolves to it', () => {
+    const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    const auto = loopProgramOf(parseProgramDescriptor(programText().replace('base: develop', 'base: auto')));
+    const spec = { tickets };
+    const onMain: GithubObservation = {
+      ...github([pull({ ...reviewed('DEV-1', 11), base: 'main' })]),
+      base: 'main',
+    };
+    const decision = decideLoop({
+      program: auto,
+      tracker: tracker(spec),
+      github: onMain,
+      signal: 'none',
+      sharedState: sharedState(spec),
+    });
+    expect(actionFor(decision.actions, 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'deploy-branch-target',
+    });
+  });
+
   it('sends a pull request it could not observe to a human', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
     expect(actionFor(decide({ tickets }), 'DEV-1')).toMatchObject({

@@ -28,6 +28,7 @@ import {
 } from './judgments.js';
 import type { AutopilotConfig, ProgramDescriptor, ProgressStates } from './program.js';
 import { changedParts, type SharedFingerprint } from './shared-state.js';
+import { sameBranch } from './union-review.js';
 
 /** A tracker scope larger than this is a backlog dump, not a loop observation. */
 export const TRACKED_TICKETS_MAX = 256;
@@ -138,6 +139,7 @@ export type HumanWaitReason =
   | 'semantic-conflict'
   | 'review-rounds-exhausted'
   | 'human-merge-gate'
+  | 'deploy-branch-target'
   | 'shared-state-changed';
 export type DrainReason = 'requested' | 'quota-low' | 'human-wait-streak' | 'backlog-exhausted';
 
@@ -361,6 +363,14 @@ function mergeOutcome(
   const { autopilot } = context.input.program;
   if (autopilot.mergeGate === 'human') {
     return toHuman(ticket.id, 'human-merge-gate', `pull request #${pr.number} is ready to merge`);
+  }
+  // The programme refuses `base: deployBranch` as declared, but `auto` is only
+  // resolved here and can land on the branch that ships. A name that cannot be
+  // compared counts as that branch: a false refusal is a merge a person does.
+  const base = context.input.github.base;
+  if (sameBranch(base, autopilot.deployBranch) !== 'different') {
+    const detail = `#${pr.number} targets ${base}, the branch the programme says deploys`;
+    return toHuman(ticket.id, 'deploy-branch-target', detail);
   }
   const sharedStateRefusal = sharedStateOutcome(ticket, context.input.sharedState);
   if (sharedStateRefusal !== undefined) return sharedStateRefusal;

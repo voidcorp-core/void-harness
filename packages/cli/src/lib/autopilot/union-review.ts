@@ -385,7 +385,7 @@ function parseBranchRef(name: unknown): BranchRef {
  * the deploying branch" from "I could not read one of these", and the two must
  * not lead to the same outcome.
  */
-function sameBranch(target: unknown, deployBranch: unknown): BranchComparison {
+export function sameBranch(target: unknown, deployBranch: unknown): BranchComparison {
   const left = parseBranchRef(target);
   const right = parseBranchRef(deployBranch);
   if (left.kind !== 'branch' || right.kind !== 'branch') return 'undecidable';
