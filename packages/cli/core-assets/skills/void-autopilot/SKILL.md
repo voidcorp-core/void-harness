@@ -132,7 +132,7 @@ Act on each returned action, then ask again:
 | `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket> --branch <its branch>`, create or reuse its worktree, spawn its worker |
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
-| `mark-human-wait` | record it in `recent` with its `reason`, label the ticket for a human, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
+| `mark-human-wait` | record it in `recent` with its `reason`, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
 | `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
@@ -163,7 +163,9 @@ merge. A changed or missing baseline sends the ticket to a human, unpublished; o
 deletes the record.
 
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
-pull request link, the human-wait label); the rest comes from GitHub. After a restart -- an OS
+pull request link, the human-wait label); the rest comes from GitHub. The label is the one every
+decision names in `humanWaitLabel`: `autopilot.humanWaitLabel` when the programme declares it,
+`void:human-wait` otherwise; report `humanWait` as that label's presence, nothing else. After a restart -- an OS
 update, a cut, a saturated context -- the first `next` rebuilds the slots from those two sources,
 and a ticket already held is resumed, never seated twice. Report each ticket's branch and pull
 request whenever they exist, whatever its status: a ticket still ready but with a branch or a pull

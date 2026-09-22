@@ -37,6 +37,12 @@ import { sameBranch } from './union-review.js';
 
 /** A tracker scope larger than this is a backlog dump, not a loop observation. */
 export const TRACKED_TICKETS_MAX = 256;
+/**
+ * The tracker label of a ticket handed to a person, unless the programme names
+ * another in `autopilot.humanWaitLabel`. One name, so the orchestrator that sets
+ * it and the one that reads it back after a restart can never disagree.
+ */
+export const HUMAN_WAIT_LABEL = 'void:human-wait';
 /** Outcomes kept for the recap; the stop rule reads only the last three. */
 export const RECENT_MAX = 64;
 const LIVE_WORKERS_MAX = 16;
@@ -247,6 +253,8 @@ export interface LoopDecision {
   readonly actions: readonly LoopAction[];
   /** Judgments refused this tick, each naming its ticket and field. */
   readonly refusals: readonly string[];
+  /** The label a `mark-human-wait` sets, and whose presence is `humanWait`. */
+  readonly humanWaitLabel: string;
 }
 
 /** The programme's consent and state roles, or a refusal naming what is missing. */
@@ -690,7 +698,10 @@ function trailingHumanWaits(outcomes: readonly Outcome[]): number {
 }
 
 export function decideLoop(input: LoopInput): LoopDecision {
-  if (input.signal === 'now') return { actions: [{ kind: 'freeze' }], refusals: [] };
+  const humanWaitLabel = input.program.autopilot.humanWaitLabel ?? HUMAN_WAIT_LABEL;
+  if (input.signal === 'now') {
+    return { actions: [{ kind: 'freeze' }], refusals: [], humanWaitLabel };
+  }
   const refusals: string[] = [];
   const holding = heldTickets(input.program, input.tracker);
   const context: SlotContext = {
@@ -731,7 +742,7 @@ export function decideLoop(input: LoopInput): LoopDecision {
     actions.push({ kind: 'drain', reason: drain });
     if (stillHeld.length === 0) actions.push(recapOf(recent, merged, waited));
   }
-  return { actions, refusals };
+  return { actions, refusals, humanWaitLabel };
 }
 
 function recapOf(

@@ -5,6 +5,7 @@ import {
   admitLoopTracker,
   decideLoop,
   type GithubObservation,
+  HUMAN_WAIT_LABEL,
   type LoopAction,
   type LoopInput,
   type LoopTracker,
@@ -726,6 +727,25 @@ describe('a held ticket and its pull request', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')];
     const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
     expect(assigned(decide({ tickets }, { clusterSize: 1, pulls }))).toEqual(['DEV-2']);
+  });
+});
+
+describe('the human-wait label', () => {
+  const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+  const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
+  const input = (text: string): LoopInput => ({
+    program: loopProgramOf(parseProgramDescriptor(text)),
+    tracker: tracker({ tickets }),
+    github: github(pulls),
+    signal: 'none',
+    sharedState: sharedState({ tickets }),
+  });
+
+  it('names one label for every ticket handed to a person, the declared one first', () => {
+    expect(HUMAN_WAIT_LABEL).toBe('void:human-wait');
+    expect(decideLoop(input(programText())).humanWaitLabel).toBe(HUMAN_WAIT_LABEL);
+    const declared = programText().replace('base: develop', 'base: develop\n  humanWaitLabel: needs-human');
+    expect(decideLoop(input(declared)).humanWaitLabel).toBe('needs-human');
   });
 });
 

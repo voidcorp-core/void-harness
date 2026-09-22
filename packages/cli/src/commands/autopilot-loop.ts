@@ -185,7 +185,7 @@ function loopProgram(root: string): LoopProgram {
   return loopProgramOf(descriptor);
 }
 
-function renderAction(action: LoopAction): string {
+function renderAction(action: LoopAction, humanWaitLabel: string): string {
   switch (action.kind) {
     case 'assign':
       return `assign ${action.ticketId} (${action.footprint.join(', ')})`;
@@ -193,7 +193,10 @@ function renderAction(action: LoopAction): string {
     case 'hand-back-to-worker':
       return `${action.kind} ${action.ticketId}: ${action.reason}`;
     case 'mark-human-wait':
-      return `mark-human-wait ${action.ticketId}: ${action.reason} - ${action.detail}`;
+      return (
+        `mark-human-wait ${action.ticketId} [${humanWaitLabel}]: ` +
+        `${action.reason} - ${action.detail}`
+      );
     case 'enable-auto-merge':
       return `enable-auto-merge ${action.ticketId}: #${action.pullRequest} at ${action.headSha}`;
     case 'rerun-review-check':
@@ -217,7 +220,7 @@ function renderAction(action: LoopAction): string {
 }
 
 function renderDecision(decision: LoopDecision): string {
-  const lines = decision.actions.map(renderAction);
+  const lines = decision.actions.map((action) => renderAction(action, decision.humanWaitLabel));
   for (const refusal of decision.refusals) lines.push(`refused: ${refusal}`);
   return `${lines.length === 0 ? 'nothing to do' : lines.join('\n')}\n`;
 }
