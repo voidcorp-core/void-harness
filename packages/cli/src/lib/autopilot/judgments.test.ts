@@ -157,9 +157,18 @@ describe('admitConflictClass', () => {
   });
 });
 
+const HEAD = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
+
 describe('admitReviewVerdict', () => {
+  it('binds the verdict to the full head SHA it read', () => {
+    expect(refusal(admitReviewVerdict({ round: 1, blocking: [], advisory: [] }))).toContain('headSha');
+    const short = { headSha: 'ca7fdc0', round: 1, blocking: [], advisory: [] };
+    expect(refusal(admitReviewVerdict(short))).toContain('headSha');
+  });
+
   it('admits a first round with a blocking finding and an advisory', () => {
     const judgment = {
+      headSha: HEAD,
       round: 1,
       blocking: [blocking],
       advisory: [{ note: 'The helper name could say what it measures.' }],
@@ -168,18 +177,18 @@ describe('admitReviewVerdict', () => {
   });
 
   it('admits a clean second round', () => {
-    const judgment = { round: 2, blocking: [], advisory: [] };
+    const judgment = { headSha: HEAD, round: 2, blocking: [], advisory: [] };
     expect(admitted(admitReviewVerdict(judgment))).toEqual(judgment);
   });
 
   it('admits an advisory anchored to a location', () => {
     const advisory = [{ location: 'docs/x.md:3', note: 'A sentence runs long.' }];
-    const judgment = { round: 1, blocking: [], advisory };
+    const judgment = { headSha: HEAD, round: 1, blocking: [], advisory };
     expect(admitted(admitReviewVerdict(judgment)).advisory).toEqual(advisory);
   });
 
   it.each([0, 3, 1.5, '1'])('refuses the round %j', (round) => {
-    const reason = refusal(admitReviewVerdict({ round, blocking: [], advisory: [] }));
+    const reason = refusal(admitReviewVerdict({ headSha: HEAD, round, blocking: [], advisory: [] }));
     expect(reason).toContain('round');
   });
 
@@ -187,14 +196,14 @@ describe('admitReviewVerdict', () => {
     'refuses a blocking finding without its %s',
     (field) => {
       const { [field]: _dropped, ...rest } = blocking;
-      const reason = refusal(admitReviewVerdict({ round: 1, blocking: [rest], advisory: [] }));
+      const reason = refusal(admitReviewVerdict({ headSha: HEAD, round: 1, blocking: [rest], advisory: [] }));
       expect(reason).toContain(`blocking.0.${field}`);
     },
   );
 
   it.each(['', '   '])('refuses a blocking finding with the blank scenario %j', (scenario) => {
     const finding = { ...blocking, scenario };
-    const reason = refusal(admitReviewVerdict({ round: 1, blocking: [finding], advisory: [] }));
+    const reason = refusal(admitReviewVerdict({ headSha: HEAD, round: 1, blocking: [finding], advisory: [] }));
     expect(reason).toContain('blocking.0.scenario');
   });
 
@@ -202,24 +211,24 @@ describe('admitReviewVerdict', () => {
     'refuses the location %j, which is not file:line',
     (location) => {
       const finding = { ...blocking, location };
-      const reason = refusal(admitReviewVerdict({ round: 1, blocking: [finding], advisory: [] }));
+      const reason = refusal(admitReviewVerdict({ headSha: HEAD, round: 1, blocking: [finding], advisory: [] }));
       expect(reason).toContain('blocking.0.location');
     },
   );
 
   it('refuses a missing advisory list rather than defaulting it', () => {
-    expect(refusal(admitReviewVerdict({ round: 1, blocking: [] }))).toContain('advisory');
+    expect(refusal(admitReviewVerdict({ headSha: HEAD, round: 1, blocking: [] }))).toContain('advisory');
   });
 
   it('refuses an advisory with a blank note', () => {
-    const judgment = { round: 1, blocking: [], advisory: [{ note: '' }] };
+    const judgment = { headSha: HEAD, round: 1, blocking: [], advisory: [{ note: '' }] };
     const reason = refusal(admitReviewVerdict(judgment));
     expect(reason).toContain('advisory.0.note');
   });
 
   it('refuses too many blocking findings', () => {
     const findings = Array.from({ length: BLOCKING_MAX + 1 }, () => blocking);
-    const reason = refusal(admitReviewVerdict({ round: 1, blocking: findings, advisory: [] }));
+    const reason = refusal(admitReviewVerdict({ headSha: HEAD, round: 1, blocking: findings, advisory: [] }));
     expect(reason).toContain('blocking');
   });
 });

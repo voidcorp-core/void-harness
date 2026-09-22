@@ -79,9 +79,21 @@ function queued(id: string, footprint: readonly string[] = [`packages/${id.toLow
   return { id, status: 'Todo', footprint, readiness: ready };
 }
 
-/** A ticket already holding a slot, as Linear reports it after `assign`. */
+/** The head SHA `pull()` gives pull request `number`. */
+const headOf = (number: number): string => String(number).padStart(40, 'a');
+
+/** The reviewer's clean verdict on the head of pull request `number`. */
+const approving = (number: number) => ({ headSha: headOf(number), round: 1, blocking: [], advisory: [] });
+
+/**
+ * A ticket already holding a slot, as Linear reports it after `assign`. With a
+ * pull request it carries the reviewer's clean verdict on that head, unless the
+ * test says otherwise (an explicit `review: undefined` reports none).
+ */
 function started(id: string, extra: Partial<TicketSpec> = {}): TicketSpec {
-  return { id, status: 'In Progress', footprint: [`packages/${id.toLowerCase()}`], ...extra };
+  const verdict =
+    extra.pullRequest === undefined || 'review' in extra ? {} : { review: approving(extra.pullRequest) };
+  return { id, status: 'In Progress', footprint: [`packages/${id.toLowerCase()}`], ...verdict, ...extra };
 }
 
 interface TrackerSpec {
@@ -420,7 +432,7 @@ describe('resumption after a restart', () => {
   });
 
   it('reads the pull request of a ready ticket that already opened one', () => {
-    const tickets = [{ ...queued('DEV-1'), pullRequest: 11, branch: 'work/DEV-1' }];
+    const tickets = [{ ...queued('DEV-1'), pullRequest: 11, branch: 'work/DEV-1', review: approving(11) }];
     const spec = { tickets };
     expect(pullRequestsToObserve(program(), tracker(spec))).toEqual([11]);
     const actions = decide(spec, { pulls: [pull(reviewed('DEV-1', 11))] });
@@ -530,7 +542,7 @@ describe('a held ticket and its pull request', () => {
       scenario: 'A merged ticket keeps its slot.',
       correction: 'Free the slot on merge.',
     };
-    const round = (value: 1 | 2) => ({ round: value, blocking: [finding], advisory: [] });
+    const round = (value: 1 | 2) => ({ headSha: headOf(11), round: value, blocking: [finding], advisory: [] });
     expect(one({ review: round(1) }, { review: 'FAILURE' })).toMatchObject({
       kind: 'hand-back-to-worker',
       reason: 'review-blocking',
@@ -543,12 +555,13 @@ describe('a held ticket and its pull request', () => {
 
   it('sends a verdict it cannot read, or that contradicts its status, to a human', () => {
     expect(one({}, { review: 'FAILURE' })).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
-    const unscenarioed = { round: 1, blocking: [{ location: 'a.ts:1', scenario: '', correction: 'x' }], advisory: [] };
+    const unscenarioed = { headSha: headOf(11), round: 1, blocking: [{ location: 'a.ts:1', scenario: '', correction: 'x' }], advisory: [] };
     expect(one({ review: unscenarioed }, { review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
     });
     const blocking = {
+      headSha: headOf(11),
       round: 1,
       blocking: [{ location: 'a.ts:1', scenario: 'Breaks.', correction: 'Fix.' }],
       advisory: [],
@@ -556,6 +569,27 @@ describe('a held ticket and its pull request', () => {
     expect(one({ review: blocking }, { review: 'SUCCESS' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
+    });
+    // A blocking verdict on an older head says nothing about this one.
+    expect(one({ review: { ...blocking, headSha: headOf(12) } }, { review: 'FAILURE' })).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'ambiguous-state',
+      detail: expect.stringMatching(/another head/),
+    });
+  });
+
+  it('arms nothing on a success status without a clean verdict bound to that head', () => {
+    // Anyone with the same `gh` credentials can post the status; the verdict
+    // is what says a reviewer read this head and found nothing blocking.
+    expect(one({ review: undefined }, {})).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'ambiguous-state',
+      detail: expect.stringMatching(/no verdict/),
+    });
+    expect(one({ review: { ...approving(11), headSha: headOf(12) } }, {})).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'ambiguous-state',
+      detail: expect.stringMatching(/another head/),
     });
   });
 

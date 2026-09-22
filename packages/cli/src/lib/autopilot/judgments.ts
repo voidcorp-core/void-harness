@@ -122,7 +122,11 @@ const advisoryFindingSchema = z.strictObject({
   note: boundedText(REASON_MAX),
 });
 
+/** A full commit SHA: a verdict binds to exactly the head it read, never a prefix. */
+const commitSha = z.string().regex(/^[0-9a-f]{40}$/, { error: 'must be a full commit SHA' });
+
 const reviewVerdictSchema = z.strictObject({
+  headSha: commitSha,
   round: z.literal([1, 2]),
   blocking: z.array(blockingFindingSchema).max(BLOCKING_MAX),
   advisory: z.array(advisoryFindingSchema).max(ADVISORY_MAX),

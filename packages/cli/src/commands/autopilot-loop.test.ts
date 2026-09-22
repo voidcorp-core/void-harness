@@ -117,6 +117,7 @@ const heldTicket = {
   pullRequest: 11,
   branch: 'work/DEV-1',
   footprint: ['packages/dev-1'],
+  review: { headSha: 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63', round: 1, blocking: [], advisory: [] },
 };
 const queuedTicket = { id: 'DEV-2', status: 'Todo', humanWait: false, readiness: ready };
 

@@ -57,7 +57,7 @@ acts. An answer that does not fit is a refusal naming the field, never an interp
 | Is a ticket workable | `readiness`: `ready`, `needs-enrichment` or `ambiguous`, with a reason | only `ready` gets a slot |
 | What comes next | `queue`: ordered entries, each with a justification and a footprint | the head takes a free slot unless it collides |
 | A conflict after ejection | `conflict`: `mechanical` or `semantic`, with a reason | `semantic` waits for a human |
-| A review | `review`: round 1 or 2, `blocking[]` each with location, scenario and correction, `advisory[]` | a blocking finding without a scenario is invalid; two rounds at most |
+| A review | `review`: the `headSha` read, round 1 or 2, `blocking[]` each with location, scenario and correction, `advisory[]` | a blocking finding without a scenario is invalid; no merge without a clean verdict on the exact head; two rounds at most |
 
 Slots, collisions, review rounds, stops, resumption and the merge are the kernel's. No agent may
 skip a step, merge, or decide that a refusal does not apply to it.
@@ -214,7 +214,9 @@ only.
 
 **Publishing the verdict.**
 
-1. Return the typed `review` judgment and post it as a comment on the pull request.
+1. Return the typed `review` judgment, with the `headSha` it read, and post it as a comment on
+   the pull request. The kernel arms no merge on the status alone: it needs this verdict, clean
+   and bound to the current head.
 2. Post the commit status `void/independent-review` on the exact SHA read: `success` with no
    blocking finding, `failure` otherwise, with a short description.
 3. **Re-run the `independent-review` job** of the pull request. A status event starts no workflow,

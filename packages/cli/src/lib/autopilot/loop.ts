@@ -370,6 +370,10 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
   const admission = admitReviewVerdict(ticket.review);
   if (!admission.ok) return toHuman(ticket.id, 'ambiguous-state', admission.reason);
   const verdict = admission.value;
+  if (verdict.headSha !== pr.headSha) {
+    const detail = `the verdict was given on another head (${verdict.headSha}), not ${pr.headSha}`;
+    return toHuman(ticket.id, 'ambiguous-state', detail);
+  }
   if (verdict.blocking.length === 0) {
     const detail = 'the review failed on a verdict with no blocking finding';
     return toHuman(ticket.id, 'ambiguous-state', detail);
@@ -382,11 +386,24 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
   return handBack(ticket.id, 'review-blocking', pr.number);
 }
 
-/** A success status must not travel with a verdict that says otherwise. */
-function contradictedApproval(ticket: TrackerTicket): string | undefined {
-  if (ticket.review === undefined) return undefined;
+/**
+ * Why a success status on the head is not enough to arm a merge, or nothing.
+ *
+ * The status is a flag anyone holding the same credentials can raise; the
+ * verdict is what says a reviewer read this exact head and found nothing that
+ * blocks. Both are required, and they must agree.
+ *
+ * Extension point, pending a decision: who may post the status and the verdict.
+ * Nothing here checks the author yet; a dedicated reviewer identity would be
+ * checked in this function, beside the head, once it is decided.
+ */
+function unapprovedReason(ticket: TrackerTicket, pr: PullRequestObservation): string | undefined {
+  if (ticket.review === undefined) return 'the review passed and no verdict was reported';
   const admission = admitReviewVerdict(ticket.review);
   if (!admission.ok) return admission.reason;
+  if (admission.value.headSha !== pr.headSha) {
+    return `the verdict was given on another head (${admission.value.headSha}), not ${pr.headSha}`;
+  }
   if (admission.value.blocking.length > 0) return 'the review passed on a verdict that blocks';
   return undefined;
 }
@@ -473,8 +490,8 @@ function openPullOutcome(
   if (pr.checks === 'failing') return handBack(ticket.id, 'checks-failed', pr.number);
   if (pr.review === 'failure') return reviewFailureOutcome(ticket, pr);
   if (pr.review !== 'success') return wait(ticket.id, 'awaiting-review');
-  const contradiction = contradictedApproval(ticket);
-  if (contradiction !== undefined) return toHuman(ticket.id, 'ambiguous-state', contradiction);
+  const unapproved = unapprovedReason(ticket, pr);
+  if (unapproved !== undefined) return toHuman(ticket.id, 'ambiguous-state', unapproved);
   return mergeOutcome(ticket, pr, context);
 }
 
