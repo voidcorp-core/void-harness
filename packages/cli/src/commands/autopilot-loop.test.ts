@@ -64,7 +64,6 @@ function reviewedPull(): string {
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
   const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: Record<string, unknown>[] };
-  const { files } = JSON.parse(fixture('pr-view-files.json')) as { files: Record<string, unknown>[] };
   return JSON.stringify({
     ...view,
     number: 11,
@@ -73,9 +72,14 @@ function reviewedPull(): string {
     mergeStateStatus: 'BLOCKED',
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
     comments: [...comments, { ...comments[0], body: verdictComment() }],
-    files: [{ ...files[0], path: 'packages/dev-1/index.ts' }],
     changedFiles: 1,
   });
+}
+
+/** The one file pull request 11 changes, on the shape REST reports it. */
+function pullFiles(): string {
+  const [entry] = JSON.parse(fixture('pulls-files-rest.json')) as Record<string, unknown>[];
+  return JSON.stringify([{ ...entry, filename: 'packages/dev-1/index.ts', status: 'modified' }]);
 }
 
 /** The reviewer's comment, as `autopilot verdict` posts it. */
@@ -87,6 +91,7 @@ function gh(args: readonly string[]): string {
   const line = args.join(' ');
   if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
   if (line.includes('pr view 11')) return reviewedPull();
+  if (line.includes('pulls/11/files')) return pullFiles();
   if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
   if (line.includes('timelineItems')) return fixture('timeline-commit-then-ejection.json').replace(
     /"nodes":\[.*\]/,
@@ -221,7 +226,7 @@ describe('autopilot verdict', () => {
     const rollup = view.statusCheckRollup as Record<string, unknown>[];
     const [firstRun] = rollup;
     const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: unknown[] };
-    const { files, changedFiles } = JSON.parse(fixture('pr-view-files.json')) as Record<string, unknown>;
+    const { changedFiles } = JSON.parse(fixture('pr-view-files.json')) as Record<string, unknown>;
     const job = options.reviewJob === undefined ? [] : [{ ...firstRun, name: 'independent-review', conclusion: options.reviewJob }];
     return JSON.stringify({
       ...view,
@@ -232,7 +237,6 @@ describe('autopilot verdict', () => {
       baseRefName: 'develop',
       statusCheckRollup: [...rollup, ...job],
       comments,
-      files,
       changedFiles,
     });
   }

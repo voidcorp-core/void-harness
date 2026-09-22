@@ -169,6 +169,8 @@ interface PullSpec {
   readonly reviewJobAttempt?: number;
   /** The paths the pull request changes; one ordinary document unless given. */
   readonly files?: readonly string[];
+  /** Renamed files, destination to source, as REST reports them in `previous_filename`. */
+  readonly renamed?: Readonly<Record<string, string>>;
   /** How many files GitHub counts; the length of `files` unless given. */
   readonly changedFiles?: number;
 }
@@ -202,11 +204,6 @@ function pull(spec: PullSpec): PullRequestObservation {
   const armed = JSON.parse(
     readFileSync(new URL('./__fixtures__/gh/pr-view-auto-merge.json', import.meta.url), 'utf8'),
   ) as Raw;
-  const [shape] = (
-    JSON.parse(readFileSync(new URL('./__fixtures__/gh/pr-view-files.json', import.meta.url), 'utf8')) as {
-      files: Raw[];
-    }
-  ).files;
   const paths = spec.files ?? ['docs/VOID-MACHINE-VISION.md'];
   const parsed = parsePullRequestView(
     JSON.stringify({
@@ -220,7 +217,6 @@ function pull(spec: PullSpec): PullRequestObservation {
       mergeStateStatus: spec.mergeState ?? 'BLOCKED',
       autoMergeRequest: spec.autoMerge === true ? armed.autoMergeRequest : view.autoMergeRequest,
       statusCheckRollup: rollup,
-      files: paths.map((path) => ({ ...shape, path })),
       changedFiles: spec.changedFiles ?? paths.length,
       comments: [
         ...realComments(),
@@ -233,7 +229,11 @@ function pull(spec: PullSpec): PullRequestObservation {
   const ejections = spec.ejections ?? (spec.queue === 'ejected' ? 1 : 0);
   const attempt =
     spec.reviewJob === 'FAILURE' ? { reviewCheckAttempt: spec.reviewJobAttempt ?? 1 } : {};
-  return { ...parsed, queue: spec.queue ?? 'none', ejections, reviewFailures, ...attempt };
+  const files = paths.map((path) => {
+    const previousPath = spec.renamed?.[path];
+    return previousPath === undefined ? { path } : { path, previousPath };
+  });
+  return { ...parsed, files, queue: spec.queue ?? 'none', ejections, reviewFailures, ...attempt };
 }
 
 const SHARED_READING: SharedStateReading = {
@@ -787,6 +787,12 @@ describe('protected paths', () => {
       'scripts/independent-review-check.mjs',
       '.void/program.md',
       'packages/core/hooks/_void-hook.mjs',
+      // What actually runs here: the installed runner, and the files that wire
+      // it into each runtime or scope what it enforces.
+      '.void/hooks/_void-hook.mjs',
+      '.claude/settings.json',
+      '.codex/hooks.json',
+      '.void/config.json',
     ]) {
       const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
       expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
@@ -800,6 +806,8 @@ describe('protected paths', () => {
         files: { path: string }[];
       }
     ).files.map((file) => file.path);
+    // The capture itself: the programme and the installed runner are both in it.
+    expect(captured).toEqual(expect.arrayContaining(['.void/program.md', '.void/hooks/_void-hook.mjs']));
     const action = actionFor(decide({ tickets }, { pulls: [touching(captured)] }), 'DEV-1');
     expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
   });
@@ -814,6 +822,22 @@ describe('protected paths', () => {
       ...PROTECTED_PATHS_FLOOR,
       'docs/decisions-log/**',
     ]);
+  });
+
+  it('holds back a rename that moves a protected file away, by its source', () => {
+    // gh reports only where a renamed file lands; the verdict check leaving
+    // `scripts/` would break every later review job on the base.
+    const moved = 'scripts/ci/independent-review-check.mjs';
+    const renamed = { [moved]: 'scripts/independent-review-check.mjs' };
+    const action = actionFor(decide({ tickets }, { pulls: [touching([moved], { renamed })] }), 'DEV-1');
+    expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+    expect(action).toMatchObject({ detail: expect.stringContaining('scripts/independent-review-check.mjs') });
+  });
+
+  it('holds back a rename that moves a file onto protected ground, by its destination', () => {
+    const renamed = { '.github/workflows/new.yml': 'docs/a.yml' };
+    const pulls = [touching(['.github/workflows/new.yml'], { renamed })];
+    expect(actionFor(decide({ tickets }, { pulls }), 'DEV-1')).toMatchObject({ reason: 'protected-path' });
   });
 
   it('treats a file list GitHub cut short as touching a protected path', () => {

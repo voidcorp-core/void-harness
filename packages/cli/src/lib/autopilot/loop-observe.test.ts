@@ -7,7 +7,9 @@ import {
   gitIn,
   observeGithub,
   parseMergeQueuePresence,
+  parsePullRequestFiles,
   parsePullRequestView,
+  PULL_REQUEST_FILE_PAGES_MAX,
   parseEjections,
   parseQueueTimeline,
   parseReviewRounds,
@@ -30,16 +32,14 @@ function fixture(name: string): string {
 
 type Raw = Record<string, unknown>;
 /**
- * A captured view with the `comments` and the `files` of other real captures, as
- * gh prints them together when all are requested.
+ * A captured view with the `comments` and the `changedFiles` of other real
+ * captures, as gh prints them together when all are requested.
  */
 const view = (name: string): Raw => ({
   ...(JSON.parse(fixture(name)) as Raw),
   ...(JSON.parse(fixture('pr-view-comments.json')) as Raw),
-  ...(JSON.parse(fixture('pr-view-files.json')) as Raw),
+  changedFiles: (JSON.parse(fixture('pr-view-files.json')) as Raw).changedFiles,
 });
-const capturedPaths = (): string[] =>
-  ((JSON.parse(fixture('pr-view-files.json')) as Raw).files as Raw[]).map((file) => String(file.path));
 const viewText = (name: string): string => JSON.stringify(view(name));
 const openView = (): Raw => view('pr-view-open.json');
 const armedView = (): Raw => view('pr-view-auto-merge.json');
@@ -104,20 +104,19 @@ describe('parsePullRequestView', () => {
       checks: 'passing',
       review: 'absent',
       reviewCheck: 'absent',
-      files: capturedPaths(),
       changedFiles: 15,
     });
   });
 
-  it('reads the files a pull request changes, and how many GitHub counts', () => {
-    // gh reads at most 100 files; the count is what tells a short list from a whole one.
+  it('reads how many files GitHub counts, which tells a short list from a whole one', () => {
     const truncated = { ...openView(), changedFiles: 140 };
-    expect(parsePullRequestView(JSON.stringify(truncated))).toMatchObject({
-      files: capturedPaths(),
-      changedFiles: 140,
-    });
-    const { files: _dropped, ...fileless } = openView();
-    expect(() => parsePullRequestView(JSON.stringify(fileless))).toThrow(/files/);
+    expect(parsePullRequestView(JSON.stringify(truncated))).toMatchObject({ changedFiles: 140 });
+    const { changedFiles: _dropped, ...countless } = openView();
+    expect(() => parsePullRequestView(JSON.stringify(countless))).toThrow(/changedFiles/);
+  });
+
+  it('asks gh for no file list, whose renames name only the destination', () => {
+    expect(PULL_REQUEST_FIELDS).not.toContain('files');
   });
 
   it('reads a merged pull request and an armed auto-merge', () => {
@@ -320,6 +319,28 @@ describe('parseQueueTimeline', () => {
   });
 });
 
+describe('parsePullRequestFiles', () => {
+  // REST, unlike `gh pr view --json files`, reports where a renamed file came from.
+  const restFiles = (): Raw[] => JSON.parse(fixture('pulls-files-rest.json')) as Raw[];
+
+  it('reads each changed file, and the source of each rename', () => {
+    const files = parsePullRequestFiles(fixture('pulls-files-rest.json'));
+    expect(files).toHaveLength(35);
+    expect(files).toContainEqual({
+      path: 'packages/void-machine/schema/doctor-v1.json',
+      previousPath: 'native/void-machine/schema/doctor-v1.json',
+    });
+    expect(files.filter((file) => file.previousPath !== undefined)).toHaveLength(2);
+    expect(files).toContainEqual({ path: expect.any(String) });
+  });
+
+  it('refuses an entry without a file name', () => {
+    const [first] = restFiles();
+    const { filename: _dropped, ...nameless } = first as Raw;
+    expect(() => parsePullRequestFiles(JSON.stringify([nameless]))).toThrow(/filename/);
+  });
+});
+
 describe('observeGithub', () => {
   function runner(answers: Record<string, string>) {
     const calls: string[][] = [];
@@ -338,6 +359,7 @@ describe('observeGithub', () => {
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
       'commits(last': fixture('pr-commits-review-status.json'),
+      'pulls/381/files': fixture('pulls-files-rest.json'),
     });
     const observed = observeGithub(run, { base: 'develop', pullRequests: [381] });
     expect(observed.mergeQueue).toBe(true);
@@ -364,6 +386,7 @@ describe('observeGithub', () => {
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
       'commits(last': fixture('pr-commits-review-status.json'),
       'run view 35694132291': fixture('run-view-attempt.json'),
+      'pulls/381/files': fixture('pulls-files-rest.json'),
     });
     const observed = observeGithub(gh, { base: 'develop', pullRequests: [381] });
     expect(observed.pullRequests.get(381)).toMatchObject({ reviewCheckAttempt: 2 });
@@ -375,9 +398,62 @@ describe('observeGithub', () => {
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
       'commits(last': fixture('pr-commits-review-status.json'),
+      'pulls/381/files': fixture('pulls-files-rest.json'),
     });
     expect(observeGithub(quiet.run, { base: 'develop', pullRequests: [381] }).pullRequests.get(381))
       .not.toHaveProperty('reviewCheckAttempt');
+  });
+
+  describe('the files of a pull request', () => {
+    // A page of 100 entries, derived from the real capture.
+    const fullPage = (): string => {
+      const entries = JSON.parse(fixture('pulls-files-rest.json')) as Raw[];
+      return JSON.stringify(
+        Array.from({ length: 100 }, (_, index) => ({
+          ...entries[index % entries.length],
+          filename: `docs/page/${index}.md`,
+        })),
+      );
+    };
+    function observeFiles(changedFiles: number, page: () => string) {
+      const calls: string[][] = [];
+      const run = (args: readonly string[]): string => {
+        calls.push([...args]);
+        const line = args.join(' ');
+        if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
+        if (line.includes('pr view 381')) return JSON.stringify({ ...openView(), changedFiles });
+        if (line.includes('timelineItems')) return fixture('timeline-requeued-after-ejections.json');
+        if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
+        if (line.includes('pulls/381/files')) return page();
+        throw new Error(`unexpected gh call: ${line}`);
+      };
+      const observed = observeGithub(run, { base: 'develop', pullRequests: [381] }).pullRequests.get(381);
+      return { observed, pages: calls.filter((call) => call.join(' ').includes('pulls/381/files')) };
+    }
+
+    it('reads them through REST, sources of renames included', () => {
+      const { observed, pages } = observeFiles(35, () => fixture('pulls-files-rest.json'));
+      expect(pages).toEqual([['api', 'repos/{owner}/{repo}/pulls/381/files?per_page=100&page=1']]);
+      expect(observed?.files).toHaveLength(35);
+      expect(observed?.files).toContainEqual({
+        path: 'packages/cli/src/lib/autopilot/durable-run-v1.json',
+        previousPath: 'native/void-machine/schema/durable-run-v1.json',
+      });
+    });
+
+    it('reads every page GitHub counts', () => {
+      const { observed, pages } = observeFiles(250, fullPage);
+      expect(pages).toHaveLength(3);
+      expect(pages.at(-1)).toEqual(['api', 'repos/{owner}/{repo}/pulls/381/files?per_page=100&page=3']);
+      expect(observed?.files).toHaveLength(300);
+    });
+
+    it('stops at its bound, and leaves the list short for the kernel to refuse', () => {
+      const changedFiles = (PULL_REQUEST_FILE_PAGES_MAX + 5) * 100;
+      const { observed, pages } = observeFiles(changedFiles, fullPage);
+      expect(pages).toHaveLength(PULL_REQUEST_FILE_PAGES_MAX);
+      expect(observed?.files.length).toBeLessThan(changedFiles);
+    });
   });
 
   describe('without a merge queue', () => {

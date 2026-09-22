@@ -57,6 +57,13 @@ export const PROTECTED_PATHS_FLOOR = [
   '.void/program.md',
   'packages/core/hooks/**',
   'packages/hook-runner/src/rules/review-verdict-write.ts',
+  // The sources above run only after a release and a reinstall; these run now.
+  // The installed runner, the files that wire it into Claude and Codex, and the
+  // configuration that scopes what it enforces.
+  '.void/hooks/**',
+  '.claude/settings.json',
+  '.codex/**',
+  '.void/config.json',
 ] as const;
 /** Outcomes kept for the recap; the stop rule reads only the last three. */
 export const RECENT_MAX = 64;
@@ -118,10 +125,16 @@ export interface PullRequestObservation {
    */
   readonly verdict?: unknown;
   readonly conflict?: unknown;
-  /** The paths the pull request changes, as far as gh listed them. */
-  readonly files: readonly string[];
+  /** The files the pull request changes, as far as they could be read. */
+  readonly files: readonly ChangedFile[];
   /** How many files GitHub counts: more than `files` means the list was cut short. */
   readonly changedFiles: number;
+}
+
+/** One changed file; a rename carries where it came from, which is ground it changes too. */
+export interface ChangedFile {
+  readonly path: string;
+  readonly previousPath?: string;
 }
 
 export interface GithubObservation {
@@ -340,7 +353,10 @@ function protectedPathReason(pr: PullRequestObservation, autopilot: AutopilotCon
     return `#${pr.number} changes ${pr.changedFiles} files and only ${pr.files.length} could be read`;
   }
   const areas = protectedPathsOf(autopilot).map(compileArea);
-  const file = pr.files.find((path) => areas.some((area) => areaClaims(area, path)));
+  const touched = pr.files.flatMap((file) =>
+    file.previousPath === undefined ? [file.path] : [file.previousPath, file.path],
+  );
+  const file = touched.find((path) => areas.some((area) => areaClaims(area, path)));
   return file === undefined ? undefined : `#${pr.number} changes ${file}, which only a person merges`;
 }
 

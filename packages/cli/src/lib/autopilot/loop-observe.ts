@@ -22,7 +22,12 @@ import { selectBase } from './base-selection.js';
 import { autopilotFailure } from './errors.js';
 import { judgmentsOf, latestJudgment } from './judgment-comment.js';
 import { admitReviewVerdict } from './judgments.js';
-import type { GithubObservation, PullRequestObservation, QueueEvent } from './loop.js';
+import type {
+  ChangedFile,
+  GithubObservation,
+  PullRequestObservation,
+  QueueEvent,
+} from './loop.js';
 import type { SharedStateReading } from './shared-state.js';
 
 /** Runs `gh` (or `git`) with argv, never through a shell, and returns its stdout. */
@@ -41,7 +46,8 @@ export const PULL_REQUEST_FIELDS = [
   'autoMergeRequest',
   'statusCheckRollup',
   'comments',
-  'files',
+  // Not `files`: gh names only the destination of a rename, so the files are
+  // read through REST, which names the source too.
   'changedFiles',
 ] as const;
 
@@ -91,11 +97,26 @@ const pullRequestViewSchema = z.object({
   ),
   // Oldest first, as gh prints them; only the body is read, for judgment blocks.
   comments: z.array(z.object({ body: z.string() })),
-  // gh lists at most 100 files; `changedFiles` is GitHub's own count, which is
-  // what tells the kernel a list was cut short.
-  files: z.array(z.object({ path: z.string().min(1) })),
+  // GitHub's own count, which tells the kernel a file list was cut short.
   changedFiles: z.int().nonnegative(),
 });
+
+/**
+ * One page of `GET /repos/{owner}/{repo}/pulls/{number}/files`. A renamed file
+ * carries `previous_filename`, the ground it leaves.
+ * https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files
+ */
+const pullRequestFilesSchema = z
+  .array(z.object({ filename: z.string().min(1), previous_filename: z.string().min(1).optional() }))
+  .max(100);
+
+/** REST serves at most 100 files a page. */
+const PULL_REQUEST_FILES_PER_PAGE = 100;
+/**
+ * Pages read per pull request: 1 000 files, far beyond a loop unit. A longer
+ * list stays short, and the kernel holds a short list back as protected.
+ */
+export const PULL_REQUEST_FILE_PAGES_MAX = 10;
 
 type RollupEntry = z.infer<typeof pullRequestViewSchema>['statusCheckRollup'][number];
 type CheckState = 'pending' | 'passing' | 'failing';
@@ -194,10 +215,40 @@ function believedVerdict(
   return confirmed.at(-1);
 }
 
-/** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL-only parts. */
+/** One page of a pull request's files, each rename with its source. */
+export function parsePullRequestFiles(text: string): ChangedFile[] {
+  return parseJson('pull request files', pullRequestFilesSchema, text).map((entry) =>
+    entry.previous_filename === undefined
+      ? { path: entry.filename }
+      : { path: entry.filename, previousPath: entry.previous_filename },
+  );
+}
+
+/**
+ * The files GitHub counts, page by page, up to the bound. A page shorter than
+ * a full one is the last; what the bound leaves unread keeps the list short.
+ */
+function readPullRequestFiles(run: GhRunner, number: number, changedFiles: number): ChangedFile[] {
+  const files: ChangedFile[] = [];
+  const pages = Math.min(
+    Math.ceil(changedFiles / PULL_REQUEST_FILES_PER_PAGE),
+    PULL_REQUEST_FILE_PAGES_MAX,
+  );
+  for (let page = 1; page <= pages; page += 1) {
+    const query = `per_page=${PULL_REQUEST_FILES_PER_PAGE}&page=${page}`;
+    const entries = parsePullRequestFiles(
+      run(['api', `repos/{owner}/{repo}/pulls/${number}/files?${query}`]),
+    );
+    files.push(...entries);
+    if (entries.length < PULL_REQUEST_FILES_PER_PAGE) break;
+  }
+  return files;
+}
+
+/** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL and REST parts. */
 export function parsePullRequestView(
   text: string,
-): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures'> {
+): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures' | 'files'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
   const review = reviewOf(view.statusCheckRollup);
@@ -218,7 +269,6 @@ export function parsePullRequestView(
     checks: checksOf(view.statusCheckRollup),
     review,
     ...reviewCheckOf(view.statusCheckRollup),
-    files: view.files.map((file) => file.path),
     changedFiles: view.changedFiles,
   };
 }
@@ -506,7 +556,8 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
               parseRunAttempt(run(['run', 'view', String(checkRun), '--json', 'attempt'])),
             ),
           };
-    pullRequests.set(number, { ...view, queue, ejections, reviewFailures, ...attempt });
+    const files = observed(`#${number}`, () => readPullRequestFiles(run, number, view.changedFiles));
+    pullRequests.set(number, { ...view, files, queue, ejections, reviewFailures, ...attempt });
   }
   if (!mergeQueue) requireUpToDateBase(run, request.base);
   return { base: request.base, mergeQueue, pullRequests };

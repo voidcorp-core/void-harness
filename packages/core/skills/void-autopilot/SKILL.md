@@ -29,9 +29,11 @@ and never counts toward the streak that stops the loop. Promotion from the integ
 under both gates.
 
 It never merges a change to the machinery that judges merges. A pull request touching
-`.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`, `packages/core/hooks/**`
-or the verdict hook's source goes to a person with the file named (`protected-path`). The programme
-adds paths through `autopilot.protectedPaths`; nothing removes from that floor.
+`.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`, `packages/core/hooks/**`,
+the verdict hook's source, or the hooks installed here (`.void/hooks/**`, `.claude/settings.json`,
+`.codex/**`, `.void/config.json`) goes to a person with the file named (`protected-path`). A rename
+counts by its source and its destination. The programme adds paths through
+`autopilot.protectedPaths`; nothing removes from that floor.
 
 It never closes, cancels or deletes a ticket, and it never touches `main`, the secrets or the
 repository settings.

@@ -86,10 +86,16 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   branch it merges into or ships from.
 - The loop never arms a pull request that touches the machinery judging merges:
   `.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`,
-  `packages/core/hooks/**` and the source of the hook above. That floor is a
-  constant; `autopilot.protectedPaths` in the programme adds to it and cannot
-  remove from it. Such a pull request goes to a person with the file named, as
-  does one whose change list gh could not read in full.
+  `packages/core/hooks/**` and the source of the hook above, plus what runs
+  before any release: the installed runner (`.void/hooks/**`), the files that
+  wire it (`.claude/settings.json`, `.codex/**`) and the configuration that
+  scopes it (`.void/config.json`). That floor is a constant;
+  `autopilot.protectedPaths` in the programme adds to it and cannot remove from
+  it. The changed files are read through REST, which names the source of a
+  rename as well as its destination, and both are checked: moving a protected
+  file away is changing it. Such a pull request goes to a person with the file
+  named, as does one whose change list could not be read in full (beyond ten
+  pages of a hundred files).
 - The release back-merge (`chore/back-merge-main` into `develop`) needs no
   verdict. The check recognises it only by facts a pull request cannot choose:
   the release App's bot account by numeric id and `Bot` type, the branch, the
