@@ -1,10 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { applyDurableEvent, createDurableRun, openDurableRunStore } from './durable-run.js';
 
-const schemaPath = join(process.cwd(), 'native/void-machine/schema/durable-run-v1.json');
+const schemaPath = resolve(import.meta.dirname, 'durable-run-v1.json');
 
 const leases = 'lease-1';
 const stores: Array<ReturnType<typeof openDurableRunStore>> = [];

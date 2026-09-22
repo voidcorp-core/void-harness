@@ -17,7 +17,13 @@ baseline: 85f177b1dc4638be75ccc9e265352698cc072969
 
 La PR #393 a été fusionnée dans `develop` à `e0e8afa2`. Les receipts M1/M2 et les
 mentions de PR ouverte plus bas sont des observations historiques à leur date.
-Cette branche poursuit le socle privé sans basculer la distribution ni retirer Rust.
+Cette branche poursuit le socle privé sans basculer la distribution.
+
+**Rust retiré.** `native/`, son job CI et le bin public `void-machine` sont
+supprimés sans portage : aucune capacité Rust n'avait d'appelant que le TypeScript
+ne serve déjà. La migration se réduisait donc à cette suppression ; les trois idées
+retenues par l'audit sont suivies en TypeScript (DEV-858, DEV-859, DEV-860). Voir
+[l'ADR de retrait](../decisions-log/2026-09-21-void-machine-rust-removal-without-port--ec77d2de-4719-4fe6-8d21-c0dbe403d6ac.md).
 
 **Tranche de fiabilité actuelle, volet outillage.** `packages/void-machine` porte
 seul le plancher Node >=24.15.0, TypeScript 7.0.2, Vitest 5.0.1, Zod 4.6.5 et

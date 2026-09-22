@@ -251,7 +251,7 @@ visible working tree on 2026-09-19. No test execution supports this inventory.
 | `native/void-machine/crates/host/src/git_effect.rs` | Git observation and shared-repository mutation detection | Candidate coding-adapter reuse; do not move I/O into core |
 | `native/void-machine/crates/adapters/src/lib.rs` | Doctor and skill package checks, renderers | Candidate protocol reference; no obligation to extend this implementation |
 | `native/void-machine/crates/cli/src/main.rs` | Only doctor and skill-check command dispatch | Candidate distribution compatibility boundary |
-| `native/void-machine/schema/durable-run-v1.json` | No-effect run schema, four phases, zero authoritative effects | Preserve v1 reader; new design review states need a separate versioned contract |
+| `packages/cli/src/lib/autopilot/durable-run-v1.json` | No-effect run schema, four phases, zero authoritative effects | Preserve v1 reader; new design review states need a separate versioned contract |
 | `packages/cli/src/lib/autopilot/durable-run.ts` | SQLite state/events/outbox transaction, revisions, lease token, no-effect intent | Evaluate persistence mechanics via Node host; its four-state reducer cannot own the new mission transitions |
 | `packages/mission-engine/src/routing/eligibility.ts` | Deterministic admission before semantic ranking; numeric money only | Evaluate as route authority; add explicit unknown cost semantics before using subscription telemetry |
 | `packages/mission-engine/src/orchestration/review-loop.ts` | Revision/context-bound coding specialist completions and rounds | Evaluate evidence rules; do not pretend its pre/post-implementation stages already model design acceptance |
