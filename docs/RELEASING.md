@@ -34,7 +34,7 @@ Two long-lived branches, with different gates and different levels of autonomy.
 |---|---|---|
 | Merged by | a human for normal work; native auto-merge only for the canonical release back-merge | a human, after reading the change as a whole |
 | Guarantees | the suite passed and the doctrine floor held | the above, plus a human said yes |
-| CI (`ci.yml`, `void-enforce.yml`) | identical job set to `main` | identical job set to `develop` |
+| CI (`ci.yml`, `void-enforce.yml`) | job set of `main`, plus `independent-review` and the `merge_group` trigger | identical job set to `develop`, no merge queue |
 | `release.yml` | never fires | fires on every push — release-please, then publish |
 | Server-side protection | same required checks as `main`, no force-push, no deletion | unchanged |
 
@@ -44,6 +44,15 @@ stop for a human merge. The only armed auto-merge allowed in the repository is
 `chore/back-merge-main -> develop`, after its required checks pass. A `develop`
 without CI would make every automation path blind, which is why protection
 failures are treated as unprotected rather than inferred safe.
+
+**`develop` is ready for a merge queue, not yet using one.** Every workflow that
+carries a required check of `develop` also answers `merge_group`, the only event
+a queue waits on, and falls back to the group's `base_sha` wherever it read the
+pull request base. The `independent-review` job passes only when the reviewer's
+`void/independent-review` commit status is `success` on the head SHA of the pull
+request, or of every pull request in the merge group. Turning the queue on and
+requiring that check is a repository setting a human takes; see
+[the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md).
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is
 triggered by `push: branches: [main]` and nothing about the two-branch flow touches
