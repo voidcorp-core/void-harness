@@ -1,7 +1,7 @@
 ---
 title: Autopilot - boucle continue native GitHub, curateur dédié, merge automatique sur develop
 date: 2026-09-22
-status: in-design
+status: approved
 author: Folpe + Claude
 ticket:
 supersedes:
