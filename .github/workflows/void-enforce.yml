@@ -100,8 +100,10 @@ jobs:
       pull-requests: read
       statuses: read
     steps:
-      # The verifier comes from the base branch, never from the change it
-      # judges: a pull request must not be able to rewrite its own gate.
+      # The script comes from the base branch, so a pull request cannot rewrite
+      # it. This YAML does not: GitHub runs the workflow of the merge ref (or of
+      # the group commit), so a change to this job is judged by itself. Pinning
+      # the workflow is an open decision recorded in the merge queue ADR.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}

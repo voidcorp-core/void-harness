@@ -50,10 +50,15 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
 - The job finds the group from the queue itself: the `head_ref` of the event
   (`gh-readonly-queue/<base>/pr-<n>-<sha>`) names the last pull request, and the
   GraphQL `mergeQueue` entries are followed through their `baseCommit` down to
-  the base branch. Every doubt fails the check: an unknown event, a malformed
-  ref, an entry missing from the queue, an API error.
-- The verifier runs from the base branch with read-only permissions, so a pull
-  request cannot rewrite the gate that judges it.
+  the current head of the base branch, read in the same request. Every doubt
+  fails the check: an unknown event, a malformed ref, an entry missing from the
+  queue, a walk that stops anywhere but that head, an API error.
+- The verification script is checked out from the base branch and runs with
+  read-only permissions, so a pull request cannot rewrite the script. The
+  workflow that calls it is not protected the same way: GitHub runs the YAML of
+  the pull request merge ref on `pull_request` and of the group commit on
+  `merge_group`, so a pull request that edits the job edits the gate that judges
+  it (see Consequences).
 - Every workflow carrying a required check of `develop` answers `merge_group`,
   and steps that read pull_request-only context fall back to the group's
   `base_sha`.
@@ -92,6 +97,11 @@ Negative:
   passes, not that it is coherent.
 - A status event starts no workflow, so after posting a verdict the reviewer must
   rerun the `independent-review` job of the pull request.
+- The workflow file is the change's own: a pull request that replaces the
+  `independent-review` job with one that always passes keeps the required check
+  green. Checking the script out from the base does not close this. Pinning the
+  workflow (a required workflow ruleset on `develop`) or refusing workflow
+  changes without a human is a decision still to take before activation.
 - The verdict is only as trustworthy as the identity allowed to post it. Any
   actor with write access to statuses can post `void/independent-review`; this
   record does not bind the verdict to a dedicated reviewer identity.
