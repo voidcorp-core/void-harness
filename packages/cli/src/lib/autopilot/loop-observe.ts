@@ -20,7 +20,8 @@ import { join, relative } from 'node:path';
 import { z } from 'zod';
 import { selectBase } from './base-selection.js';
 import { autopilotFailure } from './errors.js';
-import { latestJudgment } from './judgment-comment.js';
+import { judgmentsOf, latestJudgment } from './judgment-comment.js';
+import { admitReviewVerdict } from './judgments.js';
 import type { GithubObservation, PullRequestObservation, QueueEvent } from './loop.js';
 import type { SharedStateReading } from './shared-state.js';
 
@@ -172,13 +173,35 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
   return unreadable(what, issues.join('; '));
 }
 
+/**
+ * The verdict comment the status on the same head confirms: the last one bound
+ * to that head whose findings agree with the status, clean with `success` and
+ * blocking with `failure`. `autopilot verdict` writes the two together and is
+ * the only writer, so a comment the status contradicts, or posted with no
+ * status at all, is not the reviewer's and is not read.
+ */
+function believedVerdict(
+  bodies: readonly string[],
+  headSha: string,
+  review: PullRequestObservation['review'],
+): unknown {
+  if (review !== 'success' && review !== 'failure') return undefined;
+  const confirmed = judgmentsOf(bodies, 'review-verdict').filter((raw) => {
+    const admission = admitReviewVerdict(raw);
+    if (!admission.ok || admission.value.headSha !== headSha) return false;
+    return (admission.value.blocking.length === 0) === (review === 'success');
+  });
+  return confirmed.at(-1);
+}
+
 /** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL-only parts. */
 export function parsePullRequestView(
   text: string,
 ): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
-  const verdict = latestJudgment(bodies, 'review-verdict');
+  const review = reviewOf(view.statusCheckRollup);
+  const verdict = believedVerdict(bodies, view.headRefOid, review);
   const conflict = latestJudgment(bodies, 'conflict-class');
   return {
     ...(verdict === undefined ? {} : { verdict }),
@@ -193,7 +216,7 @@ export function parsePullRequestView(
     behind: view.mergeStateStatus === 'BEHIND',
     autoMerge: view.autoMergeRequest !== null, // allow-null: the absence gh reports
     checks: checksOf(view.statusCheckRollup),
-    review: reviewOf(view.statusCheckRollup),
+    review,
     ...reviewCheckOf(view.statusCheckRollup),
     files: view.files.map((file) => file.path),
     changedFiles: view.changedFiles,

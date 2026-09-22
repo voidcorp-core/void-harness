@@ -645,7 +645,7 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { verdict: { ...blocking, headSha: headOf(12) }, review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
-      detail: expect.stringMatching(/another head/),
+      detail: expect.stringMatching(/no verdict on this head/),
     });
   });
 
@@ -660,7 +660,7 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { verdict: { ...approving(11), headSha: headOf(12) } })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'ambiguous-state',
-      detail: expect.stringMatching(/another head/),
+      detail: expect.stringMatching(/no verdict on this head/),
     });
   });
 

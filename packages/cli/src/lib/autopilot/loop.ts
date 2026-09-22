@@ -461,7 +461,8 @@ function conflictOutcome(ticket: TrackerTicket, pr: PullRequestObservation): Slo
 
 function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
   if (pr.verdict === undefined) {
-    return toHuman(ticket.id, 'ambiguous-state', 'the review failed and no verdict was posted');
+    const detail = 'the review failed and no verdict on this head confirms it';
+    return toHuman(ticket.id, 'ambiguous-state', detail);
   }
   const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return toHuman(ticket.id, 'ambiguous-state', admission.reason);
@@ -496,7 +497,7 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
  * checked in this function, beside the head, once it is decided.
  */
 function unapprovedReason(pr: PullRequestObservation): string | undefined {
-  if (pr.verdict === undefined) return 'the review passed and no verdict was posted';
+  if (pr.verdict === undefined) return 'the review passed and no verdict on this head confirms it';
   const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return admission.reason;
   if (admission.value.headSha !== pr.headSha) {

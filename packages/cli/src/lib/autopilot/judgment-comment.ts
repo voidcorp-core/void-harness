@@ -53,19 +53,24 @@ function blockPattern(kind: JudgmentKind): RegExp {
 }
 
 /**
- * The last block of `kind` across comment bodies given oldest first, as parsed
- * JSON, or as its raw text when it is not JSON so that the admission refuses it
- * with a reason. Undefined when no comment carries one.
+ * Every block of `kind` across comment bodies given oldest first, each as parsed
+ * JSON, or as its raw text when it is not JSON so that an admission refuses it
+ * with a reason.
  */
-export function latestJudgment(bodies: readonly string[], kind: JudgmentKind): unknown {
-  const found = bodies.flatMap((body) =>
-    [...body.matchAll(blockPattern(kind))].map((match) => match[1] ?? ''),
+export function judgmentsOf(bodies: readonly string[], kind: JudgmentKind): unknown[] {
+  return bodies.flatMap((body) =>
+    [...body.matchAll(blockPattern(kind))].map((match) => {
+      const text = match[1] ?? '';
+      try {
+        return JSON.parse(text) as unknown;
+      } catch {
+        return text;
+      }
+    }),
   );
-  const last = found.at(-1);
-  if (last === undefined) return undefined;
-  try {
-    return JSON.parse(last) as unknown;
-  } catch {
-    return last;
-  }
+}
+
+/** The last block of `kind` across comment bodies given oldest first; undefined when none. */
+export function latestJudgment(bodies: readonly string[], kind: JudgmentKind): unknown {
+  return judgmentsOf(bodies, kind).at(-1);
 }

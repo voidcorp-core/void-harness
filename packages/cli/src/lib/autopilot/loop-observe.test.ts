@@ -187,12 +187,46 @@ describe('parsePullRequestView', () => {
       { ...real, body: renderJudgmentComment('review-verdict', verdictJudgment) },
       { ...real, body: renderJudgmentComment('conflict-class', conflictJudgment) },
     ];
-    const read = parsePullRequestView(JSON.stringify({ ...base, comments: [...comments, ...posted] }));
+    const rollup = [...(base.statusCheckRollup as Raw[]), verdict('SUCCESS')];
+    const read = parsePullRequestView(
+      JSON.stringify({ ...base, statusCheckRollup: rollup, comments: [...comments, ...posted] }),
+    );
     expect(read.verdict).toEqual(verdictJudgment);
     expect(read.conflict).toEqual(conflictJudgment);
     const bare = parsePullRequestView(viewText('pr-view-open.json'));
     expect(bare.verdict).toBeUndefined();
     expect(bare.conflict).toBeUndefined();
+  });
+
+  it('believes a verdict comment only when the status on the same head says the same', () => {
+    // A comment is text anyone with the same credentials can post; the status
+    // and the comment are written together by `autopilot verdict` alone, so a
+    // comment the status does not confirm is not the reviewer's.
+    const base = openView();
+    const [real] = base.comments as Raw[];
+    const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
+    const clean = { headSha: head, round: 1, blocking: [], advisory: [] };
+    const finding = { location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' };
+    const blocking = { ...clean, blocking: [finding] };
+    const read = (status: string | undefined, ...judgments: unknown[]) => {
+      const rollup = [...(base.statusCheckRollup as Raw[]), ...(status === undefined ? [] : [verdict(status)])];
+      const comments = judgments.map((judgment) => ({
+        ...real,
+        body: typeof judgment === 'string' ? judgment : renderJudgmentComment('review-verdict', judgment),
+      }));
+      return parsePullRequestView(JSON.stringify({ ...base, statusCheckRollup: rollup, comments })).verdict;
+    };
+    expect(read('SUCCESS', clean)).toEqual(clean);
+    expect(read('FAILURE', blocking)).toEqual(blocking);
+    // A clean comment posted after the failure it would overturn is not believed.
+    expect(read('FAILURE', blocking, clean)).toEqual(blocking);
+    expect(read('FAILURE', clean)).toBeUndefined();
+    expect(read('SUCCESS', blocking)).toBeUndefined();
+    expect(read(undefined, clean)).toBeUndefined();
+    expect(read('PENDING', clean)).toBeUndefined();
+    expect(read('SUCCESS', { ...clean, headSha: 'b'.repeat(40) })).toBeUndefined();
+    const malformed = '<!-- void-autopilot:review-verdict -->\n```json\n{ nope\n```\n<!-- /void-autopilot:review-verdict -->';
+    expect(read('SUCCESS', clean, malformed)).toEqual(clean);
   });
 
   it('reads a conflict and a branch behind its base', () => {
