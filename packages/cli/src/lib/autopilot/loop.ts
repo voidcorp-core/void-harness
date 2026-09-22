@@ -67,6 +67,13 @@ const LIVE_WORKERS_MAX = 16;
  * person has to look.
  */
 const EJECTIONS_PER_HEAD_MAX = 2;
+/**
+ * The review job is re-run twice at most on one run, whoever asked: the verdict
+ * command after it posts, then the loop. GitHub numbers the attempts, so the
+ * count survives a restart. Past it, the job fails for a reason a re-run does
+ * not reach, and a person has to look.
+ */
+const REVIEW_CHECK_RERUNS_MAX = 2;
 /** A blocking review is answered twice at most; the third failure goes to a human. */
 const REVIEW_ROUNDS_MAX = 2;
 /** Three tickets in a row handed to a human means the loop is no longer helping. */
@@ -96,6 +103,8 @@ export interface PullRequestObservation {
   readonly reviewCheck: 'absent' | 'pending' | 'passing' | 'failing';
   /** The GitHub Actions run holding that job, when its URL names one. */
   readonly reviewCheckRun?: number;
+  /** That run's attempt, read only when the job failed: 1 until someone re-runs it. */
+  readonly reviewCheckAttempt?: number;
   /** The last merge queue event not followed by a commit. */
   readonly queue: QueueEvent;
   /** Ejections of the current head from the merge queue since its last commit. */
@@ -152,6 +161,7 @@ export const HUMAN_WAIT_REASONS = [
   'shared-state-changed',
   'ejections-exhausted',
   'protected-path',
+  'review-check-reruns-exhausted',
 ] as const;
 export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
 
@@ -586,9 +596,14 @@ function openPullOutcome(
   // starts no workflow: without a re-run the required check stays red and an
   // armed auto-merge waits forever.
   if (pr.reviewCheck === 'failing') {
-    if (pr.reviewCheckRun === undefined) {
+    if (pr.reviewCheckRun === undefined || pr.reviewCheckAttempt === undefined) {
       const detail = `the independent-review job of #${pr.number} failed and names no run`;
       return toHuman(ticket.id, 'ambiguous-state', detail);
+    }
+    if (pr.reviewCheckAttempt > REVIEW_CHECK_RERUNS_MAX) {
+      const reruns = pr.reviewCheckAttempt - 1;
+      const detail = `run ${pr.reviewCheckRun} of #${pr.number} still fails after ${reruns} re-runs`;
+      return toHuman(ticket.id, 'review-check-reruns-exhausted', detail);
     }
     return held({
       kind: 'rerun-review-check',

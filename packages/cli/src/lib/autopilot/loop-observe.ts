@@ -200,6 +200,13 @@ export function parsePullRequestView(
   };
 }
 
+const runAttemptSchema = z.object({ attempt: z.int().positive() });
+
+/** The attempt of one Actions run, from `gh run view <run> --json attempt`. */
+export function parseRunAttempt(text: string): number {
+  return parseJson('run attempt', runAttemptSchema, text).attempt;
+}
+
 const graphqlErrors = z.array(z.object({ message: z.string() })).max(64).optional();
 
 const mergeQueueSchema = z.object({
@@ -466,7 +473,17 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     const reviewFailures = observed(`#${number}`, () =>
       parseReviewRounds(run([...roundArgs, '-f', `query=${REVIEW_ROUNDS_QUERY}`])),
     );
-    pullRequests.set(number, { ...view, queue, ejections, reviewFailures });
+    // Read only when the loop may re-run the job: a passing job is never re-run.
+    const checkRun = view.reviewCheck === 'failing' ? view.reviewCheckRun : undefined;
+    const attempt =
+      checkRun === undefined
+        ? {}
+        : {
+            reviewCheckAttempt: observed(`#${number}`, () =>
+              parseRunAttempt(run(['run', 'view', String(checkRun), '--json', 'attempt'])),
+            ),
+          };
+    pullRequests.set(number, { ...view, queue, ejections, reviewFailures, ...attempt });
   }
   if (!mergeQueue) requireUpToDateBase(run, request.base);
   return { base: request.base, mergeQueue, pullRequests };

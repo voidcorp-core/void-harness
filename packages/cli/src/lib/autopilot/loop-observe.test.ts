@@ -11,6 +11,7 @@ import {
   parseEjections,
   parseQueueTimeline,
   parseReviewRounds,
+  parseRunAttempt,
   PULL_REQUEST_FIELDS,
   readSharedState,
   resolveLoopBase,
@@ -215,6 +216,21 @@ describe('parsePullRequestView', () => {
   });
 });
 
+describe('parseRunAttempt', () => {
+  // How many times a run was started on its head: GitHub's count, which a
+  // restart cannot reset. zed run 35748516084 was re-run once.
+  it('reads the attempt of a run', () => {
+    expect(parseRunAttempt(fixture('run-view-attempt.json'))).toBe(2);
+  });
+
+  it('refuses an answer without a usable attempt', () => {
+    const answer = JSON.parse(fixture('run-view-attempt.json')) as Raw;
+    expect(() => parseRunAttempt(JSON.stringify({ ...answer, attempt: 0 }))).toThrow(/attempt/);
+    const { attempt: _dropped, ...bare } = answer;
+    expect(() => parseRunAttempt(JSON.stringify(bare))).toThrow(/attempt/);
+  });
+});
+
 describe('parseMergeQueuePresence', () => {
   it('tells a branch with a merge queue from one without', () => {
     expect(parseMergeQueuePresence(fixture('queue-present.json'))).toBe(true);
@@ -302,6 +318,32 @@ describe('observeGithub', () => {
     expect(calls.find((call) => call.includes('view'))).toEqual([
       'pr', 'view', '381', '--json', PULL_REQUEST_FIELDS.join(','),
     ]);
+  });
+
+  it('reads the attempt of the run whose review job failed, and only then', () => {
+    const view = openView();
+    const [run] = view.statusCheckRollup as Raw[];
+    const failed = { ...run, name: 'independent-review', conclusion: 'FAILURE' };
+    const { run: gh, calls } = runner({
+      'mergeQueue(branch': fixture('queue-present.json'),
+      'pr view 381': withRollup(view, [...(view.statusCheckRollup as Raw[]), failed]),
+      'timelineItems': fixture('timeline-requeued-after-ejections.json'),
+      'commits(last': fixture('pr-commits-review-status.json'),
+      'run view 35694132291': fixture('run-view-attempt.json'),
+    });
+    const observed = observeGithub(gh, { base: 'develop', pullRequests: [381] });
+    expect(observed.pullRequests.get(381)).toMatchObject({ reviewCheckAttempt: 2 });
+    expect(calls.find((call) => call[0] === 'run')).toEqual([
+      'run', 'view', '35694132291', '--json', 'attempt',
+    ]);
+    const quiet = runner({
+      'mergeQueue(branch': fixture('queue-present.json'),
+      'pr view 381': viewText('pr-view-open.json'),
+      'timelineItems': fixture('timeline-requeued-after-ejections.json'),
+      'commits(last': fixture('pr-commits-review-status.json'),
+    });
+    expect(observeGithub(quiet.run, { base: 'develop', pullRequests: [381] }).pullRequests.get(381))
+      .not.toHaveProperty('reviewCheckAttempt');
   });
 
   describe('without a merge queue', () => {

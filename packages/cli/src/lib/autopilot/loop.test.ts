@@ -165,6 +165,8 @@ interface PullSpec {
   readonly ejections?: number;
   /** The conclusion of the `independent-review` job, absent unless given. */
   readonly reviewJob?: 'SUCCESS' | 'FAILURE';
+  /** The attempt of the run holding the `independent-review` job; its first unless given. */
+  readonly reviewJobAttempt?: number;
   /** The paths the pull request changes; one ordinary document unless given. */
   readonly files?: readonly string[];
   /** How many files GitHub counts; the length of `files` unless given. */
@@ -229,7 +231,9 @@ function pull(spec: PullSpec): PullRequestObservation {
   );
   const reviewFailures = spec.reviewFailures ?? (spec.review === 'FAILURE' ? 1 : 0);
   const ejections = spec.ejections ?? (spec.queue === 'ejected' ? 1 : 0);
-  return { ...parsed, queue: spec.queue ?? 'none', ejections, reviewFailures };
+  const attempt =
+    spec.reviewJob === 'FAILURE' ? { reviewCheckAttempt: spec.reviewJobAttempt ?? 1 } : {};
+  return { ...parsed, queue: spec.queue ?? 'none', ejections, reviewFailures, ...attempt };
 }
 
 const SHARED_READING: SharedStateReading = {
@@ -682,6 +686,18 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { reviewJob: 'FAILURE' })).toEqual(rerun);
     expect(one({}, { reviewJob: 'FAILURE', autoMerge: true })).toEqual(rerun);
     expect(one({}, { reviewJob: 'SUCCESS' })).toMatchObject({ kind: 'enable-auto-merge' });
+  });
+
+  it('re-runs the review job twice at most on one head, then asks a human', () => {
+    // GitHub numbers the attempts of a run, so a restarted orchestrator cannot
+    // reset the count; the re-run the verdict command made is one of the two.
+    expect(one({}, { reviewJob: 'FAILURE', reviewJobAttempt: 2 })).toMatchObject({
+      kind: 'rerun-review-check',
+    });
+    expect(one({}, { reviewJob: 'FAILURE', reviewJobAttempt: 3 })).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'review-check-reruns-exhausted',
+    });
   });
 
   it('waits once the auto-merge is armed or the pull request is queued', () => {
