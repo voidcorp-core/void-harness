@@ -16,6 +16,7 @@ import {
   type StopSignal,
 } from './loop.js';
 import { parseProgramDescriptor } from './program.js';
+import { fingerprintOf, type SharedFingerprint } from './shared-state.js';
 
 // The kernel decides what each slot does from what Linear and GitHub say, and
 // from nothing else: no memory of the previous tick, no session state. Every
@@ -171,6 +172,22 @@ function pull(spec: PullSpec): PullRequestObservation {
   return { ...parsed, queue: spec.queue ?? 'none' };
 }
 
+/** The shared Git state as it stood, and a record of it for every ticket. */
+function sharedState(
+  spec: TrackerSpec,
+  options: { changed?: readonly string[]; unrecorded?: readonly string[] } = {},
+): LoopInput['sharedState'] {
+  const reading = { config: 'core.bare=false\n', stash: '', tags: '', notes: '', remotes: '' };
+  const current = fingerprintOf(reading);
+  const before = new Map<string, SharedFingerprint>();
+  for (const ticket of spec.tickets) {
+    if (options.unrecorded?.includes(ticket.id) === true) continue;
+    const changed = options.changed?.includes(ticket.id) === true;
+    before.set(ticket.id, changed ? fingerprintOf({ ...reading, stash: 'dddddddd\n' }) : current);
+  }
+  return { current, before };
+}
+
 function github(pulls: readonly PullRequestObservation[], mergeQueue = true): GithubObservation {
   return { mergeQueue, pullRequests: new Map(pulls.map((observed) => [observed.number, observed])) };
 }
@@ -183,6 +200,8 @@ function decide(
     signal?: StopSignal;
     clusterSize?: number;
     mergeGate?: string;
+    changed?: readonly string[];
+    unrecorded?: readonly string[];
   } = {},
 ): readonly LoopAction[] {
   const input: LoopInput = {
@@ -193,6 +212,10 @@ function decide(
     tracker: tracker(spec),
     github: github(options.pulls ?? [], options.mergeQueue ?? true),
     signal: options.signal ?? 'none',
+    sharedState: sharedState(spec, {
+      ...(options.changed === undefined ? {} : { changed: options.changed }),
+      ...(options.unrecorded === undefined ? {} : { unrecorded: options.unrecorded }),
+    }),
   };
   return decideLoop(input).actions;
 }
@@ -278,6 +301,7 @@ describe('slot assignment', () => {
       tracker: tracker({ tickets }),
       github: github([]),
       signal: 'none',
+      sharedState: sharedState({ tickets }),
     });
     expect(assigned(decision.actions)).toEqual(['DEV-2']);
     expect(decision.refusals.join('\n')).toMatch(/DEV-1.*ticket readiness refused: reason/);
@@ -291,6 +315,7 @@ describe('slot assignment', () => {
       tracker: tracker({ tickets, queue }),
       github: github([]),
       signal: 'none',
+      sharedState: sharedState({ tickets }),
     });
     expect(decision.actions).toEqual([]);
     expect(decision.refusals.join('\n')).toMatch(/curator queue refused/);
@@ -490,6 +515,29 @@ describe('a held ticket and its pull request', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')];
     const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
     expect(assigned(decide({ tickets }, { clusterSize: 1, pulls }))).toEqual(['DEV-2']);
+  });
+});
+
+describe('shared repository state', () => {
+  const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+  const pulls = [pull(reviewed('DEV-1', 11))];
+
+  it('refuses to publish a unit that changed the shared Git state', () => {
+    const actions = decide({ tickets }, { pulls, changed: ['DEV-1'] });
+    expect(actionFor(actions, 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'shared-state-changed',
+      detail: expect.stringMatching(/stash/),
+    });
+  });
+
+  it('refuses to publish a unit whose state before it was never recorded', () => {
+    const actions = decide({ tickets }, { pulls, unrecorded: ['DEV-1'] });
+    expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+  });
+
+  it('publishes a unit that left the shared state as it found it', () => {
+    expect(actionFor(decide({ tickets }, { pulls }), 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
   });
 });
 

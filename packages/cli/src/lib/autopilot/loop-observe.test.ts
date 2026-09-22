@@ -1,13 +1,19 @@
-import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
+  gitIn,
   observeGithub,
   parseMergeQueuePresence,
   parsePullRequestView,
   parseQueueTimeline,
   PULL_REQUEST_FIELDS,
+  readSharedState,
   resolveLoopBase,
 } from './loop-observe.js';
+import { changedParts, fingerprintOf } from './shared-state.js';
 
 // Every double below is a real `gh` output captured read-only (see
 // __fixtures__/gh/README.md). A variant overrides fields of a real capture; no
@@ -223,5 +229,60 @@ describe('resolveLoopBase', () => {
       throw new Error('gh: Not Found (HTTP 404)');
     };
     expect(() => resolveLoopBase(neither, 'auto')).toThrow(/base/);
+  });
+});
+
+describe('readSharedState', () => {
+  // Real git on a scratch repository: the fingerprint is only worth what the
+  // commands it runs actually report, so no double stands in for git here.
+  const roots: string[] = [];
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  });
+
+  function repository(): string {
+    const root = mkdtempSync(join(tmpdir(), 'void-loop-shared-'));
+    roots.push(root);
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...args], { cwd: root });
+    git('init', '-q');
+    writeFileSync(join(root, 'a.txt'), 'a\n');
+    git('add', 'a.txt');
+    git('commit', '-qm', 'init');
+    return root;
+  }
+
+  const fingerprint = (root: string) => fingerprintOf(readSharedState(gitIn(root)));
+  const git = (root: string, ...args: string[]) =>
+    spawnSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...args], { cwd: root });
+
+  it('sees every shared part a unit can change', () => {
+    const root = repository();
+    const before = fingerprint(root);
+    git(root, 'tag', 'v1');
+    git(root, 'notes', 'add', '-m', 'note');
+    git(root, 'remote', 'add', 'mirror', 'https://example.test/m.git');
+    writeFileSync(join(root, 'a.txt'), 'changed\n');
+    git(root, 'stash', 'push', '-q');
+    git(root, 'config', 'core.hooksPath', '/tmp/elsewhere');
+    expect(changedParts(before, fingerprint(root)).sort()).toEqual(
+      ['config', 'notes', 'remotes', 'stash', 'tags'],
+    );
+  });
+
+  it('ignores the branch a worker pushes and reads the same state from its worktree', () => {
+    const root = repository();
+    const before = fingerprint(root);
+    const linked = join(root, '..', `${root.split('/').at(-1) ?? 'x'}-wt`);
+    roots.push(linked);
+    git(root, 'worktree', 'add', '-q', linked, '-b', 'work/dev-1');
+    git(linked, 'config', 'branch.work/dev-1.remote', 'origin');
+    expect(changedParts(before, fingerprint(linked))).toEqual([]);
+  });
+
+  it('refuses to fingerprint outside a repository', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-loop-none-'));
+    roots.push(root);
+    expect(() => readSharedState(gitIn(root))).toThrow(/shared Git state/);
   });
 });
