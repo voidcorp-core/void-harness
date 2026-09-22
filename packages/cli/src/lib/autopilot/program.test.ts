@@ -116,6 +116,18 @@ describe('parseProgramDescriptor', () => {
     }
   });
 
+  // The loop never merges a change to these paths itself. The programme can add
+  // to the harness floor; it has no way to write a list that removes from it.
+  it('reads the protected paths the programme adds, and refuses one that is not a path', () => {
+    expect(parseProgramDescriptor(VALID).autopilot?.protectedPaths).toEqual([]);
+    const declared = VALID.replace('  clusterSize: 4', '  clusterSize: 4\n  protectedPaths:\n    - infra/**');
+    expect(parseProgramDescriptor(declared).autopilot?.protectedPaths).toEqual(['infra/**']);
+    for (const bad of ['infra/**', '[""]', '["../outside"]']) {
+      const text = VALID.replace('  clusterSize: 4', `  clusterSize: 4\n  protectedPaths: ${bad}`);
+      expect(() => parseProgramDescriptor(text), bad).toThrow(/protectedPaths/);
+    }
+  });
+
   it('refuses a budget that is not a duration, rather than guessing hours', () => {
     for (const bad of ['0h', 'soon', '6', '48h']) {
       expect(() => parseProgramDescriptor(VALID.replace('  clusterSize: 4', `  clusterSize: 4\n  chainBudget: ${bad}`)), bad)

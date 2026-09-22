@@ -76,6 +76,12 @@ export interface AutopilotConfig {
    * person, and reads back after a restart. Absent means the loop's default.
    */
   readonly humanWaitLabel?: string;
+  /**
+   * Paths the continuous loop never merges itself, on top of the harness floor
+   * in `loop.ts`. Only an addition: the floor is not read from here, so no list
+   * written here can shrink it.
+   */
+  readonly protectedPaths: readonly string[];
   /** argv arrays, executed with shell:false. */
   readonly verifyCommands: readonly (readonly string[])[];
   readonly ownership: AutopilotOwnership;
@@ -406,6 +412,7 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
     mergeGate,
     ...(deployBranch === undefined ? {} : { deployBranch }),
     ...(humanWaitLabel === undefined ? {} : { humanWaitLabel: humanWaitLabel as string }),
+    protectedPaths: pathList(block.protectedPaths, 'autopilot.protectedPaths'),
     verifyCommands: verifyCommands(block.verifyCommands),
     ownership: {
       sequential: pathList(ownership.sequential, 'autopilot.ownership.sequential'),

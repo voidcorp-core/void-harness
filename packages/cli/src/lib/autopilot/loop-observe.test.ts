@@ -28,11 +28,17 @@ function fixture(name: string): string {
 }
 
 type Raw = Record<string, unknown>;
-/** A captured view with the `comments` of another real capture, as gh prints both together. */
+/**
+ * A captured view with the `comments` and the `files` of other real captures, as
+ * gh prints them together when all are requested.
+ */
 const view = (name: string): Raw => ({
   ...(JSON.parse(fixture(name)) as Raw),
   ...(JSON.parse(fixture('pr-view-comments.json')) as Raw),
+  ...(JSON.parse(fixture('pr-view-files.json')) as Raw),
 });
+const capturedPaths = (): string[] =>
+  ((JSON.parse(fixture('pr-view-files.json')) as Raw).files as Raw[]).map((file) => String(file.path));
 const viewText = (name: string): string => JSON.stringify(view(name));
 const openView = (): Raw => view('pr-view-open.json');
 const armedView = (): Raw => view('pr-view-auto-merge.json');
@@ -97,7 +103,20 @@ describe('parsePullRequestView', () => {
       checks: 'passing',
       review: 'absent',
       reviewCheck: 'absent',
+      files: capturedPaths(),
+      changedFiles: 15,
     });
+  });
+
+  it('reads the files a pull request changes, and how many GitHub counts', () => {
+    // gh reads at most 100 files; the count is what tells a short list from a whole one.
+    const truncated = { ...openView(), changedFiles: 140 };
+    expect(parsePullRequestView(JSON.stringify(truncated))).toMatchObject({
+      files: capturedPaths(),
+      changedFiles: 140,
+    });
+    const { files: _dropped, ...fileless } = openView();
+    expect(() => parsePullRequestView(JSON.stringify(fileless))).toThrow(/files/);
   });
 
   it('reads a merged pull request and an armed auto-merge', () => {

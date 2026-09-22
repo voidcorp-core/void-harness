@@ -14,7 +14,7 @@
 
 import { z } from 'zod';
 import { autopilotFailure } from './errors.js';
-import { areasOverlap, type CompiledArea, compileArea } from './footprint-area.js';
+import { areaClaims, areasOverlap, type CompiledArea, compileArea } from './footprint-area.js';
 import {
   type Admission,
   admitConflictClass,
@@ -43,6 +43,20 @@ export const TRACKED_TICKETS_MAX = 256;
  * it and the one that reads it back after a restart can never disagree.
  */
 export const HUMAN_WAIT_LABEL = 'void:human-wait';
+/**
+ * Paths the loop never merges itself: the machinery that decides whether a
+ * change may merge. The workflows and actions run the required checks, the
+ * script judges the review verdict, the programme grants the merge, and the
+ * hooks refuse a forged verdict. A change to any of them merged by the loop
+ * would be the loop approving its own judge. A programme adds to this floor
+ * through `autopilot.protectedPaths`; nothing removes from it.
+ */
+export const PROTECTED_PATHS_FLOOR = [
+  '.github/**',
+  'scripts/independent-review-check.mjs',
+  '.void/program.md',
+  'packages/core/hooks/**',
+] as const;
 /** Outcomes kept for the recap; the stop rule reads only the last three. */
 export const RECENT_MAX = 64;
 const LIVE_WORKERS_MAX = 16;
@@ -94,6 +108,10 @@ export interface PullRequestObservation {
    */
   readonly verdict?: unknown;
   readonly conflict?: unknown;
+  /** The paths the pull request changes, as far as gh listed them. */
+  readonly files: readonly string[];
+  /** How many files GitHub counts: more than `files` means the list was cut short. */
+  readonly changedFiles: number;
 }
 
 export interface GithubObservation {
@@ -133,6 +151,7 @@ export const HUMAN_WAIT_REASONS = [
   'deploy-branch-target',
   'shared-state-changed',
   'ejections-exhausted',
+  'protected-path',
 ] as const;
 export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
 
@@ -293,6 +312,24 @@ export function protectedBranches(autopilot: AutopilotConfig): string[] {
   const bases = autopilot.base === 'auto' ? ['develop', 'main'] : [autopilot.base];
   const deploy = autopilot.deployBranch === undefined ? [] : [autopilot.deployBranch];
   return [...new Set([...bases, ...deploy])];
+}
+
+/** The floor, then what the programme adds to it. */
+export function protectedPathsOf(autopilot: AutopilotConfig): string[] {
+  return [...new Set([...PROTECTED_PATHS_FLOOR, ...autopilot.protectedPaths])];
+}
+
+/**
+ * Why the loop must leave this pull request to a person, or nothing: the first
+ * changed file on protected ground, or a file list too short to say.
+ */
+function protectedPathReason(pr: PullRequestObservation, autopilot: AutopilotConfig) {
+  if (pr.files.length < pr.changedFiles) {
+    return `#${pr.number} changes ${pr.changedFiles} files and only ${pr.files.length} could be read`;
+  }
+  const areas = protectedPathsOf(autopilot).map(compileArea);
+  const file = pr.files.find((path) => areas.some((area) => areaClaims(area, path)));
+  return file === undefined ? undefined : `#${pr.number} changes ${file}, which only a person merges`;
 }
 
 /** The stop file holds `drain` or `now`; absent is no stop, anything else is refused. */
@@ -492,6 +529,8 @@ function mergeOutcome(
 ): SlotOutcome {
   if (pr.autoMerge || pr.queue === 'queued') return wait(ticket.id, 'merging');
   const { autopilot } = context.input.program;
+  const guarded = protectedPathReason(pr, autopilot);
+  if (guarded !== undefined) return toHuman(ticket.id, 'protected-path', guarded);
   if (autopilot.mergeGate === 'human') {
     return toHuman(ticket.id, 'human-merge-gate', `pull request #${pr.number} is ready to merge`);
   }

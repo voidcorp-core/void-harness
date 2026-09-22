@@ -40,6 +40,8 @@ export const PULL_REQUEST_FIELDS = [
   'autoMergeRequest',
   'statusCheckRollup',
   'comments',
+  'files',
+  'changedFiles',
 ] as const;
 
 /** The reviewer's verdict, a commit status the CI job then enforces. */
@@ -88,6 +90,10 @@ const pullRequestViewSchema = z.object({
   ),
   // Oldest first, as gh prints them; only the body is read, for judgment blocks.
   comments: z.array(z.object({ body: z.string() })),
+  // gh lists at most 100 files; `changedFiles` is GitHub's own count, which is
+  // what tells the kernel a list was cut short.
+  files: z.array(z.object({ path: z.string().min(1) })),
+  changedFiles: z.int().nonnegative(),
 });
 
 type RollupEntry = z.infer<typeof pullRequestViewSchema>['statusCheckRollup'][number];
@@ -189,6 +195,8 @@ export function parsePullRequestView(
     checks: checksOf(view.statusCheckRollup),
     review: reviewOf(view.statusCheckRollup),
     ...reviewCheckOf(view.statusCheckRollup),
+    files: view.files.map((file) => file.path),
+    changedFiles: view.changedFiles,
   };
 }
 

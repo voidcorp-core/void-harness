@@ -11,6 +11,8 @@ import {
   type LoopTracker,
   loopProgramOf,
   parseStopSignal,
+  PROTECTED_PATHS_FLOOR,
+  protectedPathsOf,
   type PullRequestObservation,
   protectedBranches,
   pullRequestsToObserve,
@@ -25,7 +27,17 @@ import { fingerprintOf, type SharedFingerprint, type SharedStateReading } from '
 // test therefore describes a complete observation and reads the actions back,
 // which is also what a restart looks like to the loop.
 
-function programText(options: { clusterSize?: number; mergeGate?: string } = {}): string {
+interface ProgramSpec {
+  readonly clusterSize?: number;
+  readonly mergeGate?: string;
+  readonly protectedPaths?: readonly string[];
+}
+
+function programText(options: ProgramSpec = {}): string {
+  const declared =
+    options.protectedPaths === undefined
+      ? ''
+      : `  protectedPaths:\n${options.protectedPaths.map((path) => `    - ${path}\n`).join('')}`;
   const gate =
     (options.mergeGate ?? 'union-reviewed') === 'human'
       ? 'mergeGate: human'
@@ -54,11 +66,11 @@ autopilot:
     sequential:
       - pnpm-lock.yaml
       - packages/cli/core-assets/**
----
+${declared}---
 `;
 }
 
-const program = (options?: { clusterSize?: number; mergeGate?: string }) =>
+const program = (options?: ProgramSpec) =>
   loopProgramOf(parseProgramDescriptor(programText(options)));
 
 interface TicketSpec {
@@ -153,6 +165,10 @@ interface PullSpec {
   readonly ejections?: number;
   /** The conclusion of the `independent-review` job, absent unless given. */
   readonly reviewJob?: 'SUCCESS' | 'FAILURE';
+  /** The paths the pull request changes; one ordinary document unless given. */
+  readonly files?: readonly string[];
+  /** How many files GitHub counts; the length of `files` unless given. */
+  readonly changedFiles?: number;
 }
 
 /** A judgment block as an agent posts it, written raw so a malformed one can be posted too. */
@@ -184,6 +200,12 @@ function pull(spec: PullSpec): PullRequestObservation {
   const armed = JSON.parse(
     readFileSync(new URL('./__fixtures__/gh/pr-view-auto-merge.json', import.meta.url), 'utf8'),
   ) as Raw;
+  const [shape] = (
+    JSON.parse(readFileSync(new URL('./__fixtures__/gh/pr-view-files.json', import.meta.url), 'utf8')) as {
+      files: Raw[];
+    }
+  ).files;
+  const paths = spec.files ?? ['docs/VOID-MACHINE-VISION.md'];
   const parsed = parsePullRequestView(
     JSON.stringify({
       ...view,
@@ -196,6 +218,8 @@ function pull(spec: PullSpec): PullRequestObservation {
       mergeStateStatus: spec.mergeState ?? 'BLOCKED',
       autoMergeRequest: spec.autoMerge === true ? armed.autoMergeRequest : view.autoMergeRequest,
       statusCheckRollup: rollup,
+      files: paths.map((path) => ({ ...shape, path })),
+      changedFiles: spec.changedFiles ?? paths.length,
       comments: [
         ...realComments(),
         ...(spec.verdict === undefined ? [] : [{ ...realComments()[0], body: block('review-verdict', spec.verdict) }]),
@@ -251,6 +275,7 @@ function decide(
     signal?: StopSignal;
     clusterSize?: number;
     mergeGate?: string;
+    protectedPaths?: readonly string[];
     changed?: readonly string[];
     unrecorded?: readonly string[];
   } = {},
@@ -259,6 +284,7 @@ function decide(
     program: program({
       ...(options.clusterSize === undefined ? {} : { clusterSize: options.clusterSize }),
       ...(options.mergeGate === undefined ? {} : { mergeGate: options.mergeGate }),
+      ...(options.protectedPaths === undefined ? {} : { protectedPaths: options.protectedPaths }),
     }),
     tracker: tracker(spec),
     github: github(options.pulls ?? [], options.mergeQueue ?? true),
@@ -727,6 +753,64 @@ describe('a held ticket and its pull request', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')];
     const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
     expect(assigned(decide({ tickets }, { clusterSize: 1, pulls }))).toEqual(['DEV-2']);
+  });
+});
+
+describe('protected paths', () => {
+  // A change to the machinery that judges a merge is never merged by that
+  // machinery: the workflows, the verdict check, the programme and the hooks
+  // go to a person, whatever the review said.
+  const tickets = [started('DEV-1', { pullRequest: 12, branch: 'work/DEV-1' })];
+  const touching = (files: readonly string[], extra: Partial<PullSpec> = {}) =>
+    pull(reviewed('DEV-1', 12, { files, ...extra }));
+
+  it('never arms a merge on a pull request that touches a protected path', () => {
+    for (const file of [
+      '.github/workflows/ci.yml',
+      '.github/actions/void-enforce/action.yml',
+      'scripts/independent-review-check.mjs',
+      '.void/program.md',
+      'packages/core/hooks/_void-hook.mjs',
+    ]) {
+      const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
+      expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+      expect(action).toMatchObject({ detail: expect.stringContaining(file) });
+    }
+  });
+
+  it('holds back a real pull request that rewrote the programme', () => {
+    const captured = (
+      JSON.parse(readFileSync(new URL('./__fixtures__/gh/pr-view-files.json', import.meta.url), 'utf8')) as {
+        files: { path: string }[];
+      }
+    ).files.map((file) => file.path);
+    const action = actionFor(decide({ tickets }, { pulls: [touching(captured)] }), 'DEV-1');
+    expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+  });
+
+  it('adds the paths the programme declares to the floor, never in place of it', () => {
+    const protectedPaths = ['docs/decisions-log/**'];
+    const decision = decide({ tickets }, { pulls: [touching(['docs/decisions-log/x.md'])], protectedPaths });
+    expect(actionFor(decision, 'DEV-1')).toMatchObject({ reason: 'protected-path' });
+    const floor = decide({ tickets }, { pulls: [touching(['.github/workflows/ci.yml'])], protectedPaths });
+    expect(actionFor(floor, 'DEV-1')).toMatchObject({ reason: 'protected-path' });
+    expect(protectedPathsOf(program({ protectedPaths }).autopilot)).toEqual([
+      ...PROTECTED_PATHS_FLOOR,
+      'docs/decisions-log/**',
+    ]);
+  });
+
+  it('treats a file list GitHub cut short as touching a protected path', () => {
+    const action = actionFor(
+      decide({ tickets }, { pulls: [touching(['docs/a.md'], { changedFiles: 140 })] }),
+      'DEV-1',
+    );
+    expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+  });
+
+  it('arms the merge of a pull request that stays off protected ground', () => {
+    const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', '.void/notes.md'])] }), 'DEV-1');
+    expect(action).toMatchObject({ kind: 'enable-auto-merge' });
   });
 });
 

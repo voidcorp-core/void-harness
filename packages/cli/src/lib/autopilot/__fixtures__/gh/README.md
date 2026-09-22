@@ -9,6 +9,7 @@ variants from them by overriding fields; no shape here was written by hand.
 | `pr-view-merged.json` | same fields, PR 395 (this repository) |
 | `pr-view-auto-merge.json` | same fields, PR 379 (this repository): an armed `autoMergeRequest`, a failed and a skipped check run |
 | `pr-view-comments.json` | `gh pr view 378 --json comments` (this repository); tests add it to the views above, as gh prints both when both are requested |
+| `pr-view-files.json` | `gh pr view 392 --json files,changedFiles` (this repository): a real change list, `.void/program.md` among it |
 | `check-run-queued.json` | one `statusCheckRollup` entry of zed-industries/zed PR 64608: a check run not yet completed |
 | `status-contexts.json` | two `statusCheckRollup` entries of kubernetes/kubernetes PR 142315: commit statuses, the shape `void/independent-review` takes |
 | `queue-absent.json` | `gh api graphql` `repository.mergeQueue(branch: "develop")` on this repository |

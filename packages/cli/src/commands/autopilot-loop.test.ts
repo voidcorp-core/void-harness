@@ -63,6 +63,7 @@ function reviewedPull(): string {
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
   const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: Record<string, unknown>[] };
+  const { files } = JSON.parse(fixture('pr-view-files.json')) as { files: Record<string, unknown>[] };
   return JSON.stringify({
     ...view,
     number: 11,
@@ -71,6 +72,8 @@ function reviewedPull(): string {
     mergeStateStatus: 'BLOCKED',
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
     comments: [...comments, { ...comments[0], body: verdictComment() }],
+    files: [{ ...files[0], path: 'packages/dev-1/index.ts' }],
+    changedFiles: 1,
   });
 }
 
