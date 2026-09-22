@@ -24,6 +24,8 @@ interface QueueEntry {
 interface Fixture {
   readonly verdicts?: Readonly<Record<string, string>>;
   readonly entries?: readonly QueueEntry[];
+  /** The head of the base branch as GitHub reports it; `develop` is at sha('0'). */
+  readonly baseHead?: string;
 }
 
 function commitStatus(oid: string, state: string | undefined): unknown {
@@ -32,7 +34,7 @@ function commitStatus(oid: string, state: string | undefined): unknown {
   return { data: { repository: { object: { oid, status: { context } } } } };
 }
 
-function queue(entries: readonly QueueEntry[]): unknown {
+function queue(entries: readonly QueueEntry[], baseHead: string): unknown {
   const nodes = entries.map((entry, index) => ({
     position: index + 1,
     headCommit: { oid: entry.head },
@@ -40,14 +42,16 @@ function queue(entries: readonly QueueEntry[]): unknown {
     pullRequest: { number: entry.number, headRefOid: entry.prHead },
   }));
   const mergeQueue = { entries: { totalCount: nodes.length, nodes } };
-  return { data: { repository: { mergeQueue } } };
+  return { data: { repository: { mergeQueue, ref: { target: { oid: baseHead } } } } };
 }
 
 function fakeGithub(fixture: Fixture): { graphql: Graphql; asked: Variables[] } {
   const asked: Variables[] = [];
   const graphql: Graphql = async (query, variables) => {
     asked.push(variables);
-    if (query.includes('mergeQueue')) return queue(fixture.entries ?? []);
+    if (query.includes('mergeQueue')) {
+      return queue(fixture.entries ?? [], fixture.baseHead ?? sha('0'));
+    }
     const oid = variables.oid ?? '';
     return commitStatus(oid, fixture.verdicts?.[oid]);
   };
@@ -182,6 +186,51 @@ describe('independent review verdict check', () => {
         graphql,
       }),
     ).rejects.toThrow(/no merge queue entry/);
+  });
+
+  it('refuses a group whose walk stops short of the current head of the base', async () => {
+    // #9 claims a base nothing in the queue produced: #7's group commit was
+    // recreated, or the walk would stop before a pull request never reviewed.
+    const entries = [{ number: 9, head: sha('b'), base: sha('c'), prHead: sha('2') }];
+    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    await expect(
+      checkIndependentReview({
+        eventName: 'merge_group',
+        event: mergeGroupEvent(9, sha('b')),
+        repository,
+        graphql,
+      }),
+    ).rejects.toThrow(/stops at .* not the head of develop/);
+  });
+
+  it('refuses a group once the base branch has moved past the walk', async () => {
+    const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
+    const { graphql } = fakeGithub({ verdicts, entries: twoEntries, baseHead: sha('e') });
+    await expect(
+      checkIndependentReview({
+        eventName: 'merge_group',
+        event: mergeGroupEvent(9, sha('b')),
+        repository,
+        graphql,
+      }),
+    ).rejects.toThrow(/not the head of develop/);
+  });
+
+  it('refuses a group whose entries point at each other', async () => {
+    const entries = [
+      { number: 7, head: sha('a'), base: sha('b'), prHead: sha('1') },
+      { number: 9, head: sha('b'), base: sha('a'), prHead: sha('2') },
+    ];
+    const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
+    const { graphql } = fakeGithub({ verdicts, entries });
+    await expect(
+      checkIndependentReview({
+        eventName: 'merge_group',
+        event: mergeGroupEvent(9, sha('b')),
+        repository,
+        graphql,
+      }),
+    ).rejects.toThrow(/cycle/);
   });
 
   it('refuses a queue ref that names another pull request than the entry', async () => {

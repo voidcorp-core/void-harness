@@ -35,7 +35,9 @@ const STATUS_QUERY = `query(
   }
 }`;
 
-const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!) {
+// The queue and the head of its branch are read in one request, so the walk is
+// checked against the branch as it stood when the queue was read.
+const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!, $qualified: String!) {
   repository(owner: $owner, name: $name) {
     mergeQueue(branch: $branch) {
       entries(first: ${QUEUE_PAGE_SIZE}) {
@@ -43,6 +45,7 @@ const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!) {
         nodes { headCommit { oid } baseCommit { oid } pullRequest { number headRefOid } }
       }
     }
+    ref(qualifiedName: $qualified) { target { oid } }
   }
 }`;
 
@@ -125,30 +128,40 @@ function readEntry(node) {
 }
 
 async function queueEntries(graphql, coordinates, branch) {
-  const repository = await query(graphql, QUEUE_QUERY, { ...coordinates, branch });
+  const variables = { ...coordinates, branch, qualified: `refs/heads/${branch}` };
+  const repository = await query(graphql, QUEUE_QUERY, variables);
   const entries = field(field(repository, 'mergeQueue'), 'entries');
   const nodes = field(entries, 'nodes');
   if (!Array.isArray(nodes)) fail(`${branch} has no readable merge queue`);
   if (field(entries, 'totalCount') !== nodes.length) {
     fail(`${branch} merge queue exceeds ${QUEUE_PAGE_SIZE} entries`);
   }
-  return nodes.map(readEntry);
+  const branchHead = requireSha(field(field(field(repository, 'ref'), 'target'), 'oid'), branch);
+  return { entries: nodes.map(readEntry), branchHead };
 }
 
 // The group commit of an entry is built on the group commit of the entry ahead
 // of it, down to the base branch. Following `baseCommit` therefore lists every
-// pull request the tested commit contains. The walk is bounded by the queue.
-function groupFrom(entries, headSha) {
+// pull request the tested commit contains. The walk must end exactly on the
+// current head of the branch: stopping anywhere else means an entry ahead was
+// not found, and its pull request, merged into the tested commit, was never
+// checked. A walk that revisits an entry is a cycle, not a group.
+function groupFrom({ entries, branchHead }, headSha, branch) {
   const first = entries.find((entry) => entry.head === headSha);
   if (first === undefined) fail(`no merge queue entry has head ${headSha}`);
   const group = [first];
   for (let step = 0; step < entries.length; step += 1) {
     const base = group[group.length - 1].base;
+    if (base === branchHead) return group;
     const ahead = entries.find((entry) => entry.head === base);
-    if (ahead === undefined || group.includes(ahead)) return group;
+    if (ahead === undefined) {
+      fail(`the merge group walk stops at ${String(base)}, not the head of ${branch}`
+        + ` (${branchHead})`);
+    }
+    if (group.includes(ahead)) fail(`the merge queue entries form a cycle at #${ahead.number}`);
     group.push(ahead);
   }
-  return group;
+  return fail(`the merge group walk does not reach the head of ${branch} within the queue`);
 }
 
 async function mergeGroupPulls(event, graphql, coordinates) {
@@ -159,7 +172,7 @@ async function mergeGroupPulls(event, graphql, coordinates) {
   if (queued.base !== base) {
     fail(`queue ref targets ${queued.base} but the merge group targets ${base}`);
   }
-  const pulls = groupFrom(await queueEntries(graphql, coordinates, base), headSha);
+  const pulls = groupFrom(await queueEntries(graphql, coordinates, base), headSha, base);
   if (pulls[0].number !== queued.number) {
     fail(`queue ref names #${queued.number} but the queue entry is #${pulls[0].number}`);
   }
