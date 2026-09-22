@@ -62,6 +62,8 @@ export interface PullRequestObservation {
 }
 
 export interface GithubObservation {
+  /** The branch the loop merges into, `auto` already resolved. */
+  readonly base: string;
   /** False when the base has no merge queue: merges then run one at a time. */
   readonly mergeQueue: boolean;
   readonly pullRequests: ReadonlyMap<number, PullRequestObservation>;
@@ -382,7 +384,7 @@ function openPullOutcome(
   if (pr.state === 'closed') {
     return toHuman(ticket.id, 'pull-request-closed', `#${pr.number} was closed without a merge`);
   }
-  const base = context.input.program.autopilot.base;
+  const base = context.input.github.base;
   const branchDiffers = ticket.branch !== undefined && pr.headRef !== ticket.branch;
   if (pr.baseRef !== base || branchDiffers) {
     return toHuman(

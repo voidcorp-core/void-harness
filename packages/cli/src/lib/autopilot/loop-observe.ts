@@ -267,7 +267,7 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     );
     pullRequests.set(number, { ...view, queue });
   }
-  return { mergeQueue, pullRequests };
+  return { base: request.base, mergeQueue, pullRequests };
 }
 
 /**

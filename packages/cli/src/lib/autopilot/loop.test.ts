@@ -189,7 +189,7 @@ function sharedState(
 }
 
 function github(pulls: readonly PullRequestObservation[], mergeQueue = true): GithubObservation {
-  return { mergeQueue, pullRequests: new Map(pulls.map((observed) => [observed.number, observed])) };
+  return { base: 'develop', mergeQueue, pullRequests: new Map(pulls.map((observed) => [observed.number, observed])) };
 }
 
 function decide(
@@ -400,6 +400,20 @@ describe('a held ticket and its pull request', () => {
   it('sends a pull request on an unexpected base or branch to a human', () => {
     expect(one({}, { base: 'main' })).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
     expect(one({ branch: 'work/other' }, {})).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+  });
+
+  it('compares the pull request with the base as resolved, not as declared', () => {
+    const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    const auto = loopProgramOf(parseProgramDescriptor(programText().replace('base: develop', 'base: auto')));
+    const spec = { tickets };
+    const decision = decideLoop({
+      program: auto,
+      tracker: tracker(spec),
+      github: github([pull(reviewed('DEV-1', 11))]),
+      signal: 'none',
+      sharedState: sharedState(spec),
+    });
+    expect(actionFor(decision.actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
   });
 
   it('sends a pull request it could not observe to a human', () => {

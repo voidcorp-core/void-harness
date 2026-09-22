@@ -4,19 +4,25 @@
 //
 // Functional core, imperative shell: `runAutopilotCommand` is a function of
 // (argv, stdin, context) and returns what to print and with which exit code. The
-// CLI itself contacts nothing — no tracker, no git, no agent. The skill hydrates
-// observations, pipes them in, applies what comes back, and observes again.
+// cluster subcommands contact nothing — no tracker, no git, no agent. The skill
+// hydrates observations, pipes them in, applies what comes back, and observes
+// again. The loop subcommands (autopilot-loop.ts) read GitHub and git through
+// runners the context injects, so they stay testable on captured outputs.
 //
 // The only side effect that exists here is the run cursor under .void/autopilot,
 // and it is written at exactly one moment: after a reservation has been proven
 // converged by re-observation.
 
+import { autopilotFailure } from '../lib/autopilot/errors.js';
+
 export const USAGE = `
 void-harness autopilot — deterministic planning for the attended cluster mode.
 
 Invoked by the /void-autopilot skill, which hydrates observations from the
-tracker and pipes them in. The CLI computes; it never contacts Linear, GitHub or
-git, and it spawns no agent.
+tracker and pipes them in. The CLI computes; it never contacts Linear and spawns
+no agent. Only the continuous loop commands (next, fingerprint) read GitHub
+through gh and the shared Git state themselves, because GitHub is the authority
+on a merge and the shared state is what a unit must not have touched.
 
 Usage:
   void-harness autopilot scaffold <plan|start|status|marker> [--json]
@@ -27,6 +33,25 @@ Usage:
   echo '<RemoteObservation>'     | void-harness autopilot status [--run <id>] [--json]
   echo '<RemoteObservation>'     | void-harness autopilot resume [--run <id>] [--json]
   void-harness autopilot abort [--run <id>] [--json]
+
+Continuous loop:
+  echo '<LoopTracker>'           | void-harness autopilot next [--json]
+  void-harness autopilot stop --drain | --now [--json]
+  void-harness autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
+
+next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
+signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
+mark-human-wait, enable-auto-merge, drain, freeze, recap. It never acts on them.
+stop writes .void/machine/autopilot/stop, read before every assignment; delete
+the file to start again. fingerprint records (--before) or checks (--after) the
+digests of the shared Git state around one unit; --after fails when it moved.
+
+stdin JSON (LoopTracker):
+  { "schemaVersion": 1, "queue": <CuratorQueue judgment>,
+    "tickets": [{ "id", "status", "humanWait", "pullRequest"?, "branch"?,
+                  "footprint"?, "readiness"?, "review"?, "conflict"? }],
+    "recent": [{ "ticketId", "outcome": "merged" | "human-wait" }],
+    "liveWorkers": ["<ticket id>"], "quota": "ok" | "low" }
 
 --run is optional everywhere. With no run, a single non-terminal run is resumed;
 several return competing-runs and nothing is touched.
@@ -107,6 +132,9 @@ export const SUBCOMMANDS = Object.freeze({
   status: 'reads-stdin',
   resume: 'reads-stdin',
   abort: 'no-stdin',
+  next: 'reads-stdin',
+  stop: 'no-stdin',
+  fingerprint: 'no-stdin',
 } as const);
 
 export type AutopilotSubcommand = keyof typeof SUBCOMMANDS;
@@ -136,3 +164,19 @@ export function readsStdin(argv: readonly string[]): boolean {
   return SUBCOMMANDS[word as AutopilotSubcommand] === 'reads-stdin';
 }
 
+
+/** The value after `flag`, or undefined when the flag is absent. */
+export function flagValue(argv: readonly string[], flag: string): string | undefined {
+  const index = argv.indexOf(flag);
+  if (index === -1) return undefined;
+  const value = argv[index + 1];
+  if (value === undefined || value.startsWith('-')) {
+    throw autopilotFailure(
+      'AUTOPILOT_USAGE',
+      `\`${flag}\` was given without a value`,
+      'the flag consumed the next argument, which is another flag or missing',
+      `pass a value after \`${flag}\`, or drop the flag entirely`,
+    );
+  }
+  return value;
+}
