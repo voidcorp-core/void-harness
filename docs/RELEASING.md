@@ -110,7 +110,11 @@ opens pull requests nobody needs gets merged without being read.
 That pull request merges itself once the required checks pass. It needs no
 review verdict, and the reason is a property of its content rather than a
 relaxation: it carries the release output a human approved minutes earlier, so a
-second reading is ceremony. Every other pull request into `develop` waits for the
+second reading is ceremony. The exemption is proved rather than granted on the
+author alone: the `independent-review` job checks that the head is already on
+`main`, or is the clean merge of a `develop` commit and a `main` commit with
+nothing else `main` lacks. A commit pushed onto the branch by anyone else sends it
+back to needing a verdict. Every other pull request into `develop` waits for the
 independent reviewer's verdict on its head. Native auto-merge is used, so
 protection and the required checks stand; a failing check simply leaves it open. It opens rather than pushes: `develop` is
 protected with `enforce_admins`, and a branch only a robot may bypass is not

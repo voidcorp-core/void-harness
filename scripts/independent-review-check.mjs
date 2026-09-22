@@ -16,6 +16,13 @@
 // release pull request. It is recognised by what GitHub reports and a pull
 // request cannot choose: opened by the release App's bot account, matched by
 // its numeric id, from `chore/back-merge-main` in this repository into develop.
+// Then its commits are proved in git, because anyone who can push to that
+// branch could add one the author check alone would let through unread: the
+// head is on main already (develop had nothing unreleased, so the merge
+// fast-forwarded), or it is a merge whose first parent is on develop, whose
+// second is on main, whose tree is the merge of the two, and it is the only
+// commit of the pull request that main does not hold. Any doubt, a git error
+// included, demands a verdict like any other pull request.
 // Refs: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
 // https://docs.github.com/en/graphql/reference/objects#mergequeueentry
 // https://docs.github.com/en/graphql/reference/objects#status
@@ -32,6 +39,7 @@ const BACK_MERGE = {
   repository: 'voidcorp-core/void-harness',
   head: 'chore/back-merge-main',
   base: 'develop',
+  main: 'main',
   botId: 311374965,
   restLogin: 'voidcorp-release[bot]',
   graphqlLogin: 'voidcorp-release',
@@ -135,7 +143,8 @@ async function verdictState(graphql, coordinates, sha) {
 async function requireVerdict(graphql, coordinates, pull) {
   const state = await verdictState(graphql, coordinates, pull.sha);
   const label = `#${pull.number} head ${pull.sha}`;
-  if (state === undefined) fail(`${label} carries no ${VERDICT_CONTEXT} verdict`);
+  const why = pull.refused === undefined ? '' : ` (not exempt as the back-merge: ${pull.refused})`;
+  if (state === undefined) fail(`${label} carries no ${VERDICT_CONTEXT} verdict${why}`);
   if (state !== 'SUCCESS') fail(`${label}: ${VERDICT_CONTEXT} verdict is ${state}`);
 }
 
@@ -237,12 +246,60 @@ function pullRequestPulls(event, repository) {
   return [{ number, sha, exempt: eventBackMerge(pull, repository) }];
 }
 
-export async function checkIndependentReview({ eventName, event, repository, graphql }) {
+const remoteRef = (branch) => `refs/remotes/origin/${branch}`;
+
+/** Runs git; a failure is a reason, never an exception that could skip the check. */
+function attempt(git, args) {
+  try {
+    return { out: String(git(args)).trim() };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message.split('\n')[0] : String(error) };
+  }
+}
+
+const isAncestor = (git, commit, branch) =>
+  attempt(git, ['merge-base', '--is-ancestor', commit, remoteRef(branch)]).error === undefined;
+
+/**
+ * Why the head of an identified back-merge is not the output of back-merge.yml,
+ * or undefined when it is: on main already, or the clean merge of a develop
+ * commit and a main commit, with nothing else main does not hold.
+ */
+export function backMergeRefusal(git, sha) {
+  const { base, main } = BACK_MERGE;
+  const fetched = attempt(git, ['fetch', '--no-tags', '--quiet', 'origin',
+    `+refs/heads/${main}:${remoteRef(main)}`, `+refs/heads/${base}:${remoteRef(base)}`, sha]);
+  if (fetched.error !== undefined) return `its commits could not be fetched: ${fetched.error}`;
+  if (isAncestor(git, sha, main)) return undefined;
+  const parents = attempt(git, ['rev-list', '--parents', '-n', '1', sha]);
+  const [, first, second, ...more] = (parents.out ?? '').split(' ');
+  if (first === undefined || second === undefined || more.length > 0) {
+    return 'its head is not on main and is not a merge of two parents';
+  }
+  if (!isAncestor(git, first, base)) return `its first parent ${first} is not on ${base}`;
+  if (!isAncestor(git, second, main)) return `its second parent ${second} is not on ${main}`;
+  const unheld = attempt(git, ['rev-list', sha, `^${remoteRef(base)}`, `^${remoteRef(main)}`]);
+  if (unheld.out !== sha) return `it holds commits neither ${main} nor ${base} holds`;
+  const tree = attempt(git, ['rev-parse', `${sha}^{tree}`]).out;
+  const merged = attempt(git, ['merge-tree', '--write-tree', first, second]);
+  if (merged.error !== undefined) return `its parents do not merge cleanly: ${merged.error}`;
+  if (tree === undefined || merged.out?.split('\n')[0] !== tree) {
+    return 'its tree is not the merge of its parents';
+  }
+  return undefined;
+}
+
+export async function checkIndependentReview({ eventName, event, repository, graphql, git }) {
   const coordinates = splitRepository(repository);
   let pulls = [];
   if (eventName === 'pull_request') pulls = pullRequestPulls(event, repository);
   else if (eventName === 'merge_group') pulls = await mergeGroupPulls(event, graphql, coordinates);
   else fail(`unsupported event ${String(eventName)}`);
+  for (const pull of pulls) {
+    if (!pull.exempt) continue;
+    const refused = git === undefined ? 'no git to read its commits' : backMergeRefusal(git, pull.sha);
+    if (refused !== undefined) Object.assign(pull, { exempt: false, refused });
+  }
   for (const pull of pulls) if (!pull.exempt) await requireVerdict(graphql, coordinates, pull);
   return pulls.map(({ number, sha, exempt }) =>
     exempt ? { number, sha, exempt: 'back-merge' } : { number, sha });
@@ -262,6 +319,7 @@ async function main() {
     event: JSON.parse(readFileSync(eventPath, 'utf8')),
     repository: process.env.GITHUB_REPOSITORY,
     graphql: async (text, variables) => ghGraphql(text, variables),
+    git: (args) => execFileSync('git', args, { encoding: 'utf8', timeout: 120_000 }),
   });
   for (const pull of pulls) {
     const outcome = pull.exempt === undefined ? 'approved' : `exempt (${pull.exempt})`;

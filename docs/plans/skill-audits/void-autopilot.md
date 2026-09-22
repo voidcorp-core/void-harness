@@ -66,7 +66,8 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
 - **Protected paths.** The loop never merges a change to its own judge; the floor is a constant
   the programme can only extend.
 - **Auto-merge by default into develop**, never into main; the release back-merge is exempt from
-  the verdict by its bot author's id. The promotion audit is left for a release decision.
+  the verdict by its bot author's id and by commits proved in git to be the release output. The
+  promotion audit is left for a release decision.
 
 ### Still shipped until the engine is removed
 

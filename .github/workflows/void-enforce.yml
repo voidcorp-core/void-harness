@@ -93,7 +93,9 @@ jobs:
   # A new push changes the head SHA and therefore demands a new verdict. After
   # posting one, the reviewer re-runs this job: a status event triggers no run.
   # The release back-merge alone needs none; the script recognises it by its
-  # bot author's id, branch and base, which no pull request can choose.
+  # bot author's id, branch and base, which no pull request can choose, then
+  # proves its commits in git (on main, or the clean merge of develop and main
+  # and nothing else), hence the full history below. Any doubt demands a verdict.
   independent-review:
     if: ${{ github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.base_ref == 'develop') }}
     runs-on: ubuntu-latest
@@ -111,6 +113,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
           persist-credentials: false
+          fetch-depth: 0
           sparse-checkout: scripts/independent-review-check.mjs
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6

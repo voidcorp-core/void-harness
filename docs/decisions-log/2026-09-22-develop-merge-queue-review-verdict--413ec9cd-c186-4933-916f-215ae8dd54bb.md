@@ -110,6 +110,14 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   verdict. The check recognises it only by facts a pull request cannot choose:
   the release App's bot account by numeric id and `Bot` type, the branch, the
   base and a same-repository head, in the event payload and in the queue alike.
+  Then its commits are proved in git, since anyone able to push to the branch
+  could add one the author check alone would pass: the head is on `main`
+  already (the merge fast-forwarded, as on #379), or it is a two-parent merge
+  whose first parent is on `develop`, whose second is on `main`, whose tree
+  equals `git merge-tree --write-tree` of the two, and it is the only commit of
+  the pull request `main` does not hold. Any other shape, a git error included,
+  demands a verdict like any other pull request; the job checks out the full
+  history for it, with the same read-only permissions.
 - The loop re-runs a red `independent-review` job at most twice per run, the
   verdict command's own re-run included, reading the attempt number GitHub
   keeps; past that, a person looks.
@@ -164,10 +172,10 @@ Negative:
   session, a user and the gh credentials, and any identifier the command could
   compare would be declared by its caller. A check built on it would prove
   nothing and would refuse the legitimate path.
-- The back-merge exemption trusts the author of the pull request, not of its
-  commits: anyone able to push to `chore/back-merge-main` adds commits the
-  exemption then passes unread. Branch protection on that branch, or a check
-  that its head is the merge `back-merge.yml` produced, would close it.
+- The back-merge exemption rests on what `back-merge.yml` produces by
+  construction, not on a setting of the repository: no rule on
+  `chore/back-merge-main` is needed. If that workflow ever changes how it
+  builds the branch, the check refuses the exemption until it is aligned.
 - `promotion.yml` audits every promoted commit as merged by the named human or
   by the back-merge, and refuses one whose pull request armed any other
   auto-merge. Once the loop merges into `develop`, that audit fails and stops

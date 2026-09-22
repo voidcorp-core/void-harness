@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   checkIndependentReview,
   parseQueueRef,
@@ -305,21 +309,79 @@ describe('independent review verdict check', () => {
 describe('the release back-merge', () => {
   // It carries only the release output a person approved by merging the
   // release pull request, so it needs no review verdict. It is recognised by
-  // what GitHub reports and no pull request can choose: the author is the
-  // release App's bot account, by numeric id, on a same-repository branch.
-  function backMergeEvent(overrides: {
-    user?: Record<string, unknown>;
-    head?: string;
-    base?: string;
-    repo?: string;
-  } = {}): Record<string, unknown> {
+  // what GitHub reports and no pull request can choose (the release App's bot
+  // account by numeric id, on a same-repository branch), and then by its
+  // commits, checked in real git: anyone who can push to the branch could add
+  // a commit the author check alone would let through unread.
+  const roots: string[] = [];
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  });
+
+  const run = (cwd: string, ...args: string[]): string =>
+    execFileSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...args], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+
+  function commitFile(cwd: string, file: string, text: string, message: string): string {
+    writeFileSync(join(cwd, file), text);
+    run(cwd, 'add', file);
+    run(cwd, 'commit', '-qm', message);
+    return run(cwd, 'rev-parse', 'HEAD');
+  }
+
+  /**
+   * An origin with `main` and `develop`, the working clone that pushes to it,
+   * and the checkout the job reads: `back-merge.yml` checks out develop and
+   * merges main into `chore/back-merge-main`. With `unreleased`, develop holds
+   * work main does not, so the merge is a real two-parent commit; without, it
+   * fast-forwards to main's release commit, which is the shape of #379.
+   */
+  function releasedRepository(unreleased: boolean) {
+    const root = mkdtempSync(join(tmpdir(), 'void-back-merge-'));
+    roots.push(root);
+    const origin = join(root, 'origin.git');
+    const work = join(root, 'work');
+    const job = join(root, 'job');
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', origin]);
+    // GitHub serves any reachable commit by its id; a local bare repository only when told.
+    run(origin, 'config', 'uploadpack.allowAnySHA1InWant', 'true');
+    execFileSync('git', ['clone', '-q', origin, work], { stdio: 'ignore' });
+    run(work, 'checkout', '-qb', 'main');
+    commitFile(work, 'CHANGELOG.md', '# Changelog\n', 'init');
+    run(work, 'checkout', '-qb', 'develop');
+    commitFile(work, 'src.txt', 'feature\n', 'feat: promoted work');
+    run(work, 'checkout', '-q', 'main');
+    run(work, 'merge', '-q', '--no-ff', '--no-edit', 'develop');
+    run(work, 'checkout', '-qb', 'release-please');
+    commitFile(work, 'CHANGELOG.md', '# Changelog\n\n## 1.0.0\n', 'chore: release 1.0.0');
+    run(work, 'checkout', '-q', 'main');
+    run(work, 'merge', '-q', '--no-ff', '--no-edit', 'release-please');
+    run(work, 'checkout', '-q', 'develop');
+    if (unreleased) commitFile(work, 'next.txt', 'next\n', 'feat: not promoted yet');
+    run(work, 'push', '-q', 'origin', 'main', 'develop');
+    run(work, 'checkout', '-qB', 'chore/back-merge-main', 'develop');
+    run(work, 'merge', '-q', '--no-edit', 'main');
+    run(work, 'push', '-q', 'origin', 'chore/back-merge-main');
+    execFileSync('git', ['clone', '-q', '--branch', 'develop', origin, job], { stdio: 'ignore' });
+    const git = (args: readonly string[]): string =>
+      execFileSync('git', [...args], { cwd: job, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return { work, git, head: run(work, 'rev-parse', 'HEAD') };
+  }
+
+  function backMergeEvent(
+    head: string,
+    overrides: { user?: Record<string, unknown>; ref?: string; base?: string; repo?: string } = {},
+  ): Record<string, unknown> {
     return {
       pull_request: {
         number: 379,
         user: overrides.user ?? BACK_MERGE_USER,
         head: {
-          sha: sha('5'),
-          ref: overrides.head ?? 'chore/back-merge-main',
+          sha: head,
+          ref: overrides.ref ?? 'chore/back-merge-main',
           repo: { full_name: overrides.repo ?? repository },
         },
         base: { ref: overrides.base ?? 'develop' },
@@ -327,39 +389,93 @@ describe('the release back-merge', () => {
     };
   }
 
-  it('passes the back-merge without a verdict, asking GitHub nothing', async () => {
+  async function check(head: string, git: (args: readonly string[]) => string) {
     const { graphql, asked } = fakeGithub({});
-    const verified = await checkIndependentReview({
+    const verified = checkIndependentReview({
       eventName: 'pull_request',
-      event: backMergeEvent(),
+      event: backMergeEvent(head),
       repository,
       graphql,
+      git,
     });
-    expect(verified).toEqual([{ number: 379, sha: sha('5'), exempt: 'back-merge' }]);
+    return { verified, asked };
+  }
+
+  it.each([
+    ['the fast-forward to main of #379', false],
+    ['a real merge of main into develop', true],
+  ])('passes %s without a verdict, asking GitHub nothing', async (_name, unreleased) => {
+    const { git, head } = releasedRepository(unreleased);
+    const { verified, asked } = await check(head, git);
+    await expect(verified).resolves.toEqual([{ number: 379, sha: head, exempt: 'back-merge' }]);
     expect(asked).toEqual([]);
+  });
+
+  it('demands a verdict once a commit is pushed on top of the back-merge', async () => {
+    const { work, git } = releasedRepository(true);
+    const extra = commitFile(work, 'src.txt', 'smuggled\n', 'fix: nothing to see');
+    run(work, 'push', '-q', 'origin', 'chore/back-merge-main');
+    const { verified } = await check(extra, git);
+    await expect(verified).rejects.toThrow(/#379 head .* carries no void\/independent-review verdict/);
+  });
+
+  it('demands a verdict from a merge whose tree is not the merge of its parents', async () => {
+    const { work, git } = releasedRepository(true);
+    run(work, 'checkout', '-qB', 'chore/back-merge-main', 'develop');
+    run(work, 'merge', '-q', '--no-commit', 'main');
+    writeFileSync(join(work, 'src.txt'), 'smuggled\n');
+    run(work, 'add', 'src.txt');
+    run(work, 'commit', '-q', '--no-edit');
+    run(work, 'push', '-q', '--force', 'origin', 'chore/back-merge-main');
+    const { verified } = await check(run(work, 'rev-parse', 'HEAD'), git);
+    await expect(verified).rejects.toThrow(/tree/);
+  });
+
+  it('demands a verdict from a merge whose first parent is not develop', async () => {
+    const { work, git } = releasedRepository(true);
+    run(work, 'checkout', '-qB', 'side', 'develop');
+    commitFile(work, 'side.txt', 'unreviewed\n', 'feat: never on develop');
+    run(work, 'checkout', '-qB', 'chore/back-merge-main', 'side');
+    run(work, 'merge', '-q', '--no-edit', 'main');
+    run(work, 'push', '-q', '--force', 'origin', 'chore/back-merge-main');
+    const { verified } = await check(run(work, 'rev-parse', 'HEAD'), git);
+    await expect(verified).rejects.toThrow(/first parent/);
+  });
+
+  it('demands a verdict when the commits cannot be read at all', async () => {
+    const git = (): string => {
+      throw new Error('fatal: could not read from remote repository');
+    };
+    const { verified } = await check(sha('5'), git);
+    await expect(verified).rejects.toThrow(/carries no void\/independent-review verdict/);
   });
 
   it.each([
     ['a person named like the bot', { user: { ...BACK_MERGE_USER, type: 'User' } }],
     ['another bot', { user: { ...BACK_MERGE_USER, id: 1 } }],
-    ['another branch', { head: 'chore/back-merge-main-2' }],
+    ['another branch', { ref: 'chore/back-merge-main-2' }],
     ['another base', { base: 'main' }],
     ['a fork', { repo: 'attacker/void-harness' }],
   ])('still demands a verdict from %s', async (_name, overrides) => {
     const { graphql } = fakeGithub({});
+    const git = (): string => {
+      throw new Error('git must not be asked about a pull request that is not the back-merge');
+    };
     await expect(
       checkIndependentReview({
         eventName: 'pull_request',
-        event: backMergeEvent(overrides),
+        event: backMergeEvent(sha('5'), overrides),
         repository,
         graphql,
+        git,
       }),
     ).rejects.toThrow(/carries no void\/independent-review verdict/);
   });
 
   it('exempts the back-merge inside a merge group and checks every other entry', async () => {
+    const { git, head } = releasedRepository(true);
     const entries: readonly QueueEntry[] = [
-      { ...twoEntries[0], pull: backMergePull } as QueueEntry,
+      { ...twoEntries[0], prHead: head, pull: backMergePull } as QueueEntry,
       twoEntries[1] as QueueEntry,
     ];
     const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
@@ -368,11 +484,32 @@ describe('the release back-merge', () => {
       event: mergeGroupEvent(9, sha('b')),
       repository,
       graphql,
+      git,
     });
     expect(verified).toEqual([
       { number: 9, sha: sha('2') },
-      { number: 7, sha: sha('1'), exempt: 'back-merge' },
+      { number: 7, sha: head, exempt: 'back-merge' },
     ]);
+  });
+
+  it('checks a queued back-merge whose commits do not hold, like any other entry', async () => {
+    const { work, git } = releasedRepository(true);
+    const extra = commitFile(work, 'src.txt', 'smuggled\n', 'fix: nothing to see');
+    run(work, 'push', '-q', 'origin', 'chore/back-merge-main');
+    const entries: readonly QueueEntry[] = [
+      { ...twoEntries[0], prHead: extra, pull: backMergePull } as QueueEntry,
+      twoEntries[1] as QueueEntry,
+    ];
+    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    await expect(
+      checkIndependentReview({
+        eventName: 'merge_group',
+        event: mergeGroupEvent(9, sha('b')),
+        repository,
+        graphql,
+        git,
+      }),
+    ).rejects.toThrow(/#7 head .* carries no/);
   });
 
   it('checks a queued entry whose author only resembles the back-merge', async () => {
