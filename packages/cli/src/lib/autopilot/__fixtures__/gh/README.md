@@ -13,6 +13,7 @@ variants from them by overriding fields; no shape here was written by hand.
 | `status-contexts.json` | two `statusCheckRollup` entries of kubernetes/kubernetes PR 142315: commit statuses, the shape `void/independent-review` takes |
 | `queue-absent.json` | `gh api graphql` `repository.mergeQueue(branch: "develop")` on this repository |
 | `queue-present.json` | the same query on zed-industries/zed `main` |
+| `pr-commits-review-status.json` | `gh api graphql` `pullRequest.commits(last: 100) { commit { oid status { context(name: "EasyCLA") { state } } } }` of kubernetes/kubernetes PR 142273: statuses per commit, null where a commit has none |
 | `timeline-*.json` | `gh api graphql` `pullRequest.timelineItems` (merge queue events and commits) of zed PRs 64552 and 64434 |
 
 No pull request of this repository carries a commit status, and this repository

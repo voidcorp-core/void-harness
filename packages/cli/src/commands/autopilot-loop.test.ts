@@ -85,6 +85,7 @@ function gh(args: readonly string[]): string {
   const line = args.join(' ');
   if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
   if (line.includes('pr view 11')) return reviewedPull();
+  if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
   if (line.includes('timelineItems')) return fixture('timeline-commit-then-ejection.json').replace(
     /"nodes":\[.*\]/,
     '"nodes":[{"__typename":"PullRequestCommit","commit":{"oid":"x"}}]',

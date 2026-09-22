@@ -214,7 +214,9 @@ findings measures nothing; a pass that files four advisories and blocks on none 
 
 **Rounds.** After a correction, round 2 checks only the blocking points of round 1 against the new
 diff; it opens no new general reading. Still blocking after round 2, the kernel hands the ticket to
-a human with the finding. After an update on the base, the same targeted check covers the new diff
+a human with the finding. The kernel counts rounds on GitHub, one per head whose
+`void/independent-review` status failed, not from the round a verdict announces: a reviewer
+restarted without memory cannot reopen the count. After an update on the base, the same targeted check covers the new diff
 only.
 
 **Publishing the verdict.**

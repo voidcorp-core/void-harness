@@ -146,6 +146,8 @@ interface PullSpec {
   /** The judgment blocks posted as comments; `undefined` posts none. */
   readonly verdict?: unknown;
   readonly conflict?: unknown;
+  /** Distinct heads GitHub shows the review failed on; one when the head failed, by default. */
+  readonly reviewFailures?: number;
 }
 
 /** A judgment block as an agent posts it, written raw so a malformed one can be posted too. */
@@ -193,7 +195,8 @@ function pull(spec: PullSpec): PullRequestObservation {
       ],
     }),
   );
-  return { ...parsed, queue: spec.queue ?? 'none' };
+  const reviewFailures = spec.reviewFailures ?? (spec.review === 'FAILURE' ? 1 : 0);
+  return { ...parsed, queue: spec.queue ?? 'none', reviewFailures };
 }
 
 const SHARED_READING: SharedStateReading = {
@@ -556,13 +559,29 @@ describe('a held ticket and its pull request', () => {
       correction: 'Free the slot on merge.',
     };
     const round = (value: 1 | 2) => ({ headSha: headOf(11), round: value, blocking: [finding], advisory: [] });
-    expect(one({}, { verdict: round(1), review: 'FAILURE' })).toMatchObject({
+    expect(one({}, { verdict: round(1), review: 'FAILURE', reviewFailures: 1 })).toMatchObject({
       kind: 'hand-back-to-worker',
       reason: 'review-blocking',
     });
-    expect(one({}, { verdict: round(2), review: 'FAILURE' })).toMatchObject({
+    expect(one({}, { verdict: round(2), review: 'FAILURE', reviewFailures: 2 })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'review-rounds-exhausted',
+    });
+  });
+
+  it('counts the rounds on GitHub, whatever round the reviewer announces', () => {
+    const finding = { location: 'a.ts:1', scenario: 'Breaks.', correction: 'Fix.' };
+    const announced = (value: 1 | 2) => ({ headSha: headOf(11), round: value, blocking: [finding], advisory: [] });
+    // A reviewer restarted with no memory announces round 1 again: GitHub
+    // already shows two heads it failed, so the bound holds.
+    expect(one({}, { verdict: announced(1), review: 'FAILURE', reviewFailures: 2 })).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'review-rounds-exhausted',
+    });
+    // And an announced round 2 on the first failure does not end the review early.
+    expect(one({}, { verdict: announced(2), review: 'FAILURE', reviewFailures: 1 })).toMatchObject({
+      kind: 'hand-back-to-worker',
+      reason: 'review-blocking',
     });
   });
 

@@ -40,6 +40,8 @@ export const TRACKED_TICKETS_MAX = 256;
 /** Outcomes kept for the recap; the stop rule reads only the last three. */
 export const RECENT_MAX = 64;
 const LIVE_WORKERS_MAX = 16;
+/** A blocking review is answered twice at most; the third failure goes to a human. */
+const REVIEW_ROUNDS_MAX = 2;
 /** Three tickets in a row handed to a human means the loop is no longer helping. */
 const HUMAN_WAIT_STREAK_MAX = 3;
 
@@ -65,6 +67,8 @@ export interface PullRequestObservation {
   readonly review: 'absent' | 'pending' | 'success' | 'failure';
   /** The last merge queue event not followed by a commit. */
   readonly queue: QueueEvent;
+  /** Distinct heads of this pull request whose review status failed: the rounds used. */
+  readonly reviewFailures: number;
   /**
    * The last judgment blocks posted as comments, raw: admitted where they are
    * consumed, like every judgment. GitHub keeps them across a restart.
@@ -386,7 +390,9 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
     const detail = 'the review failed on a verdict with no blocking finding';
     return toHuman(ticket.id, 'ambiguous-state', detail);
   }
-  if (verdict.round === 2) {
+  // Counted on GitHub: the round a verdict announces is the reviewer's memory,
+  // and a restarted reviewer has none.
+  if (pr.reviewFailures >= REVIEW_ROUNDS_MAX) {
     const first = verdict.blocking[0]?.scenario ?? '';
     const detail = `still blocking after two rounds: ${first}`;
     return toHuman(ticket.id, 'review-rounds-exhausted', detail);

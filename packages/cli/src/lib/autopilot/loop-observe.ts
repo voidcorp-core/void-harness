@@ -144,8 +144,10 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
   return unreadable(what, issues.join('; '));
 }
 
-/** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its queue event. */
-export function parsePullRequestView(text: string): Omit<PullRequestObservation, 'queue'> {
+/** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL-only parts. */
+export function parsePullRequestView(
+  text: string,
+): Omit<PullRequestObservation, 'queue' | 'reviewFailures'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
   const verdict = latestJudgment(bodies, 'review-verdict');
@@ -219,6 +221,72 @@ export function parseQueueTimeline(text: string): QueueEvent {
   return last.reason === 'merged' ? 'none' : 'ejected';
 }
 
+/** A pull request longer than this is not a loop unit; its rounds are refused, not guessed. */
+const REVIEW_COMMITS_MAX = 100;
+
+const reviewRoundsSchema = z.object({
+  data: z.object({
+    repository: z.object({
+      pullRequest: z.object({
+        commits: z.object({
+          totalCount: z.int().nonnegative(),
+          nodes: z.array(
+            z.object({
+              commit: z.object({
+                oid: z.string(),
+                // allow-null: GitHub reports a commit without statuses, and a
+                // status without this context, as null.
+                status: z
+                  .object({ context: z.object({ state: z.string() }).nullable() })
+                  .nullable(),
+              }),
+            }),
+          ),
+        }),
+      }),
+    }),
+  }),
+  errors: graphqlErrors,
+});
+
+/**
+ * How many review rounds GitHub holds for a pull request: its distinct commits
+ * whose `void/independent-review` status failed. A reviewer restarted with no
+ * memory cannot reset this count, which is why the bound reads it and not the
+ * round the verdict announces.
+ */
+export function parseReviewRounds(text: string): number {
+  const answer = parseJson('review history', reviewRoundsSchema, text);
+  if (answer.errors !== undefined) {
+    return unreadable('review history', answer.errors.map((error) => error.message).join('; '));
+  }
+  const { commits } = answer.data.repository.pullRequest;
+  if (commits.totalCount > commits.nodes.length) {
+    return unreadable(
+      'review history',
+      `${commits.totalCount} commits, only ${commits.nodes.length} read; a round could be missed`,
+    );
+  }
+  const failed = commits.nodes.filter((node) => {
+    const state = node.commit.status?.context?.state;
+    return state === 'FAILURE' || state === 'ERROR';
+  });
+  return new Set(failed.map((node) => node.commit.oid)).size;
+}
+
+const REVIEW_ROUNDS_QUERY = `query(
+  $owner: String!, $name: String!, $number: Int!, $context: String!
+) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(last: ${REVIEW_COMMITS_MAX}) {
+        totalCount
+        nodes { commit { oid status { context(name: $context) { state } } } }
+      }
+    }
+  }
+}`;
+
 const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!) {
   repository(owner: $owner, name: $name) { mergeQueue(branch: $branch) { url } }
 }`;
@@ -277,7 +345,11 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     const queue = observed(`#${number}`, () =>
       parseQueueTimeline(run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`])),
     );
-    pullRequests.set(number, { ...view, queue });
+    const roundArgs = [...timelineArgs, '-F', `context=${REVIEW_STATUS_CONTEXT}`];
+    const reviewFailures = observed(`#${number}`, () =>
+      parseReviewRounds(run([...roundArgs, '-f', `query=${REVIEW_ROUNDS_QUERY}`])),
+    );
+    pullRequests.set(number, { ...view, queue, reviewFailures });
   }
   return { base: request.base, mergeQueue, pullRequests };
 }

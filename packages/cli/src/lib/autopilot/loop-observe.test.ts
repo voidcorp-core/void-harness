@@ -9,6 +9,7 @@ import {
   parseMergeQueuePresence,
   parsePullRequestView,
   parseQueueTimeline,
+  parseReviewRounds,
   PULL_REQUEST_FIELDS,
   readSharedState,
   resolveLoopBase,
@@ -46,6 +47,39 @@ function verdict(state: string): Raw {
   const [real] = statusContexts();
   return { ...real, context: 'void/independent-review', state };
 }
+
+describe('parseReviewRounds', () => {
+  // The rounds are what GitHub holds, not what a reviewer remembers: every
+  // distinct head of the pull request whose review status failed is a round.
+  const commits = (): Raw => JSON.parse(fixture('pr-commits-review-status.json')) as Raw;
+  const nodesOf = (answer: Raw): Raw[] =>
+    ((((answer.data as Raw).repository as Raw).pullRequest as Raw).commits as Raw).nodes as Raw[];
+  const withStates = (states: readonly (string | undefined)[]): string => {
+    const answer = commits();
+    nodesOf(answer).forEach((node, index) => {
+      const state = states[index];
+      const commit = node.commit as Raw;
+      commit.status = state === undefined ? null : { context: { state } };
+    });
+    return JSON.stringify(answer);
+  };
+
+  it('counts no round on a pull request the reviewer never failed', () => {
+    expect(parseReviewRounds(fixture('pr-commits-review-status.json'))).toBe(0);
+  });
+
+  it('counts each head whose review failed or errored', () => {
+    expect(parseReviewRounds(withStates(['FAILURE', undefined, 'ERROR', 'SUCCESS']))).toBe(2);
+    expect(parseReviewRounds(withStates([undefined, undefined, undefined, 'FAILURE']))).toBe(1);
+  });
+
+  it('refuses a history it could not read whole', () => {
+    const answer = commits();
+    const pullRequest = ((answer.data as Raw).repository as Raw).pullRequest as Raw;
+    (pullRequest.commits as Raw).totalCount = 101;
+    expect(() => parseReviewRounds(JSON.stringify(answer))).toThrow(/commits/);
+  });
+});
 
 describe('parsePullRequestView', () => {
   it('reads an open pull request whose checks all passed', () => {
@@ -214,10 +248,15 @@ describe('observeGithub', () => {
       'mergeQueue(branch': fixture('queue-present.json'),
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
+      'commits(last': fixture('pr-commits-review-status.json'),
     });
     const observed = observeGithub(run, { base: 'develop', pullRequests: [381] });
     expect(observed.mergeQueue).toBe(true);
-    expect(observed.pullRequests.get(381)).toMatchObject({ headSha: expect.any(String), queue: 'none' });
+    expect(observed.pullRequests.get(381)).toMatchObject({
+      headSha: expect.any(String),
+      queue: 'none',
+      reviewFailures: 0,
+    });
     expect(calls.filter((call) => call.includes('view'))).toHaveLength(1);
     // argv, never a shell string: the PR number and fields travel as separate words.
     expect(calls.find((call) => call.includes('view'))).toEqual([
