@@ -388,6 +388,24 @@ describe('resumption after a restart', () => {
     expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'wait', reason: 'worker-active' });
   });
 
+  it('resumes a ready ticket that already has a branch, instead of seating a second worker', () => {
+    // `assign` was acted on and the worker pushed, then the orchestrator fell
+    // before Linear moved the ticket: it is still ready, with a branch.
+    const tickets = [{ ...queued('DEV-1'), branch: 'work/DEV-1' }, queued('DEV-2')];
+    const actions = decide({ tickets }, { clusterSize: 2 });
+    expect(assigned(actions)).toEqual(['DEV-2']);
+    expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'hand-back-to-worker', reason: 'resume' });
+  });
+
+  it('reads the pull request of a ready ticket that already opened one', () => {
+    const tickets = [{ ...queued('DEV-1'), pullRequest: 11, branch: 'work/DEV-1' }];
+    const spec = { tickets };
+    expect(pullRequestsToObserve(program(), tracker(spec))).toEqual([11]);
+    const actions = decide(spec, { pulls: [pull(reviewed('DEV-1', 11))] });
+    expect(assigned(actions)).toEqual([]);
+    expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
+  });
+
   it('produces the same decisions when replayed on the same observation', () => {
     const spec = { tickets: [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')] };
     const pulls = [pull(reviewed('DEV-1', 11))];

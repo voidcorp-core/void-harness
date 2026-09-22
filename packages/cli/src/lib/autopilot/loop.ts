@@ -264,15 +264,19 @@ function roleOf(states: ProgressStates, status: string): Role {
 
 /**
  * The tickets holding a slot: started or in review and not handed to a human,
- * plus any ticket a worker is live on. The second half is what stops a restart
- * from seating twice a ticket Linear has not caught up with yet.
+ * plus any ticket a worker is live on, plus a ready ticket that already has a
+ * branch or a pull request. The last two are what stop a restart from seating
+ * twice a ticket Linear has not caught up with yet: the live worker list dies
+ * with the orchestrator, the branch a worker pushed does not.
  */
 function heldTickets(program: LoopProgram, tracker: LoopTracker): readonly TrackerTicket[] {
   const live = new Set<string>(tracker.liveWorkers);
   return tracker.tickets.filter((ticket) => {
     if (live.has(ticket.id)) return true;
+    if (ticket.humanWait) return false;
     const role = roleOf(program.states, ticket.status);
-    return (role === 'started' || role === 'review') && !ticket.humanWait;
+    if (role === 'started' || role === 'review') return true;
+    return role === 'ready' && (ticket.branch !== undefined || ticket.pullRequest !== undefined);
   });
 }
 

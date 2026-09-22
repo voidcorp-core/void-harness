@@ -163,7 +163,9 @@ deletes the record.
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
 pull request link, the human-wait label); the rest comes from GitHub. After a restart -- an OS
 update, a cut, a saturated context -- the first `next` rebuilds the slots from those two sources,
-and a ticket already held is resumed, never seated twice. A ticket whose state is ambiguous goes to
+and a ticket already held is resumed, never seated twice. Report each ticket's branch and pull
+request whenever they exist, whatever its status: a ticket still ready but with a branch or a pull
+request is a unit in flight, and the kernel resumes it instead of seating a second worker. A ticket whose state is ambiguous goes to
 a human rather than being relaunched. Record judgments where a restart finds them again: the
 reviewer's verdict and a worker's conflict class as a comment on the pull request.
 
