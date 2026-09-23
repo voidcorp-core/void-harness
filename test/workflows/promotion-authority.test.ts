@@ -57,9 +57,28 @@ describe('promotion authority of a pull request merged into develop', () => {
     expect(judge(pull())).toEqual({ accepted: 'human' });
   });
 
-  it('refuses a pull request anyone else merged by hand', () => {
-    const verdict = judge(pull({ mergedBy: { login: 'someone' }, ...verdictOn(HEAD, 'SUCCESS') }));
-    expect(verdict).toEqual({ refused: expect.stringMatching(/merged by someone, not folpe/) });
+  it('refuses a pull request anyone else merged by hand without a verdict', () => {
+    for (const state of [undefined, 'PENDING', 'FAILURE']) {
+      const verdict = judge(pull({ mergedBy: { login: 'someone' }, ...verdictOn(HEAD, state) }));
+      expect(verdict, String(state)).toEqual({ refused: expect.stringMatching(/merged by someone, not folpe/) });
+    }
+  });
+
+  // `gh pr merge --auto` on a pull request already mergeable merges it at once
+  // and leaves no AutoMergeEnabledEvent: the timeline then reads like a hand
+  // merge. What the required check held it to is the verdict on its head, so
+  // the verdict is accepted whatever the timeline says and whoever merged.
+  it.each([
+    ['by the named human', { login: 'folpe' }],
+    ['by another identity', { login: 'voidcorp-loop' }],
+  ])('accepts a merge with no automatic event %s whose head carries a success verdict', (_name, merger) => {
+    const verdict = judge(pull({ mergedBy: merger, ...verdictOn(HEAD, 'SUCCESS') }));
+    expect(verdict).toEqual({ accepted: 'review-verdict' });
+  });
+
+  it('accepts no success verdict read on another commit than the head', () => {
+    const verdict = judge(pull({ mergedBy: { login: 'someone' }, ...verdictOn(sha('c'), 'SUCCESS') }));
+    expect(verdict).toEqual({ refused: expect.stringMatching(/merged by someone/) });
   });
 
   it.each(['AutoMergeEnabledEvent', 'AddedToMergeQueueEvent'])(

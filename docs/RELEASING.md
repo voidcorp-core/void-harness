@@ -55,10 +55,12 @@ those pull requests to a person.
 The promotion audit in `promotion.yml` follows the same rule: every commit it
 promotes entered `develop` through a merged pull request, and
 `scripts/promotion-authority.mjs` accepts that pull request in exactly three
-cases. It was merged by hand by the named human, with no auto-merge or merge
-queue event in its timeline. Or it merged automatically (auto-merge or the merge
-queue) and its head SHA carries a success `void/independent-review` status, the
-verdict the required check demanded before it could merge. Or it is the release
+cases. Its head SHA carries a success `void/independent-review` status, the
+verdict the required check demanded before it could merge, whoever merged it and
+whatever its timeline records: `gh pr merge --auto` on a pull request already
+mergeable merges at once and leaves no auto-merge event. Or it was merged by
+hand by the named human, with no auto-merge or merge queue event in its
+timeline. Or it is the release
 back-merge, proved by construction with the same check the `independent-review`
 job runs, replayed against `develop` as it stood (the first parent of the
 integration commit); one that does not hold needs the verdict like any other
@@ -178,9 +180,9 @@ Actions on the routine path.
    commit, its first entry on develop's first-parent history, and the merged PR
    whose `mergeCommit` exactly matches that entry, including nested branch PRs.
    A later containing merge cannot authorize an earlier direct commit. Each pull
-   request must hold one of the three merge authorities above (the named human by
-   hand, an automatic merge with a success verdict on its head, or the back-merge
-   proved by construction), with fail-closed pagination checks. **Release
+   request must hold one of the three merge authorities above (a success verdict
+   on its head, the named human by hand, or the back-merge proved by
+   construction), with fail-closed pagination checks. **Release
    action 1:** merge that promotion PR after its five current checks pass and the
    complete accounting is explainable.
 2. On `main`, release-please maintains one version/changelog PR. It changes every

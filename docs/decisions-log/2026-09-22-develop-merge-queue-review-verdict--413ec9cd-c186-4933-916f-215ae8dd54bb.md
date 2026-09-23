@@ -157,10 +157,11 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   history for it, with the same read-only permissions.
 - The promotion audit (`promotion.yml`, judged by
   `scripts/promotion-authority.mjs`) accepts a pull request into `develop` in
-  three cases only: merged by hand by the named human with no auto-merge or
-  merge queue event; merged automatically with a `success`
-  `void/independent-review` status on its head SHA, the verdict the required
-  check held it to; or the back-merge, proved by the construction above,
+  three cases only: a `success` `void/independent-review` status on its head
+  SHA, the verdict the required check held it to, whoever merged it and
+  whatever its timeline records (`gh pr merge --auto` on a pull request
+  already mergeable merges at once without an auto-merge event); merged by
+  hand by the named human with no auto-merge or merge queue event; or the back-merge, proved by the construction above,
   replayed against `develop` as it stood (the integration commit's first
   parent) and never on its author. An unproven back-merge needs the verdict,
   since it merged automatically too. Anything else refuses the promotion, and

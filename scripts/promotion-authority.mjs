@@ -4,10 +4,11 @@
 // merged pull request, and that pull request must have had the right to merge.
 //
 // Three ways hold, and nothing else:
+// - its head SHA carries a `success` `void/independent-review` status, the
+//   verdict the required check demanded before it could merge, whoever merged
+//   it and whatever its timeline says: `gh pr merge --auto` on a pull request
+//   already mergeable merges at once and records no AutoMergeEnabledEvent;
 // - the named human merged it by hand, with no automatic merge ever armed;
-// - it merged automatically (native auto-merge or the merge queue) and its
-//   head SHA carries a `success` `void/independent-review` status, the verdict
-//   the required check demanded before it could merge;
 // - it is the release back-merge, proved by the same construction the
 //   independent-review job checks (scripts/independent-review-check.mjs),
 //   replayed against develop as it stood: the integration's first parent.
@@ -111,10 +112,10 @@ export function promotionAuthority(pull, { integrationOid, human, git }) {
     notBackMerge = ` (not the back-merge back-merge.yml builds: ${refused})`;
   }
 
+  const unverified = verdictRefusal(pull);
+  if (unverified === undefined) return { accepted: 'review-verdict' };
   if (events.count > 0) {
-    const refused = verdictRefusal(pull);
-    if (refused === undefined) return { accepted: 'review-verdict' };
-    return { refused: `${label} was merged automatically and ${refused}${notBackMerge}` };
+    return { refused: `${label} was merged automatically and ${unverified}${notBackMerge}` };
   }
 
   const merger = field(field(pull, 'mergedBy'), 'login');
