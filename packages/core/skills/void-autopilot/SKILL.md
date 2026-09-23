@@ -30,7 +30,7 @@ under both gates.
 
 It never merges a change to the machinery that judges merges. A pull request touching
 `.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`, `packages/core/hooks/**`,
-the verdict hook's source and its shell parser, what a judging workflow runs from outside `.github`
+what a judging workflow runs from outside `.github`
 (`scripts/promotion-authority.mjs`, `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`,
 `packages/core/enforce/**`), what judges a publication (`scripts/prepare-release-artifact.mjs`,
 `scripts/verify-release-publication.mjs` and the two release contracts they read), the loop code that believes a verdict and arms a merge (`loop.ts`,
@@ -268,9 +268,9 @@ the review key over the repository, ticket, pull request, head, outcome and find
 `void/independent-review` status on
 that head (`success` with no blocking finding, `failure` otherwise), and re-runs the
 `independent-review` job when its completed run disagrees, since a status event starts no
-workflow. Never post the comment or the status yourself: a hook refuses the forms it can read, and
-the kernel believes no verdict without the proof, whatever the hook missed. Any new push changes the head SHA and needs a
-new verdict.
+workflow. Never post the comment or the status yourself: without the signature, neither the
+required check nor the kernel believes it. Any new push changes the head SHA and needs a new
+verdict.
 
 ---
 

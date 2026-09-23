@@ -107,35 +107,14 @@ latest verdict signed for that head by the review key says `success`.
   request, proven ones included, before it freezes, and refuses to report a
   freeze when it cannot read what is armed, naming what to disarm by hand.
   `autopilot disarm` reads GitHub back and fails while the auto-merge stays.
-- A PreToolUse hook, `review-verdict-write`, wired on Claude and Codex, refuses
-  a shell command that writes a `void/independent-review` status (`gh api` or
-  curl to `/statuses/`) or posts a comment carrying the verdict block (`gh pr
-  comment`, `gh issue comment`, the REST and GraphQL comment endpoints, a body
-  sent from a file), and names `autopilot verdict` instead. It reads the words
-  the program receives, not the characters typed: quotes and escapes removed,
-  glued flags (`-fcontext=...`) and `--flag=value` split, JSON and URL escapes
-  undone in the payload, API paths compared without case. It reads what a line
-  runs, not only its simple commands: the bodies of `$(...)`, backticks, `<(...)`
-  and `>(...)`; the command behind `{`, `(`, `!`, `if`, `then`, `else`,
-  `elif`, `do`, `while`, `until` and a function defined on the line; wrappers
-  and the values of their options (`nice -n`, `env -C` and `-S`, `stdbuf`,
-  `timeout -s` and `-k`, `exec -a`, `sudo -u`); what `find -exec` runs; the
-  string of `sh -c`, `eval`, `env -S` and a `gh alias set`; the script a shell
-  or `source` reads from a here-document, a here-string or a file it can open.
-  A write it cannot read before the command runs is refused: a status context
-  or a comment body from a variable, a substitution, a pipe or a file it
-  cannot open, an endpoint decided at run time, a `gh api` or comment fed words
-  by `xargs` or `parallel`, a shell reading a pipe, `source` of a substitution
-  or a variable, a gh command or verb chosen at run time, an imported alias
-  file. It does not see a variable expanded unquoted into several words, a
-  program it does not parse (`python3 -c`, `node -e`, `hub`, `wget`), a script
-  file it cannot open, an alias already in the gh configuration, or a program
-  named by a variable at top level. It keeps the honest path the easy one; the
-  seal is what makes a forged verdict inert for the loop.
-- The hook runs from the installed bundle in `.void/hooks/`, which carries the
-  published harness. In this repository it is active only once a release ships
-  it and `void-harness init` reinstalls it; until then the loop's agreement rule
-  and the seal are the checks on a hand-written verdict.
+- No hook reads shell commands for a hand-written verdict. One did, and every
+  review found forms it missed (a capital in `-c`, `/dev/stdin`, a file
+  rewritten later on the line, globs and brace expansions in the program
+  name, launchers and shells it did not list): parsing a shell line is never
+  complete, so such a rule is maintained more than it protects, and any other
+  HTTP client bypasses it anyway. The barrier is cryptographic instead: the
+  required job refuses a verdict the review key did not sign, whatever wrote
+  the status, and the loop disarms whatever it can no longer vouch for.
 - The job finds the group from the queue itself: the `head_ref` of the event
   (`gh-readonly-queue/<base>/pr-<n>-<sha>`) names the last pull request, and the
   GraphQL `mergeQueue` entries are followed through their `baseCommit` down to
@@ -161,8 +140,7 @@ latest verdict signed for that head by the review key says `success`.
   branch it merges into or ships from.
 - The loop never arms a pull request that touches the machinery judging merges:
   `.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`,
-  `packages/core/hooks/**`, the source of the hook above and its shell parser
-  (`packages/hook-runner/src/enforcement/shell-words.ts`), what a judging
+  `packages/core/hooks/**`, what a judging
   workflow runs from outside `.github` (`scripts/promotion-authority.mjs`,
   which the promotion audit runs from develop itself,
   `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`, which aggregates the

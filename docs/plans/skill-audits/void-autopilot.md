@@ -59,16 +59,14 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
 ### Merge authority, tightened after the loop's review
 
 - **One verdict writer.** `autopilot verdict` posts the comment and the status together, bound to
-  the current head; the `review-verdict-write` hook refuses the same writes typed by hand, and the
-  loop believes a comment only when the status on the same head agrees. Rejected: a GitHub App or
+  the current head, and the loop believes a comment only when the status on the same head agrees. Rejected: a GitHub App or
   dedicated reviewer identity, which Folpe declined; the ADR states that these guards stop a
   mistake or an injection, not an actor holding the credentials.
-- **The hook reads what a line runs.** After the final review found seventy shell forms that
-  slipped past it (substitutions, compound commands, functions, aliases, wrapper options,
-  `xargs`, `find -exec`, shells reading a pipe or a here-document), the rule reads their bodies and
-  refuses what it still cannot read and may write. It stays a guard, not a boundary: an unquoted
-  variable split into flags, `python3 -c`, `node -e`, `hub` and a script it cannot open remain
-  unseen, and the ADR says so.
+- **No verdict hook.** A `review-verdict-write` rule once refused hand-written verdicts by parsing
+  shell lines; two reviews found seventy, then twenty-three forms it missed. Removed: parsing a
+  shell line is never complete, the rule cost more upkeep than it protected, and any other HTTP
+  client bypassed it. The barrier is the review key, verified by the required check, plus the
+  disarm.
 - **The review key.** Replaces the review seal, whose HMAC bound the loop and not GitHub: the
   required check could not hold the nonce and trusted the status alone. `autopilot review-key`
   draws an Ed25519 pair once in the orchestration checkout; `autopilot verdict` signs repository,

@@ -236,23 +236,6 @@ describe('evaluateRule', () => {
     expect(verdict.allow).toBe(false);
   });
 
-  it('refuses a hand-written review verdict, reading the file it posts from the project', () => {
-    const root = mkdtempSync(join(tmpdir(), 'void-verdict-write-'));
-    write(root, 'verdict.md', '<!-- void-autopilot:review-verdict -->\n{}\n');
-    const post = (command: string) =>
-      evaluateRule('review-verdict-write', { tool_name: 'Bash', tool_input: { command } }, { root });
-    expect(post('gh pr comment 3 --body-file verdict.md').allow).toBe(false);
-    // A body the hook cannot read before the comment is posted is refused, not trusted.
-    expect(post('gh pr comment 3 --body-file absent.md').allow).toBe(false);
-    write(root, 'notes.md', 'Looks fine.\n');
-    expect(post('gh pr comment 3 --body-file notes.md').allow).toBe(true);
-    const edit = evaluateRule('review-verdict-write', {
-      tool_name: 'Write',
-      tool_input: { file_path: 'verdict.md', content: 'gh pr comment 3 --body-file verdict.md' },
-    }, { root });
-    expect(edit.allow).toBe(true);
-  });
-
   it('resolves TDD policy against the physical project root', () => {
     const physicalRoot = mkdtempSync(join(tmpdir(), 'void-rule-root-'));
     const linkedRoot = `${physicalRoot}-link`;

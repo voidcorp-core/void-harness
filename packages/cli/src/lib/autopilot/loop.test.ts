@@ -889,7 +889,6 @@ describe('protected paths', () => {
       'scripts/auto-merge-contract.mjs',
       'scripts/verify.mjs',
       'packages/core/enforce/ci-enforce.sh',
-      'packages/hook-runner/src/enforcement/shell-words.ts',
     ]) {
       const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
       expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });

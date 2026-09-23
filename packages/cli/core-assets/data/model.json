@@ -433,16 +433,6 @@
     },
     {
       "description": "",
-      "id": "hook:review-verdict-write",
-      "lines": 10,
-      "name": "review-verdict-write",
-      "pack": null,
-      "source": "packages/core/hooks/review-verdict-write.sh",
-      "staticTokens": 97,
-      "type": "hook"
-    },
-    {
-      "description": "",
       "id": "hook:secret-in-content",
       "lines": 10,
       "name": "secret-in-content",
@@ -1722,7 +1712,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-autopilot/SKILL.md",
-      "staticTokens": 5784,
+      "staticTokens": 5762,
       "type": "skill"
     },
     {
@@ -3030,13 +3020,6 @@
       "kind": "enforces",
       "origin": "declared",
       "evidence": "refactor-named-grep requires named Fowler refactors — enforces refactor"
-    },
-    {
-      "from": "hook:review-verdict-write",
-      "to": "skill:void-autopilot",
-      "kind": "enforces",
-      "origin": "declared",
-      "evidence": "review-verdict-write refuses a review verdict status or comment written by hand — enforces autopilot's single verdict writer, autopilot verdict"
     },
     {
       "from": "hook:secret-in-content",

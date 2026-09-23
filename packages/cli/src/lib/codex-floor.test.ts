@@ -106,7 +106,7 @@ describe('safety-floor matcher coverage', () => {
   // list meant a rule could reach the runner and be wired on neither runtime
   // without one test going red: it proved only that somebody had once typed the
   // same twelve names twice.
-  const SHELL_RULES: readonly string[] = ['dangerous-command', 'review-verdict-write'];
+  const SHELL_RULES: readonly string[] = ['dangerous-command'];
   const FILE_EDIT_RULES = RULE_NAMES.filter((rule) => !SHELL_RULES.includes(rule));
 
   it('matches Bash and legacy shell on every shell rule', () => {

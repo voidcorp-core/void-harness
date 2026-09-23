@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:a784c6ab2bf1e2f1039a5c73cc3206a1ecce1123a51221ccb0641f9eca09b95c"
+    "rootHash": "sha256:85eb2724b839d1d2afe65044f3b5f6879c22bfdc31c6877fb130812476684a36"
   },
   "nodes": [
     {
@@ -1207,34 +1207,6 @@
           {
             "kind": "path",
             "ref": "packages/core/hooks/refactor-named-grep.sh",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:hook:hook:review-verdict-write",
-      "kind": "hook",
-      "label": "review-verdict-write",
-      "data": {
-        "legacy": {
-          "description": "",
-          "id": "hook:review-verdict-write",
-          "lines": 10,
-          "name": "review-verdict-write",
-          "pack": null,
-          "source": "packages/core/hooks/review-verdict-write.sh",
-          "staticTokens": 97,
-          "type": "hook"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/hooks/review-verdict-write.sh",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -3588,7 +3560,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-autopilot/SKILL.md",
-          "staticTokens": 5784,
+          "staticTokens": 5762,
           "type": "skill"
         }
       },
@@ -9684,32 +9656,6 @@
           "kind": "enforces",
           "origin": "declared",
           "to": "skill:void-migrations"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:edge:enforces:381363a3ddf850fe54266c15928ee929",
-      "from": "catalog:hook:hook:review-verdict-write",
-      "to": "catalog:skill:skill:void-autopilot",
-      "kind": "enforces",
-      "data": {
-        "legacy": {
-          "evidence": "review-verdict-write refuses a review verdict status or comment written by hand — enforces autopilot's single verdict writer, autopilot verdict",
-          "from": "hook:review-verdict-write",
-          "kind": "enforces",
-          "origin": "declared",
-          "to": "skill:void-autopilot"
         }
       },
       "provenance": {

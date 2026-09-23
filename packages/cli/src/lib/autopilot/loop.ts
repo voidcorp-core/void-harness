@@ -46,8 +46,8 @@ export const HUMAN_WAIT_LABEL = 'void:human-wait';
 /**
  * Paths the loop never merges itself: the machinery that decides whether a
  * change may merge. The workflows and actions run the required checks, the
- * script judges the review verdict, the programme grants the merge, and the
- * hooks refuse a forged verdict. A change to any of them merged by the loop
+ * script and the public review key judge the verdict, the programme grants
+ * the merge, and the hooks hold the enforcement floor. A change to any of them merged by the loop
  * would be the loop approving its own judge. A programme adds to this floor
  * through `autopilot.protectedPaths`; nothing removes from it.
  */
@@ -70,8 +70,6 @@ export const PROTECTED_PATHS_FLOOR = [
   'scripts/release-provenance-contract.mjs',
   '.void/program.md',
   'packages/core/hooks/**',
-  'packages/hook-runner/src/rules/review-verdict-write.ts',
-  'packages/hook-runner/src/enforcement/shell-words.ts',
   // What decides to believe a verdict and to arm a merge, this floor included,
   // and the one command that writes and proves a verdict.
   'packages/cli/src/lib/autopilot/loop.ts',
