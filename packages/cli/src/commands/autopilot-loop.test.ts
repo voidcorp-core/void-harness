@@ -539,11 +539,34 @@ describe('autopilot stop', () => {
     ]);
   });
 
-  it('freezes without asking GitHub anything', () => {
+  it('freezes without asking GitHub anything when no pull request is in flight', () => {
     const root = project();
     runAutopilotCommand(['stop', '--now'], '', context(root));
-    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), unreachableGh);
+    const { decision } = next(root, trackerJson([queuedTicket], ['DEV-2']), unreachableGh);
     expect(decision.actions).toEqual([{ kind: 'freeze' }]);
+  });
+
+  it('disarms every armed pull request before it freezes, a proven one included', () => {
+    // Freezing means nothing moves; a merge GitHub runs on its own moves develop.
+    const root = project();
+    const nonce = drawSeal(root);
+    runAutopilotCommand(['stop', '--now'], '', context(root));
+    const armed = (args: readonly string[]) =>
+      args.join(' ').includes('pr view 11') ? reviewedPull(nonce, { armed: true }) : unreachableGh();
+    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), armed);
+    expect(decision.actions).toEqual([
+      { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: HEAD },
+      { kind: 'freeze' },
+    ]);
+  });
+
+  it('refuses to freeze while it cannot tell what GitHub would still merge, and says so', () => {
+    const root = project();
+    runAutopilotCommand(['stop', '--now'], '', context(root));
+    const result = next(root, trackerJson([heldTicket], []), unreachableGh);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/cannot freeze/);
+    expect(result.stderr).toMatch(/gh pr merge 11 --disable-auto/);
   });
 
   it('needs exactly one of --drain and --now', () => {

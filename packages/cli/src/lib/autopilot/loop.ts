@@ -625,14 +625,47 @@ function mergeOutcome(
   return held({ kind: 'requeue', ...target, ejections: pr.ejections });
 }
 
+/** The pull request a ticket carries, when GitHub reports it open and armed. */
+function armedPullOf(
+  ticket: TrackerTicket,
+  github: GithubObservation,
+): PullRequestObservation | undefined {
+  const number = ticket.pullRequest;
+  const pr = number === undefined ? undefined : github.pullRequests.get(number);
+  return pr?.state === 'open' && pr.autoMerge ? pr : undefined;
+}
+
+/** Stop the merge of `pr`, naming the head `autopilot arm` recorded for it, if any. */
+function disarmOf(ticket: TrackerTicket, pr: PullRequestObservation, input: LoopInput): LoopAction {
+  const record = input.armed.get(ticket.id);
+  const armedSha = record?.pullRequest === pr.number ? record.headSha : undefined;
+  return {
+    kind: 'disable-auto-merge',
+    ticketId: ticket.id,
+    pullRequest: pr.number,
+    headSha: pr.headSha,
+    ...(armedSha === undefined ? {} : { armedSha }),
+  };
+}
+
 /**
- * Disarm an auto-merge the loop can no longer vouch for, or nothing. GitHub
- * keeps it armed across a push by anyone with write access and exposes no
- * armed head, and the required check trusts the status alone, so the head is
- * the one `autopilot arm` recorded and the verdict is the one the seal proves.
- * A moved head goes back to its worker once disarmed, since it has not been
- * reviewed; an armed head the seal no longer proves, or an arming nobody
- * recorded, goes to a human.
+ * Whether the loop still vouches for an armed merge: armed by `autopilot arm`
+ * on the head the pull request has now, and a verdict proven on that head.
+ */
+function vouches(ticket: TrackerTicket, pr: PullRequestObservation, input: LoopInput): boolean {
+  const record = input.armed.get(ticket.id);
+  if (record?.pullRequest !== pr.number || record.headSha !== pr.headSha) return false;
+  return pr.review === 'success' && unapprovedReason(pr) === undefined;
+}
+
+/**
+ * Why an armed merge is stopped, when that decides where the ticket goes. GitHub
+ * keeps an auto-merge armed across a push by anyone with write access and
+ * exposes no armed head, and the required check reads only what a key-holder
+ * can sign, so the head is the one `autopilot arm` recorded and the verdict is
+ * the one the loop proves. A moved head goes back to its worker, since it has
+ * not been reviewed; an armed head no verdict proves, or an arming nobody
+ * recorded, goes to a human. `withDisarm` stops every other armed merge.
  */
 function armedOutcome(
   ticket: TrackerTicket,
@@ -640,22 +673,39 @@ function armedOutcome(
   context: SlotContext,
 ): SlotOutcome | undefined {
   if (!pr.autoMerge) return undefined;
-  const record = context.input.armed.get(ticket.id);
-  const target = { ticketId: ticket.id, pullRequest: pr.number, headSha: pr.headSha };
+  const { input } = context;
+  const disarm = disarmOf(ticket, pr, input);
+  const record = input.armed.get(ticket.id);
   if (record === undefined || record.pullRequest !== pr.number) {
     const detail = `#${pr.number} is armed and no \`autopilot arm\` recorded its head`;
-    const disarm: LoopAction = { kind: 'disable-auto-merge', ...target };
     return { ...toHuman(ticket.id, 'ambiguous-state', detail), disarm };
   }
-  const disarm: LoopAction = { kind: 'disable-auto-merge', ...target, armedSha: record.headSha };
   if (record.headSha !== pr.headSha) {
     return { ...handBack(ticket.id, 'head-moved-after-arming', pr.number), disarm };
   }
+  if (vouches(ticket, pr, input)) return undefined;
   const unproven =
     pr.review === 'success' ? unapprovedReason(pr) : `the review status is ${pr.review}`;
-  if (unproven === undefined) return undefined;
-  const detail = `#${pr.number} is armed on ${pr.headSha} and ${unproven}`;
+  const detail = `#${pr.number} is armed on ${pr.headSha} and ${unproven ?? 'is unproven'}`;
   return { ...toHuman(ticket.id, 'armed-verdict-unproven', detail), disarm };
+}
+
+/**
+ * The only places an armed merge survives a tick: the loop vouches for its head
+ * and hands it to nobody, it waits for the merge or re-runs the job that lets
+ * it through. Every other outcome, a worker at work, a hand-back, a human wait,
+ * runs while someone may push and GitHub could merge a head nobody proved, so
+ * it carries the disarm, which runs first.
+ */
+function withDisarm(ticket: TrackerTicket, slot: SlotOutcome, input: LoopInput): SlotOutcome {
+  if (slot.outcome === 'merged' || slot.disarm !== undefined) return slot;
+  const pr = armedPullOf(ticket, input.github);
+  if (pr === undefined) return slot;
+  const { action } = slot;
+  const watched =
+    (action.kind === 'wait' && action.reason === 'merging') || action.kind === 'rerun-review-check';
+  if (watched && vouches(ticket, pr, input)) return slot;
+  return { ...slot, disarm: disarmOf(ticket, pr, input) };
 }
 
 function openPullOutcome(
@@ -852,8 +902,11 @@ function trailingHumanWaits(outcomes: readonly Outcome[]): number {
 
 export function decideLoop(input: LoopInput): LoopDecision {
   const humanWaitLabel = input.program.autopilot.humanWaitLabel ?? HUMAN_WAIT_LABEL;
+  // Freezing means nothing moves, a merge GitHub would run included: every
+  // armed pull request is disarmed first, the proven ones too.
   if (input.signal === 'now') {
-    return { actions: [{ kind: 'freeze' }], refusals: [], humanWaitLabel };
+    const disarms = disarmsOf(input.tracker.tickets, input);
+    return { actions: [...disarms, { kind: 'freeze' }], refusals: [], humanWaitLabel };
   }
   const refusals: string[] = [];
   const holding = heldTickets(input.program, input.tracker);
@@ -862,10 +915,22 @@ export function decideLoop(input: LoopInput): LoopDecision {
     live: new Set<string>(input.tracker.liveWorkers),
     serialTurn: serialTurnOf(holding, input.github),
   };
-  const outcomes = holding.map((ticket) => ({ ticket, slot: slotOutcome(ticket, context) }));
-  const slotActions = outcomes.flatMap(({ slot }) =>
-    'action' in slot ? [...(slot.disarm === undefined ? [] : [slot.disarm]), slot.action] : [],
+  const outcomes = holding.map((ticket) => ({
+    ticket,
+    slot: withDisarm(ticket, slotOutcome(ticket, context), input),
+  }));
+  // A ticket that holds no slot, in human wait above all, is merged by a
+  // person: an auto-merge still armed on it is one the loop no longer watches.
+  const unheld = disarmsOf(
+    input.tracker.tickets.filter((ticket) => !holding.includes(ticket)),
+    input,
   );
+  const slotActions = [
+    ...unheld,
+    ...outcomes.flatMap(({ slot }) =>
+      'action' in slot ? [...(slot.disarm === undefined ? [] : [slot.disarm]), slot.action] : [],
+    ),
+  ];
   const whose = (outcome: SlotOutcome['outcome']) =>
     outcomes.filter(({ slot }) => slot.outcome === outcome).map(({ ticket }) => ticket);
   const stillHeld = whose('held');
@@ -898,6 +963,13 @@ export function decideLoop(input: LoopInput): LoopDecision {
     if (stillHeld.length === 0) actions.push(recapOf(recent, merged, waited));
   }
   return { actions, refusals, humanWaitLabel };
+}
+
+function disarmsOf(tickets: readonly TrackerTicket[], input: LoopInput): LoopAction[] {
+  return tickets.flatMap((ticket) => {
+    const pr = armedPullOf(ticket, input.github);
+    return pr === undefined ? [] : [disarmOf(ticket, pr, input)];
+  });
 }
 
 function recapOf(

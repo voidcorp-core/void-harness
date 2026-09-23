@@ -78,10 +78,13 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
   reading the orchestration checkout, and it binds the loop, not the required check.
 - **Disarming.** GitHub keeps no armed head and keeps an auto-merge across a push with write
   access, so `autopilot arm` records the head it arms and the kernel disarms a moved head (back to
-  the worker), an armed head the seal no longer proves, or an unrecorded arming (to a human).
+  the worker), an armed head the seal no longer proves, or an unrecorded arming (to a human). The
+  disarm rides on every outcome but the two that keep watching a vouched head (`wait merging`,
+  `rerun-review-check`), and an immediate stop disarms everything before it freezes: after the
+  first review, a hand-back on red CI left the merge armed while the worker pushed a new head.
   Rejected: reading the armed head from the timeline, whose commit entries carry commit dates a
-  worker can backdate. Limit stated: a forged status between a push and the next tick can still
-  merge.
+  worker can backdate. Limit stated: a push nobody was handed the head for, with a forged status,
+  can still merge before the next tick.
 - **Protected paths.** The loop never merges a change to its own judge; the floor is a constant
   the programme can only extend. It covers what a judging workflow runs from outside `.github`
   (the promotion audit, the auto-merge contract, `verify.mjs`, the enforcement floor) and the loop

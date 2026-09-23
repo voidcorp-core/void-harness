@@ -79,7 +79,15 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   On every tick, an armed pull request whose head differs from the record is
   disarmed and handed back to its worker, the new head being unreviewed; one
   whose armed head the seal no longer proves a clean verdict on, or whose
-  arming nobody recorded, is disarmed and handed to a human.
+  arming nobody recorded, is disarmed and handed to a human. An armed merge
+  survives a tick only while the loop vouches for its head (recorded, proven)
+  and hands it to nobody, waiting for the merge or re-running the job that
+  lets it through. Every other outcome carries the disarm, ahead of it: a
+  worker at work, any hand-back (failed checks, a conflict, an ejection), a
+  human wait whatever its cause, including a ticket already waiting, whose
+  pull request a person merges. An immediate stop disarms every armed pull
+  request, proven ones included, before it freezes, and refuses to report a
+  freeze when it cannot read what is armed, naming what to disarm by hand.
   `autopilot disarm` reads GitHub back and fails while the auto-merge stays.
 - A PreToolUse hook, `review-verdict-write`, wired on Claude and Codex, refuses
   a shell command that writes a `void/independent-review` status (`gh api` or
@@ -240,10 +248,11 @@ Negative:
   status alone. GitHub keeps an armed auto-merge across a later push by an
   account with write access
   ([it disables it only on a push by someone without write permission](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request)),
-  so the loop disarms a moved or unproven head on its next tick. Between that
-  push and that tick, a forged status on the new head can still satisfy the
-  required check and merge: the window is one tick of the loop plus the time
-  the checks take, not closed. Closing it needs GitHub itself to refuse, such
+  so the loop disarms before it hands a head to anyone who may push, and
+  disarms a moved or unproven head on its next tick. A push nobody was handed
+  the head for, while the loop waits for a merge it vouches for, still opens a
+  window: a forged status on the new head can satisfy the required check and
+  merge within one tick of the loop plus the time the checks take. Closing it needs GitHub itself to refuse, such
   as a required check that can verify the proof.
 - The back-merge exemption rests on what `back-merge.yml` produces by
   construction, not on a setting of the repository: no rule on

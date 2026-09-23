@@ -1205,6 +1205,90 @@ describe('stopping', () => {
   });
 });
 
+describe('no action leaves an armed merge the loop cannot vouch for', () => {
+  // GitHub merges an armed pull request on whatever head its checks pass, and
+  // keeps it armed across a push by an account with write access. Whatever the
+  // loop does with a ticket, then, it either still vouches for the armed head
+  // (the head `autopilot arm` recorded, a verdict proven on it, nothing left
+  // but the merge) or it disarms first. Each case is one way out of a tick.
+  interface ArmedCase {
+    readonly ticket?: Partial<TicketSpec>;
+    readonly spec?: Partial<PullSpec>;
+    readonly live?: boolean;
+    /** The ticket names no branch, so any head is accepted and the head itself is judged. */
+    readonly unbranched?: boolean;
+    readonly options?: Parameters<typeof decide>[1];
+    /** What the loop does while it keeps the merge armed on a head it vouches for. */
+    readonly keeps?: LoopAction['kind'];
+  }
+  const blocking = {
+    headSha: headOf(11),
+    round: 1,
+    blocking: [{ scenario: 'A pushed head merges unread.' }],
+    advisory: [],
+  };
+  const semantic = { headSha: headOf(11), class: 'semantic', reason: 'Both sides changed the grant.' };
+  const cases: Readonly<Record<string, ArmedCase>> = {
+    'proven and current': { keeps: 'wait' },
+    'draining, proven and current': { options: { signal: 'drain' }, keeps: 'wait' },
+    // The job that lets a proven head through ran before the verdict landed.
+    'review job failing on a proven head': { spec: { reviewJob: 'FAILURE' }, keeps: 'rerun-review-check' },
+    'head moved after arming': { options: { armedOn: { 'DEV-1': 'b'.repeat(40) } } },
+    'armed outside autopilot arm': { options: { unarmed: ['DEV-1'] } },
+    'verdict unproven': { spec: { verdict: undefined } },
+    'review failed': { spec: { review: 'FAILURE', verdict: blocking } },
+    'worker active': { live: true },
+    'checks failed': { spec: { failingCheck: true } },
+    'mechanical conflict': { spec: { mergeState: 'DIRTY' } },
+    'semantic conflict': { spec: { mergeState: 'DIRTY', conflict: semantic } },
+    'back to draft': { spec: { draft: true } },
+    'unexpected base': { spec: { base: 'main' } },
+    'unexpected branch': { ticket: { branch: 'work/other' } },
+    'promotion head': { unbranched: true, spec: { branch: 'develop' } },
+    'review job failing on an unproven head': { spec: { reviewJob: 'FAILURE', verdict: undefined } },
+    'review job re-runs exhausted': { spec: { reviewJob: 'FAILURE', reviewJobAttempt: 3 } },
+    'ticket in human wait': { ticket: { humanWait: true } },
+    'immediate stop': { options: { signal: 'now' } },
+  };
+
+  function run(armedCase: ArmedCase): readonly LoopAction[] {
+    const branch = armedCase.unbranched === true ? {} : { branch: 'work/DEV-1' };
+    const ticket = { ...started('DEV-1', { pullRequest: 11, ...branch }), ...armedCase.ticket };
+    const spec = { tickets: [ticket], liveWorkers: armedCase.live === true ? ['DEV-1'] : [] };
+    const pulls = [pull({ ...reviewed('DEV-1', 11), autoMerge: true, ...armedCase.spec })];
+    return decide(spec, { pulls, ...armedCase.options });
+  }
+
+  for (const [name, armedCase] of Object.entries(cases)) {
+    it(`${armedCase.keeps === undefined ? 'disarms' : 'keeps'} the merge: ${name}`, () => {
+      const actions = run(armedCase);
+      const disarms = actions.flatMap((action, index) =>
+        action.kind === 'disable-auto-merge' && action.pullRequest === 11 ? [index] : [],
+      );
+      if (armedCase.keeps !== undefined) {
+        expect(disarms).toEqual([]);
+        expect(actionFor(actions, 'DEV-1')?.kind).toBe(armedCase.keeps);
+        return;
+      }
+      expect(disarms).toHaveLength(1);
+      // Disarmed before anyone acts on the ticket, and before the loop freezes.
+      const acting = actions.findIndex(
+        (action) =>
+          action.kind !== 'disable-auto-merge' &&
+          (action.kind === 'freeze' || ('ticketId' in action && action.ticketId === 'DEV-1')),
+      );
+      expect(acting === -1 || (disarms[0] as number) < acting).toBe(true);
+    });
+  }
+
+  it('disarms before it freezes, and freezes all the same', () => {
+    expect(run(cases['immediate stop'] as ArmedCase).map((action) => action.kind)).toEqual([
+      'disable-auto-merge',
+      'freeze',
+    ]);
+  });
+});
+
 describe('boundaries', () => {
   it('refuses a malformed tracker observation with the field at fault', () => {
     const raw = trackerRaw({ tickets: [queued('DEV-1')] });

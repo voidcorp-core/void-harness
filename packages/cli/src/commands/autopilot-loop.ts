@@ -349,22 +349,14 @@ function renderDecision(decision: LoopDecision): string {
 
 /**
  * `autopilot next`: programme, Linear on stdin, GitHub, git and the stop signal
- * in; the kernel's actions out. An immediate stop reads neither GitHub nor the
- * recorded fingerprints: freezing must not depend on the network answering.
+ * in; the kernel's actions out.
  */
 export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOutput {
   const tracker = trackerFrom(stdin);
   const program = loopProgram(context.root);
   const signal: StopSignal = parseStopSignal(readIfPresent(join(context.root, STOP_SIGNAL_PATH)));
   const current = sharedReading(program, context);
-  if (signal === 'now') {
-    const pullRequests = new Map<number, PullRequestObservation>();
-    const github = { base: program.autopilot.base, mergeQueue: false, pullRequests };
-    const sharedState = { current, before: new Map<string, SharedFingerprint>() };
-    const armed = new Map<string, ArmedRecord>();
-    const decision = decideLoop({ program, tracker, github, signal, sharedState, armed });
-    return { value: decision, human: renderDecision(decision) };
-  }
+  if (signal === 'now') return freezeCommand(program, tracker, current, context);
   const gh = runner(context.gh, 'gh');
   const base = resolveLoopBase(gh, program.autopilot.base);
   const seals = new Map<number, string>();
@@ -387,6 +379,47 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   }
   const sharedState = { current, before };
   const decision = decideLoop({ program, tracker, github, signal, sharedState, armed });
+  return { value: decision, human: renderDecision(decision) };
+}
+
+/**
+ * An immediate stop reads only what GitHub would still merge on its own: each
+ * pull request in flight, for its auto-merge, and nothing else. No pull
+ * request, no call. One it cannot read refuses the freeze and names the
+ * pull requests to disarm by hand, rather than report a stop that GitHub
+ * could still overrun.
+ */
+function freezeCommand(
+  program: LoopProgram,
+  tracker: LoopTracker,
+  current: SharedStateReading,
+  context: LoopRunners,
+): LoopCommandOutput {
+  const numbers = pullRequestsToObserve(program, tracker);
+  const pullRequests = new Map<number, PullRequestObservation>();
+  try {
+    for (const number of numbers) {
+      const view = viewOf(runner(context.gh, 'gh'), number);
+      const unread = { queue: 'none', ejections: 0, reviewFailures: 0, files: [] } as const;
+      pullRequests.set(number, { ...view, ...unread });
+    }
+  } catch (error) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'the loop cannot freeze without knowing what GitHub would still merge',
+      error instanceof Error ? error.message : String(error),
+      `disarm by hand, ${numbers.map((number) => `\`gh pr merge ${number} --disable-auto\``)
+        .join(', ')}, then stop acting`,
+    );
+  }
+  const github = { base: program.autopilot.base, mergeQueue: false, pullRequests };
+  const sharedState = { current, before: new Map<string, SharedFingerprint>() };
+  const armed = new Map<string, ArmedRecord>();
+  for (const ticket of tracker.tickets) {
+    const record = recordedArm(context.root, ticket.id);
+    if (record !== undefined) armed.set(ticket.id, record);
+  }
+  const decision = decideLoop({ program, tracker, github, signal: 'now', sharedState, armed });
   return { value: decision, human: renderDecision(decision) };
 }
 

@@ -149,7 +149,7 @@ Act on each returned action, then ask again:
 | `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head; twice at most per run, then `review-check-reruns-exhausted` |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
-| `freeze` | stop acting, at once |
+| `freeze` | stop acting, once the disarms before it succeeded |
 | `recap` | write the final recap and end the run |
 
 A pull request observed merged has no action: move its ticket to Done, clean its worktree, count it
@@ -182,7 +182,9 @@ and `next` returns `disable-auto-merge` when it can no longer vouch for an armed
 head moved since `arm` recorded it (then `hand-back-to-worker`, `head-moved-after-arming`: the new
 head is unreviewed), the seal no longer proves a clean verdict on the armed head (then
 `mark-human-wait`, `armed-verdict-unproven`), or nothing recorded the arming (then
-`mark-human-wait`, `ambiguous-state`). Disarm first, always.
+`mark-human-wait`, `ambiguous-state`). An armed merge survives a tick only while the loop vouches
+for its head and hands it to nobody (`wait merging`, `rerun-review-check`): a worker at work, any
+hand-back, a human wait and an immediate stop all come with the disarm. Disarm first, always.
 
 **The seal.** `autopilot seal --ticket <id>` draws the ticket's nonce once, into
 `.void/machine/autopilot/seals/<id>.nonce` of this checkout (mode 0600, out of every worktree), and
@@ -304,8 +306,11 @@ on its own: nothing ready or preparable, quota low, or three tickets in a row ha
 The loop takes nothing new, carries the tickets in flight to a merge or a human wait, closes its
 agents, cleans the merged worktrees, and writes the recap.
 
-**Now.** `void-harness autopilot stop --now`. Everything freezes. Nothing is lost: the state is in
-the tracker and GitHub, and a later run resumes from there.
+**Now.** `void-harness autopilot stop --now`. Everything freezes, a merge GitHub would run on its
+own included: `next` returns a `disable-auto-merge` for every armed pull request, then `freeze`.
+Run the disarms, then stop. When `next` cannot read what is armed, or a disarm fails, it does not
+pretend to have frozen: disarm by hand what it names and tell the person. Nothing is lost: the
+state is in the tracker and GitHub, and a later run resumes from there.
 
 The stop file stays until someone deletes it; a new run starts only once it is gone.
 
