@@ -835,6 +835,20 @@ describe('protected paths', () => {
     }
   });
 
+  it('holds back what judges a publication, and the contracts it reads', () => {
+    // release.yml runs these from the commit being released: a copy relaxed on
+    // develop reaches main through a promotion a person judges by its feature.
+    for (const file of [
+      'scripts/prepare-release-artifact.mjs',
+      'scripts/verify-release-publication.mjs',
+      'scripts/release-artifact-contract.mjs',
+      'scripts/release-provenance-contract.mjs',
+    ]) {
+      const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
+      expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+    }
+  });
+
   it('holds back the code that decides to believe a verdict, the floor included', () => {
     for (const file of [
       'packages/cli/src/lib/autopilot/loop.ts',

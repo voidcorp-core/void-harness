@@ -62,6 +62,12 @@ export const PROTECTED_PATHS_FLOOR = [
   'scripts/auto-merge-contract.mjs',
   'scripts/verify.mjs',
   'packages/core/enforce/**',
+  // What judges a publication: release.yml runs these from the commit it
+  // releases, and the contracts they read decide what may reach npm.
+  'scripts/prepare-release-artifact.mjs',
+  'scripts/verify-release-publication.mjs',
+  'scripts/release-artifact-contract.mjs',
+  'scripts/release-provenance-contract.mjs',
   '.void/program.md',
   'packages/core/hooks/**',
   'packages/hook-runner/src/rules/review-verdict-write.ts',

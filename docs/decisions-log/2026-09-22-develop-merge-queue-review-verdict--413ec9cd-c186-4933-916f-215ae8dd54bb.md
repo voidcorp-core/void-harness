@@ -130,7 +130,11 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   workflow runs from outside `.github` (`scripts/promotion-authority.mjs`,
   which the promotion audit runs from develop itself,
   `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`, which aggregates the
-  required CI verdict, and `packages/core/enforce/**`), the loop code that
+  required CI verdict, and `packages/core/enforce/**`), what judges a
+  publication (`scripts/prepare-release-artifact.mjs`,
+  `scripts/verify-release-publication.mjs` and the
+  `release-artifact-contract.mjs` and `release-provenance-contract.mjs` they
+  read, run by `release.yml` from the commit it releases), the loop code that
   believes a verdict and arms a merge, this floor included
   (`packages/cli/src/lib/autopilot/loop.ts`, `loop-observe.ts`,
   `review-seal.ts`, `packages/cli/src/commands/autopilot-loop.ts`), plus what runs
