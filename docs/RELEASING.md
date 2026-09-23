@@ -58,8 +58,8 @@ promotes entered `develop` through a merged pull request, and
 cases. Its head SHA carries a success `void/independent-review` status, the
 verdict the required check demanded before it could merge, whoever merged it and
 whatever its timeline records: `gh pr merge --auto` on a pull request already
-mergeable merges at once and leaves no auto-merge event. Or it was merged by
-hand by the named human, with no auto-merge or merge queue event in its
+mergeable merges at once and leaves no auto-merge event. Or it was merged
+by hand by the named human, with no auto-merge or merge queue event in its
 timeline. Or it is the release
 back-merge, proved by construction with the same check the `independent-review`
 job runs, replayed against `develop` as it stood (the first parent of the
