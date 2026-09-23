@@ -193,8 +193,9 @@ comment, a commit or the tracker. When the kernel first answers `awaiting-review
 `autopilot seal --ticket <id> --pr <n>` before spawning the reviewer: it posts the nonce's digest
 on the pull request, once. `next` believes a verdict only when its proof answers that nonce, so a
 comment and a status posted without it, by a worker or an injected command, arm nothing. After a
-restart, read the nonce back from its file for the next reviewer. The seal guards against a mistake
-and an injection, not against a process that reads this checkout with your rights.
+restart, read the nonce back from its file for the next reviewer. `seal` and `verdict` refuse to
+run outside this checkout: a linked worktree is a worker's. The seal guards against a mistake and
+an injection, not against a process that reads this checkout with your rights.
 
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
 pull request link, the human-wait label); the rest comes from GitHub. The label is the one every

@@ -443,6 +443,36 @@ describe('autopilot seal', () => {
   });
 });
 
+describe('the checkout a review secret lives in', () => {
+  // A linked worktree is a worker's: drawing a seal or proving a verdict there
+  // would put the secret where the worker reads, and post a proof of its own.
+  function linkedWorktree(): string {
+    const root = project();
+    const linked = join(mkdtempSync(join(tmpdir(), 'vh-autopilot-linked-')), 'work');
+    roots.push(linked);
+    expect(git(root, 'worktree', 'add', '-q', '-b', 'work/DEV-1', linked).status).toBe(0);
+    return linked;
+  }
+
+  it('refuses to draw or publish a seal from a linked worktree, and writes nothing', () => {
+    const linked = linkedWorktree();
+    for (const argv of [['seal', '--ticket', 'DEV-1'], ['seal', '--ticket', 'DEV-1', '--pr', '11']]) {
+      const result = runAutopilotCommand(argv, '', context(linked, unreachableGh));
+      expect(result.exitCode, argv.join(' ')).toBe(2);
+      expect(result.stderr).toMatch(/orchestration checkout/);
+    }
+    expect(existsSync(join(linked, '.void', 'machine', 'autopilot', 'seals'))).toBe(false);
+  });
+
+  it('refuses to write a verdict from a linked worktree, before asking GitHub', () => {
+    const linked = linkedWorktree();
+    const argv = ['verdict', '--pr', '11', '--nonce', 'a1'.repeat(32)];
+    const result = runAutopilotCommand(argv, JSON.stringify(cleanVerdict), context(linked, unreachableGh));
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/orchestration checkout/);
+  });
+});
+
 describe('autopilot arm and disarm', () => {
   // GitHub exposes no armed head and keeps an auto-merge armed across a push by
   // anyone with write access, so the loop records the head it armed and the

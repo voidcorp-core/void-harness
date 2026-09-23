@@ -156,6 +156,36 @@ function runner<T>(value: T | undefined, name: string): T {
   );
 }
 
+/**
+ * Refuse to run anywhere but the orchestration checkout, where the review
+ * secret lives. A linked worktree, which is what a worker runs in, has a Git
+ * directory of its own under the repository's common one; the main checkout's
+ * are the same directory. Git resolves both, so the comparison follows what
+ * `git worktree` does rather than a path layout, and `--path-format=absolute`
+ * keeps git from answering `.git` relative to where it runs. It stops a
+ * mistake or an injected command in a worker, not a separate clone, which
+ * holds no secret to use.
+ */
+function requireOrchestrationCheckout(context: LoopRunners, command: string): void {
+  const git = runner(context.git, 'git');
+  let answer: string;
+  try {
+    answer = git(['rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir']);
+  } catch (error) {
+    answer = error instanceof Error ? error.message : String(error);
+  }
+  const [gitDir, commonDir, ...rest] = answer.trim().split('\n');
+  if (gitDir !== undefined && gitDir === commonDir && rest.length === 0) return;
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    `${command} runs only in the orchestration checkout`,
+    commonDir === undefined
+      ? `git could not name this checkout: ${answer.trim().slice(0, 200)}`
+      : `this is a linked worktree (${gitDir}) of ${commonDir}, where a worker runs`,
+    'run it from the main checkout of the repository, the one the loop runs in',
+  );
+}
+
 function readIfPresent(path: string): string | undefined {
   return existsSync(path) ? readFileSync(path, 'utf8') : undefined;
 }
@@ -525,6 +555,7 @@ export function fingerprintCommand(
  * machine; only `autopilot verdict` uses it, to prove the verdict.
  */
 export function sealCommand(argv: readonly string[], context: LoopRunners): LoopCommandOutput {
+  requireOrchestrationCheckout(context, 'autopilot seal');
   const ticket = flagValue(argv, '--ticket');
   if (ticket === undefined) {
     throw autopilotFailure(
@@ -762,6 +793,7 @@ export function verdictCommand(
   stdin: string,
   context: LoopRunners,
 ): LoopCommandOutput {
+  requireOrchestrationCheckout(context, 'autopilot verdict');
   const value = jsonFrom(stdin, 'verdict');
   const number = pullRequestNumber(argv);
   const nonce = reviewNonce(argv);

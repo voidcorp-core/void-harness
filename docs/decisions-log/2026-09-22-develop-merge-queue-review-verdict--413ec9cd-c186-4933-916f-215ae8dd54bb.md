@@ -70,7 +70,12 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   only when the digest of the nonce it holds is published on the pull request
   and the proof matches; a digest someone else published answers a nonce the
   loop never drew. A worker that never saw the nonce cannot make a verdict the
-  loop believes, whether or not the hook read its command.
+  loop believes, whether or not the hook read its command. `seal` and
+  `verdict` refuse to run anywhere but the orchestration checkout, recognised
+  by git itself: its Git directory is the repository's common one, where a
+  linked worktree, a worker's, has its own (`git rev-parse --path-format=absolute
+  --git-dir --git-common-dir`). The official command therefore cannot draw a
+  seal a worker holds and publish its digest from the worker's worktree.
 - The loop disarms what it can no longer vouch for. GitHub exposes no armed
   head and keeps an auto-merge armed across a push by anyone with write
   access, so `autopilot arm` records the head in
