@@ -35,7 +35,7 @@ export const VERDICT_CONTEXT = 'void/independent-review';
 
 // Observed on every back-merge so far (#287 to #379). The login carries the
 // `[bot]` suffix only in REST, which a user account cannot register.
-const BACK_MERGE = {
+export const BACK_MERGE = {
   repository: 'voidcorp-core/void-harness',
   head: 'chore/back-merge-main',
   base: 'develop',
@@ -257,28 +257,37 @@ function attempt(git, args) {
   }
 }
 
-const isAncestor = (git, commit, branch) =>
-  attempt(git, ['merge-base', '--is-ancestor', commit, remoteRef(branch)]).error === undefined;
+const isAncestor = (git, commit, target) =>
+  attempt(git, ['merge-base', '--is-ancestor', commit, target]).error === undefined;
 
 /**
  * Why the head of an identified back-merge is not the output of back-merge.yml,
  * or undefined when it is: on main already, or the clean merge of a develop
  * commit and a main commit, with nothing else main does not hold.
+ *
+ * `develop` is develop as the back-merge found it: the branch itself before it
+ * merges, the first parent of its integration commit once it has (the
+ * promotion audit). `fetch: false` reads a checkout that already holds both.
  */
-export function backMergeRefusal(git, sha) {
+export function backMergeRefusal(git, sha, options = {}) {
+  const { develop = remoteRef(BACK_MERGE.base), fetch = true } = options;
   const { base, main } = BACK_MERGE;
-  const fetched = attempt(git, ['fetch', '--no-tags', '--quiet', 'origin',
-    `+refs/heads/${main}:${remoteRef(main)}`, `+refs/heads/${base}:${remoteRef(base)}`, sha]);
-  if (fetched.error !== undefined) return `its commits could not be fetched: ${fetched.error}`;
-  if (isAncestor(git, sha, main)) return undefined;
+  if (fetch) {
+    const fetched = attempt(git, ['fetch', '--no-tags', '--quiet', 'origin',
+      `+refs/heads/${main}:${remoteRef(main)}`, `+refs/heads/${base}:${remoteRef(base)}`, sha]);
+    if (fetched.error !== undefined) return `its commits could not be fetched: ${fetched.error}`;
+  }
+  if (isAncestor(git, sha, remoteRef(main))) return undefined;
   const parents = attempt(git, ['rev-list', '--parents', '-n', '1', sha]);
   const [, first, second, ...more] = (parents.out ?? '').split(' ');
   if (first === undefined || second === undefined || more.length > 0) {
     return 'its head is not on main and is not a merge of two parents';
   }
-  if (!isAncestor(git, first, base)) return `its first parent ${first} is not on ${base}`;
-  if (!isAncestor(git, second, main)) return `its second parent ${second} is not on ${main}`;
-  const unheld = attempt(git, ['rev-list', sha, `^${remoteRef(base)}`, `^${remoteRef(main)}`]);
+  if (!isAncestor(git, first, develop)) return `its first parent ${first} is not on ${base}`;
+  if (!isAncestor(git, second, remoteRef(main))) {
+    return `its second parent ${second} is not on ${main}`;
+  }
+  const unheld = attempt(git, ['rev-list', sha, `^${develop}`, `^${remoteRef(main)}`]);
   if (unheld.out !== sha) return `it holds commits neither ${main} nor ${base} holds`;
   const tree = attempt(git, ['rev-parse', `${sha}^{tree}`]).out;
   const merged = attempt(git, ['merge-tree', '--write-tree', first, second]);
