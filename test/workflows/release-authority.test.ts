@@ -63,6 +63,10 @@ describe('release automation authority', () => {
     expect(promotion).toContain('AUTO_MERGE_ENABLED_EVENT');
     expect(promotion).toContain('mergedBy');
     expect(promotion).toContain('EXPECTED_HUMAN: folpe');
+    expect(promotion).toContain('ADDED_TO_MERGE_QUEUE_EVENT');
+    expect(promotion).toContain('headRefOid');
+    expect(promotion).toContain('context(name:\\"void/independent-review\\")');
+    expect(promotion).toContain('scripts/promotion-authority.mjs');
     expect(promotion).toContain('unexplained commit');
     expect(promotion).toContain('PROMOTION_BATCH_SIZE: 40');
     expect(promotion).toContain('PROMOTION_API_RETRIES: 3');
