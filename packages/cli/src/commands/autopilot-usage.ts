@@ -47,35 +47,35 @@ Continuous loop:
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
 mark-human-wait, enable-auto-merge, disable-auto-merge, rerun-review-check,
-requeue, drain, freeze, recap, with the humanWaitLabel a mark-human-wait sets (autopilot.humanWaitLabel,
-default void:human-wait); humanWait on stdin is that label's presence. It never
-acts on them.
-stop writes .void/machine/autopilot/stop, read before every assignment; delete
-the file to start again. fingerprint records (--before, once per ticket) or checks
-(--after) the digests of the shared Git state around one unit: local config and
-its includes, stash, tags, notes, remotes, the local base and deploy branches,
+requeue, drain, freeze, recap, with the humanWaitLabel a mark-human-wait sets
+(autopilot.humanWaitLabel, default void:human-wait); humanWait on stdin is that
+label's presence. It never acts on them. stop writes
+.void/machine/autopilot/stop, read before every assignment; delete the file to
+start again. fingerprint records (--before, once per ticket) or checks (--after)
+the digests of the shared Git state around one unit: local config and its
+includes, stash, tags, notes, remotes, the local base and deploy branches,
 replace refs, hooks/ and info/. The upstream (remote, merge) of every branch but
 those is left out, since units in flight set and remove their own. --after fails
-when it moved, and a second --before is refused.
-seal draws a ticket's nonce at its assignment, once, into
-.void/machine/autopilot/seals/<id>.nonce (mode 0600), and prints it for the
-orchestrator to hand to the reviewer alone; with --pr it posts only the nonce's
-digest on the pull request. verdict is the only path that writes a review
-verdict: it admits it, checks its headSha is the pull request head now and that
---nonce answers the digest published there, posts the verdict comment with a
-proof keyed by the nonce, then the void/independent-review status on that head,
-and re-runs the independent-review job when its completed run disagrees. next
-believes a verdict comment only when that status on the same head agrees with it
-and its proof answers the seal drawn for the ticket. The seal guards against a
-mistake or an injected command, not against a reader of the orchestration
-checkout with the same rights. arm answers enable-auto-merge: it records the head
-in .void/machine/autopilot/armed/<id>.json, arms on exactly that head, and reads
-GitHub back. disarm answers disable-auto-merge, which next returns when an armed
-pull request's head moved since arm recorded it (then hand-back-to-worker), when
-the seal no longer proves the verdict on the armed head, or when no arm recorded
-it (then mark-human-wait); it reads GitHub back and fails while still armed. judgment admits a conflict class,
-bound to its headSha, and prints the comment block to post; next reads the latest
-one back from GitHub, so no session has to remember it.
+when it moved, and a second --before is refused. seal draws a ticket's nonce at
+its assignment, once, into .void/machine/autopilot/seals/<id>.nonce (mode 0600),
+and prints it for the orchestrator to hand to the reviewer alone; with --pr it
+posts only the nonce's digest on the pull request. verdict is the only path that
+writes a review verdict: it admits it, checks its headSha is the pull request
+head now and that --nonce answers the digest published there, posts the verdict
+comment with a proof keyed by the nonce, then the void/independent-review status
+on that head, and re-runs the independent-review job when its completed run
+disagrees. next believes a verdict comment only when that status on the same
+head agrees with it and its proof answers the seal drawn for the ticket. The
+seal guards against a mistake or an injected command, not against a reader of
+the orchestration checkout with the same rights. arm answers enable-auto-merge:
+it records the head in .void/machine/autopilot/armed/<id>.json, arms on exactly
+that head, and reads GitHub back. disarm answers disable-auto-merge, which next
+returns when an armed pull request's head moved since arm recorded it (then
+hand-back-to-worker), when the seal no longer proves the verdict on the armed
+head, or when no arm recorded it (then mark-human-wait); it reads GitHub back
+and fails while still armed. judgment admits a conflict class, bound to its
+headSha, and prints the comment block to post; next reads the latest one back
+from GitHub, so no session has to remember it.
 
 stdin JSON (LoopTracker):
   { "schemaVersion": 1, "queue": <CuratorQueue judgment>,

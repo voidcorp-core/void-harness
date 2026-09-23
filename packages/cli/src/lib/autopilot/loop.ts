@@ -558,7 +558,8 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
  */
 function unapprovedReason(pr: PullRequestObservation): string | undefined {
   if (pr.verdict === undefined) {
-    return 'the review passed and no verdict on this head, proved by the ticket\'s seal, confirms it';
+    return 'the review passed and no verdict on this head, proved by the ticket\'s seal,'
+      + ' confirms it';
   }
   const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return admission.reason;
@@ -642,14 +643,16 @@ function armedOutcome(
   const record = context.input.armed.get(ticket.id);
   const target = { ticketId: ticket.id, pullRequest: pr.number, headSha: pr.headSha };
   if (record === undefined || record.pullRequest !== pr.number) {
-    const detail = `auto-merge is armed on #${pr.number} and no \`autopilot arm\` recorded its head`;
-    return { ...toHuman(ticket.id, 'ambiguous-state', detail), disarm: { kind: 'disable-auto-merge', ...target } };
+    const detail = `#${pr.number} is armed and no \`autopilot arm\` recorded its head`;
+    const disarm: LoopAction = { kind: 'disable-auto-merge', ...target };
+    return { ...toHuman(ticket.id, 'ambiguous-state', detail), disarm };
   }
   const disarm: LoopAction = { kind: 'disable-auto-merge', ...target, armedSha: record.headSha };
   if (record.headSha !== pr.headSha) {
     return { ...handBack(ticket.id, 'head-moved-after-arming', pr.number), disarm };
   }
-  const unproven = pr.review === 'success' ? unapprovedReason(pr) : `the review status is ${pr.review}`;
+  const unproven =
+    pr.review === 'success' ? unapprovedReason(pr) : `the review status is ${pr.review}`;
   if (unproven === undefined) return undefined;
   const detail = `#${pr.number} is armed on ${pr.headSha} and ${unproven}`;
   return { ...toHuman(ticket.id, 'armed-verdict-unproven', detail), disarm };

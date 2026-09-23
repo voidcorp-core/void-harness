@@ -55,12 +55,14 @@ function nonceKey(nonce: string): Buffer {
 
 /** The public commitment to a nonce, published on the pull request. */
 export function sealDigest(nonce: string): string {
-  return createHash('sha256').update('void-autopilot:review-seal:').update(nonceKey(nonce)).digest('hex');
+  const hash = createHash('sha256').update('void-autopilot:review-seal:');
+  return hash.update(nonceKey(nonce)).digest('hex');
 }
 
 /** The proof a verdict carries: keyed by the nonce, bound to the pull request, head and outcome. */
 export function verdictProof(nonce: string, binding: ProofBinding): string {
-  const message = `void-autopilot:review-proof:${binding.pullRequest}:${binding.headSha}:${binding.state}`;
+  const { pullRequest, headSha, state } = binding;
+  const message = `void-autopilot:review-proof:${pullRequest}:${headSha}:${state}`;
   return createHmac('sha256', nonceKey(nonce)).update(message).digest('hex');
 }
 
@@ -76,7 +78,9 @@ export function renderProof(proof: string): string {
 
 /** Every digest published across comment bodies, in order. */
 export function publishedSeals(bodies: readonly string[]): string[] {
-  return bodies.flatMap((body) => [...body.matchAll(SEAL_PATTERN)].map((match) => match[1] as string));
+  return bodies.flatMap((body) =>
+    [...body.matchAll(SEAL_PATTERN)].map((match) => match[1] as string),
+  );
 }
 
 /**
@@ -87,7 +91,11 @@ export function publishedSeals(bodies: readonly string[]): string[] {
  */
 export function verdictProven(
   nonce: string,
-  verdict: { readonly bodies: readonly string[]; readonly body: string; readonly binding: ProofBinding },
+  verdict: {
+    readonly bodies: readonly string[];
+    readonly body: string;
+    readonly binding: ProofBinding;
+  },
 ): boolean {
   if (!publishedSeals(verdict.bodies).includes(sealDigest(nonce))) return false;
   const carried = PROOF_PATTERN.exec(verdict.body)?.[1];

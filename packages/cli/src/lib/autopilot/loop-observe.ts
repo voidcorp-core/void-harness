@@ -255,7 +255,8 @@ function readPullRequestFiles(run: GhRunner, number: number, changedFiles: numbe
 
 /** The bodies of the comments of one `gh pr view --json <PULL_REQUEST_FIELDS>` answer. */
 export function pullRequestComments(text: string): string[] {
-  return parseJson('pull request', pullRequestViewSchema, text).comments.map((comment) => comment.body);
+  const view = parseJson('pull request', pullRequestViewSchema, text);
+  return view.comments.map((comment) => comment.body);
 }
 
 /**

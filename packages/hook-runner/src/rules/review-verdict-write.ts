@@ -328,6 +328,7 @@ const WRAPPER_VALUES: ReadonlyMap<string, OptionSpec> = new Map([
   ['time', { short: new Set(['f', 'o']), long: new Set(['format', 'output']) }],
 ]);
 const WRAPPERS = new Set([...WRAPPER_VALUES.keys(), 'command', 'nohup', 'builtin']);
+const NO_OPTIONS: OptionSpec = { short: new Set(), long: new Set() };
 const XARGS: OptionSpec = {
   short: new Set(['a', 'd', 'E', 'I', 'L', 'n', 'P', 's']),
   long: new Set(['arg-file', 'delimiter', 'eof', 'replace', 'max-lines', 'max-args',
@@ -351,7 +352,12 @@ type Unwrapped =
   | { readonly unknown: string };
 
 /** `--name=value`, or `--name value` when `spec` says it takes one; the last index read. */
-function longOption(words: readonly ShellWord[], index: number, spec: OptionSpec, options: Option[]) {
+function longOption(
+  words: readonly ShellWord[],
+  index: number,
+  spec: OptionSpec,
+  options: Option[],
+): number {
   const word = words[index] as ShellWord;
   const equals = word.text.indexOf('=');
   const name = equals === -1 ? word.text.slice(2) : word.text.slice(2, equals);
@@ -418,12 +424,14 @@ function unwrap(words: readonly ShellWord[]): Unwrapped {
     } else if (first.text === 'function') rest = rest.slice(2);
     else if (NOT_COMMANDS.has(first.text)) return { words: [], fed: false };
     else if (WRAPPERS.has(name)) {
-      const spec = WRAPPER_VALUES.get(name) ?? { short: new Set<string>(), long: new Set<string>() };
+      const spec = WRAPPER_VALUES.get(name) ?? NO_OPTIONS;
       const { index, options } = leadingOptions(rest.slice(1), spec);
       const split = options.find((o) => o.name === 'S' || o.name === 'split-string')?.value;
       rest = rest.slice(1 + index + (name === 'timeout' ? 1 : 0));
       if (split !== undefined) {
-        if (split.dynamic && isDynamic(split.text)) return { unknown: 'env -S on a string built at run time' };
+        if (split.dynamic && isDynamic(split.text)) {
+          return { unknown: 'env -S on a string built at run time' };
+        }
         rest = [...(shellCommands(split.text)?.[0]?.words ?? []), ...rest];
       }
     } else if (name === 'xargs' || name === 'parallel') return feeding(name, rest.slice(1));
@@ -437,10 +445,13 @@ function findCommands(words: readonly ShellWord[]): ShellWord[][] {
   const commands: ShellWord[][] = [];
   for (let index = 0; index < words.length; index += 1) {
     if (!FIND_EXEC.has((words[index] as ShellWord).text)) continue;
-    const end = words.findIndex((word, at) => at > index && (word.text === ';' || word.text === '+'));
+    const ends = (word: ShellWord) => word.text === ';' || word.text === '+';
+    const end = words.findIndex((word, at) => at > index && ends(word));
     const command = words.slice(index + 1, end === -1 ? words.length : end);
     commands.push(command.map((word) =>
-      word.text.includes('{}') ? { text: word.text.replaceAll('{}', RUN_TIME.text), dynamic: true } : word));
+      word.text.includes('{}')
+        ? { text: word.text.replaceAll('{}', RUN_TIME.text), dynamic: true }
+        : word));
     index = end === -1 ? words.length : end;
   }
   return commands;
@@ -456,7 +467,9 @@ function script(
   const fromStdin = word === undefined || ['-', '/dev/stdin'].includes(word.text)
     || word.text.startsWith('/dev/fd/');
   if (fromStdin) {
-    if (stdin.kind === 'pipe') return { kind: 'unknown', evidence: 'a shell reading a script from a pipe' };
+    if (stdin.kind === 'pipe') {
+      return { kind: 'unknown', evidence: 'a shell reading a script from a pipe' };
+    }
     if (stdin.kind === 'text') return inspectLine(stdin.word.text, read, depth + 1, true);
     if (stdin.kind === 'file') return script(stdin.word, { kind: 'none' }, read, depth);
     return undefined;
@@ -487,11 +500,15 @@ function shell(args: readonly ShellWord[], stdin: ShellStdin, read: Read, depth:
 /** `gh alias set`: its expansion is what a later `gh <alias>` runs. */
 function ghAlias(args: readonly ShellWord[], read: Read, depth: number): Finding | undefined {
   const [verb, ...rest] = args;
-  if (verb?.text === 'import') return { kind: 'unknown', evidence: 'gh aliases imported from a file' };
+  if (verb?.text === 'import') {
+    return { kind: 'unknown', evidence: 'gh aliases imported from a file' };
+  }
   if (verb?.text !== 'set') return undefined;
   const { options, positionals } = parseOptions(rest, { short: new Set(), long: new Set() });
   const expansion = positionals[1];
-  if (expansion === undefined || expansion.text === '-' || (expansion.dynamic && isDynamic(expansion.text))) {
+  const unreadable = expansion === undefined || expansion.text === '-'
+    || (expansion.dynamic && isDynamic(expansion.text));
+  if (unreadable) {
     return { kind: 'unknown', evidence: 'a gh alias whose expansion cannot be read' };
   }
   const shellAlias = options.some((o) => o.name === 's' || o.name === 'shell');

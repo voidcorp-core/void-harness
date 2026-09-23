@@ -1070,6 +1070,7 @@ var WRAPPER_VALUES = /* @__PURE__ */ new Map([
   ["time", { short: /* @__PURE__ */ new Set(["f", "o"]), long: /* @__PURE__ */ new Set(["format", "output"]) }]
 ]);
 var WRAPPERS = /* @__PURE__ */ new Set([...WRAPPER_VALUES.keys(), "command", "nohup", "builtin"]);
+var NO_OPTIONS = { short: /* @__PURE__ */ new Set(), long: /* @__PURE__ */ new Set() };
 var XARGS = {
   short: /* @__PURE__ */ new Set(["a", "d", "E", "I", "L", "n", "P", "s"]),
   long: /* @__PURE__ */ new Set([
@@ -1159,12 +1160,14 @@ function unwrap(words) {
     } else if (first.text === "function") rest = rest.slice(2);
     else if (NOT_COMMANDS.has(first.text)) return { words: [], fed: false };
     else if (WRAPPERS.has(name)) {
-      const spec = WRAPPER_VALUES.get(name) ?? { short: /* @__PURE__ */ new Set(), long: /* @__PURE__ */ new Set() };
+      const spec = WRAPPER_VALUES.get(name) ?? NO_OPTIONS;
       const { index, options } = leadingOptions(rest.slice(1), spec);
       const split = options.find((o) => o.name === "S" || o.name === "split-string")?.value;
       rest = rest.slice(1 + index + (name === "timeout" ? 1 : 0));
       if (split !== void 0) {
-        if (split.dynamic && isDynamic(split.text)) return { unknown: "env -S on a string built at run time" };
+        if (split.dynamic && isDynamic(split.text)) {
+          return { unknown: "env -S on a string built at run time" };
+        }
         rest = [...shellCommands(split.text)?.[0]?.words ?? [], ...rest];
       }
     } else if (name === "xargs" || name === "parallel") return feeding(name, rest.slice(1));
@@ -1176,7 +1179,8 @@ function findCommands(words) {
   const commands = [];
   for (let index = 0; index < words.length; index += 1) {
     if (!FIND_EXEC.has(words[index].text)) continue;
-    const end = words.findIndex((word, at) => at > index && (word.text === ";" || word.text === "+"));
+    const ends = (word) => word.text === ";" || word.text === "+";
+    const end = words.findIndex((word, at) => at > index && ends(word));
     const command = words.slice(index + 1, end === -1 ? words.length : end);
     commands.push(command.map((word) => word.text.includes("{}") ? { text: word.text.replaceAll("{}", RUN_TIME.text), dynamic: true } : word));
     index = end === -1 ? words.length : end;
@@ -1186,7 +1190,9 @@ function findCommands(words) {
 function script(word, stdin, read, depth) {
   const fromStdin = word === void 0 || ["-", "/dev/stdin"].includes(word.text) || word.text.startsWith("/dev/fd/");
   if (fromStdin) {
-    if (stdin.kind === "pipe") return { kind: "unknown", evidence: "a shell reading a script from a pipe" };
+    if (stdin.kind === "pipe") {
+      return { kind: "unknown", evidence: "a shell reading a script from a pipe" };
+    }
     if (stdin.kind === "text") return inspectLine(stdin.word.text, read, depth + 1, true);
     if (stdin.kind === "file") return script(stdin.word, { kind: "none" }, read, depth);
     return void 0;
@@ -1213,11 +1219,14 @@ function shell(args, stdin, read, depth) {
 }
 function ghAlias(args, read, depth) {
   const [verb, ...rest] = args;
-  if (verb?.text === "import") return { kind: "unknown", evidence: "gh aliases imported from a file" };
+  if (verb?.text === "import") {
+    return { kind: "unknown", evidence: "gh aliases imported from a file" };
+  }
   if (verb?.text !== "set") return void 0;
   const { options, positionals } = parseOptions(rest, { short: /* @__PURE__ */ new Set(), long: /* @__PURE__ */ new Set() });
   const expansion = positionals[1];
-  if (expansion === void 0 || expansion.text === "-" || expansion.dynamic && isDynamic(expansion.text)) {
+  const unreadable = expansion === void 0 || expansion.text === "-" || expansion.dynamic && isDynamic(expansion.text);
+  if (unreadable) {
     return { kind: "unknown", evidence: "a gh alias whose expansion cannot be read" };
   }
   const shellAlias = options.some((o) => o.name === "s" || o.name === "shell");
