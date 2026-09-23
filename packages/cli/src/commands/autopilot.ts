@@ -8,15 +8,10 @@ import {
   USAGE,
 } from './autopilot-usage.js';
 import {
-  armCommand,
-  disarmCommand,
-  fingerprintCommand,
-  sealCommand,
+  isLoopSubcommand,
   judgmentCommand,
   type LoopCommandOutput,
-  nextCommand,
-  stopCommand,
-  verdictCommand,
+  loopCommand,
 } from './autopilot-loop.js';
 
 export { type AutopilotSubcommand, readsStdin, SUBCOMMANDS } from './autopilot-usage.js';
@@ -1504,21 +1499,10 @@ export function runAutopilotCommand(
       );
     }
 
+    if (isLoopSubcommand(subcommand)) {
+      return emitLoop(json, loopCommand(subcommand, argv, stdin, context));
+    }
     switch (subcommand) {
-      case 'next':
-        return emitLoop(json, nextCommand(stdin, context));
-      case 'stop':
-        return emitLoop(json, stopCommand(argv, context));
-      case 'fingerprint':
-        return emitLoop(json, fingerprintCommand(argv, context));
-      case 'seal':
-        return emitLoop(json, sealCommand(argv, context));
-      case 'arm':
-        return emitLoop(json, armCommand(argv, context));
-      case 'disarm':
-        return emitLoop(json, disarmCommand(argv, context));
-      case 'verdict':
-        return emitLoop(json, verdictCommand(argv, stdin, context));
       case 'start':
         return startCommand(stdin, json, context);
       case 'status':

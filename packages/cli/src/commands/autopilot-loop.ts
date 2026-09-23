@@ -77,6 +77,51 @@ import {
 } from '../lib/autopilot/shared-state.js';
 import { flagValue } from './autopilot-usage.js';
 
+const LOOP_SUBCOMMANDS = [
+  'next',
+  'stop',
+  'fingerprint',
+  'seal',
+  'arm',
+  'disarm',
+  'verdict',
+] as const;
+export type LoopSubcommand = (typeof LOOP_SUBCOMMANDS)[number];
+
+export function isLoopSubcommand(subcommand: string): subcommand is LoopSubcommand {
+  return (LOOP_SUBCOMMANDS as readonly string[]).includes(subcommand);
+}
+
+/**
+ * The continuous loop's subcommands that observe or write local state, routed
+ * here so the cluster engine's dispatcher names none of them.
+ */
+export function loopCommand(
+  subcommand: LoopSubcommand,
+  argv: readonly string[],
+  stdin: string,
+  context: LoopRunners,
+): LoopCommandOutput {
+  switch (subcommand) {
+    case 'next':
+      return nextCommand(stdin, context);
+    case 'stop':
+      return stopCommand(argv, context);
+    case 'fingerprint':
+      return fingerprintCommand(argv, context);
+    case 'seal':
+      return sealCommand(argv, context);
+    case 'arm':
+      return armCommand(argv, context);
+    case 'disarm':
+      return disarmCommand(argv, context);
+    case 'verdict':
+      return verdictCommand(argv, stdin, context);
+    default:
+      return subcommand satisfies never;
+  }
+}
+
 /** What a loop command prints: the JSON value, and the line a human reads. */
 export interface LoopCommandOutput {
   readonly value: unknown;
@@ -325,7 +370,8 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   const seals = new Map<number, string>();
   for (const ticket of tracker.tickets) {
     const nonce = recordedNonce(context.root, ticket.id);
-    if (ticket.pullRequest !== undefined && nonce !== undefined) seals.set(ticket.pullRequest, nonce);
+    if (ticket.pullRequest === undefined || nonce === undefined) continue;
+    seals.set(ticket.pullRequest, nonce);
   }
   const pullRequests = pullRequestsToObserve(program, tracker);
   const github = observeGithub(gh, { base, pullRequests, seals });
@@ -463,7 +509,8 @@ export function sealCommand(argv: readonly string[], context: LoopRunners): Loop
         'AUTOPILOT_CONTRACT',
         `a seal is already drawn for ${ticket}`,
         'a second draw would orphan the digest already published and the reviewer holding it',
-        `read the recorded seal from ${join(SEAL_DIRECTORY, `${ticket}.nonce`)} and hand it to the reviewer`,
+        `read the recorded seal from ${join(SEAL_DIRECTORY, `${ticket}.nonce`)}`
+          + ' and hand it to the reviewer',
       );
     }
     const digest = sealDigest(nonce);
@@ -487,7 +534,8 @@ export function sealCommand(argv: readonly string[], context: LoopRunners): Loop
   const view = gh(['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')]);
   const published = publishedSeals(pullRequestComments(view)).includes(digest);
   if (!published) {
-    gh(['api', `repos/{owner}/{repo}/issues/${number}/comments`, '-f', `body=${renderSeal(digest)}`]);
+    const endpoint = `repos/{owner}/{repo}/issues/${number}/comments`;
+    gh(['api', endpoint, '-f', `body=${renderSeal(digest)}`]);
   }
   return {
     value: { ticketId: ticket, pullRequest: number, digest, posted: !published },
@@ -496,7 +544,8 @@ export function sealCommand(argv: readonly string[], context: LoopRunners): Loop
 }
 
 function viewOf(gh: (args: readonly string[]) => string, number: number) {
-  return parsePullRequestView(gh(['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')]));
+  const fields = PULL_REQUEST_FIELDS.join(',');
+  return parsePullRequestView(gh(['pr', 'view', String(number), '--json', fields]));
 }
 
 /**
@@ -526,7 +575,9 @@ export function armCommand(argv: readonly string[], context: LoopRunners): LoopC
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       `#${number} is not the pull request the kernel approved`,
-      before.state !== 'open' ? `#${number} is ${before.state}` : `its head is ${before.headSha}, not ${head}`,
+      before.state !== 'open'
+        ? `#${number} is ${before.state}`
+        : `its head is ${before.headSha}, not ${head}`,
       'ask `autopilot next` again; it arms only the head it just read',
     );
   }
@@ -540,7 +591,9 @@ export function armCommand(argv: readonly string[], context: LoopRunners): LoopC
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       `#${number} is not armed on ${head}`,
-      after.autoMerge ? `its head moved to ${after.headSha} while arming; it was disarmed` : 'GitHub shows no auto-merge',
+      after.autoMerge
+        ? `its head moved to ${after.headSha} while arming; it was disarmed`
+        : 'GitHub shows no auto-merge',
       'ask `autopilot next` again before arming anything',
     );
   }
@@ -644,14 +697,16 @@ function statusDescription(verdict: ReviewVerdict): string {
   return `round ${verdict.round}: ${count} blocking finding${count === 1 ? '' : 's'}`;
 }
 
-/** The nonce the reviewer was handed; its absence or its shape is refused before GitHub is asked. */
+/** The nonce the reviewer was handed; missing or malformed, it is refused before asking GitHub. */
 function reviewNonce(argv: readonly string[]): string {
   const nonce = flagValue(argv, '--nonce');
   if (nonce !== undefined && isNonce(nonce)) return nonce;
   throw autopilotFailure(
     nonce === undefined ? 'AUTOPILOT_USAGE' : 'AUTOPILOT_INPUT',
     'autopilot verdict needs the seal the orchestrator handed to the reviewer',
-    nonce === undefined ? '--nonce was not given' : 'the --nonce given is not sixty-four hex characters',
+    nonce === undefined
+      ? '--nonce was not given'
+      : 'the --nonce given is not sixty-four hex characters',
     'pass the nonce of the ticket as `--nonce <hex>`; a verdict without it is not believed',
   );
 }
@@ -706,7 +761,8 @@ export function verdictCommand(
       'AUTOPILOT_CONTRACT',
       `the nonce answers no seal published on #${number}`,
       'the loop believes a verdict only when its proof answers the digest it published',
-      'check the nonce the orchestrator handed over, or have it publish the seal with `autopilot seal --pr`',
+      'check the nonce the orchestrator handed over, or have it publish the seal'
+        + ' with `autopilot seal --pr`',
     );
   }
   const clean = verdict.blocking.length === 0;
