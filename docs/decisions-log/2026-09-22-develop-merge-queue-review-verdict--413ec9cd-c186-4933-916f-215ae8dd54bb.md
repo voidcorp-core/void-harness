@@ -42,40 +42,53 @@ nobody reviewed, so a status posted by the reviewer never reaches it.
 `develop` merges through the GitHub merge queue, and `independent-review` is one
 of its required checks: a CI job that passes only when a `success` commit status
 named `void/independent-review` sits on the head SHA of the pull request, or, on
-`merge_group`, on the head SHA of every pull request the group contains.
+`merge_group`, on the head SHA of every pull request the group contains, and the
+latest verdict signed for that head by the review key says `success`.
 
 - The reviewer is the independent pass of `void-implement`, run in a fresh
   context on the exact SHA. No GitHub App or dedicated identity: the reviewer
   is an agent like the others, and its verdict is written through one command.
-  `void-harness autopilot verdict --pr <n> --nonce <seal>` admits the typed
-  verdict, refuses it unless its `headSha` is the head the pull request has now
-  and the seal answers the digest published there, posts the verdict comment
-  with its proof, then the `void/independent-review` status on that head, and re-runs
-  the `independent-review` job when its completed run disagrees. It is the only
-  write path. The job only verifies the status. Any new push changes the head
-  SHA and demands a new verdict.
-- The loop believes a verdict comment only when the status on the same head
-  agrees with it (clean with `success`, blocking with `failure`) and the
-  comment carries a proof that answers the ticket's review seal; any other
-  comment is not read.
-- The review seal. At assignment the orchestrator draws a 32-byte nonce with
-  `autopilot seal --ticket <id>`, recorded once, mode 0600, in
-  `.void/machine/autopilot/seals/` of the orchestration checkout, out of every
-  worktree. It hands the nonce to the reviewer and never to the worker, and
-  publishes only its SHA-256 digest on the pull request
-  (`autopilot seal --ticket <id> --pr <n>`, a loop comment). The verdict
-  comment carries an HMAC-SHA-256 keyed by the nonce over the pull request,
-  the head and the outcome, so the nonce is never posted and a proof does not
-  carry over to another head or outcome. `loop-observe` believes a verdict
-  only when the digest of the nonce it holds is published on the pull request
-  and the proof matches; a digest someone else published answers a nonce the
-  loop never drew. A worker that never saw the nonce cannot make a verdict the
-  loop believes, whether or not the hook read its command. `seal` and
-  `verdict` refuse to run anywhere but the orchestration checkout, recognised
-  by git itself: its Git directory is the repository's common one, where a
-  linked worktree, a worker's, has its own (`git rev-parse --path-format=absolute
-  --git-dir --git-common-dir`). The official command therefore cannot draw a
-  seal a worker holds and publish its digest from the worker's worktree.
+  `void-harness autopilot verdict --ticket <id> --pr <n>` admits the typed
+  verdict, refuses it unless its `headSha` is the head the pull request has now,
+  posts the verdict comment signed by the review key, then the
+  `void/independent-review` status on that head, and re-runs the
+  `independent-review` job when its completed run disagrees. It is the only
+  write path. Any new push changes the head SHA and demands a new verdict.
+- The loop believes the latest verdict the review key signed on the head, and
+  only when the status on the same head agrees with it (clean with `success`,
+  blocking with `failure`); any other comment is not read.
+- The review key. `autopilot review-key` draws an Ed25519 pair once, in the
+  orchestration checkout: the private half in
+  `.void/machine/autopilot/review-key.pem`, mode 0600, refused unless git
+  ignores it; the public half in `.github/void-review.pub`, which a person
+  commits and merges into the base. `autopilot verdict` signs, with
+  `node:crypto` Ed25519, the repository, the ticket, the pull request, the
+  head, the outcome, a SHA-256 of the admitted findings and the time; the
+  signature and its fields end the verdict comment. The required
+  `independent-review` job reads the public key and its script from the base
+  branch, so a pull request can rewrite neither, verifies every signature on
+  the pull request, keeps those bound to this repository, pull request and
+  head, and requires the latest, by the time it was signed at, to say
+  `success`. A copy of an older verdict posted again keeps its time and
+  changes nothing. There is no expiry: the head is immutable, so a verdict on
+  it does not age, and an expiry would turn a slow queue into a second review.
+  The loop verifies the same way, also binds the ticket, and trusts the key on
+  the base only when it is the public half of the private key it holds: a key
+  swapped on the base answers a private key the loop never drew, so the loop
+  believes nothing and disarms what it armed. A worker without the private key
+  cannot make the required check pass, whatever command it runs.
+- The public key is a versioned file, not a repository variable. GitHub lets
+  any collaborator with write access create or update a repository variable
+  ([REST, variables](https://docs.github.com/en/rest/actions/variables#create-a-repository-variable):
+  "collaborator access to a repository to create, update, or read variables"),
+  so the token a worker uses could replace it in one call, leaving no trace in
+  git. A file on the base changes only through a merge, `.github/**` is already
+  ground the loop never merges, and its history is the audit.
+- `review-key` and `verdict` refuse to run anywhere but the orchestration
+  checkout, recognised by git itself: its Git directory is the repository's
+  common one, where a linked worktree, a worker's, has its own (`git rev-parse
+  --path-format=absolute --git-dir --git-common-dir`). The official commands
+  therefore cannot draw or use a key from the worker's worktree.
 - The loop disarms what it can no longer vouch for. GitHub exposes no armed
   head and keeps an auto-merge armed across a push by anyone with write
   access, so `autopilot arm` records the head in
@@ -83,7 +96,7 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   head and reads GitHub back, disarming at once if the head moved meanwhile.
   On every tick, an armed pull request whose head differs from the record is
   disarmed and handed back to its worker, the new head being unreviewed; one
-  whose armed head the seal no longer proves a clean verdict on, or whose
+  whose armed head no signed verdict proves clean, or whose
   arming nobody recorded, is disarmed and handed to a human. An armed merge
   survives a tick only while the loop vouches for its head (recorded, proven)
   and hands it to nobody, waiting for the merge or re-running the job that
@@ -160,7 +173,7 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   read, run by `release.yml` from the commit it releases), the loop code that
   believes a verdict and arms a merge, this floor included
   (`packages/cli/src/lib/autopilot/loop.ts`, `loop-observe.ts`,
-  `review-seal.ts`, `packages/cli/src/commands/autopilot-loop.ts`), plus what runs
+  `review-signature.ts`, `packages/cli/src/commands/autopilot-loop.ts`), plus what runs
   before any release: the installed runner (`.void/hooks/**`), the files that
   wire it (`.claude/settings.json`, `.codex/**`) and the configuration that
   scopes it (`.void/config.json`). That floor is a constant;
@@ -235,30 +248,25 @@ Negative:
   green. The loop never merges such a pull request (protected paths), but a
   person or any other actor arming auto-merge still can. Pinning the workflow
   (a required workflow ruleset on `develop`) remains open.
-- **The verdict protections guard against a mistake and an injected
-  instruction, not against a malicious actor holding the credentials or the
-  disk.** Any identity with write access to statuses and comments can still
-  post both through the API; the hook reads `gh` and curl commands, and a
-  script or another HTTP client reaches the API unseen. The seal is what the
-  loop trusts instead, and it is a file readable by the user every agent runs
-  as: a worker that reads the orchestration checkout, or the reviewer's
-  context, holds it. Binding the verdict to a dedicated identity was
-  considered and not taken.
-- A worker can still run `autopilot verdict` on its own pull request, but not
-  with a seal it was never given: the command refuses a nonce whose digest the
-  pull request does not carry, and the loop believes no proof keyed by any
-  other. The orchestrator, which draws the seal, gives it to the reviewer only.
-- The seal binds the loop, not GitHub. The required `independent-review` job
-  and the promotion audit cannot hold the nonce, so they still trust the
-  status alone. GitHub keeps an armed auto-merge across a later push by an
-  account with write access
+- **The review key guards against a worker and an injected instruction, not
+  against an actor holding the disk.** Any identity with write access to
+  statuses and comments can still post both, through any client; neither
+  passes the required check without a signature. The private key is a file
+  readable by the user every agent runs as, so a process that reads the
+  orchestration checkout can sign. Binding the verdict to a dedicated identity
+  or a separate OS user was considered and not taken; the key is the smaller
+  step that makes GitHub itself refuse an unsigned verdict.
+- A worker can still run `autopilot verdict` from its worktree: it refuses
+  there, and a separate clone holds no private key.
+- The required check and the loop now demand the same proof, so a forged
+  status on a head pushed after arming no longer merges: GitHub keeps an armed
+  auto-merge across a later push by an account with write access
   ([it disables it only on a push by someone without write permission](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request)),
-  so the loop disarms before it hands a head to anyone who may push, and
-  disarms a moved or unproven head on its next tick. A push nobody was handed
-  the head for, while the loop waits for a merge it vouches for, still opens a
-  window: a forged status on the new head can satisfy the required check and
-  merge within one tick of the loop plus the time the checks take. Closing it needs GitHub itself to refuse, such
-  as a required check that can verify the proof.
+  but the new head carries no signed verdict. The loop still disarms before it
+  hands a head to anyone who may push, and disarms a moved or unproven head on
+  its next tick. What remains open is the workflow file above: a pull request
+  that rewrites the job, or the `sparse-checkout` of the key, is judged by
+  itself until the workflow is pinned by a ruleset.
 - The back-merge exemption rests on what `back-merge.yml` produces by
   construction, not on a setting of the repository: no rule on
   `chore/back-merge-main` is needed. If that workflow ever changes how it

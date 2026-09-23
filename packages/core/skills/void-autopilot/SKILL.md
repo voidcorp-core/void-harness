@@ -34,7 +34,7 @@ the verdict hook's source and its shell parser, what a judging workflow runs fro
 (`scripts/promotion-authority.mjs`, `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`,
 `packages/core/enforce/**`), what judges a publication (`scripts/prepare-release-artifact.mjs`,
 `scripts/verify-release-publication.mjs` and the two release contracts they read), the loop code that believes a verdict and arms a merge (`loop.ts`,
-`loop-observe.ts`, `review-seal.ts`, `commands/autopilot-loop.ts`), or the hooks installed here (`.void/hooks/**`, `.claude/settings.json`,
+`loop-observe.ts`, `review-signature.ts`, `commands/autopilot-loop.ts`), or the hooks installed here (`.void/hooks/**`, `.claude/settings.json`,
 `.codex/**`, `.void/config.json`) goes to a person with the file named (`protected-path`). A rename
 counts by its source and its destination. The programme adds paths through
 `autopilot.protectedPaths`; nothing removes from that floor.
@@ -140,7 +140,7 @@ Act on each returned action, then ask again:
 
 | Action | What you do |
 |---|---|
-| `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket>` and `autopilot seal --ticket <ticket>`, create or reuse its worktree, spawn its worker |
+| `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket>`, create or reuse its worktree, spawn its worker |
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
 | `mark-human-wait` | record it in `recent` with its `reason`, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
@@ -186,16 +186,16 @@ head is unreviewed), the seal no longer proves a clean verdict on the armed head
 for its head and hands it to nobody (`wait merging`, `rerun-review-check`): a worker at work, any
 hand-back, a human wait and an immediate stop all come with the disarm. Disarm first, always.
 
-**The seal.** `autopilot seal --ticket <id>` draws the ticket's nonce once, into
-`.void/machine/autopilot/seals/<id>.nonce` of this checkout (mode 0600, out of every worktree), and
-prints it. Give it to the ticket's reviewer and to nobody else: never to its worker, never in a
-comment, a commit or the tracker. When the kernel first answers `awaiting-review`, run
-`autopilot seal --ticket <id> --pr <n>` before spawning the reviewer: it posts the nonce's digest
-on the pull request, once. `next` believes a verdict only when its proof answers that nonce, so a
-comment and a status posted without it, by a worker or an injected command, arm nothing. After a
-restart, read the nonce back from its file for the next reviewer. `seal` and `verdict` refuse to
-run outside this checkout: a linked worktree is a worker's. The seal guards against a mistake and
-an injection, not against a process that reads this checkout with your rights.
+**The review key.** Once per repository, `autopilot review-key` draws an Ed25519 key in this
+checkout: the private half into `.void/machine/autopilot/review-key.pem` (mode 0600, refused unless
+git ignores it), the public half into `.github/void-review.pub`, which a person commits and merges
+into the base. `autopilot verdict` signs every verdict with the private half; the required
+`independent-review` job verifies the signature with the public half read from the base, and
+`next` believes a verdict only when it verifies and the key on the base is this checkout's own. A
+comment and a status posted without the key, by a worker or an injected command, pass neither.
+`review-key` and `verdict` refuse to run outside this checkout: a linked worktree is a worker's.
+Never copy the private half anywhere. It guards against a worker and an injection, not against a
+process that reads this checkout with your rights.
 
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
 pull request link, the human-wait label); the rest comes from GitHub. The label is the one every
@@ -211,7 +211,7 @@ ticket whose state is ambiguous goes to a human rather than being relaunched.
 comments carrying a machine block: two HTML comment markers around a fenced JSON value. The verdict
 is written only by `void-harness autopilot verdict`, which posts it together with the
 `void/independent-review` status; `next` believes a verdict comment only when that status on the
-same head agrees and its proof answers the ticket's seal. The conflict class is the block `void-harness autopilot judgment conflict-class`
+same head agrees with the latest verdict the review key signed on it. The conflict class is the block `void-harness autopilot judgment conflict-class`
 prints for the JSON on its stdin. `next` reads both from GitHub and admits them again, so the
 tracker you pipe in never carries them and a restart loses nothing.
 
@@ -244,8 +244,8 @@ notes, remotes, the repository config.
 ## Reviewer
 
 Spawned by the orchestrator when the kernel answers `wait` with `awaiting-review`, in a fresh
-context, pinned to the head SHA of the pull request, and handed the ticket's seal. One full pass.
-The seal is the reviewer's alone: it never goes into a comment, a finding or the worker's hands.
+context, pinned to the head SHA of the pull request, working from this checkout, where the review
+key is. One full pass.
 
 **What blocks.** Only what is wrong or dangerous, with a concrete scenario: incorrect behaviour, a
 vulnerability, an unstable or empty proof, a broken consumer. Each blocking finding names its
@@ -262,10 +262,10 @@ restarted without memory cannot reopen the count. After an update on the base, t
 only.
 
 **Publishing the verdict.** Pipe the typed `review` judgment, with the `headSha` it read, into
-`void-harness autopilot verdict --pr <number> --nonce <seal>`. It is the only path: it refuses a
-head the pull request has moved past and a seal whose digest the pull request does not carry,
-posts the verdict comment with a proof keyed by the seal (the seal itself is never posted), then
-the `void/independent-review` status on
+`void-harness autopilot verdict --ticket <id> --pr <number>`, run from this checkout. It is the
+only path: it refuses a head the pull request has moved past, posts the verdict comment signed by
+the review key over the repository, ticket, pull request, head, outcome and findings, then the
+`void/independent-review` status on
 that head (`success` with no blocking finding, `failure` otherwise), and re-runs the
 `independent-review` job when its completed run disagrees, since a status event starts no
 workflow. Never post the comment or the status yourself: a hook refuses the forms it can read, and
@@ -327,7 +327,7 @@ never from memory of the session.
 |---|---|
 | "The checks are green, enable auto-merge myself" | Only `enable-auto-merge` from the kernel arms a merge, and only on the SHA it names. |
 | "The worker already reviewed its diff" | Self-review is not independent. The reviewer is a separate context on the exact SHA. |
-| "Give the worker the seal so it can check the verdict" | The seal is the reviewer's alone. A worker holding it can prove its own verdict. |
+| "Run `verdict` from the worker's worktree, it is quicker" | It refuses to: the review key never leaves this checkout, or a worker could sign its own verdict. |
 | "I posted the status, the check will pass" | A status triggers no workflow. Re-run the `independent-review` job. |
 | "That advisory matters, block on it" | Blocking needs a scenario where it is wrong or dangerous. Otherwise it goes to the Triage issue. |
 | "This duplicate ticket can just be closed" | The curator never closes. Comment, and leave it to a person. |

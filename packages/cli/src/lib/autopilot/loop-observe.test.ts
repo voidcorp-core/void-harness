@@ -19,7 +19,8 @@ import {
   resolveLoopBase,
 } from './loop-observe.js';
 import { renderJudgmentComment } from './judgment-comment.js';
-import { renderProof, renderSeal, sealDigest, verdictProof } from './review-seal.js';
+import { generateReviewKey } from './review-signature.js';
+import { signedVerdictComment, TEST_REPOSITORY, TEST_REVIEW_KEY } from './review-signature-fixtures.js';
 import { changedParts, fingerprintOf } from './shared-state.js';
 
 // Every double below is a real `gh` output captured read-only (see
@@ -51,15 +52,16 @@ function withRollup(view: Raw, rollup: readonly Raw[]): string {
   return JSON.stringify({ ...view, statusCheckRollup: rollup });
 }
 
-/** The seal the loop drew for the ticket, and the comment publishing its digest. */
-const NONCE = 'a1'.repeat(32);
-const SEAL = renderSeal(sealDigest(NONCE));
+/** What the loop verifies a verdict with: the review key, the repository, the ticket. */
+const VERIFIER = { publicKey: TEST_REVIEW_KEY.publicKey, repository: TEST_REPOSITORY, ticketId: 'DEV-1' };
 
-/** A verdict comment as `autopilot verdict` posts it: the block, then its proof. */
-function proved(judgment: { headSha: string; blocking: readonly unknown[] }, pullRequest: number, nonce = NONCE) {
-  const state = judgment.blocking.length === 0 ? 'success' : 'failure';
-  const proof = verdictProof(nonce, { pullRequest, headSha: judgment.headSha, state });
-  return `${renderJudgmentComment('review-verdict', judgment)}${renderProof(proof)}\n`;
+/** A verdict comment as `autopilot verdict` posts it: the block, then its signature. */
+function signed(
+  judgment: { headSha: string; blocking: readonly unknown[] },
+  pullRequest: number,
+  options: { signedAt?: string; privateKey?: string; ticketId?: string } = {},
+) {
+  return signedVerdictComment(judgment, { pullRequest, ticketId: 'DEV-1', ...options });
 }
 
 /** A commit status named like the reviewer's verdict, from a real status shape. */
@@ -195,14 +197,13 @@ describe('parsePullRequestView', () => {
     const verdictJudgment = { headSha: head, round: 1, blocking: [], advisory: [] };
     const conflictJudgment = { headSha: head, class: 'semantic', reason: 'Both sides changed the grant.' };
     const posted = [
-      { ...real, body: SEAL },
-      { ...real, body: proved(verdictJudgment, base.number as number) },
+      { ...real, body: signed(verdictJudgment, base.number as number) },
       { ...real, body: renderJudgmentComment('conflict-class', conflictJudgment) },
     ];
     const rollup = [...(base.statusCheckRollup as Raw[]), verdict('SUCCESS')];
     const read = parsePullRequestView(
       JSON.stringify({ ...base, statusCheckRollup: rollup, comments: [...comments, ...posted] }),
-      NONCE,
+      VERIFIER,
     );
     expect(read.verdict).toEqual(verdictJudgment);
     expect(read.conflict).toEqual(conflictJudgment);
@@ -211,29 +212,34 @@ describe('parsePullRequestView', () => {
     expect(bare.conflict).toBeUndefined();
   });
 
-  it('believes a verdict comment only when the status on the same head says the same', () => {
+  it('believes the latest signed verdict on the head only when the status says the same', () => {
     // A comment is text anyone with the same credentials can post; the status
-    // and the comment are written together by `autopilot verdict` alone, so a
-    // comment the status does not confirm is not the reviewer's.
+    // and the signed comment are written together by `autopilot verdict` alone,
+    // so a status the latest signed verdict does not confirm believes neither.
     const base = openView();
     const [real] = base.comments as Raw[];
     const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
     const clean = { headSha: head, round: 1, blocking: [], advisory: [] };
     const finding = { location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' };
     const blocking = { ...clean, blocking: [finding] };
+    const at = (hour: number) => `2026-09-22T${String(hour).padStart(2, '0')}:00:00.000Z`;
     const read = (status: string | undefined, ...judgments: unknown[]) => {
       const rollup = [...(base.statusCheckRollup as Raw[]), ...(status === undefined ? [] : [verdict(status)])];
-      const comments = [SEAL, ...judgments].map((judgment) => ({
+      const comments = judgments.map((judgment, index) => ({
         ...real,
-        body: typeof judgment === 'string' ? judgment : proved(judgment as typeof clean, base.number as number),
+        body:
+          typeof judgment === 'string'
+            ? judgment
+            : signed(judgment as typeof clean, base.number as number, { signedAt: at(10 + index) }),
       }));
       const text = JSON.stringify({ ...base, statusCheckRollup: rollup, comments });
-      return parsePullRequestView(text, NONCE).verdict;
+      return parsePullRequestView(text, VERIFIER).verdict;
     };
     expect(read('SUCCESS', clean)).toEqual(clean);
     expect(read('FAILURE', blocking)).toEqual(blocking);
-    // A clean comment posted after the failure it would overturn is not believed.
-    expect(read('FAILURE', blocking, clean)).toEqual(blocking);
+    expect(read('SUCCESS', blocking, clean)).toEqual(clean);
+    // A status that an older signed verdict agrees with, but not the latest, is not believed.
+    expect(read('FAILURE', blocking, clean)).toBeUndefined();
     expect(read('FAILURE', clean)).toBeUndefined();
     expect(read('SUCCESS', blocking)).toBeUndefined();
     expect(read(undefined, clean)).toBeUndefined();
@@ -243,34 +249,35 @@ describe('parsePullRequestView', () => {
     expect(read('SUCCESS', clean, malformed)).toEqual(clean);
   });
 
-  it('believes a verdict only when its proof answers the seal published for its ticket', () => {
+  it('believes a verdict only when the review key signed it for this ticket and pull request', () => {
     // The status and the comment are text anyone holding the same credentials
-    // can write. The proof is keyed by a nonce only the reviewer was given, and
-    // the loop published its digest before the review: without the nonce, no
-    // proof it believes can be made.
+    // can write. The signature is what only the orchestration checkout's key
+    // makes: without it, or with another key, nothing is believed.
     const base = openView();
     const [real] = base.comments as Raw[];
     const number = base.number as number;
     const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
     const clean = { headSha: head, round: 1, blocking: [], advisory: [] };
-    const parse = (bodies: readonly string[], nonce: string | undefined) => {
+    const parse = (bodies: readonly string[], verifier: typeof VERIFIER | 'none' = VERIFIER) => {
       const rollup = [...(base.statusCheckRollup as Raw[]), verdict('SUCCESS')];
       const comments = bodies.map((body) => ({ ...real, body }));
-      return parsePullRequestView(JSON.stringify({ ...base, statusCheckRollup: rollup, comments }), nonce)
-        .verdict;
+      const text = JSON.stringify({ ...base, statusCheckRollup: rollup, comments });
+      return (verifier === 'none' ? parsePullRequestView(text) : parsePullRequestView(text, verifier)).verdict;
     };
-    const read = (bodies: readonly string[]) => parse(bodies, NONCE);
-    expect(read([SEAL, proved(clean, number)])).toEqual(clean);
+    expect(parse([signed(clean, number)])).toEqual(clean);
     // The comment and the status alone, as a worker could post them by hand.
-    expect(read([SEAL, renderJudgmentComment('review-verdict', clean)])).toBeUndefined();
-    // A proof the loop cannot check: no seal drawn for the ticket, or none published.
-    expect(parse([SEAL, proved(clean, number)], undefined)).toBeUndefined();
-    expect(read([proved(clean, number)])).toBeUndefined();
-    // A seal and a proof of the worker's own making answer a nonce the loop never drew.
-    const theirs = 'c3'.repeat(32);
-    expect(read([SEAL, renderSeal(sealDigest(theirs)), proved(clean, number, theirs)])).toBeUndefined();
-    // A proof made for another pull request is not a proof for this one.
-    expect(read([SEAL, proved(clean, number + 1)])).toBeUndefined();
+    expect(parse([renderJudgmentComment('review-verdict', clean)])).toBeUndefined();
+    // No key to verify with: the published key did not match the loop's own.
+    expect(parse([signed(clean, number)], 'none')).toBeUndefined();
+    // Signed with a key the loop does not hold, or checked against a replaced one.
+    const stranger = generateReviewKey();
+    expect(parse([signed(clean, number, { privateKey: stranger.privateKey })])).toBeUndefined();
+    expect(parse([signed(clean, number)], { ...VERIFIER, publicKey: stranger.publicKey })).toBeUndefined();
+    // Signed for another pull request, another ticket, or findings edited since.
+    expect(parse([signed(clean, number + 1)])).toBeUndefined();
+    expect(parse([signed(clean, number, { ticketId: 'DEV-2' })])).toBeUndefined();
+    const edited = signed(clean, number).replace('"advisory": []', '"advisory": [{ "note": "Planted." }]');
+    expect(parse([edited])).toBeUndefined();
   });
 
   it('reads a conflict and a branch behind its base', () => {

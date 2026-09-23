@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePullRequestView } from './loop-observe.js';
-import { renderProof, renderSeal, sealDigest, verdictProof } from './review-seal.js';
+import { signedVerdictComment, TEST_REPOSITORY, TEST_REVIEW_KEY } from './review-signature-fixtures.js';
 import {
   admitLoopTracker,
   decideLoop,
@@ -187,14 +187,10 @@ const realComments = (): Raw[] =>
     ) as { comments: Raw[] }
   ).comments;
 
-/** The seal drawn for every ticket here; its digest is published beside each verdict. */
-const NONCE = 'a1'.repeat(32);
-
-/** A verdict as `autopilot verdict` posts it: the block, then its proof for the status posted. */
-function provedVerdict(spec: PullSpec, headSha: string): string {
+/** A verdict as `autopilot verdict` posts it: the block, signed for the status posted. */
+function signedVerdict(spec: PullSpec): string {
   const state = spec.review === 'FAILURE' ? 'failure' : 'success';
-  const proof = verdictProof(NONCE, { pullRequest: spec.number, headSha, state });
-  return `${block('review-verdict', spec.verdict)}${renderProof(proof)}\n`;
+  return signedVerdictComment(spec.verdict, { pullRequest: spec.number, ticketId: 'DEV-1', state });
 }
 
 /** A pull request read through the real parser from a real `gh pr view` capture. */
@@ -233,12 +229,11 @@ function pull(spec: PullSpec): PullRequestObservation {
       changedFiles: spec.changedFiles ?? paths.length,
       comments: [
         ...realComments(),
-        comment(renderSeal(sealDigest(NONCE))),
-        ...(spec.verdict === undefined ? [] : [comment(provedVerdict(spec, headSha))]),
+        ...(spec.verdict === undefined ? [] : [comment(signedVerdict(spec))]),
         ...(spec.conflict === undefined ? [] : [comment(block('conflict-class', spec.conflict))]),
       ],
     }),
-    NONCE,
+    { publicKey: TEST_REVIEW_KEY.publicKey, repository: TEST_REPOSITORY, ticketId: 'DEV-1' },
   );
   const reviewFailures = spec.reviewFailures ?? (spec.review === 'FAILURE' ? 1 : 0);
   const ejections = spec.ejections ?? (spec.queue === 'ejected' ? 1 : 0);
@@ -759,7 +754,7 @@ describe('a held ticket and its pull request', () => {
       actions.filter((action) => 'ticketId' in action && action.ticketId === 'DEV-1');
     const disarm = { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: headOf(11) };
 
-    it('leaves it alone on the head it was armed on, while the seal proves its verdict', () => {
+    it('leaves it alone on the head it was armed on, while the review key proves its verdict', () => {
       expect(forDev1(decide({ tickets }, { pulls: [armedPull()] }))).toEqual([
         { kind: 'wait', ticketId: 'DEV-1', reason: 'merging' },
       ]);
@@ -773,7 +768,7 @@ describe('a held ticket and its pull request', () => {
       ]);
     });
 
-    it('disarms it when the armed head carries no verdict the seal proves, then asks a human', () => {
+    it('disarms it when the armed head carries no verdict the review key proves, then asks a human', () => {
       for (const spec of [{ verdict: undefined }, { review: 'FAILURE' as const, verdict: undefined }]) {
         const [first, second] = forDev1(decide({ tickets }, { pulls: [armedPull(spec)] }));
         expect(first).toEqual({ ...disarm, armedSha: headOf(11) });
@@ -919,8 +914,9 @@ describe('protected paths', () => {
     for (const file of [
       'packages/cli/src/lib/autopilot/loop.ts',
       'packages/cli/src/lib/autopilot/loop-observe.ts',
-      'packages/cli/src/lib/autopilot/review-seal.ts',
+      'packages/cli/src/lib/autopilot/review-signature.ts',
       'packages/cli/src/commands/autopilot-loop.ts',
+      '.github/void-review.pub',
     ]) {
       const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
       expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
@@ -1224,7 +1220,7 @@ describe('no action leaves an armed merge the loop cannot vouch for', () => {
   const blocking = {
     headSha: headOf(11),
     round: 1,
-    blocking: [{ scenario: 'A pushed head merges unread.' }],
+    blocking: [{ location: 'a.ts:1', scenario: 'A pushed head merges unread.', correction: 'Disarm.' }],
     advisory: [],
   };
   const semantic = { headSha: headOf(11), class: 'semantic', reason: 'Both sides changed the grant.' };

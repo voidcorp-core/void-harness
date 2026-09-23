@@ -23,7 +23,7 @@ target of a redirection, and a sibling test already asserts each one still ships
 
 | skill | named in |
 | --- | --- |
-| `void-autopilot` | `packages/cli/scripts/conformance-autopilot.mjs`<br>`packages/cli/src/commands/autopilot-usage.ts`<br>`packages/cli/src/lib/autopilot/judgment-comment.ts`<br>`packages/cli/src/lib/autopilot/review-seal.ts`<br>`packages/hook-runner/src/enforcement/governing-skill.ts`<br>`packages/hook-runner/src/rules/review-verdict-write.ts` |
+| `void-autopilot` | `packages/cli/scripts/conformance-autopilot.mjs`<br>`packages/cli/src/commands/autopilot-usage.ts`<br>`packages/cli/src/lib/autopilot/judgment-comment.ts`<br>`packages/cli/src/lib/autopilot/review-signature-fixtures.ts`<br>`packages/cli/src/lib/autopilot/review-signature.ts`<br>`packages/hook-runner/src/enforcement/governing-skill.ts`<br>`packages/hook-runner/src/rules/review-verdict-write.ts`<br>`scripts/independent-review-check.mjs` |
 | `void-checkpoint` | `packages/hook-runner/src/lifecycle/context-continuity-executor.ts`<br>`packages/hook-runner/src/lifecycle/session-close-intent.ts`<br>`packages/mission-engine/src/session/resume.ts` |
 | `void-frontend-design` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
 | `void-functional` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
@@ -68,6 +68,7 @@ says which it is.
 | `void-project-benchmark` | project-graph benchmark fixture prefix |
 | `void-project-graph-conformance` | conformance run label, `scripts/` |
 | `void-project-graph-orphan` | conformance run label, `scripts/` |
+| `void-review` | basename of the versioned review public key, `.github/` |
 | `void-consumer` | scratch prefix for isolated consumer workspaces |
 | `void-package` | scratch prefix for extracted package artifacts |
 | `void-runtime-stage` | scratch prefix for the isolated `runtime add` stage |

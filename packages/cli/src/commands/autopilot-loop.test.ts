@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderJudgmentComment } from '../lib/autopilot/judgment-comment.js';
 import { gitIn } from '../lib/autopilot/loop-observe.js';
-import { renderProof, renderSeal, sealDigest, verdictProof } from '../lib/autopilot/review-seal.js';
+import { keyFingerprint, publicKeyOf, verifiedVerdicts } from '../lib/autopilot/review-signature.js';
+import { signedVerdictComment, TEST_REPOSITORY } from '../lib/autopilot/review-signature-fixtures.js';
 import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
 
 // The loop commands run in process against a real scratch repository (git is
@@ -53,6 +54,8 @@ function project(): string {
   roots.push(root);
   git(root, 'init', '-q');
   mkdirSync(join(root, '.void'));
+  // What the harness install ignores: the private review key lives there.
+  writeFileSync(join(root, '.gitignore'), '.void/machine/\n');
   writeFileSync(join(root, '.void', 'program.md'), PROGRAM);
   git(root, 'add', '.');
   git(root, 'commit', '-qm', 'init');
@@ -61,10 +64,10 @@ function project(): string {
 
 /**
  * Pull request 11, open on `work/DEV-1` against develop, reviewed on its head.
- * With a nonce, it carries the seal's digest and the verdict's proof as the
- * loop and `autopilot verdict` post them; without, only a comment and a status.
+ * With a private key, its verdict comment is signed with it as `autopilot
+ * verdict` posts it; without, it carries only the comment and the status.
  */
-function reviewedPull(nonce?: string, options: { head?: string; armed?: boolean } = {}): string {
+function reviewedPull(privateKey?: string, options: { head?: string; armed?: boolean } = {}): string {
   const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
@@ -78,11 +81,7 @@ function reviewedPull(nonce?: string, options: { head?: string; armed?: boolean 
     ...(options.head === undefined ? {} : { headRefOid: options.head }),
     ...(options.armed === true ? { autoMergeRequest: armedRequest() } : {}),
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
-    comments: [
-      ...comments,
-      ...(nonce === undefined ? [] : [{ ...comments[0], body: renderSeal(sealDigest(nonce)) }]),
-      { ...comments[0], body: verdictComment(nonce) },
-    ],
+    comments: [...comments, { ...comments[0], body: verdictComment(privateKey) }],
     changedFiles: 1,
   });
 }
@@ -98,24 +97,32 @@ function pullFiles(): string {
   return JSON.stringify([{ ...entry, filename: 'packages/dev-1/index.ts', status: 'modified' }]);
 }
 
-/** The reviewer's comment, as `autopilot verdict` posts it with the ticket's nonce. */
-function verdictComment(nonce?: string): string {
-  const block = renderJudgmentComment('review-verdict', cleanVerdict);
-  if (nonce === undefined) return block;
-  const proof = verdictProof(nonce, { pullRequest: 11, headSha: HEAD, state: 'success' });
-  return `${block}${renderProof(proof)}\n`;
+/** The reviewer's comment, signed with the review key when one is given. */
+function verdictComment(privateKey?: string): string {
+  if (privateKey === undefined) return renderJudgmentComment('review-verdict', cleanVerdict);
+  return signedVerdictComment(cleanVerdict, { pullRequest: 11, ticketId: 'DEV-1', privateKey });
 }
 
 const gh = ghFor(undefined);
 
-function ghFor(nonce: string | undefined) {
-  return (args: readonly string[]): string => answer(args, nonce);
+/**
+ * gh as it answers once the public half of `privateKey` was merged on develop:
+ * the key the required check reads, and the one `next` compares with its own.
+ */
+function ghFor(privateKey: string | undefined, published: string | 'unpublished' | undefined = privateKey) {
+  const onBase = published === 'unpublished' ? undefined : published;
+  return (args: readonly string[]): string => answer(args, privateKey, onBase);
 }
 
-function answer(args: readonly string[], nonce: string | undefined): string {
+function answer(args: readonly string[], privateKey?: string, published?: string): string {
   const line = args.join(' ');
   if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
-  if (line.includes('pr view 11')) return reviewedPull(nonce);
+  if (line.includes('repo view')) return `${TEST_REPOSITORY}\n`;
+  if (line.includes('contents/.github/void-review.pub?ref=develop')) {
+    if (published === undefined) throw new Error('gh: HTTP 404: Not Found');
+    return `${Buffer.from(publicKeyOf(published)).toString('base64')}\n`;
+  }
+  if (line.includes('pr view 11')) return reviewedPull(privateKey);
   if (line.includes('pulls/11/files')) return pullFiles();
   if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
   if (line.includes('timelineItems')) return fixture('timeline-commit-then-ejection.json').replace(
@@ -165,11 +172,11 @@ const HEAD = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
 const cleanVerdict = { headSha: HEAD, round: 1, blocking: [], advisory: [] };
 const queuedTicket = { id: 'DEV-2', status: 'Todo', humanWait: false, readiness: ready };
 
-/** Draw the seal of a ticket as the orchestrator does at assignment; its nonce. */
-function drawSeal(root: string, ticket = 'DEV-1'): string {
-  const result = runAutopilotCommand(['seal', '--ticket', ticket, '--json'], '', context(root));
+/** Draw the review key as the orchestrator does once; its private half. */
+function drawKey(root: string): string {
+  const result = runAutopilotCommand(['review-key', '--json'], '', context(root));
   expect(result.exitCode, result.stderr).toBe(0);
-  return (JSON.parse(result.stdout) as { nonce: string }).nonce;
+  return readFileSync(join(root, '.void', 'machine', 'autopilot', 'review-key.pem'), 'utf8');
 }
 
 function next(root: string, stdin: string, runner?: (args: readonly string[]) => string) {
@@ -181,8 +188,8 @@ describe('autopilot next', () => {
   it('seats the head of the queue and arms the merge of a reviewed unit', () => {
     const root = project();
     expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
-    const nonce = drawSeal(root);
-    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), ghFor(nonce));
+    const key = drawKey(root);
+    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), ghFor(key));
     expect(decision.actions).toEqual([
       {
         kind: 'enable-auto-merge',
@@ -197,9 +204,9 @@ describe('autopilot next', () => {
   it('withholds the merge of a unit that changed the shared Git state', () => {
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    const nonce = drawSeal(root);
+    const key = drawKey(root);
     git(root, 'tag', 'stray');
-    const { decision } = next(root, trackerJson([heldTicket], []), ghFor(nonce));
+    const { decision } = next(root, trackerJson([heldTicket], []), ghFor(key));
     expect(decision.actions[0]).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'shared-state-changed',
@@ -207,16 +214,33 @@ describe('autopilot next', () => {
     });
   });
 
-  it('arms nothing on a verdict and a status its seal does not prove', () => {
+  it('arms nothing on a verdict and a status the review key did not sign', () => {
     // What a worker holding the same credentials can post by hand: the comment
-    // and a success status on the head, without the reviewer's nonce.
+    // and a success status on the head, without the orchestration checkout's key.
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    drawSeal(root);
-    const { decision } = next(root, trackerJson([heldTicket], []));
-    expect(decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
-    const forged = next(root, trackerJson([heldTicket], []), ghFor('c3'.repeat(32))).decision;
+    const key = drawKey(root);
+    const unsigned = next(root, trackerJson([heldTicket], []), ghFor(undefined, key)).decision;
+    expect(unsigned.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    const stranger = drawKey(project());
+    const forged = next(root, trackerJson([heldTicket], []), ghFor(stranger, key)).decision;
     expect(forged.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+  });
+
+  it('believes nothing once the key published on the base is not its own, and says so', () => {
+    // A worker that swaps .github/void-review.pub for its own key makes the
+    // required check accept its signatures; the loop keeps its own key and
+    // refuses them all, so nothing it would arm rests on the swapped key.
+    const root = project();
+    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
+    const key = drawKey(root);
+    const theirs = drawKey(project());
+    const swapped = next(root, trackerJson([heldTicket], []), ghFor(theirs, theirs));
+    expect(swapped.decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    expect(swapped.decision.reviewKey).toMatch(/not this checkout's key/);
+    const missing = next(root, trackerJson([heldTicket], []), ghFor(key, 'unpublished'));
+    expect(missing.decision.reviewKey).toMatch(/carries no \.github\/void-review\.pub/);
+    expect(next(root, trackerJson([heldTicket], []), ghFor(key)).decision.reviewKey).toBe('trusted');
   });
 
   it('refuses a tracker observation with the field at fault', () => {
@@ -267,10 +291,9 @@ describe('autopilot verdict', () => {
   // the pull request has now, posted as a comment and a status together, and
   // the job that enforces it re-run when it disagrees.
   const RUN = 35694132291;
-  const NONCE = 'a1'.repeat(32);
 
   function pullView(
-    options: { head?: string; state?: string; reviewJob?: string; sealed?: boolean } = {},
+    options: { head?: string; state?: string; reviewJob?: string } = {},
   ): string {
     const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
     const rollup = view.statusCheckRollup as Record<string, unknown>[];
@@ -286,9 +309,7 @@ describe('autopilot verdict', () => {
       headRefOid: options.head ?? HEAD,
       baseRefName: 'develop',
       statusCheckRollup: [...rollup, ...job],
-      comments: options.sealed === false
-        ? comments
-        : [...comments, { ...(comments[0] as Record<string, unknown>), body: renderSeal(sealDigest(NONCE)) }],
+      comments,
       changedFiles,
     });
   }
@@ -298,33 +319,52 @@ describe('autopilot verdict', () => {
     const run = (args: readonly string[]): string => {
       calls.push([...args]);
       if (args[0] === 'pr' && args[1] === 'view') return view;
+      if (args[0] === 'repo' && args[1] === 'view') return `${TEST_REPOSITORY}\n`;
       return '{}';
     };
     return { run, calls };
+  }
+
+  /** A project whose orchestration checkout drew its review key. */
+  function keyed(): { root: string; key: string } {
+    const root = project();
+    return { root, key: drawKey(root) };
   }
 
   function verdict(
     root: string,
     stdin: unknown,
     view: string,
-    argv: readonly string[] = ['--pr', '11', '--nonce', NONCE],
+    argv: readonly string[] = ['--ticket', 'DEV-1', '--pr', '11'],
   ) {
     const { run, calls } = recorder(view);
     const result = runAutopilotCommand(['verdict', ...argv, '--json'], JSON.stringify(stdin), context(root, run));
-    return { result, calls, writes: calls.filter((call) => !(call[0] === 'pr' && call[1] === 'view')) };
+    const reads = (call: readonly string[]) => call[1] === 'view' && (call[0] === 'pr' || call[0] === 'repo');
+    return { result, calls, writes: calls.filter((call) => !reads(call)) };
   }
 
-  it('posts the comment, then the status, on the head it read, and re-runs the red job', () => {
-    const { result, writes } = verdict(project(), cleanVerdict, pullView({ reviewJob: 'FAILURE' }));
-    expect(result.exitCode).toBe(0);
+  it('posts the signed comment, then the status, on the head it read, and re-runs the red job', () => {
+    const { root, key } = keyed();
+    const { result, writes } = verdict(root, cleanVerdict, pullView({ reviewJob: 'FAILURE' }));
+    expect(result.exitCode, result.stderr).toBe(0);
     expect(writes).toHaveLength(3);
     const [comment, status, rerun] = writes;
     expect(comment?.slice(0, 2)).toEqual(['api', 'repos/{owner}/{repo}/issues/11/comments']);
-    const body = comment?.find((arg) => arg.startsWith('body=')) ?? '';
-    const proof = verdictProof(NONCE, { pullRequest: 11, headSha: HEAD, state: 'success' });
-    expect(body).toBe(`body=${renderJudgmentComment('review-verdict', cleanVerdict)}${renderProof(proof)}\n`);
-    // The proof is keyed by the nonce and never carries it.
-    expect(writes.flat().some((arg) => arg.includes(NONCE))).toBe(false);
+    const body = (comment?.find((arg) => arg.startsWith('body=')) ?? '').slice('body='.length);
+    expect(body.startsWith(renderJudgmentComment('review-verdict', cleanVerdict))).toBe(true);
+    expect(verifiedVerdicts(publicKeyOf(key), [body])).toEqual([
+      expect.objectContaining({
+        repository: TEST_REPOSITORY,
+        ticketId: 'DEV-1',
+        pullRequest: 11,
+        headSha: HEAD,
+        state: 'success',
+        signedAt: NOW,
+      }),
+    ]);
+    // The signature names the key by its fingerprint and never carries the private half.
+    expect(body).toContain(keyFingerprint(publicKeyOf(key)));
+    expect(writes.flat().some((arg) => arg.includes(key.split('\n')[1] ?? '?'))).toBe(false);
     expect(status?.slice(0, 2)).toEqual(['api', `repos/{owner}/{repo}/statuses/${HEAD}`]);
     expect(status).toEqual(expect.arrayContaining(['state=success', 'context=void/independent-review']));
     expect(rerun).toEqual(['run', 'rerun', String(RUN), '--failed']);
@@ -336,116 +376,94 @@ describe('autopilot verdict', () => {
       ...cleanVerdict,
       blocking: [{ location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' }],
     };
-    const { result, writes } = verdict(project(), blocking, pullView({ reviewJob: 'FAILURE' }));
+    const { result, writes } = verdict(keyed().root, blocking, pullView({ reviewJob: 'FAILURE' }));
     expect(result.exitCode).toBe(0);
     expect(writes).toHaveLength(2);
     expect(writes[1]).toEqual(expect.arrayContaining(['state=failure']));
   });
 
   it('writes nothing for a head the pull request has moved past', () => {
-    const { result, writes } = verdict(project(), cleanVerdict, pullView({ head: 'b'.repeat(40) }));
+    const { result, writes } = verdict(keyed().root, cleanVerdict, pullView({ head: 'b'.repeat(40) }));
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toMatch(/head/);
     expect(writes).toEqual([]);
   });
 
   it('writes nothing on a pull request that is no longer open', () => {
-    const { result, writes } = verdict(project(), cleanVerdict, pullView({ state: 'MERGED' }));
+    const { result, writes } = verdict(keyed().root, cleanVerdict, pullView({ state: 'MERGED' }));
     expect(result.exitCode).toBe(2);
     expect(writes).toEqual([]);
   });
 
-  it('writes nothing with a nonce whose digest the pull request does not carry', () => {
-    const unsealed = verdict(project(), cleanVerdict, pullView({ sealed: false }));
-    expect(unsealed.result.exitCode).toBe(2);
-    expect(unsealed.result.stderr).toMatch(/seal/);
-    expect(unsealed.writes).toEqual([]);
-    const other = verdict(project(), cleanVerdict, pullView(), ['--pr', '11', '--nonce', 'c3'.repeat(32)]);
-    expect(other.result.exitCode).toBe(2);
-    expect(other.writes).toEqual([]);
-  });
-
-  it('asks GitHub nothing without a nonce, or with one that was never drawn', () => {
-    const missing = verdict(project(), cleanVerdict, pullView(), ['--pr', '11']);
-    expect(missing.result.exitCode).toBe(2);
-    expect(missing.result.stderr).toMatch(/--nonce/);
-    expect(missing.calls).toEqual([]);
-    const malformed = verdict(project(), cleanVerdict, pullView(), ['--pr', '11', '--nonce', 'xyz']);
-    expect(malformed.result.exitCode).toBe(2);
-    expect(malformed.calls).toEqual([]);
+  it('asks GitHub nothing where no review key was drawn, or without the ticket', () => {
+    const keyless = verdict(project(), cleanVerdict, pullView());
+    expect(keyless.result.exitCode).toBe(2);
+    expect(keyless.result.stderr).toMatch(/no review key/);
+    expect(keyless.calls).toEqual([]);
+    const { root } = keyed();
+    for (const argv of [['--pr', '11'], ['--ticket', '../x', '--pr', '11']]) {
+      const unnamed = verdict(root, cleanVerdict, pullView(), argv);
+      expect(unnamed.result.exitCode, argv.join(' ')).toBe(2);
+      expect(unnamed.result.stderr).toMatch(/ticket/);
+      expect(unnamed.calls).toEqual([]);
+    }
   });
 
   it('asks GitHub nothing for a verdict it refuses, or without the pull request', () => {
-    const refused = verdict(project(), { ...cleanVerdict, round: 3 }, pullView());
+    const { root } = keyed();
+    const refused = verdict(root, { ...cleanVerdict, round: 3 }, pullView());
     expect(refused.result.exitCode).toBe(2);
     expect(refused.result.stderr).toMatch(/round/);
     expect(refused.calls).toEqual([]);
-    const unnamed = verdict(project(), cleanVerdict, pullView(), []);
+    const unnamed = verdict(root, cleanVerdict, pullView(), ['--ticket', 'DEV-1']);
     expect(unnamed.result.exitCode).toBe(2);
     expect(unnamed.result.stderr).toMatch(/--pr/);
     expect(unnamed.calls).toEqual([]);
   });
 });
 
-describe('autopilot seal', () => {
-  // Drawn by the orchestrator at assignment, handed to the reviewer alone, and
-  // published on the pull request only as its digest.
-  const sealPath = (root: string, ticket: string) =>
-    join(root, '.void', 'machine', 'autopilot', 'seals', `${ticket}.nonce`);
+describe('autopilot review-key', () => {
+  // Drawn once by the orchestrator: the private half stays in this checkout,
+  // ignored by git; the public half is versioned for a person to merge.
+  const privatePath = (root: string) => join(root, '.void', 'machine', 'autopilot', 'review-key.pem');
+  const publicPath = (root: string) => join(root, '.github', 'void-review.pub');
 
-  it('draws the nonce of a ticket once, readable by its owner alone', () => {
+  it('draws the key once, readable by its owner alone, and writes its public half', () => {
     const root = project();
-    const first = runAutopilotCommand(['seal', '--ticket', 'DEV-1', '--json'], '', context(root));
-    expect(first.exitCode).toBe(0);
-    const drawn = JSON.parse(first.stdout) as { ticketId: string; nonce: string; digest: string };
-    expect(drawn.ticketId).toBe('DEV-1');
-    expect(drawn.nonce).toMatch(/^[0-9a-f]{64}$/);
-    expect(drawn.digest).toBe(sealDigest(drawn.nonce));
-    expect(readFileSync(sealPath(root, 'DEV-1'), 'utf8')).toBe(`${drawn.nonce}\n`);
-    expect(statSync(sealPath(root, 'DEV-1')).mode & 0o777).toBe(0o600);
-    const again = runAutopilotCommand(['seal', '--ticket', 'DEV-1'], '', context(root));
-    expect(again.exitCode).toBe(2);
-    expect(again.stderr).toMatch(/already/);
-    expect(readFileSync(sealPath(root, 'DEV-1'), 'utf8')).toBe(`${drawn.nonce}\n`);
+    const first = runAutopilotCommand(['review-key', '--json'], '', context(root, unreachableGh));
+    expect(first.exitCode, first.stderr).toBe(0);
+    const drawn = JSON.parse(first.stdout) as { created: boolean; fingerprint: string; publicKeyPath: string };
+    const privateKey = readFileSync(privatePath(root), 'utf8');
+    expect(privateKey).toMatch(/^-----BEGIN PRIVATE KEY-----/);
+    expect(statSync(privatePath(root)).mode & 0o777).toBe(0o600);
+    expect(readFileSync(publicPath(root), 'utf8')).toBe(publicKeyOf(privateKey));
+    expect(drawn).toEqual({
+      created: true,
+      fingerprint: keyFingerprint(publicKeyOf(privateKey)),
+      publicKeyPath: '.github/void-review.pub',
+    });
+    expect(first.stdout).not.toContain(privateKey.split('\n')[1]);
+    // Again: nothing is drawn, and a public half deleted or edited is restored.
+    writeFileSync(publicPath(root), 'edited');
+    const again = runAutopilotCommand(['review-key', '--json'], '', context(root, unreachableGh));
+    expect(JSON.parse(again.stdout)).toMatchObject({ created: false, fingerprint: drawn.fingerprint });
+    expect(readFileSync(privatePath(root), 'utf8')).toBe(privateKey);
+    expect(readFileSync(publicPath(root), 'utf8')).toBe(publicKeyOf(privateKey));
   });
 
-  it('publishes the digest on the pull request, once, and never the nonce', () => {
+  it('refuses to draw a private key git would not ignore', () => {
     const root = project();
-    const nonce = drawSeal(root);
-    const calls: string[][] = [];
-    const run = (sealed: boolean) => (args: readonly string[]): string => {
-      calls.push([...args]);
-      if (args[0] === 'pr' && args[1] === 'view') return sealed ? reviewedPull(nonce) : reviewedPull();
-      return '{}';
-    };
-    const argv = ['seal', '--ticket', 'DEV-1', '--pr', '11', '--json'];
-    const published = runAutopilotCommand(argv, '', { ...context(root), gh: run(false) });
-    expect(published.exitCode).toBe(0);
-    const writes = calls.filter((call) => call[0] === 'api');
-    expect(writes).toEqual([
-      ['api', 'repos/{owner}/{repo}/issues/11/comments', '-f', `body=${renderSeal(sealDigest(nonce))}`],
-    ]);
-    expect(calls.flat().some((arg) => arg.includes(nonce))).toBe(false);
-    expect(published.stdout).not.toContain(nonce);
-    calls.length = 0;
-    expect(runAutopilotCommand(argv, '', { ...context(root), gh: run(true) }).exitCode).toBe(0);
-    expect(calls.filter((call) => call[0] === 'api')).toEqual([]);
-  });
-
-  it('refuses to publish a seal never drawn, and a ticket that is not one', () => {
-    const root = project();
-    const unsealed = runAutopilotCommand(['seal', '--ticket', 'DEV-9', '--pr', '11'], '', context(root, unreachableGh));
-    expect(unsealed.exitCode).toBe(2);
-    expect(unsealed.stderr).toMatch(/DEV-9/);
-    const nameless = runAutopilotCommand(['seal', '--ticket', '../x'], '', context(root));
-    expect(nameless.exitCode).toBe(2);
-    expect(runAutopilotCommand(['seal'], '', context(root)).exitCode).toBe(2);
+    rmSync(join(root, '.gitignore'));
+    const result = runAutopilotCommand(['review-key'], '', context(root, unreachableGh));
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/ignore/);
+    expect(existsSync(privatePath(root))).toBe(false);
   });
 });
 
 describe('the checkout a review secret lives in', () => {
-  // A linked worktree is a worker's: drawing a seal or proving a verdict there
-  // would put the secret where the worker reads, and post a proof of its own.
+  // A linked worktree is a worker's: drawing the key or signing a verdict there
+  // would put the secret where the worker reads, and sign a verdict of its own.
   function linkedWorktree(): string {
     const root = project();
     const linked = join(mkdtempSync(join(tmpdir(), 'vh-autopilot-linked-')), 'work');
@@ -454,19 +472,18 @@ describe('the checkout a review secret lives in', () => {
     return linked;
   }
 
-  it('refuses to draw or publish a seal from a linked worktree, and writes nothing', () => {
+  it('refuses to draw the review key from a linked worktree, and writes nothing', () => {
     const linked = linkedWorktree();
-    for (const argv of [['seal', '--ticket', 'DEV-1'], ['seal', '--ticket', 'DEV-1', '--pr', '11']]) {
-      const result = runAutopilotCommand(argv, '', context(linked, unreachableGh));
-      expect(result.exitCode, argv.join(' ')).toBe(2);
-      expect(result.stderr).toMatch(/orchestration checkout/);
-    }
-    expect(existsSync(join(linked, '.void', 'machine', 'autopilot', 'seals'))).toBe(false);
+    const result = runAutopilotCommand(['review-key'], '', context(linked, unreachableGh));
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/orchestration checkout/);
+    expect(existsSync(join(linked, '.void', 'machine', 'autopilot'))).toBe(false);
+    expect(existsSync(join(linked, '.github', 'void-review.pub'))).toBe(false);
   });
 
   it('refuses to write a verdict from a linked worktree, before asking GitHub', () => {
     const linked = linkedWorktree();
-    const argv = ['verdict', '--pr', '11', '--nonce', 'a1'.repeat(32)];
+    const argv = ['verdict', '--ticket', 'DEV-1', '--pr', '11'];
     const result = runAutopilotCommand(argv, JSON.stringify(cleanVerdict), context(linked, unreachableGh));
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toMatch(/orchestration checkout/);
@@ -540,14 +557,14 @@ describe('autopilot arm and disarm', () => {
   it('has next disarm and hand back a pull request pushed after it was armed', () => {
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    const nonce = drawSeal(root);
-    const arming = sequence(reviewedPull(nonce), reviewedPull(nonce, { armed: true }));
+    const key = drawKey(root);
+    const arming = sequence(reviewedPull(key), reviewedPull(key, { armed: true }));
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     expect(runAutopilotCommand(argv, '', { ...context(root), gh: arming.run }).exitCode).toBe(0);
     const moved = (args: readonly string[]): string =>
       args.join(' ').includes('pr view 11')
-        ? reviewedPull(nonce, { armed: true, head: 'b'.repeat(40) })
-        : answer(args, nonce);
+        ? reviewedPull(key, { armed: true, head: 'b'.repeat(40) })
+        : answer(args, key, key);
     const { decision } = next(root, trackerJson([heldTicket], []), moved);
     expect(decision.actions.slice(0, 2)).toEqual([
       { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: 'b'.repeat(40), armedSha: HEAD },
@@ -579,10 +596,10 @@ describe('autopilot stop', () => {
   it('disarms every armed pull request before it freezes, a proven one included', () => {
     // Freezing means nothing moves; a merge GitHub runs on its own moves develop.
     const root = project();
-    const nonce = drawSeal(root);
+    const key = drawKey(root);
     runAutopilotCommand(['stop', '--now'], '', context(root));
     const armed = (args: readonly string[]) =>
-      args.join(' ').includes('pr view 11') ? reviewedPull(nonce, { armed: true }) : unreachableGh();
+      args.join(' ').includes('pr view 11') ? reviewedPull(key, { armed: true }) : unreachableGh();
     const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), armed);
     expect(decision.actions).toEqual([
       { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: HEAD },

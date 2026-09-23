@@ -86,9 +86,12 @@ jobs:
           base-ref: ${{ inputs.base-ref }}
 
   # The verdict of the independent reviewer, required on `develop`. The reviewer
-  # posts a `void/independent-review` commit status on the head SHA it read; this
-  # job only verifies it, on the pull request head and, in the merge queue, on
-  # the head of every pull request the group contains. It lives beside `enforce`
+  # posts a `void/independent-review` commit status on the head SHA it read and
+  # a verdict comment signed with the orchestration checkout's Ed25519 key; this
+  # job verifies both, the signature with the public key versioned on the base
+  # branch, on the pull request head and, in the merge queue, on the head of
+  # every pull request the group contains. A status alone, which any account
+  # with write access can post, no longer passes. It lives beside `enforce`
   # because both decide whether a change may merge, not whether it builds.
   # A new push changes the head SHA and therefore demands a new verdict. After
   # posting one, the reviewer re-runs this job: a status event triggers no run.
@@ -105,8 +108,8 @@ jobs:
       pull-requests: read
       statuses: read
     steps:
-      # The script comes from the base branch, so a pull request cannot rewrite
-      # it. This YAML does not: GitHub runs the workflow of the merge ref (or of
+      # The script and the public key come from the base branch, so a pull
+      # request can rewrite neither. This YAML does not: GitHub runs the workflow of the merge ref (or of
       # the group commit), so a change to this job is judged by itself. Pinning
       # the workflow is an open decision recorded in the merge queue ADR.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -114,7 +117,9 @@ jobs:
           ref: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
           persist-credentials: false
           fetch-depth: 0
-          sparse-checkout: scripts/independent-review-check.mjs
+          sparse-checkout: |
+            scripts/independent-review-check.mjs
+            .github/void-review.pub
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:

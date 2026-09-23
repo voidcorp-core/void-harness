@@ -28,7 +28,7 @@ import type {
   PullRequestObservation,
   QueueEvent,
 } from './loop.js';
-import { verdictProven } from './review-seal.js';
+import { verdictDigest, verifiedVerdicts } from './review-signature.js';
 import type { SharedStateReading } from './shared-state.js';
 
 /** Runs `gh` (or `git`) with argv, never through a shell, and returns its stdout. */
@@ -195,32 +195,55 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
   return unreadable(what, issues.join('; '));
 }
 
+/** What a verdict on one pull request is verified against. */
+export interface VerdictVerifier {
+  /** The review public key, once the loop checked it against the one on the base. */
+  readonly publicKey: string;
+  /** `owner/name`, which a signature binds so it does not carry over to a fork. */
+  readonly repository: string;
+  /** The ticket the pull request carries, which the signature binds too. */
+  readonly ticketId: string;
+}
+
 /**
- * The verdict comment the status on the same head confirms and the ticket's
- * seal proves: the last one bound to that head whose findings agree with the
- * status, clean with `success` and blocking with `failure`, and whose proof
- * answers the nonce the loop drew for the ticket and published the digest of.
- * A status and a comment are text anyone with the same credentials can write;
- * the proof is what only the reviewer, handed the nonce, can. Without a nonce
- * nothing is believed.
+ * The verdict the review key signed last for this head, when the status on the
+ * same head says the same: clean with `success`, blocking with `failure`. A
+ * status and a comment are text anyone with the same credentials can write;
+ * the signature is what only the orchestration checkout's key makes, over the
+ * repository, the ticket, the pull request, the head, the outcome and a digest
+ * of the findings in the same comment. The latest by the time it was signed at
+ * decides, so a copy of an older verdict posted again changes nothing, and a
+ * status the latest signed verdict contradicts believes neither. Without a
+ * verifier nothing is believed.
  */
 function believedVerdict(
   bodies: readonly string[],
   target: { readonly pullRequest: number; readonly headSha: string },
   review: PullRequestObservation['review'],
-  nonce: string | undefined,
+  verifier: VerdictVerifier | undefined,
 ): unknown {
-  if (nonce === undefined || (review !== 'success' && review !== 'failure')) return undefined;
-  const binding = { ...target, state: review };
-  const confirmed = bodies.flatMap((body) => {
-    if (!verdictProven(nonce, { bodies, body, binding })) return [];
-    return judgmentsOf([body], 'review-verdict').filter((raw) => {
+  if (verifier === undefined || (review !== 'success' && review !== 'failure')) return undefined;
+  const signed = bodies.flatMap((body) => {
+    const findings = judgmentsOf([body], 'review-verdict').flatMap((raw) => {
       const admission = admitReviewVerdict(raw);
-      if (!admission.ok || admission.value.headSha !== target.headSha) return false;
-      return (admission.value.blocking.length === 0) === (review === 'success');
+      return admission.ok ? [admission.value] : [];
+    });
+    return verifiedVerdicts(verifier.publicKey, [body]).flatMap((fields) => {
+      const bound =
+        fields.repository === verifier.repository &&
+        fields.ticketId === verifier.ticketId &&
+        fields.pullRequest === target.pullRequest &&
+        fields.headSha === target.headSha;
+      const verdict = findings.find((finding) => verdictDigest(finding) === fields.verdictDigest);
+      if (!bound || verdict === undefined || verdict.headSha !== target.headSha) return [];
+      return [{ fields, verdict }];
     });
   });
-  return confirmed.at(-1);
+  // Stable: verdicts signed at the same instant keep their comment order.
+  signed.sort((left, right) => Date.parse(left.fields.signedAt) - Date.parse(right.fields.signedAt));
+  const latest = signed.at(-1);
+  if (latest === undefined || latest.fields.state !== review) return undefined;
+  return (latest.verdict.blocking.length === 0) === (review === 'success') ? latest.verdict : undefined;
 }
 
 /** One page of a pull request's files, each rename with its source. */
@@ -261,18 +284,18 @@ export function pullRequestComments(text: string): string[] {
 
 /**
  * One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL and
- * REST parts. `nonce` is the seal the loop drew for the ticket this pull
- * request carries, when it drew one.
+ * REST parts. `verifier` checks the verdict of the ticket this pull request
+ * carries; without one, no verdict is believed.
  */
 export function parsePullRequestView(
   text: string,
-  nonce?: string,
+  verifier?: VerdictVerifier,
 ): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures' | 'files'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
   const review = reviewOf(view.statusCheckRollup);
   const target = { pullRequest: view.number, headSha: view.headRefOid };
-  const verdict = believedVerdict(bodies, target, review, nonce);
+  const verdict = believedVerdict(bodies, target, review, verifier);
   const conflict = latestJudgment(bodies, 'conflict-class');
   return {
     ...(verdict === undefined ? {} : { verdict }),
@@ -536,8 +559,8 @@ function requireUpToDateBase(run: GhRunner, base: string): void {
 export interface GithubRequest {
   readonly base: string;
   readonly pullRequests: readonly number[];
-  /** The nonce drawn for the ticket each pull request carries, by pull request. */
-  readonly seals?: ReadonlyMap<number, string>;
+  /** What each pull request's verdict is verified against, by pull request. */
+  readonly verifiers?: ReadonlyMap<number, VerdictVerifier>;
 }
 
 /** One tick's view of GitHub: the queue once, then each pull request and its queue event. */
@@ -557,8 +580,8 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
   const pullRequests = new Map<number, PullRequestObservation>();
   for (const number of request.pullRequests) {
     const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
-    const nonce = request.seals?.get(number);
-    const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs), nonce));
+    const verifier = request.verifiers?.get(number);
+    const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs), verifier));
     const timelineArgs = ['api', 'graphql', ...REPOSITORY_FIELDS, '-F', `number=${number}`];
     const timeline = observed(`#${number}`, () =>
       run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`]),

@@ -76,7 +76,7 @@ export const PROTECTED_PATHS_FLOOR = [
   // and the one command that writes and proves a verdict.
   'packages/cli/src/lib/autopilot/loop.ts',
   'packages/cli/src/lib/autopilot/loop-observe.ts',
-  'packages/cli/src/lib/autopilot/review-seal.ts',
+  'packages/cli/src/lib/autopilot/review-signature.ts',
   'packages/cli/src/commands/autopilot-loop.ts',
   // The sources above run only after a release and a reinstall; these run now.
   // The installed runner, the files that wire it into Claude and Codex, and the
@@ -553,12 +553,13 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
  * The status is a flag anyone holding the same credentials can raise; the
  * verdict is what says a reviewer read this exact head and found nothing that
  * blocks. Both are required, and they must agree. `loop-observe` hands over a
- * verdict only when its proof answers the seal drawn for the ticket, so a
- * verdict here is one the reviewer, holding the nonce, wrote.
+ * verdict only when the review key signed it for this ticket and head, so a
+ * verdict here is one written through `autopilot verdict` in the orchestration
+ * checkout, which alone holds the private key.
  */
 function unapprovedReason(pr: PullRequestObservation): string | undefined {
   if (pr.verdict === undefined) {
-    return 'the review passed and no verdict on this head, proved by the ticket\'s seal,'
+    return 'the review passed and no verdict on this head, signed by the review key,'
       + ' confirms it';
   }
   const admission = admitReviewVerdict(pr.verdict);

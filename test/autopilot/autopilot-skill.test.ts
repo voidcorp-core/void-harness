@@ -155,15 +155,16 @@ describe('the reviewer publishes a verdict GitHub can read', () => {
   // previous answer until the job is re-run: a verdict posted and not re-run
   // leaves the pull request stuck while every agent believes it passed.
   it('publishes the verdict through the one command that writes comment and status together', () => {
-    expect(flat(body(SKILL))).toMatch(/`void-harness autopilot verdict --pr <number> --nonce <seal>`\. It is the only path/);
+    expect(flat(body(SKILL))).toMatch(/`void-harness autopilot verdict --ticket <id> --pr <number>`, run from this checkout\. It is the only path/);
     expect(flat(body(SKILL))).toMatch(/re-runs the `independent-review` job when its completed run disagrees/);
     expect(flat(body(SKILL))).toMatch(/status event starts no workflow/i);
     expect(flat(body(SKILL))).toMatch(/Never post the comment or the status yourself/);
   });
 
-  it('keeps the seal between the orchestrator and the reviewer', () => {
-    expect(flat(body(SKILL))).toMatch(/Give it to the ticket's reviewer and to nobody else: never to its worker/);
-    expect(flat(body(SKILL))).toMatch(/`autopilot seal --ticket <id> --pr <n>` before spawning the reviewer/);
+  it('keeps the review key in the orchestration checkout and its public half on the base', () => {
+    expect(flat(body(SKILL))).toMatch(/`autopilot review-key` draws an Ed25519 key in this checkout/);
+    expect(flat(body(SKILL))).toMatch(/verifies the signature with the public half read from the base/);
+    expect(flat(body(SKILL))).toMatch(/Never copy the private half anywhere/);
   });
 
   it('blocks only on a scenario, files advisories once, and stops at two rounds', () => {

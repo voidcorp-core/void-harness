@@ -69,22 +69,23 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
   refuses what it still cannot read and may write. It stays a guard, not a boundary: an unquoted
   variable split into flags, `python3 -c`, `node -e`, `hub` and a script it cannot open remain
   unseen, and the ADR says so.
-- **The review seal.** Kept instead of a dedicated identity: the orchestrator draws a nonce per
-  ticket at assignment, gives it to the reviewer only and publishes its digest on the pull request;
-  `autopilot verdict --nonce` posts an HMAC proof over the pull request, head and outcome, and the
-  loop believes no verdict without it. Rejected: revealing the nonce as the proof (a worker would
-  read it in the comment and forge the next round), and a `reveal` or `rotate` command (any agent
-  could call it). Limits stated: it protects from a mistake and an injection, not from a process
-  reading the orchestration checkout, and it binds the loop, not the required check.
+- **The review key.** Replaces the review seal, whose HMAC bound the loop and not GitHub: the
+  required check could not hold the nonce and trusted the status alone. `autopilot review-key`
+  draws an Ed25519 pair once in the orchestration checkout; `autopilot verdict` signs repository,
+  ticket, pull request, head, outcome, findings digest and time; the `independent-review` job
+  verifies with the public key read from the base, the loop with its own after checking the base
+  carries it. Rejected: the public key as a repository variable (a collaborator's token rewrites it
+  with no trace in git), an expiry on signatures (the head is immutable), and a `rotate` command
+  (any agent could call it). Limits stated: it protects from a worker and an injection, not from a
+  process reading the orchestration checkout, and the workflow itself stays unpinned.
 - **Disarming.** GitHub keeps no armed head and keeps an auto-merge across a push with write
   access, so `autopilot arm` records the head it arms and the kernel disarms a moved head (back to
-  the worker), an armed head the seal no longer proves, or an unrecorded arming (to a human). The
+  the worker), an armed head no signed verdict proves, or an unrecorded arming (to a human). The
   disarm rides on every outcome but the two that keep watching a vouched head (`wait merging`,
   `rerun-review-check`), and an immediate stop disarms everything before it freezes: after the
   first review, a hand-back on red CI left the merge armed while the worker pushed a new head.
   Rejected: reading the armed head from the timeline, whose commit entries carry commit dates a
-  worker can backdate. Limit stated: a push nobody was handed the head for, with a forged status,
-  can still merge before the next tick.
+  worker can backdate.
 - **Protected paths.** The loop never merges a change to its own judge; the floor is a constant
   the programme can only extend. It covers what a judging workflow runs from outside `.github`
   (the promotion audit, the auto-merge contract, `verify.mjs`, the enforcement floor) and the loop

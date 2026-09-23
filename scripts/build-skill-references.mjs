@@ -120,6 +120,7 @@ const DECLARED = [
   { name: 'void-project-benchmark', reason: 'project-graph benchmark fixture prefix' },
   { name: 'void-project-graph-conformance', reason: 'conformance run label, `scripts/`' },
   { name: 'void-project-graph-orphan', reason: 'conformance run label, `scripts/`' },
+  { name: 'void-review', reason: 'basename of the versioned review public key, `.github/`' },
   { name: 'void-consumer', reason: 'scratch prefix for isolated consumer workspaces' },
   { name: 'void-package', reason: 'scratch prefix for extracted package artifacts' },
   { name: 'void-runtime-stage', reason: 'scratch prefix for the isolated `runtime add` stage' },
