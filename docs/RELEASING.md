@@ -50,10 +50,22 @@ failures are treated as unprotected rather than inferred safe.
 
 The continuous autopilot loop still never arms a change to the machinery that
 judges merges (workflows, the verdict check, the programme, the hooks): it hands
-those pull requests to a person. The promotion audit in `promotion.yml` still
-accepts only pull requests merged by the named human, plus the back-merge, so a
-commit merged by auto-merge fails it; aligning that audit with auto-merge is an
-open release-authority decision, recorded in the merge queue decision.
+those pull requests to a person.
+
+The promotion audit in `promotion.yml` follows the same rule: every commit it
+promotes entered `develop` through a merged pull request, and
+`scripts/promotion-authority.mjs` accepts that pull request in exactly three
+cases. It was merged by hand by the named human, with no auto-merge or merge
+queue event in its timeline. Or it merged automatically (auto-merge or the merge
+queue) and its head SHA carries a success `void/independent-review` status, the
+verdict the required check demanded before it could merge. Or it is the release
+back-merge, proved by construction with the same check the `independent-review`
+job runs, replayed against `develop` as it stood (the first parent of the
+integration commit); one that does not hold needs the verdict like any other
+automatic merge. Everything else refuses the promotion, and so does every doubt:
+a missing field, a status not read on the head, a truncated timeline, a git or
+API error. Automatic merges into `develop` therefore reach `main` only with the
+evidence that let them merge, and the promotion itself stays a human merge.
 
 **`develop` is ready for a merge queue, not yet using one.** Every workflow that
 carries a required check of `develop` also answers `merge_group`, the only event
@@ -165,8 +177,10 @@ Actions on the routine path.
 1. `promotion.yml` maintains one `develop -> main` PR and records every promoted
    commit, its first entry on develop's first-parent history, and the merged PR
    whose `mergeCommit` exactly matches that entry, including nested branch PRs.
-   A later containing merge cannot authorize an earlier direct commit. The audit
-   retains the merge actor, auto-merge history and fail-closed pagination checks. **Release
+   A later containing merge cannot authorize an earlier direct commit. Each pull
+   request must hold one of the three merge authorities above (the named human by
+   hand, an automatic merge with a success verdict on its head, or the back-merge
+   proved by construction), with fail-closed pagination checks. **Release
    action 1:** merge that promotion PR after its five current checks pass and the
    complete accounting is explainable.
 2. On `main`, release-please maintains one version/changelog PR. It changes every

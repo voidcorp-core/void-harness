@@ -67,7 +67,8 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
   the programme can only extend.
 - **Auto-merge by default into develop**, never into main; the release back-merge is exempt from
   the verdict by its bot author's id and by commits proved in git to be the release output. The
-  promotion audit is left for a release decision.
+  promotion audit accepts an automatic merge whose head carries a success verdict, and the
+  back-merge by the same proof; a hand merge still has to be the named human's.
 
 ### Still shipped until the engine is removed
 

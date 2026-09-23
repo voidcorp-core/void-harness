@@ -110,6 +110,14 @@ describe('release operator contract', () => {
     expect(RELEASING).toContain('refuses an armed auto-merge');
   });
 
+  it('states the three merge authorities the promotion audit accepts', () => {
+    expect(RELEASING).toContain('scripts/promotion-authority.mjs');
+    expect(RELEASING).toMatch(/merged\s+by hand by the named human/);
+    expect(RELEASING).toMatch(/success\s+`void\/independent-review`\s+status/);
+    expect(RELEASING).toMatch(/proved by\s+construction/);
+    expect(RELEASING).not.toContain('aligning that audit with auto-merge is an');
+  });
+
   it('documents tag-bound recovery and every external authority boundary', () => {
     expect(RELEASING).toContain('release_tag');
     expect(RELEASING).toContain('existing closed form `vX.Y.Z`');

@@ -118,6 +118,17 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   the pull request `main` does not hold. Any other shape, a git error included,
   demands a verdict like any other pull request; the job checks out the full
   history for it, with the same read-only permissions.
+- The promotion audit (`promotion.yml`, judged by
+  `scripts/promotion-authority.mjs`) accepts a pull request into `develop` in
+  three cases only: merged by hand by the named human with no auto-merge or
+  merge queue event; merged automatically with a `success`
+  `void/independent-review` status on its head SHA, the verdict the required
+  check held it to; or the back-merge, proved by the construction above,
+  replayed against `develop` as it stood (the integration commit's first
+  parent) and never on its author. An unproven back-merge needs the verdict,
+  since it merged automatically too. Anything else refuses the promotion, and
+  so does any doubt: a missing field, a status not read on the head, a
+  truncated timeline, a git or API error. The promotion stays a human merge.
 - The loop re-runs a red `independent-review` job at most twice per run, the
   verdict command's own re-run included, reading the attempt number GitHub
   keeps; past that, a person looks.
@@ -176,11 +187,12 @@ Negative:
   construction, not on a setting of the repository: no rule on
   `chore/back-merge-main` is needed. If that workflow ever changes how it
   builds the branch, the check refuses the exemption until it is aligned.
-- `promotion.yml` audits every promoted commit as merged by the named human or
-  by the back-merge, and refuses one whose pull request armed any other
-  auto-merge. Once the loop merges into `develop`, that audit fails and stops
-  maintaining the promotion pull request. Aligning it is a release-authority
-  decision still to take before activation.
+- The promotion audit trusts the verdict status as much as the required check
+  does, no more: a success status posted on a head by anyone able to write
+  statuses lets that pull request's commits reach the promotion, which a person
+  still reads and merges. The status stays on the commit after the merge, so a
+  verdict later rewritten to failure refuses the next promotion until someone
+  looks.
 - The merge queue requires a repository owned by an organization. Consumers
   outside one fall back to serial merges, per the spec.
 
