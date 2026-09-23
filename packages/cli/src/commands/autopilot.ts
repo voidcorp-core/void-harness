@@ -8,6 +8,8 @@ import {
   USAGE,
 } from './autopilot-usage.js';
 import {
+  armCommand,
+  disarmCommand,
   fingerprintCommand,
   sealCommand,
   judgmentCommand,
@@ -1511,6 +1513,10 @@ export function runAutopilotCommand(
         return emitLoop(json, fingerprintCommand(argv, context));
       case 'seal':
         return emitLoop(json, sealCommand(argv, context));
+      case 'arm':
+        return emitLoop(json, armCommand(argv, context));
+      case 'disarm':
+        return emitLoop(json, disarmCommand(argv, context));
       case 'verdict':
         return emitLoop(json, verdictCommand(argv, stdin, context));
       case 'start':

@@ -76,6 +76,12 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
   read it in the comment and forge the next round), and a `reveal` or `rotate` command (any agent
   could call it). Limits stated: it protects from a mistake and an injection, not from a process
   reading the orchestration checkout, and it binds the loop, not the required check.
+- **Disarming.** GitHub keeps no armed head and keeps an auto-merge across a push with write
+  access, so `autopilot arm` records the head it arms and the kernel disarms a moved head (back to
+  the worker), an armed head the seal no longer proves, or an unrecorded arming (to a human).
+  Rejected: reading the armed head from the timeline, whose commit entries carry commit dates a
+  worker can backdate. Limit stated: a forged status between a push and the next tick can still
+  merge.
 - **Protected paths.** The loop never merges a change to its own judge; the floor is a constant
   the programme can only extend. It covers what a judging workflow runs from outside `.github`
   (the promotion audit, the auto-merge contract, `verify.mjs`, the enforcement floor) and the loop

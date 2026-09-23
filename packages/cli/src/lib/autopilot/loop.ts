@@ -198,6 +198,7 @@ export const HUMAN_WAIT_REASONS = [
   'protected-path',
   'review-check-reruns-exhausted',
   'promotion-pull-request',
+  'armed-verdict-unproven',
 ] as const;
 export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
 
@@ -248,7 +249,8 @@ export type HandBackReason =
   | 'checks-failed'
   | 'review-blocking'
   | 'conflict'
-  | 'update-on-base';
+  | 'update-on-base'
+  | 'head-moved-after-arming';
 export type DrainReason = 'requested' | 'quota-low' | 'human-wait-streak' | 'backlog-exhausted';
 
 export type LoopAction =
@@ -271,6 +273,15 @@ export type LoopAction =
       readonly ticketId: string;
       readonly pullRequest: number;
       readonly headSha: string;
+    }
+  | {
+      readonly kind: 'disable-auto-merge';
+      readonly ticketId: string;
+      readonly pullRequest: number;
+      /** The head the pull request has now. */
+      readonly headSha: string;
+      /** The head `autopilot arm` recorded, when it recorded one. */
+      readonly armedSha?: string;
     }
   | {
       readonly kind: 'rerun-review-check';
@@ -306,12 +317,20 @@ export interface SharedStateObservation {
   readonly before: ReadonlyMap<string, SharedFingerprint>;
 }
 
+/** What `autopilot arm` recorded when it armed a ticket's pull request. */
+export interface ArmedRecord {
+  readonly pullRequest: number;
+  readonly headSha: string;
+}
+
 export interface LoopInput {
   readonly program: LoopProgram;
   readonly tracker: LoopTracker;
   readonly github: GithubObservation;
   readonly signal: StopSignal;
   readonly sharedState: SharedStateObservation;
+  /** The armed head of each ticket, by ticket, as `autopilot arm` recorded it. */
+  readonly armed: ReadonlyMap<string, ArmedRecord>;
 }
 
 export interface LoopDecision {
@@ -453,20 +472,24 @@ function reservedTickets(
   });
 }
 
+/** `disarm`, when present, runs before `action`: the merge is stopped before anyone acts. */
 type SlotOutcome =
-  | { readonly outcome: 'held'; readonly action: LoopAction }
+  | { readonly outcome: 'held'; readonly action: LoopAction; readonly disarm?: LoopAction }
   | { readonly outcome: 'merged' }
-  | { readonly outcome: 'human-wait'; readonly action: LoopAction };
+  | { readonly outcome: 'human-wait'; readonly action: LoopAction; readonly disarm?: LoopAction };
 
-function held(action: LoopAction): SlotOutcome {
+/** An outcome that acts on its ticket: every one but a merge. */
+type ActingOutcome = Exclude<SlotOutcome, { readonly outcome: 'merged' }>;
+
+function held(action: LoopAction): ActingOutcome {
   return { outcome: 'held', action };
 }
 
-function toHuman(ticketId: string, reason: HumanWaitReason, detail: string): SlotOutcome {
+function toHuman(ticketId: string, reason: HumanWaitReason, detail: string): ActingOutcome {
   return { outcome: 'human-wait', action: { kind: 'mark-human-wait', ticketId, reason, detail } };
 }
 
-function handBack(ticketId: string, reason: HandBackReason, pullRequest?: number): SlotOutcome {
+function handBack(ticketId: string, reason: HandBackReason, pullRequest?: number): ActingOutcome {
   return held({
     kind: 'hand-back-to-worker',
     ticketId,
@@ -601,6 +624,37 @@ function mergeOutcome(
   return held({ kind: 'requeue', ...target, ejections: pr.ejections });
 }
 
+/**
+ * Disarm an auto-merge the loop can no longer vouch for, or nothing. GitHub
+ * keeps it armed across a push by anyone with write access and exposes no
+ * armed head, and the required check trusts the status alone, so the head is
+ * the one `autopilot arm` recorded and the verdict is the one the seal proves.
+ * A moved head goes back to its worker once disarmed, since it has not been
+ * reviewed; an armed head the seal no longer proves, or an arming nobody
+ * recorded, goes to a human.
+ */
+function armedOutcome(
+  ticket: TrackerTicket,
+  pr: PullRequestObservation,
+  context: SlotContext,
+): SlotOutcome | undefined {
+  if (!pr.autoMerge) return undefined;
+  const record = context.input.armed.get(ticket.id);
+  const target = { ticketId: ticket.id, pullRequest: pr.number, headSha: pr.headSha };
+  if (record === undefined || record.pullRequest !== pr.number) {
+    const detail = `auto-merge is armed on #${pr.number} and no \`autopilot arm\` recorded its head`;
+    return { ...toHuman(ticket.id, 'ambiguous-state', detail), disarm: { kind: 'disable-auto-merge', ...target } };
+  }
+  const disarm: LoopAction = { kind: 'disable-auto-merge', ...target, armedSha: record.headSha };
+  if (record.headSha !== pr.headSha) {
+    return { ...handBack(ticket.id, 'head-moved-after-arming', pr.number), disarm };
+  }
+  const unproven = pr.review === 'success' ? unapprovedReason(pr) : `the review status is ${pr.review}`;
+  if (unproven === undefined) return undefined;
+  const detail = `#${pr.number} is armed on ${pr.headSha} and ${unproven}`;
+  return { ...toHuman(ticket.id, 'armed-verdict-unproven', detail), disarm };
+}
+
 function openPullOutcome(
   ticket: TrackerTicket,
   pr: PullRequestObservation,
@@ -609,6 +663,8 @@ function openPullOutcome(
   if (pr.state === 'closed') {
     return toHuman(ticket.id, 'pull-request-closed', `#${pr.number} was closed without a merge`);
   }
+  const armed = armedOutcome(ticket, pr, context);
+  if (armed !== undefined) return armed;
   // A head the loop merges into, or that ships, is a promotion, never a ticket:
   // promoting develop to main is a release action a person takes.
   if (protectedBranches(context.input.program.autopilot).includes(pr.headRef)) {
@@ -804,7 +860,9 @@ export function decideLoop(input: LoopInput): LoopDecision {
     serialTurn: serialTurnOf(holding, input.github),
   };
   const outcomes = holding.map((ticket) => ({ ticket, slot: slotOutcome(ticket, context) }));
-  const slotActions = outcomes.flatMap(({ slot }) => ('action' in slot ? [slot.action] : []));
+  const slotActions = outcomes.flatMap(({ slot }) =>
+    'action' in slot ? [...(slot.disarm === undefined ? [] : [slot.disarm]), slot.action] : [],
+  );
   const whose = (outcome: SlotOutcome['outcome']) =>
     outcomes.filter(({ slot }) => slot.outcome === outcome).map(({ ticket }) => ticket);
   const stillHeld = whose('held');

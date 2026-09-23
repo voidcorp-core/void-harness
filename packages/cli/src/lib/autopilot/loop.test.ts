@@ -299,6 +299,10 @@ function decide(
     protectedPaths?: readonly string[];
     changed?: readonly string[];
     unrecorded?: readonly string[];
+    /** The head `autopilot arm` recorded per ticket; the head it was armed on otherwise. */
+    armedOn?: Readonly<Record<string, string>>;
+    /** Tickets whose armed pull request no `autopilot arm` recorded. */
+    unarmed?: readonly string[];
   } = {},
 ): readonly LoopAction[] {
   const input: LoopInput = {
@@ -314,8 +318,25 @@ function decide(
       ...(options.changed === undefined ? {} : { changed: options.changed }),
       ...(options.unrecorded === undefined ? {} : { unrecorded: options.unrecorded }),
     }),
+    armed: armedRecords(spec, options.pulls ?? [], options),
   };
   return decideLoop(input).actions;
+}
+
+/** What `autopilot arm` recorded: by default, each armed pull request on the head it has now. */
+function armedRecords(
+  spec: TrackerSpec,
+  pulls: readonly PullRequestObservation[],
+  options: { armedOn?: Readonly<Record<string, string>>; unarmed?: readonly string[] },
+): LoopInput['armed'] {
+  const armed = new Map<string, { pullRequest: number; headSha: string }>();
+  for (const ticket of spec.tickets) {
+    const observed = pulls.find((candidate) => candidate.number === ticket.pullRequest);
+    if (observed === undefined || options.unarmed?.includes(ticket.id) === true) continue;
+    const headSha = options.armedOn?.[ticket.id] ?? observed.headSha;
+    armed.set(ticket.id, { pullRequest: observed.number, headSha });
+  }
+  return armed;
 }
 
 const assigned = (actions: readonly LoopAction[]): string[] =>
@@ -402,6 +423,7 @@ describe('slot assignment', () => {
       github: github([]),
       signal: 'none',
       sharedState: sharedState({ tickets }),
+      armed: new Map(),
     });
     expect(assigned(decision.actions)).toEqual(['DEV-2']);
     expect(decision.refusals.join('\n')).toMatch(/DEV-1.*ticket readiness refused: reason/);
@@ -416,6 +438,7 @@ describe('slot assignment', () => {
       github: github([]),
       signal: 'none',
       sharedState: sharedState({ tickets }),
+      armed: new Map(),
     });
     expect(decision.actions).toEqual([]);
     expect(decision.refusals.join('\n')).toMatch(/curator queue refused/);
@@ -552,6 +575,7 @@ describe('a held ticket and its pull request', () => {
       github: github([pull(reviewed('DEV-1', 11))]),
       signal: 'none',
       sharedState: sharedState(spec),
+      armed: new Map(),
     });
     expect(actionFor(decision.actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
   });
@@ -570,6 +594,7 @@ describe('a held ticket and its pull request', () => {
       github: onMain,
       signal: 'none',
       sharedState: sharedState(spec),
+      armed: new Map(),
     });
     expect(actionFor(decision.actions, 'DEV-1')).toMatchObject({
       kind: 'mark-human-wait',
@@ -720,6 +745,47 @@ describe('a held ticket and its pull request', () => {
   it('waits once the auto-merge is armed or the pull request is queued', () => {
     expect(one({}, { autoMerge: true })).toMatchObject({ kind: 'wait', reason: 'merging' });
     expect(one({}, { autoMerge: true, queue: 'queued' })).toMatchObject({ kind: 'wait', reason: 'merging' });
+  });
+
+  describe('an armed auto-merge', () => {
+    // GitHub keeps an auto-merge armed across a push by an account with write
+    // access, and the required check trusts the status alone: a worker could
+    // push after the merge is armed, then post a forged status on its new head.
+    // The loop disarms whatever it can no longer vouch for.
+    const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    const armedPull = (spec: Partial<PullSpec> = {}) =>
+      pull({ ...reviewed('DEV-1', 11), autoMerge: true, ...spec });
+    const forDev1 = (actions: readonly LoopAction[]) =>
+      actions.filter((action) => 'ticketId' in action && action.ticketId === 'DEV-1');
+    const disarm = { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: headOf(11) };
+
+    it('leaves it alone on the head it was armed on, while the seal proves its verdict', () => {
+      expect(forDev1(decide({ tickets }, { pulls: [armedPull()] }))).toEqual([
+        { kind: 'wait', ticketId: 'DEV-1', reason: 'merging' },
+      ]);
+    });
+
+    it('disarms it once the head moved, then hands the ticket back to its worker', () => {
+      const actions = decide({ tickets }, { pulls: [armedPull()], armedOn: { 'DEV-1': 'b'.repeat(40) } });
+      expect(forDev1(actions)).toEqual([
+        { ...disarm, armedSha: 'b'.repeat(40) },
+        { kind: 'hand-back-to-worker', ticketId: 'DEV-1', reason: 'head-moved-after-arming', pullRequest: 11 },
+      ]);
+    });
+
+    it('disarms it when the armed head carries no verdict the seal proves, then asks a human', () => {
+      for (const spec of [{ verdict: undefined }, { review: 'FAILURE' as const, verdict: undefined }]) {
+        const [first, second] = forDev1(decide({ tickets }, { pulls: [armedPull(spec)] }));
+        expect(first).toEqual({ ...disarm, armedSha: headOf(11) });
+        expect(second).toMatchObject({ kind: 'mark-human-wait', reason: 'armed-verdict-unproven' });
+      }
+    });
+
+    it('disarms one armed outside `autopilot arm`, whose head nobody recorded, then asks a human', () => {
+      const [first, second] = forDev1(decide({ tickets }, { pulls: [armedPull()], unarmed: ['DEV-1'] }));
+      expect(first).toEqual(disarm);
+      expect(second).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    });
   });
 
   it('re-queues an ejected head that still passes, twice at most, then asks a human', () => {
@@ -939,6 +1005,7 @@ describe('the human-wait label', () => {
     github: github(pulls),
     signal: 'none',
     sharedState: sharedState({ tickets }),
+    armed: new Map(),
   });
 
   it('names one label for every ticket handed to a person, the declared one first', () => {
@@ -974,6 +1041,7 @@ describe('shared repository state', () => {
       github: github(pulls),
       signal: 'none',
       sharedState: { ...sharedState({ tickets }), current: { ...SHARED_READING, config } },
+      armed: new Map(),
     });
     const own = `${SHARED_READING.config}branch.work/DEV-1.remote=origin\n`;
     expect(actionFor(decideLoop(input(own)).actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
@@ -992,6 +1060,7 @@ describe('shared repository state', () => {
       github: github(pulls),
       signal: 'none',
       sharedState: sharedState({ tickets }, { since }),
+      armed: new Map(),
     };
     expect(actionFor(decideLoop(input).actions, 'DEV-1')).toMatchObject({ kind: 'enable-auto-merge' });
     const moved = { ...input, sharedState: sharedState({ tickets }, { since: 'branch.develop.merge=refs/heads/work/DEV-2\n' }) };

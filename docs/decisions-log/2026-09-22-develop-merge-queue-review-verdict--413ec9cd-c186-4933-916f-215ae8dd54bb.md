@@ -71,6 +71,16 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   and the proof matches; a digest someone else published answers a nonce the
   loop never drew. A worker that never saw the nonce cannot make a verdict the
   loop believes, whether or not the hook read its command.
+- The loop disarms what it can no longer vouch for. GitHub exposes no armed
+  head and keeps an auto-merge armed across a push by anyone with write
+  access, so `autopilot arm` records the head in
+  `.void/machine/autopilot/armed/`, arms with `--match-head-commit` on that
+  head and reads GitHub back, disarming at once if the head moved meanwhile.
+  On every tick, an armed pull request whose head differs from the record is
+  disarmed and handed back to its worker, the new head being unreviewed; one
+  whose armed head the seal no longer proves a clean verdict on, or whose
+  arming nobody recorded, is disarmed and handed to a human.
+  `autopilot disarm` reads GitHub back and fails while the auto-merge stays.
 - A PreToolUse hook, `review-verdict-write`, wired on Claude and Codex, refuses
   a shell command that writes a `void/independent-review` status (`gh api` or
   curl to `/statuses/`) or posts a comment carrying the verdict block (`gh pr
@@ -227,13 +237,14 @@ Negative:
   other. The orchestrator, which draws the seal, gives it to the reviewer only.
 - The seal binds the loop, not GitHub. The required `independent-review` job
   and the promotion audit cannot hold the nonce, so they still trust the
-  status alone. The loop arms auto-merge only on a head whose verdict it
-  believes, with `--match-head-commit`; but GitHub keeps an armed auto-merge
-  across a later push by an account with write access, so a push after arming
-  followed by a forged status on the new head satisfies the required check
-  ([GitHub disables it only on a push by someone without write permission](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request)).
-  Disarming an auto-merge whose head no longer carries a believed verdict is
-  not done yet.
+  status alone. GitHub keeps an armed auto-merge across a later push by an
+  account with write access
+  ([it disables it only on a push by someone without write permission](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request)),
+  so the loop disarms a moved or unproven head on its next tick. Between that
+  push and that tick, a forged status on the new head can still satisfy the
+  required check and merge: the window is one tick of the loop plus the time
+  the checks take, not closed. Closing it needs GitHub itself to refuse, such
+  as a required check that can verify the proof.
 - The back-merge exemption rests on what `back-merge.yml` produces by
   construction, not on a setting of the repository: no rule on
   `chore/back-merge-main` is needed. If that workflow ever changes how it

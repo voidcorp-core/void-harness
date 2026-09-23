@@ -27,8 +27,9 @@ describe('the autopilot skill describes the gate the loop applies', () => {
   // The kernel returns `enable-auto-merge` with the head SHA it judged; arming
   // the merge on anything broader would merge a commit nobody reviewed.
   it('arms a merge only on the head SHA the kernel names, never around protection', () => {
-    expect(FLAT).toMatch(/--auto --match-head-commit <headSha>/);
+    expect(FLAT).toMatch(/autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head/);
     expect(FLAT).toMatch(/never `--admin`/);
+    expect(FLAT).toMatch(/autopilot disarm --pr <n>`, before the action that follows it/);
   });
 
   it('names the merge queue and the required review check that gate the merge', () => {

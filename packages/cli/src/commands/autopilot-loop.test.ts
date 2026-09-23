@@ -64,7 +64,7 @@ function project(): string {
  * With a nonce, it carries the seal's digest and the verdict's proof as the
  * loop and `autopilot verdict` post them; without, only a comment and a status.
  */
-function reviewedPull(nonce?: string): string {
+function reviewedPull(nonce?: string, options: { head?: string; armed?: boolean } = {}): string {
   const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
@@ -75,6 +75,8 @@ function reviewedPull(nonce?: string): string {
     headRefName: 'work/DEV-1',
     baseRefName: 'develop',
     mergeStateStatus: 'BLOCKED',
+    ...(options.head === undefined ? {} : { headRefOid: options.head }),
+    ...(options.armed === true ? { autoMergeRequest: armedRequest() } : {}),
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
     comments: [
       ...comments,
@@ -83,6 +85,11 @@ function reviewedPull(nonce?: string): string {
     ],
     changedFiles: 1,
   });
+}
+
+/** The auto-merge request of a real armed pull request, as gh reports it. */
+function armedRequest(): unknown {
+  return (JSON.parse(fixture('pr-view-auto-merge.json')) as { autoMergeRequest: unknown }).autoMergeRequest;
 }
 
 /** The one file pull request 11 changes, on the shape REST reports it. */
@@ -433,6 +440,89 @@ describe('autopilot seal', () => {
     const nameless = runAutopilotCommand(['seal', '--ticket', '../x'], '', context(root));
     expect(nameless.exitCode).toBe(2);
     expect(runAutopilotCommand(['seal'], '', context(root)).exitCode).toBe(2);
+  });
+});
+
+describe('autopilot arm and disarm', () => {
+  // GitHub exposes no armed head and keeps an auto-merge armed across a push by
+  // anyone with write access, so the loop records the head it armed and the
+  // kernel disarms what it can no longer vouch for.
+  const armedPath = (root: string) => join(root, '.void', 'machine', 'autopilot', 'armed', 'DEV-1.json');
+
+  /** A gh answering each `pr view` with the next view given, and recording every call. */
+  function sequence(...views: string[]) {
+    const calls: string[][] = [];
+    const run = (args: readonly string[]): string => {
+      calls.push([...args]);
+      if (args[0] === 'pr' && args[1] === 'view') return views.shift() ?? '';
+      return '';
+    };
+    return { run, calls, writes: () => calls.filter((call) => !(call[0] === 'pr' && call[1] === 'view')) };
+  }
+
+  it('records the head, arms on exactly that head, and checks GitHub armed it', () => {
+    const root = project();
+    const gh = sequence(reviewedPull(), reviewedPull(undefined, { armed: true }));
+    const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD, '--json'];
+    const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(gh.writes()).toEqual([['pr', 'merge', '11', '--auto', '--match-head-commit', HEAD]]);
+    expect(JSON.parse(readFileSync(armedPath(root), 'utf8'))).toEqual({ pullRequest: 11, headSha: HEAD });
+  });
+
+  it('arms nothing on a head the pull request has moved past', () => {
+    const root = project();
+    const gh = sequence(reviewedPull(undefined, { head: 'b'.repeat(40) }));
+    const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
+    const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
+    expect(result.exitCode).toBe(2);
+    expect(gh.writes()).toEqual([]);
+    expect(existsSync(armedPath(root))).toBe(false);
+  });
+
+  it('fails when GitHub did not arm it, and disarms at once if the head moved meanwhile', () => {
+    const root = project();
+    const unarmed = sequence(reviewedPull(), reviewedPull());
+    const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
+    expect(runAutopilotCommand(argv, '', { ...context(root), gh: unarmed.run }).stderr).toMatch(/not armed/);
+    const moved = sequence(reviewedPull(), reviewedPull(undefined, { armed: true, head: 'b'.repeat(40) }));
+    const result = runAutopilotCommand(argv, '', { ...context(root), gh: moved.run });
+    expect(result.exitCode).toBe(2);
+    expect(moved.writes().at(-1)).toEqual(['pr', 'merge', '11', '--disable-auto']);
+  });
+
+  it('disarms, then checks GitHub no longer holds the auto-merge', () => {
+    const root = project();
+    const gh = sequence(reviewedPull(undefined, { armed: true }), reviewedPull());
+    const result = runAutopilotCommand(['disarm', '--pr', '11', '--json'], '', { ...context(root), gh: gh.run });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(gh.writes()).toEqual([['pr', 'merge', '11', '--disable-auto']]);
+    expect(JSON.parse(result.stdout)).toMatchObject({ pullRequest: 11, disarmed: true });
+    const idle = sequence(reviewedPull());
+    expect(runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: idle.run }).exitCode).toBe(0);
+    expect(idle.writes()).toEqual([]);
+    const stuck = sequence(reviewedPull(undefined, { armed: true }), reviewedPull(undefined, { armed: true }));
+    const refused = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: stuck.run });
+    expect(refused.exitCode).toBe(2);
+    expect(refused.stderr).toMatch(/still armed/);
+  });
+
+  it('has next disarm and hand back a pull request pushed after it was armed', () => {
+    const root = project();
+    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
+    const nonce = drawSeal(root);
+    const arming = sequence(reviewedPull(nonce), reviewedPull(nonce, { armed: true }));
+    const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
+    expect(runAutopilotCommand(argv, '', { ...context(root), gh: arming.run }).exitCode).toBe(0);
+    const moved = (args: readonly string[]): string =>
+      args.join(' ').includes('pr view 11')
+        ? reviewedPull(nonce, { armed: true, head: 'b'.repeat(40) })
+        : answer(args, nonce);
+    const { decision } = next(root, trackerJson([heldTicket], []), moved);
+    expect(decision.actions.slice(0, 2)).toEqual([
+      { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: 'b'.repeat(40), armedSha: HEAD },
+      { kind: 'hand-back-to-worker', ticketId: 'DEV-1', reason: 'head-moved-after-arming', pullRequest: 11 },
+    ]);
   });
 });
 

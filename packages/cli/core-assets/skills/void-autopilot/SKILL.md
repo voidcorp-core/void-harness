@@ -144,7 +144,8 @@ Act on each returned action, then ask again:
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
 | `mark-human-wait` | record it in `recent` with its `reason`, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
-| `enable-auto-merge` | `gh pr merge <n> --auto --match-head-commit <headSha>` on that pull request, never `--admin` |
+| `enable-auto-merge` | `void-harness autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head and reads GitHub back; never `gh pr merge --auto` by hand, never `--admin` |
+| `disable-auto-merge` | `void-harness autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it fails while GitHub still shows the auto-merge |
 | `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head; twice at most per run, then `review-check-reruns-exhausted` |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
@@ -174,6 +175,14 @@ cannot re-record the state it left as the state it found. It is compared by the 
 pushes, with `autopilot fingerprint --after <ticket>`, and again by the kernel before it arms a
 merge. A changed or missing baseline sends the ticket to a human, unpublished; only that person
 deletes the record.
+
+**Disarming.** GitHub keeps an auto-merge armed across a push by anyone with write access, shows
+no armed head, and its required check trusts the status alone. So `arm` records the head it armed,
+and `next` returns `disable-auto-merge` when it can no longer vouch for an armed pull request: its
+head moved since `arm` recorded it (then `hand-back-to-worker`, `head-moved-after-arming`: the new
+head is unreviewed), the seal no longer proves a clean verdict on the armed head (then
+`mark-human-wait`, `armed-verdict-unproven`), or nothing recorded the arming (then
+`mark-human-wait`, `ambiguous-state`). Disarm first, always.
 
 **The seal.** `autopilot seal --ticket <id>` draws the ticket's nonce once, into
 `.void/machine/autopilot/seals/<id>.nonce` of this checkout (mode 0600, out of every worktree), and

@@ -20,7 +20,7 @@ void-harness autopilot — deterministic planning for the attended cluster mode.
 
 Invoked by the /void-autopilot skill, which hydrates observations from the
 tracker and pipes them in. The CLI computes; it never contacts Linear and spawns
-no agent. Only the continuous loop commands (next, fingerprint, seal, verdict) reach
+no agent. Only the continuous loop commands (next, fingerprint, seal, arm, disarm, verdict) reach
 GitHub through gh and the shared Git state themselves, because GitHub is the
 authority on a merge and the shared state is what a unit must not have touched.
 
@@ -39,13 +39,15 @@ Continuous loop:
   void-harness autopilot stop --drain | --now [--json]
   void-harness autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
   void-harness autopilot seal --ticket <id> [--pr <number>] [--json]
+  void-harness autopilot arm --ticket <id> --pr <number> --head <sha> [--json]
+  void-harness autopilot disarm --pr <number> [--json]
   echo '<ReviewVerdict>' | void-harness autopilot verdict --pr <number> --nonce <hex> [--json]
   echo '<ConflictClass>'         | void-harness autopilot judgment conflict-class
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,
-mark-human-wait, enable-auto-merge, rerun-review-check, requeue, drain, freeze,
-recap, with the humanWaitLabel a mark-human-wait sets (autopilot.humanWaitLabel,
+mark-human-wait, enable-auto-merge, disable-auto-merge, rerun-review-check,
+requeue, drain, freeze, recap, with the humanWaitLabel a mark-human-wait sets (autopilot.humanWaitLabel,
 default void:human-wait); humanWait on stdin is that label's presence. It never
 acts on them.
 stop writes .void/machine/autopilot/stop, read before every assignment; delete
@@ -66,7 +68,12 @@ and re-runs the independent-review job when its completed run disagrees. next
 believes a verdict comment only when that status on the same head agrees with it
 and its proof answers the seal drawn for the ticket. The seal guards against a
 mistake or an injected command, not against a reader of the orchestration
-checkout with the same rights. judgment admits a conflict class,
+checkout with the same rights. arm answers enable-auto-merge: it records the head
+in .void/machine/autopilot/armed/<id>.json, arms on exactly that head, and reads
+GitHub back. disarm answers disable-auto-merge, which next returns when an armed
+pull request's head moved since arm recorded it (then hand-back-to-worker), when
+the seal no longer proves the verdict on the armed head, or when no arm recorded
+it (then mark-human-wait); it reads GitHub back and fails while still armed. judgment admits a conflict class,
 bound to its headSha, and prints the comment block to post; next reads the latest
 one back from GitHub, so no session has to remember it.
 
@@ -160,6 +167,8 @@ export const SUBCOMMANDS = Object.freeze({
   stop: 'no-stdin',
   fingerprint: 'no-stdin',
   seal: 'no-stdin',
+  arm: 'no-stdin',
+  disarm: 'no-stdin',
   judgment: 'reads-stdin',
   verdict: 'reads-stdin',
 } as const);

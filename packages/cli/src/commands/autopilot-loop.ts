@@ -1,4 +1,4 @@
-// `autopilot next | stop | fingerprint | seal | verdict | judgment`: the continuous
+// `autopilot next | stop | fingerprint | seal | arm | disarm | verdict | judgment`: the continuous
 // loop's operator surface.
 //
 // Unlike the cluster subcommands, `next` observes GitHub and git itself. GitHub
@@ -8,10 +8,11 @@
 // never decides a merge. The command judges nothing: it admits what it is given
 // and returns the kernel's actions.
 //
-// Local state is three things under `.void/machine/autopilot/`, all written only
+// Local state is four things under `.void/machine/autopilot/`, all written only
 // by an explicit command: the stop signal, one digest-only fingerprint per
-// ticket, recorded before its unit begins, and one review seal per ticket,
-// drawn at its assignment, which only the orchestrator and the reviewer read.
+// ticket, recorded before its unit begins, one review seal per ticket, drawn
+// at its assignment, which only the orchestrator and the reviewer read, and
+// the head each ticket's auto-merge was armed on, which GitHub does not keep.
 
 import {
   existsSync,
@@ -23,6 +24,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { z } from 'zod';
 import { autopilotFailure } from '../lib/autopilot/errors.js';
 import {
   JUDGMENT_KINDS,
@@ -32,6 +34,7 @@ import {
 import { admitReviewVerdict, type ReviewVerdict, ticketIdSchema } from '../lib/autopilot/judgments.js';
 import {
   admitLoopTracker,
+  type ArmedRecord,
   decideLoop,
   type LoopAction,
   type LoopDecision,
@@ -91,6 +94,12 @@ const LOOP_DIRECTORY = join('.void', 'machine', 'autopilot');
 export const STOP_SIGNAL_PATH = join(LOOP_DIRECTORY, 'stop');
 const FINGERPRINT_DIRECTORY = join(LOOP_DIRECTORY, 'fingerprints');
 const SEAL_DIRECTORY = join(LOOP_DIRECTORY, 'seals');
+const ARMED_DIRECTORY = join(LOOP_DIRECTORY, 'armed');
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const armedRecordSchema = z.strictObject({
+  pullRequest: z.int().positive(),
+  headSha: z.string().regex(SHA_PATTERN),
+});
 
 function runner<T>(value: T | undefined, name: string): T {
   if (value !== undefined) return value;
@@ -154,6 +163,30 @@ function fingerprintPath(root: string, ticket: string): string {
 
 function sealPath(root: string, ticket: string): string {
   return ticketFile(root, SEAL_DIRECTORY, ticket, '.nonce');
+}
+
+function armedPath(root: string, ticket: string): string {
+  return ticketFile(root, ARMED_DIRECTORY, ticket, '.json');
+}
+
+/** The head a ticket's auto-merge was armed on, or undefined; a damaged record is refused. */
+function recordedArm(root: string, ticket: string): ArmedRecord | undefined {
+  const text = readIfPresent(armedPath(root, ticket));
+  if (text === undefined) return undefined;
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    value = undefined;
+  }
+  const parsed = armedRecordSchema.safeParse(value);
+  if (parsed.success) return parsed.data;
+  throw autopilotFailure(
+    'AUTOPILOT_INPUT',
+    `the armed head recorded for ${ticket} is unreadable`,
+    'a record is the pull request and the head `autopilot arm` armed it on',
+    'disarm the pull request by hand and let the loop arm it again',
+  );
 }
 
 /** The nonce drawn for a ticket, or undefined when none was; a damaged one is refused. */
@@ -238,6 +271,11 @@ function renderAction(action: LoopAction, humanWaitLabel: string): string {
       );
     case 'enable-auto-merge':
       return `enable-auto-merge ${action.ticketId}: #${action.pullRequest} at ${action.headSha}`;
+    case 'disable-auto-merge':
+      return (
+        `disable-auto-merge ${action.ticketId}: #${action.pullRequest} at ${action.headSha},` +
+        ` armed on ${action.armedSha ?? 'an unrecorded head'}`
+      );
     case 'rerun-review-check':
       return `rerun-review-check ${action.ticketId}: #${action.pullRequest}, run ${action.run}`;
     case 'requeue':
@@ -278,7 +316,8 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
     const pullRequests = new Map<number, PullRequestObservation>();
     const github = { base: program.autopilot.base, mergeQueue: false, pullRequests };
     const sharedState = { current, before: new Map<string, SharedFingerprint>() };
-    const decision = decideLoop({ program, tracker, github, signal, sharedState });
+    const armed = new Map<string, ArmedRecord>();
+    const decision = decideLoop({ program, tracker, github, signal, sharedState, armed });
     return { value: decision, human: renderDecision(decision) };
   }
   const gh = runner(context.gh, 'gh');
@@ -295,8 +334,13 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
     const recorded = recordedFingerprint(context.root, ticket.id);
     if (recorded !== undefined) before.set(ticket.id, recorded);
   }
+  const armed = new Map<string, ArmedRecord>();
+  for (const ticket of tracker.tickets) {
+    const record = recordedArm(context.root, ticket.id);
+    if (record !== undefined) armed.set(ticket.id, record);
+  }
   const sharedState = { current, before };
-  const decision = decideLoop({ program, tracker, github, signal, sharedState });
+  const decision = decideLoop({ program, tracker, github, signal, sharedState, armed });
   return { value: decision, human: renderDecision(decision) };
 }
 
@@ -448,6 +492,92 @@ export function sealCommand(argv: readonly string[], context: LoopRunners): Loop
   return {
     value: { ticketId: ticket, pullRequest: number, digest, posted: !published },
     human: `#${number} ${published ? 'already carries' : 'now carries'} the seal of ${ticket}\n`,
+  };
+}
+
+function viewOf(gh: (args: readonly string[]) => string, number: number) {
+  return parsePullRequestView(gh(['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')]));
+}
+
+/**
+ * `autopilot arm --ticket <id> --pr <n> --head <sha>`: the kernel's
+ * `enable-auto-merge`. GitHub keeps no armed head, so it is recorded first,
+ * then the merge is armed on exactly that head, then GitHub is read back: an
+ * auto-merge it does not show is a failure, and one whose head moved while
+ * arming is disarmed at once. The kernel disarms later whatever this record
+ * no longer vouches for.
+ */
+export function armCommand(argv: readonly string[], context: LoopRunners): LoopCommandOutput {
+  const ticket = flagValue(argv, '--ticket');
+  const head = flagValue(argv, '--head');
+  if (ticket === undefined || head === undefined || !SHA_PATTERN.test(head)) {
+    throw autopilotFailure(
+      'AUTOPILOT_USAGE',
+      'autopilot arm needs the ticket, the pull request and the full head SHA the kernel named',
+      ticket === undefined ? '--ticket was not given' : '--head is missing or not a full SHA',
+      'copy them from the `enable-auto-merge` action: `--ticket <id> --pr <n> --head <sha>`',
+    );
+  }
+  const number = pullRequestNumber(argv, 'autopilot arm');
+  const path = armedPath(context.root, ticket);
+  const gh = runner(context.gh, 'gh');
+  const before = viewOf(gh, number);
+  if (before.state !== 'open' || before.headSha !== head) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      `#${number} is not the pull request the kernel approved`,
+      before.state !== 'open' ? `#${number} is ${before.state}` : `its head is ${before.headSha}, not ${head}`,
+      'ask `autopilot next` again; it arms only the head it just read',
+    );
+  }
+  writeAtomically(path, `${JSON.stringify({ pullRequest: number, headSha: head })}\n`);
+  gh(['pr', 'merge', String(number), '--auto', '--match-head-commit', head]);
+  const after = viewOf(gh, number);
+  if (after.autoMerge && after.headSha !== head) {
+    gh(['pr', 'merge', String(number), '--disable-auto']);
+  }
+  if (!after.autoMerge || after.headSha !== head) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      `#${number} is not armed on ${head}`,
+      after.autoMerge ? `its head moved to ${after.headSha} while arming; it was disarmed` : 'GitHub shows no auto-merge',
+      'ask `autopilot next` again before arming anything',
+    );
+  }
+  return {
+    value: { ticketId: ticket, pullRequest: number, headSha: head },
+    human: `#${number} armed on ${head}\n`,
+  };
+}
+
+/**
+ * `autopilot disarm --pr <n>`: the kernel's `disable-auto-merge`. It disarms,
+ * then reads GitHub back and fails while the auto-merge is still there. A pull
+ * request already disarmed is left alone.
+ */
+export function disarmCommand(argv: readonly string[], context: LoopRunners): LoopCommandOutput {
+  const number = pullRequestNumber(argv, 'autopilot disarm');
+  const gh = runner(context.gh, 'gh');
+  const before = viewOf(gh, number);
+  if (!before.autoMerge) {
+    return {
+      value: { pullRequest: number, headSha: before.headSha, disarmed: false },
+      human: `#${number} holds no auto-merge\n`,
+    };
+  }
+  gh(['pr', 'merge', String(number), '--disable-auto']);
+  const after = viewOf(gh, number);
+  if (after.autoMerge) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      `#${number} is still armed`,
+      'GitHub still shows an auto-merge request after --disable-auto',
+      'disarm it by hand in GitHub, then ask `autopilot next` again',
+    );
+  }
+  return {
+    value: { pullRequest: number, headSha: after.headSha, disarmed: true },
+    human: `#${number} disarmed at ${after.headSha}\n`,
   };
 }
 
