@@ -6,6 +6,11 @@
 // Target: ./core-assets/claude/
 //
 // Runs during `prepack` so npm pack / npm publish bundles the assets.
+//
+// An optional first argument names another target directory. The copy empties
+// its target before refilling it, so a test must copy into a directory of its
+// own: the CLI reads ./core-assets first, and a concurrent test would read it
+// half-built.
 
 import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -13,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SOURCE = resolve(HERE, '..', '..', 'core');
-const TARGET = resolve(HERE, '..', 'core-assets');
+const TARGET = resolve(process.argv[2] ?? resolve(HERE, '..', 'core-assets'));
 
 try {
   await stat(SOURCE);
