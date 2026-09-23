@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderJudgmentComment } from '../lib/autopilot/judgment-comment.js';
 import { gitIn } from '../lib/autopilot/loop-observe.js';
+import { renderProof, renderSeal, sealDigest, verdictProof } from '../lib/autopilot/review-seal.js';
 import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
 
 // The loop commands run in process against a real scratch repository (git is
@@ -58,8 +59,12 @@ function project(): string {
   return root;
 }
 
-/** Pull request 11, open on `work/DEV-1` against develop, reviewed on its head. */
-function reviewedPull(): string {
+/**
+ * Pull request 11, open on `work/DEV-1` against develop, reviewed on its head.
+ * With a nonce, it carries the seal's digest and the verdict's proof as the
+ * loop and `autopilot verdict` post them; without, only a comment and a status.
+ */
+function reviewedPull(nonce?: string): string {
   const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
@@ -71,7 +76,11 @@ function reviewedPull(): string {
     baseRefName: 'develop',
     mergeStateStatus: 'BLOCKED',
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
-    comments: [...comments, { ...comments[0], body: verdictComment() }],
+    comments: [
+      ...comments,
+      ...(nonce === undefined ? [] : [{ ...comments[0], body: renderSeal(sealDigest(nonce)) }]),
+      { ...comments[0], body: verdictComment(nonce) },
+    ],
     changedFiles: 1,
   });
 }
@@ -82,15 +91,24 @@ function pullFiles(): string {
   return JSON.stringify([{ ...entry, filename: 'packages/dev-1/index.ts', status: 'modified' }]);
 }
 
-/** The reviewer's comment, as `autopilot verdict` posts it. */
-function verdictComment(): string {
-  return renderJudgmentComment('review-verdict', cleanVerdict);
+/** The reviewer's comment, as `autopilot verdict` posts it with the ticket's nonce. */
+function verdictComment(nonce?: string): string {
+  const block = renderJudgmentComment('review-verdict', cleanVerdict);
+  if (nonce === undefined) return block;
+  const proof = verdictProof(nonce, { pullRequest: 11, headSha: HEAD, state: 'success' });
+  return `${block}${renderProof(proof)}\n`;
 }
 
-function gh(args: readonly string[]): string {
+const gh = ghFor(undefined);
+
+function ghFor(nonce: string | undefined) {
+  return (args: readonly string[]): string => answer(args, nonce);
+}
+
+function answer(args: readonly string[], nonce: string | undefined): string {
   const line = args.join(' ');
   if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
-  if (line.includes('pr view 11')) return reviewedPull();
+  if (line.includes('pr view 11')) return reviewedPull(nonce);
   if (line.includes('pulls/11/files')) return pullFiles();
   if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
   if (line.includes('timelineItems')) return fixture('timeline-commit-then-ejection.json').replace(
@@ -140,6 +158,13 @@ const HEAD = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
 const cleanVerdict = { headSha: HEAD, round: 1, blocking: [], advisory: [] };
 const queuedTicket = { id: 'DEV-2', status: 'Todo', humanWait: false, readiness: ready };
 
+/** Draw the seal of a ticket as the orchestrator does at assignment; its nonce. */
+function drawSeal(root: string, ticket = 'DEV-1'): string {
+  const result = runAutopilotCommand(['seal', '--ticket', ticket, '--json'], '', context(root));
+  expect(result.exitCode, result.stderr).toBe(0);
+  return (JSON.parse(result.stdout) as { nonce: string }).nonce;
+}
+
 function next(root: string, stdin: string, runner?: (args: readonly string[]) => string) {
   const result = runAutopilotCommand(['next', '--json'], stdin, context(root, runner));
   return { ...result, decision: result.exitCode === 0 ? JSON.parse(result.stdout) : undefined };
@@ -149,7 +174,8 @@ describe('autopilot next', () => {
   it('seats the head of the queue and arms the merge of a reviewed unit', () => {
     const root = project();
     expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
-    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']));
+    const nonce = drawSeal(root);
+    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), ghFor(nonce));
     expect(decision.actions).toEqual([
       {
         kind: 'enable-auto-merge',
@@ -164,13 +190,26 @@ describe('autopilot next', () => {
   it('withholds the merge of a unit that changed the shared Git state', () => {
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
+    const nonce = drawSeal(root);
     git(root, 'tag', 'stray');
-    const { decision } = next(root, trackerJson([heldTicket], []));
+    const { decision } = next(root, trackerJson([heldTicket], []), ghFor(nonce));
     expect(decision.actions[0]).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'shared-state-changed',
       detail: expect.stringMatching(/tags/),
     });
+  });
+
+  it('arms nothing on a verdict and a status its seal does not prove', () => {
+    // What a worker holding the same credentials can post by hand: the comment
+    // and a success status on the head, without the reviewer's nonce.
+    const root = project();
+    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
+    drawSeal(root);
+    const { decision } = next(root, trackerJson([heldTicket], []));
+    expect(decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    const forged = next(root, trackerJson([heldTicket], []), ghFor('c3'.repeat(32))).decision;
+    expect(forged.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
   });
 
   it('refuses a tracker observation with the field at fault', () => {
@@ -221,7 +260,11 @@ describe('autopilot verdict', () => {
   // the pull request has now, posted as a comment and a status together, and
   // the job that enforces it re-run when it disagrees.
   const RUN = 35694132291;
-  function pullView(options: { head?: string; state?: string; reviewJob?: string } = {}): string {
+  const NONCE = 'a1'.repeat(32);
+
+  function pullView(
+    options: { head?: string; state?: string; reviewJob?: string; sealed?: boolean } = {},
+  ): string {
     const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
     const rollup = view.statusCheckRollup as Record<string, unknown>[];
     const [firstRun] = rollup;
@@ -236,7 +279,9 @@ describe('autopilot verdict', () => {
       headRefOid: options.head ?? HEAD,
       baseRefName: 'develop',
       statusCheckRollup: [...rollup, ...job],
-      comments,
+      comments: options.sealed === false
+        ? comments
+        : [...comments, { ...(comments[0] as Record<string, unknown>), body: renderSeal(sealDigest(NONCE)) }],
       changedFiles,
     });
   }
@@ -251,7 +296,12 @@ describe('autopilot verdict', () => {
     return { run, calls };
   }
 
-  function verdict(root: string, stdin: unknown, view: string, argv: readonly string[] = ['--pr', '11']) {
+  function verdict(
+    root: string,
+    stdin: unknown,
+    view: string,
+    argv: readonly string[] = ['--pr', '11', '--nonce', NONCE],
+  ) {
     const { run, calls } = recorder(view);
     const result = runAutopilotCommand(['verdict', ...argv, '--json'], JSON.stringify(stdin), context(root, run));
     return { result, calls, writes: calls.filter((call) => !(call[0] === 'pr' && call[1] === 'view')) };
@@ -264,7 +314,10 @@ describe('autopilot verdict', () => {
     const [comment, status, rerun] = writes;
     expect(comment?.slice(0, 2)).toEqual(['api', 'repos/{owner}/{repo}/issues/11/comments']);
     const body = comment?.find((arg) => arg.startsWith('body=')) ?? '';
-    expect(body).toBe(`body=${renderJudgmentComment('review-verdict', cleanVerdict)}`);
+    const proof = verdictProof(NONCE, { pullRequest: 11, headSha: HEAD, state: 'success' });
+    expect(body).toBe(`body=${renderJudgmentComment('review-verdict', cleanVerdict)}${renderProof(proof)}\n`);
+    // The proof is keyed by the nonce and never carries it.
+    expect(writes.flat().some((arg) => arg.includes(NONCE))).toBe(false);
     expect(status?.slice(0, 2)).toEqual(['api', `repos/{owner}/{repo}/statuses/${HEAD}`]);
     expect(status).toEqual(expect.arrayContaining(['state=success', 'context=void/independent-review']));
     expect(rerun).toEqual(['run', 'rerun', String(RUN), '--failed']);
@@ -295,6 +348,26 @@ describe('autopilot verdict', () => {
     expect(writes).toEqual([]);
   });
 
+  it('writes nothing with a nonce whose digest the pull request does not carry', () => {
+    const unsealed = verdict(project(), cleanVerdict, pullView({ sealed: false }));
+    expect(unsealed.result.exitCode).toBe(2);
+    expect(unsealed.result.stderr).toMatch(/seal/);
+    expect(unsealed.writes).toEqual([]);
+    const other = verdict(project(), cleanVerdict, pullView(), ['--pr', '11', '--nonce', 'c3'.repeat(32)]);
+    expect(other.result.exitCode).toBe(2);
+    expect(other.writes).toEqual([]);
+  });
+
+  it('asks GitHub nothing without a nonce, or with one that was never drawn', () => {
+    const missing = verdict(project(), cleanVerdict, pullView(), ['--pr', '11']);
+    expect(missing.result.exitCode).toBe(2);
+    expect(missing.result.stderr).toMatch(/--nonce/);
+    expect(missing.calls).toEqual([]);
+    const malformed = verdict(project(), cleanVerdict, pullView(), ['--pr', '11', '--nonce', 'xyz']);
+    expect(malformed.result.exitCode).toBe(2);
+    expect(malformed.calls).toEqual([]);
+  });
+
   it('asks GitHub nothing for a verdict it refuses, or without the pull request', () => {
     const refused = verdict(project(), { ...cleanVerdict, round: 3 }, pullView());
     expect(refused.result.exitCode).toBe(2);
@@ -304,6 +377,62 @@ describe('autopilot verdict', () => {
     expect(unnamed.result.exitCode).toBe(2);
     expect(unnamed.result.stderr).toMatch(/--pr/);
     expect(unnamed.calls).toEqual([]);
+  });
+});
+
+describe('autopilot seal', () => {
+  // Drawn by the orchestrator at assignment, handed to the reviewer alone, and
+  // published on the pull request only as its digest.
+  const sealPath = (root: string, ticket: string) =>
+    join(root, '.void', 'machine', 'autopilot', 'seals', `${ticket}.nonce`);
+
+  it('draws the nonce of a ticket once, readable by its owner alone', () => {
+    const root = project();
+    const first = runAutopilotCommand(['seal', '--ticket', 'DEV-1', '--json'], '', context(root));
+    expect(first.exitCode).toBe(0);
+    const drawn = JSON.parse(first.stdout) as { ticketId: string; nonce: string; digest: string };
+    expect(drawn.ticketId).toBe('DEV-1');
+    expect(drawn.nonce).toMatch(/^[0-9a-f]{64}$/);
+    expect(drawn.digest).toBe(sealDigest(drawn.nonce));
+    expect(readFileSync(sealPath(root, 'DEV-1'), 'utf8')).toBe(`${drawn.nonce}\n`);
+    expect(statSync(sealPath(root, 'DEV-1')).mode & 0o777).toBe(0o600);
+    const again = runAutopilotCommand(['seal', '--ticket', 'DEV-1'], '', context(root));
+    expect(again.exitCode).toBe(2);
+    expect(again.stderr).toMatch(/already/);
+    expect(readFileSync(sealPath(root, 'DEV-1'), 'utf8')).toBe(`${drawn.nonce}\n`);
+  });
+
+  it('publishes the digest on the pull request, once, and never the nonce', () => {
+    const root = project();
+    const nonce = drawSeal(root);
+    const calls: string[][] = [];
+    const run = (sealed: boolean) => (args: readonly string[]): string => {
+      calls.push([...args]);
+      if (args[0] === 'pr' && args[1] === 'view') return sealed ? reviewedPull(nonce) : reviewedPull();
+      return '{}';
+    };
+    const argv = ['seal', '--ticket', 'DEV-1', '--pr', '11', '--json'];
+    const published = runAutopilotCommand(argv, '', { ...context(root), gh: run(false) });
+    expect(published.exitCode).toBe(0);
+    const writes = calls.filter((call) => call[0] === 'api');
+    expect(writes).toEqual([
+      ['api', 'repos/{owner}/{repo}/issues/11/comments', '-f', `body=${renderSeal(sealDigest(nonce))}`],
+    ]);
+    expect(calls.flat().some((arg) => arg.includes(nonce))).toBe(false);
+    expect(published.stdout).not.toContain(nonce);
+    calls.length = 0;
+    expect(runAutopilotCommand(argv, '', { ...context(root), gh: run(true) }).exitCode).toBe(0);
+    expect(calls.filter((call) => call[0] === 'api')).toEqual([]);
+  });
+
+  it('refuses to publish a seal never drawn, and a ticket that is not one', () => {
+    const root = project();
+    const unsealed = runAutopilotCommand(['seal', '--ticket', 'DEV-9', '--pr', '11'], '', context(root, unreachableGh));
+    expect(unsealed.exitCode).toBe(2);
+    expect(unsealed.stderr).toMatch(/DEV-9/);
+    const nameless = runAutopilotCommand(['seal', '--ticket', '../x'], '', context(root));
+    expect(nameless.exitCode).toBe(2);
+    expect(runAutopilotCommand(['seal'], '', context(root)).exitCode).toBe(2);
   });
 });
 

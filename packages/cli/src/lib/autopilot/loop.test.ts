@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePullRequestView } from './loop-observe.js';
+import { renderProof, renderSeal, sealDigest, verdictProof } from './review-seal.js';
 import {
   admitLoopTracker,
   decideLoop,
@@ -186,6 +187,16 @@ const realComments = (): Raw[] =>
     ) as { comments: Raw[] }
   ).comments;
 
+/** The seal drawn for every ticket here; its digest is published beside each verdict. */
+const NONCE = 'a1'.repeat(32);
+
+/** A verdict as `autopilot verdict` posts it: the block, then its proof for the status posted. */
+function provedVerdict(spec: PullSpec, headSha: string): string {
+  const state = spec.review === 'FAILURE' ? 'failure' : 'success';
+  const proof = verdictProof(NONCE, { pullRequest: spec.number, headSha, state });
+  return `${block('review-verdict', spec.verdict)}${renderProof(proof)}\n`;
+}
+
 /** A pull request read through the real parser from a real `gh pr view` capture. */
 function pull(spec: PullSpec): PullRequestObservation {
   const view = openView();
@@ -205,6 +216,8 @@ function pull(spec: PullSpec): PullRequestObservation {
     readFileSync(new URL('./__fixtures__/gh/pr-view-auto-merge.json', import.meta.url), 'utf8'),
   ) as Raw;
   const paths = spec.files ?? ['docs/VOID-MACHINE-VISION.md'];
+  const headSha = String(spec.number).padStart(40, 'a');
+  const comment = (body: string) => ({ ...realComments()[0], body });
   const parsed = parsePullRequestView(
     JSON.stringify({
       ...view,
@@ -212,7 +225,7 @@ function pull(spec: PullSpec): PullRequestObservation {
       state: spec.state ?? 'OPEN',
       isDraft: spec.draft ?? false,
       headRefName: spec.branch,
-      headRefOid: String(spec.number).padStart(40, 'a'),
+      headRefOid: headSha,
       baseRefName: spec.base ?? 'develop',
       mergeStateStatus: spec.mergeState ?? 'BLOCKED',
       autoMergeRequest: spec.autoMerge === true ? armed.autoMergeRequest : view.autoMergeRequest,
@@ -220,10 +233,12 @@ function pull(spec: PullSpec): PullRequestObservation {
       changedFiles: spec.changedFiles ?? paths.length,
       comments: [
         ...realComments(),
-        ...(spec.verdict === undefined ? [] : [{ ...realComments()[0], body: block('review-verdict', spec.verdict) }]),
-        ...(spec.conflict === undefined ? [] : [{ ...realComments()[0], body: block('conflict-class', spec.conflict) }]),
+        comment(renderSeal(sealDigest(NONCE))),
+        ...(spec.verdict === undefined ? [] : [comment(provedVerdict(spec, headSha))]),
+        ...(spec.conflict === undefined ? [] : [comment(block('conflict-class', spec.conflict))]),
       ],
     }),
+    NONCE,
   );
   const reviewFailures = spec.reviewFailures ?? (spec.review === 'FAILURE' ? 1 : 0);
   const ejections = spec.ejections ?? (spec.queue === 'ejected' ? 1 : 0);
@@ -814,6 +829,18 @@ describe('protected paths', () => {
       'scripts/verify.mjs',
       'packages/core/enforce/ci-enforce.sh',
       'packages/hook-runner/src/enforcement/shell-words.ts',
+    ]) {
+      const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
+      expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+    }
+  });
+
+  it('holds back the code that decides to believe a verdict, the floor included', () => {
+    for (const file of [
+      'packages/cli/src/lib/autopilot/loop.ts',
+      'packages/cli/src/lib/autopilot/loop-observe.ts',
+      'packages/cli/src/lib/autopilot/review-seal.ts',
+      'packages/cli/src/commands/autopilot-loop.ts',
     ]) {
       const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
       expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });

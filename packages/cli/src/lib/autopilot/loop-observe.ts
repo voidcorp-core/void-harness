@@ -28,6 +28,7 @@ import type {
   PullRequestObservation,
   QueueEvent,
 } from './loop.js';
+import { verdictProven } from './review-seal.js';
 import type { SharedStateReading } from './shared-state.js';
 
 /** Runs `gh` (or `git`) with argv, never through a shell, and returns its stdout. */
@@ -195,22 +196,29 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
 }
 
 /**
- * The verdict comment the status on the same head confirms: the last one bound
- * to that head whose findings agree with the status, clean with `success` and
- * blocking with `failure`. `autopilot verdict` writes the two together and is
- * the only writer, so a comment the status contradicts, or posted with no
- * status at all, is not the reviewer's and is not read.
+ * The verdict comment the status on the same head confirms and the ticket's
+ * seal proves: the last one bound to that head whose findings agree with the
+ * status, clean with `success` and blocking with `failure`, and whose proof
+ * answers the nonce the loop drew for the ticket and published the digest of.
+ * A status and a comment are text anyone with the same credentials can write;
+ * the proof is what only the reviewer, handed the nonce, can. Without a nonce
+ * nothing is believed.
  */
 function believedVerdict(
   bodies: readonly string[],
-  headSha: string,
+  target: { readonly pullRequest: number; readonly headSha: string },
   review: PullRequestObservation['review'],
+  nonce: string | undefined,
 ): unknown {
-  if (review !== 'success' && review !== 'failure') return undefined;
-  const confirmed = judgmentsOf(bodies, 'review-verdict').filter((raw) => {
-    const admission = admitReviewVerdict(raw);
-    if (!admission.ok || admission.value.headSha !== headSha) return false;
-    return (admission.value.blocking.length === 0) === (review === 'success');
+  if (nonce === undefined || (review !== 'success' && review !== 'failure')) return undefined;
+  const binding = { ...target, state: review };
+  const confirmed = bodies.flatMap((body) => {
+    if (!verdictProven(nonce, { bodies, body, binding })) return [];
+    return judgmentsOf([body], 'review-verdict').filter((raw) => {
+      const admission = admitReviewVerdict(raw);
+      if (!admission.ok || admission.value.headSha !== target.headSha) return false;
+      return (admission.value.blocking.length === 0) === (review === 'success');
+    });
   });
   return confirmed.at(-1);
 }
@@ -245,14 +253,25 @@ function readPullRequestFiles(run: GhRunner, number: number, changedFiles: numbe
   return files;
 }
 
-/** One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL and REST parts. */
+/** The bodies of the comments of one `gh pr view --json <PULL_REQUEST_FIELDS>` answer. */
+export function pullRequestComments(text: string): string[] {
+  return parseJson('pull request', pullRequestViewSchema, text).comments.map((comment) => comment.body);
+}
+
+/**
+ * One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL and
+ * REST parts. `nonce` is the seal the loop drew for the ticket this pull
+ * request carries, when it drew one.
+ */
 export function parsePullRequestView(
   text: string,
+  nonce?: string,
 ): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures' | 'files'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
   const review = reviewOf(view.statusCheckRollup);
-  const verdict = believedVerdict(bodies, view.headRefOid, review);
+  const target = { pullRequest: view.number, headSha: view.headRefOid };
+  const verdict = believedVerdict(bodies, target, review, nonce);
   const conflict = latestJudgment(bodies, 'conflict-class');
   return {
     ...(verdict === undefined ? {} : { verdict }),
@@ -516,6 +535,8 @@ function requireUpToDateBase(run: GhRunner, base: string): void {
 export interface GithubRequest {
   readonly base: string;
   readonly pullRequests: readonly number[];
+  /** The nonce drawn for the ticket each pull request carries, by pull request. */
+  readonly seals?: ReadonlyMap<number, string>;
 }
 
 /** One tick's view of GitHub: the queue once, then each pull request and its queue event. */
@@ -535,7 +556,8 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
   const pullRequests = new Map<number, PullRequestObservation>();
   for (const number of request.pullRequests) {
     const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
-    const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs)));
+    const nonce = request.seals?.get(number);
+    const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs), nonce));
     const timelineArgs = ['api', 'graphql', ...REPOSITORY_FIELDS, '-F', `number=${number}`];
     const timeline = observed(`#${number}`, () =>
       run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`]),

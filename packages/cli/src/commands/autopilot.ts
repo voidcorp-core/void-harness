@@ -9,6 +9,7 @@ import {
 } from './autopilot-usage.js';
 import {
   fingerprintCommand,
+  sealCommand,
   judgmentCommand,
   type LoopCommandOutput,
   nextCommand,
@@ -1508,6 +1509,8 @@ export function runAutopilotCommand(
         return emitLoop(json, stopCommand(argv, context));
       case 'fingerprint':
         return emitLoop(json, fingerprintCommand(argv, context));
+      case 'seal':
+        return emitLoop(json, sealCommand(argv, context));
       case 'verdict':
         return emitLoop(json, verdictCommand(argv, stdin, context));
       case 'start':

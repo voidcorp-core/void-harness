@@ -1,4 +1,4 @@
-// `autopilot next | stop | fingerprint | verdict | judgment`: the continuous
+// `autopilot next | stop | fingerprint | seal | verdict | judgment`: the continuous
 // loop's operator surface.
 //
 // Unlike the cluster subcommands, `next` observes GitHub and git itself. GitHub
@@ -8,9 +8,10 @@
 // never decides a merge. The command judges nothing: it admits what it is given
 // and returns the kernel's actions.
 //
-// Local state is two things under `.void/machine/autopilot/`, both written only
-// by an explicit command: the stop signal, and one digest-only fingerprint per
-// ticket, recorded before its unit begins.
+// Local state is three things under `.void/machine/autopilot/`, all written only
+// by an explicit command: the stop signal, one digest-only fingerprint per
+// ticket, recorded before its unit begins, and one review seal per ticket,
+// drawn at its assignment, which only the orchestrator and the reviewer read.
 
 import {
   existsSync,
@@ -49,11 +50,21 @@ import {
   observeGithub,
   PULL_REQUEST_FIELDS,
   parsePullRequestView,
+  pullRequestComments,
   REVIEW_STATUS_CONTEXT,
   readSharedState,
   resolveLoopBase,
 } from '../lib/autopilot/loop-observe.js';
 import { readProgramDescriptor } from '../lib/autopilot/program.js';
+import {
+  drawNonce,
+  isNonce,
+  publishedSeals,
+  renderProof,
+  renderSeal,
+  sealDigest,
+  verdictProof,
+} from '../lib/autopilot/review-seal.js';
 import {
   admitFingerprint,
   changedParts,
@@ -79,6 +90,7 @@ export interface LoopRunners {
 const LOOP_DIRECTORY = join('.void', 'machine', 'autopilot');
 export const STOP_SIGNAL_PATH = join(LOOP_DIRECTORY, 'stop');
 const FINGERPRINT_DIRECTORY = join(LOOP_DIRECTORY, 'fingerprints');
+const SEAL_DIRECTORY = join(LOOP_DIRECTORY, 'seals');
 
 function runner<T>(value: T | undefined, name: string): T {
   if (value !== undefined) return value;
@@ -107,10 +119,10 @@ function writeAtomically(path: string, text: string): void {
  * place, and a link onto an existing path fails, so a second writer loses
  * without ever exposing half a record. Returns false when one already exists.
  */
-function writeOnce(path: string, text: string): boolean {
+function writeOnce(path: string, text: string, mode = 0o644): boolean {
   mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, text, 'utf8');
+  writeFileSync(temporary, text, { encoding: 'utf8', mode });
   try {
     linkSync(temporary, path);
     return true;
@@ -122,17 +134,40 @@ function writeOnce(path: string, text: string): boolean {
   }
 }
 
-function fingerprintPath(root: string, ticket: string): string {
+/** The file one ticket's record lives in; a name that is not a ticket reaches no path. */
+function ticketFile(root: string, directory: string, ticket: string, extension: string): string {
   const parsed = ticketIdSchema.safeParse(ticket);
   if (!parsed.success) {
     throw autopilotFailure(
       'AUTOPILOT_USAGE',
-      'the ticket to fingerprint is not a tracker identifier',
+      'the ticket named is not a tracker identifier',
       `${JSON.stringify(ticket.slice(0, 64))} does not name a ticket`,
-      'pass the ticket identifier, for example `--before DEV-42`',
+      'pass the ticket identifier, for example `DEV-42`',
     );
   }
-  return join(root, FINGERPRINT_DIRECTORY, `${parsed.data}.json`);
+  return join(root, directory, `${parsed.data}${extension}`);
+}
+
+function fingerprintPath(root: string, ticket: string): string {
+  return ticketFile(root, FINGERPRINT_DIRECTORY, ticket, '.json');
+}
+
+function sealPath(root: string, ticket: string): string {
+  return ticketFile(root, SEAL_DIRECTORY, ticket, '.nonce');
+}
+
+/** The nonce drawn for a ticket, or undefined when none was; a damaged one is refused. */
+function recordedNonce(root: string, ticket: string): string | undefined {
+  const text = readIfPresent(sealPath(root, ticket));
+  if (text === undefined) return undefined;
+  const nonce = text.trim();
+  if (isNonce(nonce)) return nonce;
+  throw autopilotFailure(
+    'AUTOPILOT_INPUT',
+    `the review seal recorded for ${ticket} is unreadable`,
+    'a seal is the sixty-four hex characters `autopilot seal` drew',
+    'hand the ticket to a human; no verdict on it can be proved',
+  );
 }
 
 function recordedFingerprint(root: string, ticket: string): SharedFingerprint | undefined {
@@ -248,7 +283,13 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   }
   const gh = runner(context.gh, 'gh');
   const base = resolveLoopBase(gh, program.autopilot.base);
-  const github = observeGithub(gh, { base, pullRequests: pullRequestsToObserve(program, tracker) });
+  const seals = new Map<number, string>();
+  for (const ticket of tracker.tickets) {
+    const nonce = recordedNonce(context.root, ticket.id);
+    if (ticket.pullRequest !== undefined && nonce !== undefined) seals.set(ticket.pullRequest, nonce);
+  }
+  const pullRequests = pullRequestsToObserve(program, tracker);
+  const github = observeGithub(gh, { base, pullRequests, seals });
   const before = new Map<string, SharedFingerprint>();
   for (const ticket of tracker.tickets) {
     const recorded = recordedFingerprint(context.root, ticket.id);
@@ -351,6 +392,66 @@ export function fingerprintCommand(
 }
 
 /**
+ * `autopilot seal --ticket <id> [--pr <n>]`.
+ *
+ * Without `--pr`, at assignment: draw the ticket's nonce and record it once,
+ * readable by its owner alone, in the orchestration checkout, out of every
+ * worktree. It is printed for the orchestrator to hand to the reviewer, and
+ * to nobody else. With `--pr`, once the worker opened its pull request: post
+ * the nonce's digest there, unless it already is. The nonce never leaves the
+ * machine; only `autopilot verdict` uses it, to prove the verdict.
+ */
+export function sealCommand(argv: readonly string[], context: LoopRunners): LoopCommandOutput {
+  const ticket = flagValue(argv, '--ticket');
+  if (ticket === undefined) {
+    throw autopilotFailure(
+      'AUTOPILOT_USAGE',
+      'autopilot seal needs the ticket it seals',
+      '--ticket was not given',
+      'pass the ticket at its assignment, for example `--ticket DEV-42`',
+    );
+  }
+  const path = sealPath(context.root, ticket);
+  if (!argv.includes('--pr')) {
+    const nonce = drawNonce();
+    if (!writeOnce(path, `${nonce}\n`, 0o600)) {
+      throw autopilotFailure(
+        'AUTOPILOT_CONTRACT',
+        `a seal is already drawn for ${ticket}`,
+        'a second draw would orphan the digest already published and the reviewer holding it',
+        `read the recorded seal from ${join(SEAL_DIRECTORY, `${ticket}.nonce`)} and hand it to the reviewer`,
+      );
+    }
+    const digest = sealDigest(nonce);
+    return {
+      value: { ticketId: ticket, digest, nonce },
+      human: `${nonce}\nthe seal of ${ticket}: hand it to its reviewer, never to its worker\n`,
+    };
+  }
+  const number = pullRequestNumber(argv, 'autopilot seal --pr');
+  const nonce = recordedNonce(context.root, ticket);
+  if (nonce === undefined) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      `no seal was drawn for ${ticket}`,
+      'a digest published without its nonce proves no verdict',
+      `draw it with \`autopilot seal --ticket ${ticket}\` before the review starts`,
+    );
+  }
+  const digest = sealDigest(nonce);
+  const gh = runner(context.gh, 'gh');
+  const view = gh(['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')]);
+  const published = publishedSeals(pullRequestComments(view)).includes(digest);
+  if (!published) {
+    gh(['api', `repos/{owner}/{repo}/issues/${number}/comments`, '-f', `body=${renderSeal(digest)}`]);
+  }
+  return {
+    value: { ticketId: ticket, pullRequest: number, digest, posted: !published },
+    human: `#${number} ${published ? 'already carries' : 'now carries'} the seal of ${ticket}\n`,
+  };
+}
+
+/**
  * `autopilot judgment conflict-class`: the comment block for the conflict class
  * on stdin, admitted before it is printed. The worker posts exactly this, so the
  * kernel finds it on the pull request after a restart and admits it a second
@@ -394,13 +495,13 @@ function jsonFrom(stdin: string, command: string): unknown {
   }
 }
 
-function pullRequestNumber(argv: readonly string[]): number {
+function pullRequestNumber(argv: readonly string[], command = 'autopilot verdict'): number {
   const text = flagValue(argv, '--pr');
   const number = Number(text);
   if (text !== undefined && /^[1-9][0-9]{0,9}$/.test(text)) return number;
   throw autopilotFailure(
     'AUTOPILOT_USAGE',
-    'autopilot verdict needs the pull request it judges',
+    `${command} needs the pull request it names`,
     text === undefined ? '--pr was not given' : `--pr ${JSON.stringify(text)} is not a number`,
     'pass the pull request number, for example `--pr 42`',
   );
@@ -413,11 +514,26 @@ function statusDescription(verdict: ReviewVerdict): string {
   return `round ${verdict.round}: ${count} blocking finding${count === 1 ? '' : 's'}`;
 }
 
+/** The nonce the reviewer was handed; its absence or its shape is refused before GitHub is asked. */
+function reviewNonce(argv: readonly string[]): string {
+  const nonce = flagValue(argv, '--nonce');
+  if (nonce !== undefined && isNonce(nonce)) return nonce;
+  throw autopilotFailure(
+    nonce === undefined ? 'AUTOPILOT_USAGE' : 'AUTOPILOT_INPUT',
+    'autopilot verdict needs the seal the orchestrator handed to the reviewer',
+    nonce === undefined ? '--nonce was not given' : 'the --nonce given is not sixty-four hex characters',
+    'pass the nonce of the ticket as `--nonce <hex>`; a verdict without it is not believed',
+  );
+}
+
 /**
- * `autopilot verdict --pr <n>`: the only path that writes a review verdict.
+ * `autopilot verdict --pr <n> --nonce <hex>`: the only path that writes a review verdict.
  *
  * The verdict on stdin is admitted, then bound to the head the pull request has
  * now: a verdict on any other head judged code that is no longer there. The
+ * nonce must answer the seal published on the pull request, and the comment
+ * carries a proof keyed by it, which the loop checks before it believes the
+ * verdict: a status and a comment alone are what anyone could post. The
  * comment goes first and the status second, so a failure between the two leaves
  * a comment no status confirms, which the loop does not believe, rather than a
  * status with no verdict behind it. The job that enforces the status is re-run
@@ -430,6 +546,7 @@ export function verdictCommand(
 ): LoopCommandOutput {
   const value = jsonFrom(stdin, 'verdict');
   const number = pullRequestNumber(argv);
+  const nonce = reviewNonce(argv);
   const admission = admitReviewVerdict(value);
   if (!admission.ok) {
     throw autopilotFailure(
@@ -442,7 +559,8 @@ export function verdictCommand(
   const verdict = admission.value;
   const gh = runner(context.gh, 'gh');
   const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
-  const pr = parsePullRequestView(gh(viewArgs));
+  const viewText = gh(viewArgs);
+  const pr = parsePullRequestView(viewText);
   if (pr.state !== 'open' || pr.headSha !== verdict.headSha) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
@@ -453,9 +571,18 @@ export function verdictCommand(
       'review the current head and post a verdict bound to it',
     );
   }
+  if (!publishedSeals(pullRequestComments(viewText)).includes(sealDigest(nonce))) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      `the nonce answers no seal published on #${number}`,
+      'the loop believes a verdict only when its proof answers the digest it published',
+      'check the nonce the orchestrator handed over, or have it publish the seal with `autopilot seal --pr`',
+    );
+  }
   const clean = verdict.blocking.length === 0;
   const state = clean ? 'success' : 'failure';
-  const body = renderJudgmentComment('review-verdict', verdict);
+  const proof = verdictProof(nonce, { pullRequest: number, headSha: verdict.headSha, state });
+  const body = `${renderJudgmentComment('review-verdict', verdict)}${renderProof(proof)}\n`;
   gh(['api', `repos/{owner}/{repo}/issues/${number}/comments`, '-f', `body=${body}`]);
   gh([
     'api', `repos/{owner}/{repo}/statuses/${verdict.headSha}`,

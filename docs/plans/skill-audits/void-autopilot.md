@@ -63,8 +63,23 @@ budget. The rewrite keeps what protects and hands the rest to GitHub.
   loop believes a comment only when the status on the same head agrees. Rejected: a GitHub App or
   dedicated reviewer identity, which Folpe declined; the ADR states that these guards stop a
   mistake or an injection, not an actor holding the credentials.
+- **The hook reads what a line runs.** After the final review found seventy shell forms that
+  slipped past it (substitutions, compound commands, functions, aliases, wrapper options,
+  `xargs`, `find -exec`, shells reading a pipe or a here-document), the rule reads their bodies and
+  refuses what it still cannot read and may write. It stays a guard, not a boundary: an unquoted
+  variable split into flags, `python3 -c`, `node -e`, `hub` and a script it cannot open remain
+  unseen, and the ADR says so.
+- **The review seal.** Kept instead of a dedicated identity: the orchestrator draws a nonce per
+  ticket at assignment, gives it to the reviewer only and publishes its digest on the pull request;
+  `autopilot verdict --nonce` posts an HMAC proof over the pull request, head and outcome, and the
+  loop believes no verdict without it. Rejected: revealing the nonce as the proof (a worker would
+  read it in the comment and forge the next round), and a `reveal` or `rotate` command (any agent
+  could call it). Limits stated: it protects from a mistake and an injection, not from a process
+  reading the orchestration checkout, and it binds the loop, not the required check.
 - **Protected paths.** The loop never merges a change to its own judge; the floor is a constant
-  the programme can only extend.
+  the programme can only extend. It covers what a judging workflow runs from outside `.github`
+  (the promotion audit, the auto-merge contract, `verify.mjs`, the enforcement floor) and the loop
+  code that believes a verdict.
 - **Auto-merge by default into develop**, never into main; the release back-merge is exempt from
   the verdict by its bot author's id and by commits proved in git to be the release output. The
   promotion audit accepts an automatic merge whose head carries a success verdict, and the

@@ -152,10 +152,15 @@ describe('the reviewer publishes a verdict GitHub can read', () => {
   // previous answer until the job is re-run: a verdict posted and not re-run
   // leaves the pull request stuck while every agent believes it passed.
   it('publishes the verdict through the one command that writes comment and status together', () => {
-    expect(flat(body(SKILL))).toMatch(/`void-harness autopilot verdict --pr <number>`\. It is the only path/);
+    expect(flat(body(SKILL))).toMatch(/`void-harness autopilot verdict --pr <number> --nonce <seal>`\. It is the only path/);
     expect(flat(body(SKILL))).toMatch(/re-runs the `independent-review` job when its completed run disagrees/);
     expect(flat(body(SKILL))).toMatch(/status event starts no workflow/i);
     expect(flat(body(SKILL))).toMatch(/Never post the comment or the status yourself/);
+  });
+
+  it('keeps the seal between the orchestrator and the reviewer', () => {
+    expect(flat(body(SKILL))).toMatch(/Give it to the ticket's reviewer and to nobody else: never to its worker/);
+    expect(flat(body(SKILL))).toMatch(/`autopilot seal --ticket <id> --pr <n>` before spawning the reviewer/);
   });
 
   it('blocks only on a scenario, files advisories once, and stops at two rounds', () => {

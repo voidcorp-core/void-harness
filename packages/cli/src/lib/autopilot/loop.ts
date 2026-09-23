@@ -66,6 +66,12 @@ export const PROTECTED_PATHS_FLOOR = [
   'packages/core/hooks/**',
   'packages/hook-runner/src/rules/review-verdict-write.ts',
   'packages/hook-runner/src/enforcement/shell-words.ts',
+  // What decides to believe a verdict and to arm a merge, this floor included,
+  // and the one command that writes and proves a verdict.
+  'packages/cli/src/lib/autopilot/loop.ts',
+  'packages/cli/src/lib/autopilot/loop-observe.ts',
+  'packages/cli/src/lib/autopilot/review-seal.ts',
+  'packages/cli/src/commands/autopilot-loop.ts',
   // The sources above run only after a release and a reinstall; these run now.
   // The installed runner, the files that wire it into Claude and Codex, and the
   // configuration that scopes what it enforces.
@@ -517,14 +523,14 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
  *
  * The status is a flag anyone holding the same credentials can raise; the
  * verdict is what says a reviewer read this exact head and found nothing that
- * blocks. Both are required, and they must agree.
- *
- * Extension point, pending a decision: who may post the status and the verdict.
- * Nothing here checks the author yet; a dedicated reviewer identity would be
- * checked in this function, beside the head, once it is decided.
+ * blocks. Both are required, and they must agree. `loop-observe` hands over a
+ * verdict only when its proof answers the seal drawn for the ticket, so a
+ * verdict here is one the reviewer, holding the nonce, wrote.
  */
 function unapprovedReason(pr: PullRequestObservation): string | undefined {
-  if (pr.verdict === undefined) return 'the review passed and no verdict on this head confirms it';
+  if (pr.verdict === undefined) {
+    return 'the review passed and no verdict on this head, proved by the ticket\'s seal, confirms it';
+  }
   const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return admission.reason;
   if (admission.value.headSha !== pr.headSha) {

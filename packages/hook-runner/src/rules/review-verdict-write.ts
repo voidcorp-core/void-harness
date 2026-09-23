@@ -30,7 +30,10 @@ import { allow, block } from './verdict.js';
 // never reads), a program it does not parse (`python3 -c`, `node -e`, `hub`,
 // `wget`), a script file it cannot open, an alias already in the gh
 // configuration, or a program named by a variable at top level
-// (`"$PYTHON" x.py`, too common to refuse).
+// (`"$PYTHON" x.py`, too common to refuse). What keeps a verdict forged past
+// it from arming a merge is the review seal: the loop believes a verdict only
+// when its proof answers a nonce the reviewer alone was handed (see
+// packages/cli/src/lib/autopilot/review-seal.ts).
 
 const STATUS_CONTEXT = 'void/independent-review';
 const VERDICT_MARKER = 'void-autopilot:review-verdict';

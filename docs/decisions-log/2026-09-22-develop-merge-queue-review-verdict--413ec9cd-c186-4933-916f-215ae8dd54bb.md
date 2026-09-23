@@ -47,30 +47,59 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
 - The reviewer is the independent pass of `void-implement`, run in a fresh
   context on the exact SHA. No GitHub App or dedicated identity: the reviewer
   is an agent like the others, and its verdict is written through one command.
-  `void-harness autopilot verdict --pr <n>` admits the typed verdict, refuses it
-  unless its `headSha` is the head the pull request has now, posts the verdict
-  comment then the `void/independent-review` status on that head, and re-runs
+  `void-harness autopilot verdict --pr <n> --nonce <seal>` admits the typed
+  verdict, refuses it unless its `headSha` is the head the pull request has now
+  and the seal answers the digest published there, posts the verdict comment
+  with its proof, then the `void/independent-review` status on that head, and re-runs
   the `independent-review` job when its completed run disagrees. It is the only
   write path. The job only verifies the status. Any new push changes the head
   SHA and demands a new verdict.
 - The loop believes a verdict comment only when the status on the same head
-  agrees with it (clean with `success`, blocking with `failure`); a comment the
-  status does not confirm is not read.
+  agrees with it (clean with `success`, blocking with `failure`) and the
+  comment carries a proof that answers the ticket's review seal; any other
+  comment is not read.
+- The review seal. At assignment the orchestrator draws a 32-byte nonce with
+  `autopilot seal --ticket <id>`, recorded once, mode 0600, in
+  `.void/machine/autopilot/seals/` of the orchestration checkout, out of every
+  worktree. It hands the nonce to the reviewer and never to the worker, and
+  publishes only its SHA-256 digest on the pull request
+  (`autopilot seal --ticket <id> --pr <n>`, a loop comment). The verdict
+  comment carries an HMAC-SHA-256 keyed by the nonce over the pull request,
+  the head and the outcome, so the nonce is never posted and a proof does not
+  carry over to another head or outcome. `loop-observe` believes a verdict
+  only when the digest of the nonce it holds is published on the pull request
+  and the proof matches; a digest someone else published answers a nonce the
+  loop never drew. A worker that never saw the nonce cannot make a verdict the
+  loop believes, whether or not the hook read its command.
 - A PreToolUse hook, `review-verdict-write`, wired on Claude and Codex, refuses
   a shell command that writes a `void/independent-review` status (`gh api` or
   curl to `/statuses/`) or posts a comment carrying the verdict block (`gh pr
   comment`, `gh issue comment`, the REST and GraphQL comment endpoints, a body
   sent from a file), and names `autopilot verdict` instead. It reads the words
   the program receives, not the characters typed: quotes and escapes removed,
-  glued flags (`-fcontext=...`) and `--flag=value` split, `sh -c` and `eval`
-  read again, JSON and URL escapes undone in the payload. A status whose context
-  or a comment whose body it cannot read before the command runs (a variable, a
-  command substitution, a pipe, a file it cannot open, an endpoint decided at
-  run time) is refused too.
+  glued flags (`-fcontext=...`) and `--flag=value` split, JSON and URL escapes
+  undone in the payload, API paths compared without case. It reads what a line
+  runs, not only its simple commands: the bodies of `$(...)`, backticks, `<(...)`
+  and `>(...)`; the command behind `{`, `(`, `!`, `if`, `then`, `else`,
+  `elif`, `do`, `while`, `until` and a function defined on the line; wrappers
+  and the values of their options (`nice -n`, `env -C` and `-S`, `stdbuf`,
+  `timeout -s` and `-k`, `exec -a`, `sudo -u`); what `find -exec` runs; the
+  string of `sh -c`, `eval`, `env -S` and a `gh alias set`; the script a shell
+  or `source` reads from a here-document, a here-string or a file it can open.
+  A write it cannot read before the command runs is refused: a status context
+  or a comment body from a variable, a substitution, a pipe or a file it
+  cannot open, an endpoint decided at run time, a `gh api` or comment fed words
+  by `xargs` or `parallel`, a shell reading a pipe, `source` of a substitution
+  or a variable, a gh command or verb chosen at run time, an imported alias
+  file. It does not see a variable expanded unquoted into several words, a
+  program it does not parse (`python3 -c`, `node -e`, `hub`, `wget`), a script
+  file it cannot open, an alias already in the gh configuration, or a program
+  named by a variable at top level. It keeps the honest path the easy one; the
+  seal is what makes a forged verdict inert for the loop.
 - The hook runs from the installed bundle in `.void/hooks/`, which carries the
   published harness. In this repository it is active only once a release ships
   it and `void-harness init` reinstalls it; until then the loop's agreement rule
-  is the only check on a hand-written verdict.
+  and the seal are the checks on a hand-written verdict.
 - The job finds the group from the queue itself: the `head_ref` of the event
   (`gh-readonly-queue/<base>/pr-<n>-<sha>`) names the last pull request, and the
   GraphQL `mergeQueue` entries are followed through their `baseCommit` down to
@@ -101,7 +130,10 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   workflow runs from outside `.github` (`scripts/promotion-authority.mjs`,
   which the promotion audit runs from develop itself,
   `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`, which aggregates the
-  required CI verdict, and `packages/core/enforce/**`), plus what runs
+  required CI verdict, and `packages/core/enforce/**`), the loop code that
+  believes a verdict and arms a merge, this floor included
+  (`packages/cli/src/lib/autopilot/loop.ts`, `loop-observe.ts`,
+  `review-seal.ts`, `packages/cli/src/commands/autopilot-loop.ts`), plus what runs
   before any release: the installed runner (`.void/hooks/**`), the files that
   wire it (`.claude/settings.json`, `.codex/**`) and the configuration that
   scopes it (`.void/config.json`). That floor is a constant;
@@ -176,18 +208,27 @@ Negative:
   person or any other actor arming auto-merge still can. Pinning the workflow
   (a required workflow ruleset on `develop`) remains open.
 - **The verdict protections guard against a mistake and an injected
-  instruction, not against a malicious actor holding the credentials.** Any
-  identity with write access to statuses and comments can still post both
-  through the API; the hook reads `gh` and curl commands, and a script or
-  another HTTP client reaches the API unseen; the loop's agreement rule only
-  stops a comment and a status that disagree. Binding the verdict to a
-  dedicated identity was considered and not taken.
-- Nothing stops a worker from running `autopilot verdict` on its own pull
-  request. Refusing it without a dedicated identity was considered: the
-  reviewer is the independent pass the worker itself convenes, so both share a
-  session, a user and the gh credentials, and any identifier the command could
-  compare would be declared by its caller. A check built on it would prove
-  nothing and would refuse the legitimate path.
+  instruction, not against a malicious actor holding the credentials or the
+  disk.** Any identity with write access to statuses and comments can still
+  post both through the API; the hook reads `gh` and curl commands, and a
+  script or another HTTP client reaches the API unseen. The seal is what the
+  loop trusts instead, and it is a file readable by the user every agent runs
+  as: a worker that reads the orchestration checkout, or the reviewer's
+  context, holds it. Binding the verdict to a dedicated identity was
+  considered and not taken.
+- A worker can still run `autopilot verdict` on its own pull request, but not
+  with a seal it was never given: the command refuses a nonce whose digest the
+  pull request does not carry, and the loop believes no proof keyed by any
+  other. The orchestrator, which draws the seal, gives it to the reviewer only.
+- The seal binds the loop, not GitHub. The required `independent-review` job
+  and the promotion audit cannot hold the nonce, so they still trust the
+  status alone. The loop arms auto-merge only on a head whose verdict it
+  believes, with `--match-head-commit`; but GitHub keeps an armed auto-merge
+  across a later push by an account with write access, so a push after arming
+  followed by a forged status on the new head satisfies the required check
+  ([GitHub disables it only on a push by someone without write permission](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request)).
+  Disarming an auto-merge whose head no longer carries a believed verdict is
+  not done yet.
 - The back-merge exemption rests on what `back-merge.yml` produces by
   construction, not on a setting of the repository: no rule on
   `chore/back-merge-main` is needed. If that workflow ever changes how it
