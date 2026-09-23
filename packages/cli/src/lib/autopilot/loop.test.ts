@@ -802,6 +802,24 @@ describe('protected paths', () => {
     }
   });
 
+  it('holds back the files a judging workflow runs from outside .github', () => {
+    // promotion.yml audits a promotion with the script develop carries, and
+    // void-enforce replays the auto-merge contract and the enforcement floor
+    // from the pull request itself; ci.yml's required verdict is aggregated by
+    // verify.mjs. Merged by the loop, a weakened copy of any of them would
+    // judge every later merge or promotion.
+    for (const file of [
+      'scripts/promotion-authority.mjs',
+      'scripts/auto-merge-contract.mjs',
+      'scripts/verify.mjs',
+      'packages/core/enforce/ci-enforce.sh',
+      'packages/hook-runner/src/enforcement/shell-words.ts',
+    ]) {
+      const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
+      expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+    }
+  });
+
   it('holds back a real pull request that rewrote the programme', () => {
     const captured = (
       JSON.parse(readFileSync(new URL('./__fixtures__/gh/pr-view-files.json', import.meta.url), 'utf8')) as {

@@ -54,9 +54,18 @@ export const HUMAN_WAIT_LABEL = 'void:human-wait';
 export const PROTECTED_PATHS_FLOOR = [
   '.github/**',
   'scripts/independent-review-check.mjs',
+  // What a judging workflow runs from outside `.github`: the promotion audit
+  // runs develop's own copy, void-enforce replays the auto-merge contract and
+  // the enforcement floor from the pull request, and ci.yml's required verdict
+  // is aggregated by verify.mjs.
+  'scripts/promotion-authority.mjs',
+  'scripts/auto-merge-contract.mjs',
+  'scripts/verify.mjs',
+  'packages/core/enforce/**',
   '.void/program.md',
   'packages/core/hooks/**',
   'packages/hook-runner/src/rules/review-verdict-write.ts',
+  'packages/hook-runner/src/enforcement/shell-words.ts',
   // The sources above run only after a release and a reinstall; these run now.
   // The installed runner, the files that wire it into Claude and Codex, and the
   // configuration that scopes what it enforces.

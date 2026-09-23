@@ -96,7 +96,12 @@ named `void/independent-review` sits on the head SHA of the pull request, or, on
   branch it merges into or ships from.
 - The loop never arms a pull request that touches the machinery judging merges:
   `.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`,
-  `packages/core/hooks/**` and the source of the hook above, plus what runs
+  `packages/core/hooks/**`, the source of the hook above and its shell parser
+  (`packages/hook-runner/src/enforcement/shell-words.ts`), what a judging
+  workflow runs from outside `.github` (`scripts/promotion-authority.mjs`,
+  which the promotion audit runs from develop itself,
+  `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`, which aggregates the
+  required CI verdict, and `packages/core/enforce/**`), plus what runs
   before any release: the installed runner (`.void/hooks/**`), the files that
   wire it (`.claude/settings.json`, `.codex/**`) and the configuration that
   scopes it (`.void/config.json`). That floor is a constant;

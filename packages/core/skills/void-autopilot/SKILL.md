@@ -30,7 +30,9 @@ under both gates.
 
 It never merges a change to the machinery that judges merges. A pull request touching
 `.github/**`, `scripts/independent-review-check.mjs`, `.void/program.md`, `packages/core/hooks/**`,
-the verdict hook's source, or the hooks installed here (`.void/hooks/**`, `.claude/settings.json`,
+the verdict hook's source and its shell parser, what a judging workflow runs from outside `.github`
+(`scripts/promotion-authority.mjs`, `scripts/auto-merge-contract.mjs`, `scripts/verify.mjs`,
+`packages/core/enforce/**`), or the hooks installed here (`.void/hooks/**`, `.claude/settings.json`,
 `.codex/**`, `.void/config.json`) goes to a person with the file named (`protected-path`). A rename
 counts by its source and its destination. The programme adds paths through
 `autopilot.protectedPaths`; nothing removes from that floor.

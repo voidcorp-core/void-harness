@@ -1713,7 +1713,7 @@
         }
       ],
       "id": "skill:void-autopilot",
-      "lines": 324,
+      "lines": 326,
       "name": "void-autopilot",
       "owner": "folpe",
       "pack": null,
@@ -1722,7 +1722,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-autopilot/SKILL.md",
-      "staticTokens": 4964,
+      "staticTokens": 5013,
       "type": "skill"
     },
     {
