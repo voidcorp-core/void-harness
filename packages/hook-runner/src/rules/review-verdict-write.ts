@@ -1,8 +1,8 @@
 import {
-  type ShellCommand,
   shellCommands,
   type ShellStdin,
   type ShellWord,
+  substitutionBodies,
 } from '../enforcement/shell-words.js';
 import type { RuleVerdict } from '../enforcement/types.js';
 import { allow, block } from './verdict.js';
@@ -14,12 +14,23 @@ import { allow, block } from './verdict.js';
 // status whose context, or a comment whose body, comes from a variable, a
 // command substitution, a pipe or a file it cannot open.
 //
-// It is a guard against a mistaken or injected command, not a boundary: an
-// agent holding the credentials can still reach the API from a program this
-// rule never parses (a script, another HTTP client). A command whose program
-// name is itself a variable is read only inside `sh -c` and `eval`, where
-// hiding the program is the point; at top level (`"$PYTHON" x.py`) it is too
-// common to refuse.
+// It reads what a line runs, not only its simple commands: the bodies of
+// `$(…)`, backticks, `<(…)` and `>(…)`; the command behind `{ ( ! if then else
+// elif do while until`, a function body, a wrapper and the values of its
+// options (`nice -n`, `env -C/-S`, `stdbuf`, `timeout -s/-k`, `exec -a`,
+// `sudo -u`); what `find -exec` runs; the string of `sh -c`, `eval`, `env -S`
+// and a gh alias; the script a shell or `source` reads from a here-document,
+// a here-string or a file it can open. What it cannot read and may write is
+// refused: a gh write fed words by `xargs` or `parallel`, a shell reading a
+// pipe, `source` of a substitution or a variable, a gh command or verb chosen
+// at run time, an imported alias file.
+//
+// It is a guard against a mistaken or injected command, not a boundary. It
+// does not see a variable expanded unquoted into several words (flags it
+// never reads), a program it does not parse (`python3 -c`, `node -e`, `hub`,
+// `wget`), a script file it cannot open, an alias already in the gh
+// configuration, or a program named by a variable at top level
+// (`"$PYTHON" x.py`, too common to refuse).
 
 const STATUS_CONTEXT = 'void/independent-review';
 const VERDICT_MARKER = 'void-autopilot:review-verdict';
@@ -68,12 +79,11 @@ const CURL: OptionSpec = {
 const CURL_PAYLOAD = new Set(['d', 'data', 'data-raw', 'data-binary', 'data-ascii',
   'data-urlencode', 'json', 'F', 'form', 'form-string', 'T', 'upload-file']);
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh']);
-const WRAPPERS = new Set(['env', 'command', 'exec', 'nohup', 'time', 'sudo', 'builtin', 'nice']);
 const ALL_TARGETS: readonly Target[] = ['status', 'comment', 'graphql'];
 const NESTING_MAX = 4;
 
 const unknown = (reason: string): Content => ({ unknown: reason });
-const isDynamic = (text: string): boolean => /[$`]/.test(text);
+const isDynamic = (text: string): boolean => /[$`]|[<>]\(/.test(text);
 const decoded = (hex: string): string => String.fromCharCode(Number.parseInt(hex, 16));
 
 /** What a payload says once its encodings are undone: JSON, URL and shell escapes. */
@@ -98,14 +108,7 @@ function parseOptions(words: readonly ShellWord[], spec: OptionSpec) {
       break;
     }
     if (text.startsWith('--')) {
-      const equals = text.indexOf('=');
-      const name = equals === -1 ? text.slice(2) : text.slice(2, equals);
-      if (equals !== -1) {
-        options.push({ name, value: { text: text.slice(equals + 1), dynamic: word.dynamic } });
-      } else if (spec.long.has(name)) {
-        index += 1;
-        options.push(withValue(name, words[index]));
-      } else options.push({ name });
+      index = longOption(words, index, spec, options);
     } else if (text.startsWith('-') && text.length > 1) {
       index = shortOptions(words, index, spec, options);
     } else positionals.push(word);
@@ -190,7 +193,8 @@ function judge(pieces: readonly Content[], needle: string, what: string): Findin
 /** What an endpoint or URL may write; one decided at run time may write anything. */
 function targetsOf(endpoint: ShellWord): Target[] {
   if (endpoint.dynamic && isDynamic(endpoint.text)) return [...ALL_TARGETS];
-  const text = normalized(endpoint.text);
+  // Lower case: a path GitHub may route whatever its case is judged the same.
+  const text = normalized(endpoint.text).toLowerCase();
   const targets: Target[] = [];
   if (/(?:^|\/)statuses\//.test(text)) targets.push('status');
   if (/\/comments\b/.test(text)) targets.push('comment');
@@ -299,54 +303,269 @@ function curl(words: readonly ShellWord[], stdin: ShellStdin, read: Read): Findi
   return undefined;
 }
 
-/** The program and its arguments past assignments and wrappers; `xargs` appends run-time words. */
-function unwrap(words: readonly ShellWord[]): ShellWord[] {
+/**
+ * Words that open or close a compound command, or prefix a pipeline: the
+ * command they introduce is the next word. `for`, `select` and `case` open a
+ * list of words, not a command, and are left to the substitution pass.
+ */
+const PREFIXES = new Set(['{', '}', '!', 'if', 'then', 'else', 'elif', 'do', 'while', 'until',
+  'coproc']);
+const NOT_COMMANDS = new Set(['for', 'select', 'case', 'in', 'fi', 'done', 'esac']);
+/** A wrapper's options that take a value, short letters then long names. */
+const WRAPPER_VALUES: ReadonlyMap<string, OptionSpec> = new Map([
+  ['env', { short: new Set(['u', 'C', 'S']), long: new Set(['unset', 'chdir', 'split-string']) }],
+  ['nice', { short: new Set(['n']), long: new Set(['adjustment']) }],
+  ['stdbuf', { short: new Set(['i', 'o', 'e']), long: new Set(['input', 'output', 'error']) }],
+  ['timeout', { short: new Set(['s', 'k']), long: new Set(['signal', 'kill-after']) }],
+  ['exec', { short: new Set(['a']), long: new Set() }],
+  ['sudo', { short: new Set(['u', 'g', 'p', 'C', 'D', 'h', 'r', 't', 'U', 'T']),
+    long: new Set(['user', 'group', 'prompt', 'close-from', 'chdir', 'host', 'role', 'type',
+      'other-user', 'command-timeout']) }],
+  ['ionice', { short: new Set(['c', 'n', 'p', 'P', 'u']), long: new Set(['class', 'classdata']) }],
+  ['time', { short: new Set(['f', 'o']), long: new Set(['format', 'output']) }],
+]);
+const WRAPPERS = new Set([...WRAPPER_VALUES.keys(), 'command', 'nohup', 'builtin']);
+const XARGS: OptionSpec = {
+  short: new Set(['a', 'd', 'E', 'I', 'L', 'n', 'P', 's']),
+  long: new Set(['arg-file', 'delimiter', 'eof', 'replace', 'max-lines', 'max-args',
+    'max-procs', 'max-chars', 'process-slot-var']),
+};
+const PARALLEL: OptionSpec = {
+  short: new Set(['a', 'C', 'd', 'E', 'I', 'j', 'J', 'L', 'n', 'N', 'P', 'S']),
+  long: new Set(['arg-file', 'colsep', 'delimiter', 'eof', 'replace', 'jobs', 'profile',
+    'max-lines', 'max-args', 'sshlogin', 'joblog', 'results', 'tmpdir']),
+};
+const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir']);
+const RUN_TIME: ShellWord = { text: '$RUN_TIME', dynamic: true };
+
+/**
+ * A command as far as it can be read: its program and arguments, whether a
+ * feeding program (`xargs`, `parallel`) appends words it cannot see, or why it
+ * cannot be read at all.
+ */
+type Unwrapped =
+  | { readonly words: readonly ShellWord[]; readonly fed: boolean }
+  | { readonly unknown: string };
+
+/** `--name=value`, or `--name value` when `spec` says it takes one; the last index read. */
+function longOption(words: readonly ShellWord[], index: number, spec: OptionSpec, options: Option[]) {
+  const word = words[index] as ShellWord;
+  const equals = word.text.indexOf('=');
+  const name = equals === -1 ? word.text.slice(2) : word.text.slice(2, equals);
+  if (equals !== -1) {
+    options.push({ name, value: { text: word.text.slice(equals + 1), dynamic: word.dynamic } });
+    return index;
+  }
+  if (!spec.long.has(name)) {
+    options.push({ name });
+    return index;
+  }
+  options.push(withValue(name, words[index + 1]));
+  return index + 1;
+}
+
+/** A leading run of options, per `spec`, and the index of the first word past it. */
+function leadingOptions(words: readonly ShellWord[], spec: OptionSpec) {
+  const options: Option[] = [];
+  let index = 0;
+  while (index < words.length) {
+    const { text } = words[index] as ShellWord;
+    if (text === '--') return { index: index + 1, options };
+    if (!text.startsWith('-') || text === '-') break;
+    index = text.startsWith('--')
+      ? longOption(words, index, spec, options)
+      : shortOptions(words, index, spec, options);
+    index += 1;
+  }
+  return { index, options };
+}
+
+/** `xargs -I R`: R replaced in each word; a word that is R alone may become a flag. */
+function replaced(words: readonly ShellWord[], replace: string): Unwrapped {
+  const standalone = words.slice(1).some((word) => word.text === replace);
+  return {
+    words: words.map((word) =>
+      word.text.includes(replace)
+        ? { text: word.text.replaceAll(replace, RUN_TIME.text), dynamic: true }
+        : word),
+    fed: standalone,
+  };
+}
+
+function feeding(name: string, rest: readonly ShellWord[]): Unwrapped {
+  const { index, options } = leadingOptions(rest, name === 'xargs' ? XARGS : PARALLEL);
+  const words = rest.slice(index);
+  const end = words.findIndex((word) => /^:::/.test(word.text));
+  const command = end === -1 ? words : words.slice(0, end);
+  const replace = options.find((o) => o.name === 'I' || o.name === 'replace' || o.name === 'i');
+  if (name === 'xargs' && replace !== undefined) {
+    return replaced(command, replace.value?.text ?? '{}');
+  }
+  return { words: command, fed: true };
+}
+
+/** The program and its arguments past assignments, prefixes and wrappers. */
+function unwrap(words: readonly ShellWord[]): Unwrapped {
   let rest = [...words];
   while (rest.length > 0) {
     const first = rest[0] as ShellWord;
     const name = first.text.split('/').at(-1) ?? '';
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first.text)) rest = rest.slice(1);
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first.text) || PREFIXES.has(first.text)) {
+      rest = rest.slice(1);
+    } else if (first.text === 'function') rest = rest.slice(2);
+    else if (NOT_COMMANDS.has(first.text)) return { words: [], fed: false };
     else if (WRAPPERS.has(name)) {
-      rest = rest.slice(1);
-      while (rest[0]?.text.startsWith('-') === true) rest = rest.slice(rest[0].text === '-u' ? 2 : 1);
-    } else if (name === 'timeout') rest = rest.slice(2);
-    else if (name === 'xargs') {
-      rest = rest.slice(1);
-      while (rest[0]?.text.startsWith('-') === true) rest = rest.slice(1);
-      return [...rest, { text: '$XARGS', dynamic: true }];
-    } else break;
+      const spec = WRAPPER_VALUES.get(name) ?? { short: new Set<string>(), long: new Set<string>() };
+      const { index, options } = leadingOptions(rest.slice(1), spec);
+      const split = options.find((o) => o.name === 'S' || o.name === 'split-string')?.value;
+      rest = rest.slice(1 + index + (name === 'timeout' ? 1 : 0));
+      if (split !== undefined) {
+        if (split.dynamic && isDynamic(split.text)) return { unknown: 'env -S on a string built at run time' };
+        rest = [...(shellCommands(split.text)?.[0]?.words ?? []), ...rest];
+      }
+    } else if (name === 'xargs' || name === 'parallel') return feeding(name, rest.slice(1));
+    else break;
   }
-  return rest;
+  return { words: rest, fed: false };
 }
 
-function inspect(command: ShellCommand, read: Read, depth: number): Finding | undefined {
-  const [program, ...args] = unwrap(command.words);
+/** Each command `find -exec` runs, `{}` standing for a path found at run time. */
+function findCommands(words: readonly ShellWord[]): ShellWord[][] {
+  const commands: ShellWord[][] = [];
+  for (let index = 0; index < words.length; index += 1) {
+    if (!FIND_EXEC.has((words[index] as ShellWord).text)) continue;
+    const end = words.findIndex((word, at) => at > index && (word.text === ';' || word.text === '+'));
+    const command = words.slice(index + 1, end === -1 ? words.length : end);
+    commands.push(command.map((word) =>
+      word.text.includes('{}') ? { text: word.text.replaceAll('{}', RUN_TIME.text), dynamic: true } : word));
+    index = end === -1 ? words.length : end;
+  }
+  return commands;
+}
+
+/** What a script handed to a shell or to `source` runs, read before it runs. */
+function script(
+  word: ShellWord | undefined,
+  stdin: ShellStdin,
+  read: Read,
+  depth: number,
+): Finding | undefined {
+  const fromStdin = word === undefined || ['-', '/dev/stdin'].includes(word.text)
+    || word.text.startsWith('/dev/fd/');
+  if (fromStdin) {
+    if (stdin.kind === 'pipe') return { kind: 'unknown', evidence: 'a shell reading a script from a pipe' };
+    if (stdin.kind === 'text') return inspectLine(stdin.word.text, read, depth + 1, true);
+    if (stdin.kind === 'file') return script(stdin.word, { kind: 'none' }, read, depth);
+    return undefined;
+  }
+  if (word.dynamic && isDynamic(word.text)) {
+    return { kind: 'unknown', evidence: `a script named at run time (${word.text})` };
+  }
+  const text = read(word.text);
+  return text === undefined ? undefined : inspectLine(text, read, depth + 1, true);
+}
+
+/** A shell: its `-c` string, else the script it runs, else what it reads on stdin. */
+function shell(args: readonly ShellWord[], stdin: ShellStdin, read: Read, depth: number) {
+  const flag = args.findIndex((w) => /^-[a-z]*c[a-z]*$/.test(w.text));
+  if (flag !== -1) {
+    const inline = args[flag + 1];
+    return inline === undefined ? undefined : inspectLine(inline.text, read, depth + 1, true);
+  }
+  let index = 0;
+  while (index < args.length && /^[-+]/.test((args[index] as ShellWord).text)) {
+    const option = (args[index] as ShellWord).text;
+    index += /^[-+][a-zA-Z]*[oO]$/.test(option) || /^--(?:rcfile|init-file)$/.test(option) ? 2 : 1;
+  }
+  const fromStdin = args.slice(0, index).some((w) => /^-[a-zA-Z]*s/.test(w.text));
+  return script(fromStdin ? undefined : args[index], stdin, read, depth);
+}
+
+/** `gh alias set`: its expansion is what a later `gh <alias>` runs. */
+function ghAlias(args: readonly ShellWord[], read: Read, depth: number): Finding | undefined {
+  const [verb, ...rest] = args;
+  if (verb?.text === 'import') return { kind: 'unknown', evidence: 'gh aliases imported from a file' };
+  if (verb?.text !== 'set') return undefined;
+  const { options, positionals } = parseOptions(rest, { short: new Set(), long: new Set() });
+  const expansion = positionals[1];
+  if (expansion === undefined || expansion.text === '-' || (expansion.dynamic && isDynamic(expansion.text))) {
+    return { kind: 'unknown', evidence: 'a gh alias whose expansion cannot be read' };
+  }
+  const shellAlias = options.some((o) => o.name === 's' || o.name === 'shell');
+  if (shellAlias || expansion.text.startsWith('!')) {
+    return inspectLine(expansion.text.replace(/^!/, ''), read, depth + 1, true);
+  }
+  return inspectLine(`gh ${expansion.text}`, read, depth + 1, true);
+}
+
+function gh(
+  args: readonly ShellWord[],
+  fed: boolean,
+  stdin: ShellStdin,
+  read: Read,
+  depth: number,
+): Finding | undefined {
+  const [sub, verb, ...rest] = args;
+  if (sub?.dynamic && isDynamic(sub.text)) {
+    return { kind: 'unknown', evidence: `a gh command chosen at run time (${sub.text})` };
+  }
+  if (sub?.text === 'alias') return ghAlias(args.slice(1), read, depth);
+  const commenting = (sub?.text === 'pr' || sub?.text === 'issue')
+    && (verb?.text === 'comment' || (verb?.dynamic === true && isDynamic(verb.text)));
+  if (fed && (sub?.text === 'api' || commenting)) {
+    return { kind: 'unknown', evidence: 'a gh write fed words at run time by xargs or parallel' };
+  }
+  if (sub?.text === 'api') return ghApi(args.slice(1), stdin, read);
+  if (commenting && verb?.text !== 'comment') {
+    return { kind: 'unknown', evidence: `a gh ${sub?.text} verb chosen at run time` };
+  }
+  return commenting ? ghComment(rest, stdin, read) : undefined;
+}
+
+function inspectWords(words: readonly ShellWord[], stdin: ShellStdin, read: Read, depth: number,
+  hidden: boolean): Finding | undefined {
+  const command = unwrap(words);
+  if ('unknown' in command) return { kind: 'unknown', evidence: command.unknown };
+  const [program, ...args] = command.words;
   if (program === undefined) return undefined;
-  if (depth > 0 && program.dynamic && isDynamic(program.text)) {
+  if (hidden && program.dynamic && isDynamic(program.text)) {
     const evidence = `a nested command whose program is decided at run time (${program.text})`;
     return { kind: 'unknown', evidence };
   }
   const name = program.text.split('/').at(-1) ?? '';
-  if (name === 'eval') return inspectLine(args.map((w) => w.text).join(' '), read, depth + 1);
-  if (SHELLS.has(name)) {
-    const flag = args.findIndex((w) => /^-[a-z]*c[a-z]*$/.test(w.text));
-    const script = flag === -1 ? undefined : args[flag + 1];
-    return script === undefined ? undefined : inspectLine(script.text, read, depth + 1);
+  if (name === 'eval') return inspectLine(args.map((w) => w.text).join(' '), read, depth + 1, true);
+  if (SHELLS.has(name)) return shell(args, stdin, read, depth);
+  if (name === 'source' || program.text === '.') return script(args[0], stdin, read, depth);
+  if (name === 'find') {
+    for (const found of findCommands(args)) {
+      const finding = inspectWords(found, { kind: 'none' }, read, depth, hidden);
+      if (finding !== undefined) return finding;
+    }
+    return undefined;
   }
-  if (name === 'curl') return curl(args, command.stdin, read);
-  if (name !== 'gh') return undefined;
-  const [sub, verb, ...rest] = args;
-  if (sub?.text === 'api') return ghApi(args.slice(1), command.stdin, read);
-  const commenting = (sub?.text === 'pr' || sub?.text === 'issue') && verb?.text === 'comment';
-  return commenting ? ghComment(rest, command.stdin, read) : undefined;
+  if (name === 'curl') {
+    return command.fed
+      ? { kind: 'unknown', evidence: 'a curl fed words at run time by xargs or parallel' }
+      : curl(args, stdin, read);
+  }
+  return name === 'gh' ? gh(args, command.fed, stdin, read, depth) : undefined;
 }
 
-function inspectLine(line: string, read: Read, depth: number): Finding | undefined {
+/**
+ * Every command of a line, then every command its substitutions run. `hidden`
+ * marks a line a command hands to a shell (`sh -c`, `eval`, a script, an
+ * alias), where a program chosen at run time is the point, not a habit.
+ */
+function inspectLine(line: string, read: Read, depth: number, hidden = false): Finding | undefined {
   if (depth > NESTING_MAX) return { kind: 'unknown', evidence: 'a command nested too deep to read' };
   const commands = shellCommands(line);
   if (commands === undefined) return { kind: 'unknown', evidence: 'a command too long to read' };
   for (const command of commands) {
-    const finding = inspect(command, read, depth);
+    const finding = inspectWords(command.words, command.stdin, read, depth, hidden);
+    if (finding !== undefined) return finding;
+  }
+  for (const body of substitutionBodies(line)) {
+    const finding = inspectLine(body, read, depth + 1, hidden);
     if (finding !== undefined) return finding;
   }
   return undefined;

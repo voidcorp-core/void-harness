@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shellCommands } from './shell-words.js';
+import { shellCommands, substitutionBodies } from './shell-words.js';
 
 // The words a program receives, not the characters the command shows: quotes
 // and escapes removed, expansions kept as written and marked dynamic.
@@ -51,5 +51,21 @@ describe('shellCommands', () => {
 
   it('refuses a line too long to be an agent command', () => {
     expect(shellCommands('x'.repeat(256 * 1024 + 1))).toBeUndefined();
+  });
+});
+
+describe('substitutionBodies', () => {
+  it('returns what command, process and backtick substitutions run, outside single quotes', () => {
+    const line = `x=$(gh pr view 1) "$(date)" \`id\` <(git diff) >(tee log) '$(hidden)'`;
+    expect(substitutionBodies(line)).toEqual(['gh pr view 1', 'date', 'id', 'git diff', 'tee log']);
+  });
+
+  it('keeps a nested substitution whole, for the caller to read again', () => {
+    expect(substitutionBodies('echo "$(a "$(b)" c)"')).toEqual(['a "$(b)" c']);
+  });
+
+  it('reads a process substitution as one word decided at run time', () => {
+    const [command] = shellCommands('cat <(gh api x) file') ?? [];
+    expect(command?.words.map((word) => word.dynamic)).toEqual([false, true, false]);
   });
 });

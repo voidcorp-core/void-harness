@@ -618,6 +618,7 @@ var Splitter = class {
     if (char === ";" || char === "&" || char === "|" || char === "(" || char === ")") {
       return this.operator(at);
     }
+    if ((char === "<" || char === ">") && source2[at + 1] === "(") return this.expansion(at);
     if (char === "<" || char === ">") return this.redirection(at);
     this.append(char);
     return at + 1;
@@ -725,6 +726,47 @@ var Splitter = class {
     this.current = { words: [], stdin: next === "pipe" ? { kind: "pipe" } : { kind: "none" } };
   }
 };
+function closingParen(source2, open2) {
+  let depth = 0;
+  let quoted = false;
+  for (let at = open2; at < source2.length; at += 1) {
+    const char = source2[at];
+    if (char === "\\") at += 1;
+    else if (char === '"') quoted = !quoted;
+    else if (char === "'" && !quoted) {
+      const close = source2.indexOf("'", at + 1);
+      at = close === -1 ? source2.length : close;
+    } else if (char === "(" && !quoted) depth += 1;
+    else if (char === ")" && !quoted) {
+      depth -= 1;
+      if (depth === 0) return at;
+    }
+  }
+  return source2.length;
+}
+function substitutionBodies(source2) {
+  const bodies = [];
+  let quoted = false;
+  for (let at = 0; at < source2.length; at += 1) {
+    const char = source2[at];
+    const next = source2[at + 1];
+    if (char === "\\") at += 1;
+    else if (char === '"') quoted = !quoted;
+    else if (char === "'" && !quoted) {
+      const close = source2.indexOf("'", at + 1);
+      at = close === -1 ? source2.length : close;
+    } else if (char === "`") {
+      const close = closingQuote(source2, at);
+      bodies.push(source2.slice(at + 1, close).replaceAll("\\`", "`"));
+      at = close;
+    } else if (next === "(" && (char === "$" || char === "<" || char === ">")) {
+      const close = closingParen(source2, at + 1);
+      bodies.push(source2.slice(at + 2, close));
+      at = close;
+    }
+  }
+  return bodies;
+}
 function shellCommands(source2) {
   if (source2.length > COMMAND_CHARS_MAX) return void 0;
   return new Splitter(source2).split();
@@ -822,11 +864,10 @@ var CURL_PAYLOAD = /* @__PURE__ */ new Set([
   "upload-file"
 ]);
 var SHELLS = /* @__PURE__ */ new Set(["sh", "bash", "zsh", "dash", "ksh"]);
-var WRAPPERS = /* @__PURE__ */ new Set(["env", "command", "exec", "nohup", "time", "sudo", "builtin", "nice"]);
 var ALL_TARGETS = ["status", "comment", "graphql"];
 var NESTING_MAX = 4;
 var unknown = (reason) => ({ unknown: reason });
-var isDynamic = (text2) => /[$`]/.test(text2);
+var isDynamic = (text2) => /[$`]|[<>]\(/.test(text2);
 var decoded = (hex) => String.fromCharCode(Number.parseInt(hex, 16));
 function normalized(text2) {
   return text2.replace(/\\u([0-9a-fA-F]{4})/g, (_all, hex) => decoded(hex)).replace(/%([0-9a-fA-F]{2})/g, (_all, hex) => decoded(hex)).replaceAll("\\", "").replaceAll('"', "").replaceAll("'", "");
@@ -842,14 +883,7 @@ function parseOptions(words, spec) {
       break;
     }
     if (text2.startsWith("--")) {
-      const equals = text2.indexOf("=");
-      const name = equals === -1 ? text2.slice(2) : text2.slice(2, equals);
-      if (equals !== -1) {
-        options.push({ name, value: { text: text2.slice(equals + 1), dynamic: word.dynamic } });
-      } else if (spec.long.has(name)) {
-        index += 1;
-        options.push(withValue(name, words[index]));
-      } else options.push({ name });
+      index = longOption(words, index, spec, options);
     } else if (text2.startsWith("-") && text2.length > 1) {
       index = shortOptions(words, index, spec, options);
     } else positionals.push(word);
@@ -910,7 +944,7 @@ function judge(pieces, needle, what) {
 }
 function targetsOf(endpoint) {
   if (endpoint.dynamic && isDynamic(endpoint.text)) return [...ALL_TARGETS];
-  const text2 = normalized(endpoint.text);
+  const text2 = normalized(endpoint.text).toLowerCase();
   const targets = [];
   if (/(?:^|\/)statuses\//.test(text2)) targets.push("status");
   if (/\/comments\b/.test(text2)) targets.push("comment");
@@ -997,51 +1031,252 @@ function curl(words, stdin, read) {
   }
   return void 0;
 }
+var PREFIXES = /* @__PURE__ */ new Set([
+  "{",
+  "}",
+  "!",
+  "if",
+  "then",
+  "else",
+  "elif",
+  "do",
+  "while",
+  "until",
+  "coproc"
+]);
+var NOT_COMMANDS = /* @__PURE__ */ new Set(["for", "select", "case", "in", "fi", "done", "esac"]);
+var WRAPPER_VALUES = /* @__PURE__ */ new Map([
+  ["env", { short: /* @__PURE__ */ new Set(["u", "C", "S"]), long: /* @__PURE__ */ new Set(["unset", "chdir", "split-string"]) }],
+  ["nice", { short: /* @__PURE__ */ new Set(["n"]), long: /* @__PURE__ */ new Set(["adjustment"]) }],
+  ["stdbuf", { short: /* @__PURE__ */ new Set(["i", "o", "e"]), long: /* @__PURE__ */ new Set(["input", "output", "error"]) }],
+  ["timeout", { short: /* @__PURE__ */ new Set(["s", "k"]), long: /* @__PURE__ */ new Set(["signal", "kill-after"]) }],
+  ["exec", { short: /* @__PURE__ */ new Set(["a"]), long: /* @__PURE__ */ new Set() }],
+  ["sudo", {
+    short: /* @__PURE__ */ new Set(["u", "g", "p", "C", "D", "h", "r", "t", "U", "T"]),
+    long: /* @__PURE__ */ new Set([
+      "user",
+      "group",
+      "prompt",
+      "close-from",
+      "chdir",
+      "host",
+      "role",
+      "type",
+      "other-user",
+      "command-timeout"
+    ])
+  }],
+  ["ionice", { short: /* @__PURE__ */ new Set(["c", "n", "p", "P", "u"]), long: /* @__PURE__ */ new Set(["class", "classdata"]) }],
+  ["time", { short: /* @__PURE__ */ new Set(["f", "o"]), long: /* @__PURE__ */ new Set(["format", "output"]) }]
+]);
+var WRAPPERS = /* @__PURE__ */ new Set([...WRAPPER_VALUES.keys(), "command", "nohup", "builtin"]);
+var XARGS = {
+  short: /* @__PURE__ */ new Set(["a", "d", "E", "I", "L", "n", "P", "s"]),
+  long: /* @__PURE__ */ new Set([
+    "arg-file",
+    "delimiter",
+    "eof",
+    "replace",
+    "max-lines",
+    "max-args",
+    "max-procs",
+    "max-chars",
+    "process-slot-var"
+  ])
+};
+var PARALLEL = {
+  short: /* @__PURE__ */ new Set(["a", "C", "d", "E", "I", "j", "J", "L", "n", "N", "P", "S"]),
+  long: /* @__PURE__ */ new Set([
+    "arg-file",
+    "colsep",
+    "delimiter",
+    "eof",
+    "replace",
+    "jobs",
+    "profile",
+    "max-lines",
+    "max-args",
+    "sshlogin",
+    "joblog",
+    "results",
+    "tmpdir"
+  ])
+};
+var FIND_EXEC = /* @__PURE__ */ new Set(["-exec", "-execdir", "-ok", "-okdir"]);
+var RUN_TIME = { text: "$RUN_TIME", dynamic: true };
+function longOption(words, index, spec, options) {
+  const word = words[index];
+  const equals = word.text.indexOf("=");
+  const name = equals === -1 ? word.text.slice(2) : word.text.slice(2, equals);
+  if (equals !== -1) {
+    options.push({ name, value: { text: word.text.slice(equals + 1), dynamic: word.dynamic } });
+    return index;
+  }
+  if (!spec.long.has(name)) {
+    options.push({ name });
+    return index;
+  }
+  options.push(withValue(name, words[index + 1]));
+  return index + 1;
+}
+function leadingOptions(words, spec) {
+  const options = [];
+  let index = 0;
+  while (index < words.length) {
+    const { text: text2 } = words[index];
+    if (text2 === "--") return { index: index + 1, options };
+    if (!text2.startsWith("-") || text2 === "-") break;
+    index = text2.startsWith("--") ? longOption(words, index, spec, options) : shortOptions(words, index, spec, options);
+    index += 1;
+  }
+  return { index, options };
+}
+function replaced(words, replace2) {
+  const standalone = words.slice(1).some((word) => word.text === replace2);
+  return {
+    words: words.map((word) => word.text.includes(replace2) ? { text: word.text.replaceAll(replace2, RUN_TIME.text), dynamic: true } : word),
+    fed: standalone
+  };
+}
+function feeding(name, rest) {
+  const { index, options } = leadingOptions(rest, name === "xargs" ? XARGS : PARALLEL);
+  const words = rest.slice(index);
+  const end = words.findIndex((word) => /^:::/.test(word.text));
+  const command = end === -1 ? words : words.slice(0, end);
+  const replace2 = options.find((o) => o.name === "I" || o.name === "replace" || o.name === "i");
+  if (name === "xargs" && replace2 !== void 0) {
+    return replaced(command, replace2.value?.text ?? "{}");
+  }
+  return { words: command, fed: true };
+}
 function unwrap(words) {
   let rest = [...words];
   while (rest.length > 0) {
     const first = rest[0];
     const name = first.text.split("/").at(-1) ?? "";
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first.text)) rest = rest.slice(1);
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(first.text) || PREFIXES.has(first.text)) {
+      rest = rest.slice(1);
+    } else if (first.text === "function") rest = rest.slice(2);
+    else if (NOT_COMMANDS.has(first.text)) return { words: [], fed: false };
     else if (WRAPPERS.has(name)) {
-      rest = rest.slice(1);
-      while (rest[0]?.text.startsWith("-") === true) rest = rest.slice(rest[0].text === "-u" ? 2 : 1);
-    } else if (name === "timeout") rest = rest.slice(2);
-    else if (name === "xargs") {
-      rest = rest.slice(1);
-      while (rest[0]?.text.startsWith("-") === true) rest = rest.slice(1);
-      return [...rest, { text: "$XARGS", dynamic: true }];
-    } else break;
+      const spec = WRAPPER_VALUES.get(name) ?? { short: /* @__PURE__ */ new Set(), long: /* @__PURE__ */ new Set() };
+      const { index, options } = leadingOptions(rest.slice(1), spec);
+      const split = options.find((o) => o.name === "S" || o.name === "split-string")?.value;
+      rest = rest.slice(1 + index + (name === "timeout" ? 1 : 0));
+      if (split !== void 0) {
+        if (split.dynamic && isDynamic(split.text)) return { unknown: "env -S on a string built at run time" };
+        rest = [...shellCommands(split.text)?.[0]?.words ?? [], ...rest];
+      }
+    } else if (name === "xargs" || name === "parallel") return feeding(name, rest.slice(1));
+    else break;
   }
-  return rest;
+  return { words: rest, fed: false };
 }
-function inspect(command, read, depth) {
-  const [program, ...args] = unwrap(command.words);
+function findCommands(words) {
+  const commands = [];
+  for (let index = 0; index < words.length; index += 1) {
+    if (!FIND_EXEC.has(words[index].text)) continue;
+    const end = words.findIndex((word, at) => at > index && (word.text === ";" || word.text === "+"));
+    const command = words.slice(index + 1, end === -1 ? words.length : end);
+    commands.push(command.map((word) => word.text.includes("{}") ? { text: word.text.replaceAll("{}", RUN_TIME.text), dynamic: true } : word));
+    index = end === -1 ? words.length : end;
+  }
+  return commands;
+}
+function script(word, stdin, read, depth) {
+  const fromStdin = word === void 0 || ["-", "/dev/stdin"].includes(word.text) || word.text.startsWith("/dev/fd/");
+  if (fromStdin) {
+    if (stdin.kind === "pipe") return { kind: "unknown", evidence: "a shell reading a script from a pipe" };
+    if (stdin.kind === "text") return inspectLine(stdin.word.text, read, depth + 1, true);
+    if (stdin.kind === "file") return script(stdin.word, { kind: "none" }, read, depth);
+    return void 0;
+  }
+  if (word.dynamic && isDynamic(word.text)) {
+    return { kind: "unknown", evidence: `a script named at run time (${word.text})` };
+  }
+  const text2 = read(word.text);
+  return text2 === void 0 ? void 0 : inspectLine(text2, read, depth + 1, true);
+}
+function shell(args, stdin, read, depth) {
+  const flag = args.findIndex((w) => /^-[a-z]*c[a-z]*$/.test(w.text));
+  if (flag !== -1) {
+    const inline = args[flag + 1];
+    return inline === void 0 ? void 0 : inspectLine(inline.text, read, depth + 1, true);
+  }
+  let index = 0;
+  while (index < args.length && /^[-+]/.test(args[index].text)) {
+    const option = args[index].text;
+    index += /^[-+][a-zA-Z]*[oO]$/.test(option) || /^--(?:rcfile|init-file)$/.test(option) ? 2 : 1;
+  }
+  const fromStdin = args.slice(0, index).some((w) => /^-[a-zA-Z]*s/.test(w.text));
+  return script(fromStdin ? void 0 : args[index], stdin, read, depth);
+}
+function ghAlias(args, read, depth) {
+  const [verb, ...rest] = args;
+  if (verb?.text === "import") return { kind: "unknown", evidence: "gh aliases imported from a file" };
+  if (verb?.text !== "set") return void 0;
+  const { options, positionals } = parseOptions(rest, { short: /* @__PURE__ */ new Set(), long: /* @__PURE__ */ new Set() });
+  const expansion = positionals[1];
+  if (expansion === void 0 || expansion.text === "-" || expansion.dynamic && isDynamic(expansion.text)) {
+    return { kind: "unknown", evidence: "a gh alias whose expansion cannot be read" };
+  }
+  const shellAlias = options.some((o) => o.name === "s" || o.name === "shell");
+  if (shellAlias || expansion.text.startsWith("!")) {
+    return inspectLine(expansion.text.replace(/^!/, ""), read, depth + 1, true);
+  }
+  return inspectLine(`gh ${expansion.text}`, read, depth + 1, true);
+}
+function gh(args, fed, stdin, read, depth) {
+  const [sub, verb, ...rest] = args;
+  if (sub?.dynamic && isDynamic(sub.text)) {
+    return { kind: "unknown", evidence: `a gh command chosen at run time (${sub.text})` };
+  }
+  if (sub?.text === "alias") return ghAlias(args.slice(1), read, depth);
+  const commenting = (sub?.text === "pr" || sub?.text === "issue") && (verb?.text === "comment" || verb?.dynamic === true && isDynamic(verb.text));
+  if (fed && (sub?.text === "api" || commenting)) {
+    return { kind: "unknown", evidence: "a gh write fed words at run time by xargs or parallel" };
+  }
+  if (sub?.text === "api") return ghApi(args.slice(1), stdin, read);
+  if (commenting && verb?.text !== "comment") {
+    return { kind: "unknown", evidence: `a gh ${sub?.text} verb chosen at run time` };
+  }
+  return commenting ? ghComment(rest, stdin, read) : void 0;
+}
+function inspectWords(words, stdin, read, depth, hidden) {
+  const command = unwrap(words);
+  if ("unknown" in command) return { kind: "unknown", evidence: command.unknown };
+  const [program, ...args] = command.words;
   if (program === void 0) return void 0;
-  if (depth > 0 && program.dynamic && isDynamic(program.text)) {
+  if (hidden && program.dynamic && isDynamic(program.text)) {
     const evidence = `a nested command whose program is decided at run time (${program.text})`;
     return { kind: "unknown", evidence };
   }
   const name = program.text.split("/").at(-1) ?? "";
-  if (name === "eval") return inspectLine(args.map((w) => w.text).join(" "), read, depth + 1);
-  if (SHELLS.has(name)) {
-    const flag = args.findIndex((w) => /^-[a-z]*c[a-z]*$/.test(w.text));
-    const script = flag === -1 ? void 0 : args[flag + 1];
-    return script === void 0 ? void 0 : inspectLine(script.text, read, depth + 1);
+  if (name === "eval") return inspectLine(args.map((w) => w.text).join(" "), read, depth + 1, true);
+  if (SHELLS.has(name)) return shell(args, stdin, read, depth);
+  if (name === "source" || program.text === ".") return script(args[0], stdin, read, depth);
+  if (name === "find") {
+    for (const found of findCommands(args)) {
+      const finding = inspectWords(found, { kind: "none" }, read, depth, hidden);
+      if (finding !== void 0) return finding;
+    }
+    return void 0;
   }
-  if (name === "curl") return curl(args, command.stdin, read);
-  if (name !== "gh") return void 0;
-  const [sub, verb, ...rest] = args;
-  if (sub?.text === "api") return ghApi(args.slice(1), command.stdin, read);
-  const commenting = (sub?.text === "pr" || sub?.text === "issue") && verb?.text === "comment";
-  return commenting ? ghComment(rest, command.stdin, read) : void 0;
+  if (name === "curl") {
+    return command.fed ? { kind: "unknown", evidence: "a curl fed words at run time by xargs or parallel" } : curl(args, stdin, read);
+  }
+  return name === "gh" ? gh(args, command.fed, stdin, read, depth) : void 0;
 }
-function inspectLine(line, read, depth) {
+function inspectLine(line, read, depth, hidden = false) {
   if (depth > NESTING_MAX) return { kind: "unknown", evidence: "a command nested too deep to read" };
   const commands = shellCommands(line);
   if (commands === void 0) return { kind: "unknown", evidence: "a command too long to read" };
   for (const command of commands) {
-    const finding = inspect(command, read, depth);
+    const finding = inspectWords(command.words, command.stdin, read, depth, hidden);
+    if (finding !== void 0) return finding;
+  }
+  for (const body of substitutionBodies(line)) {
+    const finding = inspectLine(body, read, depth + 1, hidden);
     if (finding !== void 0) return finding;
   }
   return void 0;
@@ -4945,8 +5180,8 @@ function nameFor(tool, category, input) {
   if (category === "workflow") {
     const explicit = text(input["name"]);
     if (explicit !== "") return explicit;
-    const script = text(input["scriptPath"]);
-    return script === "" || script.endsWith("/") ? "inline" : basename5(script).replace(/(?:\.workflow)?\.js$/, "") || "inline";
+    const script2 = text(input["scriptPath"]);
+    return script2 === "" || script2.endsWith("/") ? "inline" : basename5(script2).replace(/(?:\.workflow)?\.js$/, "") || "inline";
   }
   return tool || "unknown";
 }

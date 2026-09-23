@@ -16525,6 +16525,31 @@ var COMMAND_CHARS_MAX = 256 * 1024;
 // ../hook-runner/src/rules/review-verdict-write.ts
 var STATUS_CONTEXT = "void/independent-review";
 var STATUS_WHAT = `a ${STATUS_CONTEXT} status written by hand`;
+var WRAPPER_VALUES = /* @__PURE__ */ new Map([
+  ["env", { short: /* @__PURE__ */ new Set(["u", "C", "S"]), long: /* @__PURE__ */ new Set(["unset", "chdir", "split-string"]) }],
+  ["nice", { short: /* @__PURE__ */ new Set(["n"]), long: /* @__PURE__ */ new Set(["adjustment"]) }],
+  ["stdbuf", { short: /* @__PURE__ */ new Set(["i", "o", "e"]), long: /* @__PURE__ */ new Set(["input", "output", "error"]) }],
+  ["timeout", { short: /* @__PURE__ */ new Set(["s", "k"]), long: /* @__PURE__ */ new Set(["signal", "kill-after"]) }],
+  ["exec", { short: /* @__PURE__ */ new Set(["a"]), long: /* @__PURE__ */ new Set() }],
+  ["sudo", {
+    short: /* @__PURE__ */ new Set(["u", "g", "p", "C", "D", "h", "r", "t", "U", "T"]),
+    long: /* @__PURE__ */ new Set([
+      "user",
+      "group",
+      "prompt",
+      "close-from",
+      "chdir",
+      "host",
+      "role",
+      "type",
+      "other-user",
+      "command-timeout"
+    ])
+  }],
+  ["ionice", { short: /* @__PURE__ */ new Set(["c", "n", "p", "P", "u"]), long: /* @__PURE__ */ new Set(["class", "classdata"]) }],
+  ["time", { short: /* @__PURE__ */ new Set(["f", "o"]), long: /* @__PURE__ */ new Set(["format", "output"]) }]
+]);
+var WRAPPERS = /* @__PURE__ */ new Set([...WRAPPER_VALUES.keys(), "command", "nohup", "builtin"]);
 
 // ../hook-runner/src/enforcement/normalize.ts
 var MAX_FIELD_BYTES = 1024 * 1024;

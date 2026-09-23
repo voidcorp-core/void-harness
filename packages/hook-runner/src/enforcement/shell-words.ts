@@ -124,6 +124,8 @@ class Splitter {
     if (char === ';' || char === '&' || char === '|' || char === '(' || char === ')') {
       return this.operator(at);
     }
+    // `<(…)` and `>(…)` are process substitutions: a word decided at run time.
+    if ((char === '<' || char === '>') && source[at + 1] === '(') return this.expansion(at);
     if (char === '<' || char === '>') return this.redirection(at);
     this.append(char);
     return at + 1;
@@ -242,6 +244,55 @@ class Splitter {
     if (this.current.words.length > 0) this.commands.push(this.current);
     this.current = { words: [], stdin: next === 'pipe' ? { kind: 'pipe' } : { kind: 'none' } };
   }
+}
+
+/** The `)` closing the `(` at `open`, past nested parentheses and quotes, or the end. */
+function closingParen(source: string, open: number): number {
+  let depth = 0;
+  let quoted = false;
+  for (let at = open; at < source.length; at += 1) {
+    const char = source[at];
+    if (char === '\\') at += 1;
+    else if (char === '"') quoted = !quoted;
+    else if (char === "'" && !quoted) {
+      const close = source.indexOf("'", at + 1);
+      at = close === -1 ? source.length : close;
+    } else if (char === '(' && !quoted) depth += 1;
+    else if (char === ')' && !quoted) {
+      depth -= 1;
+      if (depth === 0) return at;
+    }
+  }
+  return source.length;
+}
+
+/**
+ * The commands a line runs inside `$(…)`, backticks, `<(…)` and `>(…)`, one
+ * level deep: a body is itself a line, so a caller reads nested ones by
+ * calling this again. Single quotes hide them; double quotes do not.
+ */
+export function substitutionBodies(source: string): string[] {
+  const bodies: string[] = [];
+  let quoted = false;
+  for (let at = 0; at < source.length; at += 1) {
+    const char = source[at];
+    const next = source[at + 1];
+    if (char === '\\') at += 1;
+    else if (char === '"') quoted = !quoted;
+    else if (char === "'" && !quoted) {
+      const close = source.indexOf("'", at + 1);
+      at = close === -1 ? source.length : close;
+    } else if (char === '`') {
+      const close = closingQuote(source, at);
+      bodies.push(source.slice(at + 1, close).replaceAll('\\`', '`'));
+      at = close;
+    } else if (next === '(' && (char === '$' || char === '<' || char === '>')) {
+      const close = closingParen(source, at + 1);
+      bodies.push(source.slice(at + 2, close));
+      at = close;
+    }
+  }
+  return bodies;
 }
 
 /**
