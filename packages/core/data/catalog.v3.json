@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:469123888a1ecaa1e2790ca5171116a456e68d3b5a484ed5f3defd725a59f655"
+    "rootHash": "sha256:7713b29956eb811526cd2f2989b43fb47a541811318fe91ff858cae4e353a751"
   },
   "nodes": [
     {
@@ -4534,7 +4534,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-merge/SKILL.md",
-          "staticTokens": 1247,
+          "staticTokens": 1272,
           "type": "skill"
         }
       },
@@ -5379,13 +5379,13 @@
       }
     },
     {
-      "id": "catalog:edge:companion-of:4467e3d13b415f2265448b23c5cc47e6",
+      "id": "catalog:edge:companion-of:31d5287675852602af2df505d5e4ff9d",
       "from": "catalog:skill:skill:void-merge",
       "to": "catalog:skill:skill:void-autopilot",
       "kind": "companion-of",
       "data": {
         "legacy": {
-          "evidence": "merge SKILL.md: void-autopilot produces an integration PR this skill can drain",
+          "evidence": "merge SKILL.md: void-autopilot hands this skill the pull requests it leaves to a person",
           "from": "skill:void-merge",
           "kind": "companion-of",
           "origin": "declared",

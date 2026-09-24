@@ -2326,7 +2326,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-merge/SKILL.md",
-      "staticTokens": 1247,
+      "staticTokens": 1272,
       "type": "skill"
     },
     {
@@ -4038,7 +4038,7 @@
       "to": "skill:void-autopilot",
       "kind": "companion-of",
       "origin": "declared",
-      "evidence": "merge SKILL.md: void-autopilot produces an integration PR this skill can drain"
+      "evidence": "merge SKILL.md: void-autopilot hands this skill the pull requests it leaves to a person"
     },
     {
       "from": "skill:void-merge",

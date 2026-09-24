@@ -170,18 +170,15 @@ seulement) avant sa PR.
 
 ## Resume point
 
-**Next step** : Step 1 et Step 2 en parallèle.
+**Next step** : aucun. Le plan est exécuté ; la clôture du programme reste une décision humaine.
 
 **Completed** :
 - Spec approuvée (`docs/specs/2026-09-22-autopilot-native-loop.md`).
+- Steps 1 à 5 et Checkpoint A (PR #394 à #400).
+- Step 6 et Checkpoint B : DEV-682 (#401) et DEV-860 (#402) mergés sans intervention le
+  2026-09-24 ; les deux défauts révélés, DEV-880 (#404) et DEV-879 (#405), corrigés et passés
+  par la file de merge.
+- Step 7 : ancien moteur supprimé, doctrine alignée, ADR du 2026-07-25 remplacée par celle de la
+  boucle continue, plafond `voidharness` redescendu à 1985 kB.
 
-**Pending** :
-- Step 1 : file de merge possible et check `independent-review`
-- Step 2 : schémas des jugements typés
-- Step 3 : noyau déterministe
-- Step 4 : commande CLI
-- Step 5 : skill réécrit
-- Checkpoint A
-- Step 6 : lot réel
-- Checkpoint B
-- Step 7 : suppression de l'ancien moteur
+**Pending** : aucun.

@@ -440,7 +440,7 @@ edges:
   - { from: skill:void-make-pdf, to: agent:pdf-specialist, kind: composes, evidence: "make-pdf SKILL.md: a generated deliverable is reviewed by the read-only pdf-specialist agent" }
   - { from: skill:void-make-pdf, to: skill:void-verify, kind: routes-to, evidence: "make-pdf SKILL.md: void-verify carries observed PDF proof into the final gate" }
   - { from: skill:void-merge, to: skill:void-implement, kind: companion-of, evidence: "merge SKILL.md: void-implement opens the PRs this skill drains" }
-  - { from: skill:void-merge, to: skill:void-autopilot, kind: companion-of, evidence: "merge SKILL.md: void-autopilot produces an integration PR this skill can drain" }
+  - { from: skill:void-merge, to: skill:void-autopilot, kind: companion-of, evidence: "merge SKILL.md: void-autopilot hands this skill the pull requests it leaves to a person" }
   - { from: skill:void-merge, to: skill:void-verify, kind: composes, evidence: "merge SKILL.md: after the last merge, the base is proven through void-verify" }
   - { from: skill:void-merge, to: skill:void-commit-discipline, kind: composes, evidence: "merge SKILL.md: a merge commit explains why through void-commit-discipline" }
   - { from: agent:migration-planner, to: skill:void-migrations, kind: companion-of, evidence: "migration-planner: Read-only planner ... Complements migrations" }

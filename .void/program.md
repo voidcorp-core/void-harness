@@ -8,10 +8,10 @@ progress:
   provider: linear
   scope: voidcorp/DEV/void harness
   # Selection belongs to the curator, which reads the project and the tracker;
-  # the continuous loop never reads this list. It still bounds two older
-  # readers: the cluster engine's `plan` pool, and a resume that names no unit.
-  # Keep it to what a person would accept being picked without being asked.
-  order: [DEV-858, DEV-877, DEV-859]
+  # the continuous loop never reads this list. It still bounds one older
+  # reader: a resume that names no unit. Keep it to what a person would accept
+  # being picked without being asked; DEV-858 is done and DEV-859 canceled.
+  order: [DEV-877]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -123,16 +123,15 @@ a stale ticket premise from four independent lenses, and the run closed six prod
 grants. What it also revealed -- a context pack that was empty at the stage where the panel
 convenes first -- was fixed inside the same unit.
 
-The gate now is the merge of the integration PR into `develop`, and promotion to `main` stays
-human as always. Findings are arbitrated inside the cycle by the forced comparison against the
-unit in progress, so no queue accumulates and no human is a bottleneck on them.
+Checkpoint B was read on 2026-09-24 and is closed: the continuous loop merged DEV-682 (#401) and
+DEV-860 (#402) into `develop` with nobody acting, then #404 and #405 went through the merge queue
+on signed verdicts. The cluster engine was removed after it, as the plan's step 7 required.
 
-Promotion to `main` remains human, and what a person judges there is the feature. The integration
-PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came
-back clean; unread, inconclusive or stale all refuse. `autopilot` may select independent ready units
-only through its documented attended confirmation flow. The program descriptor does not create a headless backend and
-does not weaken single-writer rules for lockfiles, migrations, generated assets, or shared
-contracts.
+The loop arms a merge into `develop` only on the head a signed review verdict proves, through the
+merge queue, and never on a pull request that touches the machinery that judges merges: those go
+to a person. Promotion to `main` remains human, and what a person judges there is the feature. The
+program descriptor does not create a headless backend and does not weaken single-writer rules for
+lockfiles, migrations, generated assets, or shared contracts.
 
 ## Program completion
 
