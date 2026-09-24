@@ -9,7 +9,10 @@
 // gh 2.100: `gh pr view --json` exposes no merge queue field, so the queue is
 // read with `gh api graphql`: `repository.mergeQueue(branch)` for its presence,
 // `pullRequest.timelineItems` for the last queue event of each pull request and
-// the ejections of its head, `pullRequest.commits` for its review rounds.
+// the ejections of its head, `pullRequest.commits` for its review rounds, and
+// `pullRequest.isInMergeQueue` where the armed state itself is at stake: once
+// the checks pass, arming queues the pull request and leaves no
+// `autoMergeRequest` for `gh pr view` to show.
 // https://docs.github.com/en/graphql/reference/objects#mergequeue
 // https://docs.github.com/en/graphql/reference/objects#removedfrommergequeueevent
 
@@ -341,6 +344,37 @@ export function parseMergeQueuePresence(text: string): boolean {
   return answer.data.repository.mergeQueue !== null; // allow-null: see above
 }
 
+const queueMembershipSchema = z.object({
+  data: z.object({
+    repository: z.object({
+      pullRequest: z.object({ id: z.string().min(1), isInMergeQueue: z.boolean() }),
+    }),
+  }),
+  errors: graphqlErrors,
+});
+
+/** Whether a pull request sits in its base's merge queue, and the node id that dequeues it. */
+export interface QueueMembership {
+  readonly nodeId: string;
+  readonly queued: boolean;
+}
+
+export function parseQueueMembership(text: string): QueueMembership {
+  const answer = parseJson('merge queue membership', queueMembershipSchema, text);
+  if (answer.errors !== undefined) {
+    const cause = answer.errors.map((error) => error.message).join('; ');
+    return unreadable('merge queue membership', cause);
+  }
+  const { id, isInMergeQueue } = answer.data.repository.pullRequest;
+  return { nodeId: id, queued: isInMergeQueue };
+}
+
+/** One pull request's merge queue membership, read now rather than from its timeline. */
+export function readQueueMembership(run: GhRunner, number: number): QueueMembership {
+  const args = ['api', 'graphql', ...REPOSITORY_FIELDS, '-F', `number=${number}`];
+  return parseQueueMembership(run([...args, '-f', `query=${QUEUE_MEMBERSHIP_QUERY}`]));
+}
+
 const timelineNodeSchema = z.discriminatedUnion('__typename', [
   z.object({ __typename: z.literal('AddedToMergeQueueEvent') }),
   z.object({ __typename: z.literal('RemovedFromMergeQueueEvent'), reason: z.string() }),
@@ -469,6 +503,10 @@ const QUEUE_QUERY = `query($owner: String!, $name: String!, $branch: String!) {
   repository(owner: $owner, name: $name) { mergeQueue(branch: $branch) { url } }
 }`;
 
+const QUEUE_MEMBERSHIP_QUERY = `query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) { pullRequest(number: $number) { id isInMergeQueue } }
+}`;
+
 /**
  * Queue events and commits read per pull request: enough to see past the bound
  * on ejections. A window with no commit in it undercounts only beyond that bound.
@@ -586,7 +624,12 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     const timeline = observed(`#${number}`, () =>
       run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`]),
     );
-    const queue = observed(`#${number}`, () => parseQueueTimeline(timeline));
+    // The timeline tells an ejection apart; whether the pull request sits in
+    // the queue now is read from GitHub, where a timeline window can lag.
+    const queued =
+      mergeQueue && observed(`#${number}`, () => readQueueMembership(run, number).queued);
+    const event = observed(`#${number}`, () => parseQueueTimeline(timeline));
+    const queue = queued ? 'queued' : event === 'queued' ? 'none' : event;
     const ejections = observed(`#${number}`, () => parseEjections(timeline));
     const roundArgs = [...timelineArgs, '-F', `context=${REVIEW_STATUS_CONTEXT}`];
     const reviewFailures = observed(`#${number}`, () =>

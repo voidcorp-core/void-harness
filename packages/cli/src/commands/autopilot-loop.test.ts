@@ -67,7 +67,10 @@ function project(): string {
  * With a private key, its verdict comment is signed with it as `autopilot
  * verdict` posts it; without, it carries only the comment and the status.
  */
-function reviewedPull(privateKey?: string, options: { head?: string; armed?: boolean } = {}): string {
+function reviewedPull(
+  privateKey?: string,
+  options: { head?: string; armed?: boolean; queued?: boolean } = {},
+): string {
   const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
   const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
   const rollup = view.statusCheckRollup as unknown[];
@@ -80,6 +83,7 @@ function reviewedPull(privateKey?: string, options: { head?: string; armed?: boo
     mergeStateStatus: 'BLOCKED',
     ...(options.head === undefined ? {} : { headRefOid: options.head }),
     ...(options.armed === true ? { autoMergeRequest: armedRequest() } : {}),
+    ...(options.queued === true ? queuedView() : {}),
     statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
     comments: [...comments, { ...comments[0], body: verdictComment(privateKey) }],
     changedFiles: 1,
@@ -90,6 +94,23 @@ function reviewedPull(privateKey?: string, options: { head?: string; armed?: boo
 function armedRequest(): unknown {
   return (JSON.parse(fixture('pr-view-auto-merge.json')) as { autoMergeRequest: unknown }).autoMergeRequest;
 }
+
+/**
+ * What gh reports of a real pull request sitting in a merge queue: no auto-merge
+ * request. `isInMergeQueue`, read through GraphQL, is the only sign it is armed.
+ */
+function queuedView(): Record<string, unknown> {
+  const { autoMergeRequest } = JSON.parse(fixture('pr-view-queued.json')) as Record<string, unknown>;
+  return { autoMergeRequest };
+}
+
+/** Pull request 11's merge queue membership, from a real queued or unqueued answer. */
+function membership(queued: boolean): string {
+  const answer = fixture(`pr-queue-membership-${queued ? 'queued' : 'absent'}.json`);
+  return answer.replace(/"id":"[^"]+"/, `"id":"${PULL_NODE_ID}"`);
+}
+
+const PULL_NODE_ID = 'PR_kwDOSrTydc8AAAABDn7FaQ';
 
 /** The one file pull request 11 changes, on the shape REST reports it. */
 function pullFiles(): string {
@@ -125,6 +146,7 @@ function answer(args: readonly string[], privateKey?: string, published?: string
   if (line.includes('pr view 11')) return reviewedPull(privateKey);
   if (line.includes('pulls/11/files')) return pullFiles();
   if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
+  if (line.includes('isInMergeQueue')) return membership(false);
   if (line.includes('timelineItems')) return fixture('timeline-commit-then-ejection.json').replace(
     /"nodes":\[.*\]/,
     '"nodes":[{"__typename":"PullRequestCommit","commit":{"oid":"x"}}]',
@@ -496,20 +518,33 @@ describe('autopilot arm and disarm', () => {
   // kernel disarms what it can no longer vouch for.
   const armedPath = (root: string) => join(root, '.void', 'machine', 'autopilot', 'armed', 'DEV-1.json');
 
-  /** A gh answering each `pr view` with the next view given, and recording every call. */
-  function sequence(...views: string[]) {
+  /**
+   * A gh answering each `pr view` with the next view given, each merge queue
+   * read with the next membership (out of the queue once they run out), and
+   * recording every call.
+   */
+  function sequence(views: readonly string[], queued: readonly boolean[] = []) {
     const calls: string[][] = [];
+    const [pending, memberships] = [[...views], [...queued]];
+    const isRead = (args: readonly string[]) =>
+      (args[0] === 'pr' && args[1] === 'view') || args.some((arg) => arg.includes('isInMergeQueue'));
     const run = (args: readonly string[]): string => {
       calls.push([...args]);
-      if (args[0] === 'pr' && args[1] === 'view') return views.shift() ?? '';
+      if (args[0] === 'pr' && args[1] === 'view') return pending.shift() ?? '';
+      if (isRead(args)) return membership(memberships.shift() ?? false);
       return '';
     };
-    return { run, calls, writes: () => calls.filter((call) => !(call[0] === 'pr' && call[1] === 'view')) };
+    return { run, calls, writes: () => calls.filter((call) => !isRead(call)) };
   }
+
+  const dequeue = (call: readonly string[] | undefined) =>
+    call !== undefined &&
+    call.includes(`id=${PULL_NODE_ID}`) &&
+    call.some((arg) => arg.includes('dequeuePullRequest'));
 
   it('records the head, arms on exactly that head, and checks GitHub armed it', () => {
     const root = project();
-    const gh = sequence(reviewedPull(), reviewedPull(undefined, { armed: true }));
+    const gh = sequence([reviewedPull(), reviewedPull(undefined, { armed: true })]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD, '--json'];
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
@@ -519,7 +554,7 @@ describe('autopilot arm and disarm', () => {
 
   it('arms nothing on a head the pull request has moved past', () => {
     const root = project();
-    const gh = sequence(reviewedPull(undefined, { head: 'b'.repeat(40) }));
+    const gh = sequence([reviewedPull(undefined, { head: 'b'.repeat(40) })]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
     expect(result.exitCode).toBe(2);
@@ -529,10 +564,10 @@ describe('autopilot arm and disarm', () => {
 
   it('fails when GitHub did not arm it, and disarms at once if the head moved meanwhile', () => {
     const root = project();
-    const unarmed = sequence(reviewedPull(), reviewedPull());
+    const unarmed = sequence([reviewedPull(), reviewedPull()]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     expect(runAutopilotCommand(argv, '', { ...context(root), gh: unarmed.run }).stderr).toMatch(/not armed/);
-    const moved = sequence(reviewedPull(), reviewedPull(undefined, { armed: true, head: 'b'.repeat(40) }));
+    const moved = sequence([reviewedPull(), reviewedPull(undefined, { armed: true, head: 'b'.repeat(40) })]);
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: moved.run });
     expect(result.exitCode).toBe(2);
     expect(moved.writes().at(-1)).toEqual(['pr', 'merge', '11', '--disable-auto']);
@@ -540,25 +575,71 @@ describe('autopilot arm and disarm', () => {
 
   it('disarms, then checks GitHub no longer holds the auto-merge', () => {
     const root = project();
-    const gh = sequence(reviewedPull(undefined, { armed: true }), reviewedPull());
+    const gh = sequence([reviewedPull(undefined, { armed: true }), reviewedPull()]);
     const result = runAutopilotCommand(['disarm', '--pr', '11', '--json'], '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
     expect(gh.writes()).toEqual([['pr', 'merge', '11', '--disable-auto']]);
     expect(JSON.parse(result.stdout)).toMatchObject({ pullRequest: 11, disarmed: true });
-    const idle = sequence(reviewedPull());
+    const idle = sequence([reviewedPull()]);
     expect(runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: idle.run }).exitCode).toBe(0);
     expect(idle.writes()).toEqual([]);
-    const stuck = sequence(reviewedPull(undefined, { armed: true }), reviewedPull(undefined, { armed: true }));
+    const stuck = sequence([reviewedPull(undefined, { armed: true }), reviewedPull(undefined, { armed: true })]);
     const refused = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: stuck.run });
     expect(refused.exitCode).toBe(2);
     expect(refused.stderr).toMatch(/still armed/);
+  });
+
+  it('counts a pull request GitHub put straight into the merge queue as armed', () => {
+    // Once the checks pass, arming on a base with a merge queue queues the pull
+    // request and leaves no auto-merge request behind.
+    const root = project();
+    const gh = sequence([reviewedPull(), reviewedPull(undefined, { queued: true })], [true]);
+    const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD, '--json'];
+    const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(gh.writes()).toEqual([['pr', 'merge', '11', '--auto', '--match-head-commit', HEAD]]);
+  });
+
+  it('takes a queued pull request out of the merge queue, which --disable-auto leaves alone', () => {
+    const root = project();
+    const gh = sequence([reviewedPull(undefined, { queued: true }), reviewedPull()], [true, false]);
+    const result = runAutopilotCommand(['disarm', '--pr', '11', '--json'], '', { ...context(root), gh: gh.run });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(gh.writes()).toHaveLength(1);
+    expect(dequeue(gh.writes()[0])).toBe(true);
+    expect(JSON.parse(result.stdout)).toMatchObject({ pullRequest: 11, disarmed: true });
+    const stuck = sequence([reviewedPull(undefined, { queued: true }), reviewedPull()], [true, true]);
+    const refused = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: stuck.run });
+    expect(refused.exitCode).toBe(2);
+    expect(refused.stderr).toMatch(/still armed/);
+  });
+
+  it('turns the auto-merge off before it dequeues, so GitHub cannot queue it again in between', () => {
+    const root = project();
+    const both = reviewedPull(undefined, { armed: true, queued: false });
+    const gh = sequence([both, reviewedPull()], [true, false]);
+    const result = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: gh.run });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(gh.writes()[0]).toEqual(['pr', 'merge', '11', '--disable-auto']);
+    expect(dequeue(gh.writes()[1])).toBe(true);
+    expect(gh.writes()).toHaveLength(2);
+  });
+
+  it('succeeds when GitHub merged the head it armed before the read back', () => {
+    const root = project();
+    const merged = JSON.stringify({ ...(JSON.parse(reviewedPull()) as Record<string, unknown>), state: 'MERGED' });
+    const gh = sequence([reviewedPull(), merged]);
+    const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
+    const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toMatch(/#11 merged on/);
   });
 
   it('has next disarm and hand back a pull request pushed after it was armed', () => {
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
     const key = drawKey(root);
-    const arming = sequence(reviewedPull(key), reviewedPull(key, { armed: true }));
+    const arming = sequence([reviewedPull(key), reviewedPull(key, { armed: true })]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     expect(runAutopilotCommand(argv, '', { ...context(root), gh: arming.run }).exitCode).toBe(0);
     const moved = (args: readonly string[]): string =>
@@ -610,9 +691,26 @@ describe('autopilot stop', () => {
     const root = project();
     const key = drawKey(root);
     runAutopilotCommand(['stop', '--now'], '', context(root));
-    const armed = (args: readonly string[]) =>
-      args.join(' ').includes('pr view 11') ? reviewedPull(key, { armed: true }) : unreachableGh();
+    const armed = (args: readonly string[]) => {
+      if (args.join(' ').includes('pr view 11')) return reviewedPull(key, { armed: true });
+      return args.some((arg) => arg.includes('isInMergeQueue')) ? membership(false) : unreachableGh();
+    };
     const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), armed);
+    expect(decision.actions).toEqual([
+      { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: HEAD },
+      { kind: 'freeze' },
+    ]);
+  });
+
+  it('disarms a pull request sitting in the merge queue before it freezes', () => {
+    const root = project();
+    const key = drawKey(root);
+    runAutopilotCommand(['stop', '--now'], '', context(root));
+    const queued = (args: readonly string[]) => {
+      if (args.join(' ').includes('pr view 11')) return reviewedPull(key, { queued: true });
+      return args.some((arg) => arg.includes('isInMergeQueue')) ? membership(true) : unreachableGh();
+    };
+    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), queued);
     expect(decision.actions).toEqual([
       { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: HEAD },
       { kind: 'freeze' },
@@ -625,7 +723,7 @@ describe('autopilot stop', () => {
     const result = next(root, trackerJson([heldTicket], []), unreachableGh);
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(/cannot freeze/);
-    expect(result.stderr).toMatch(/gh pr merge 11 --disable-auto/);
+    expect(result.stderr).toMatch(/#11: turn off its auto-merge and take it out of the merge queue/);
   });
 
   it('needs exactly one of --drain and --now', () => {

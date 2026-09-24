@@ -1307,17 +1307,31 @@ describe('no action leaves an armed merge the loop cannot vouch for', () => {
     'immediate stop': { options: { signal: 'now' } },
   };
 
-  function run(armedCase: ArmedCase): readonly LoopAction[] {
+  // GitHub arms a pull request one of two ways: an auto-merge request while its
+  // checks run, or, once they pass on a base with a merge queue, an entry in
+  // that queue and no request at all. Both merge without anyone acting again.
+  const armings: Readonly<Record<string, Partial<PullSpec>>> = {
+    'an auto-merge request': { autoMerge: true },
+    'a merge queue entry': { autoMerge: false, queue: 'queued' },
+  };
+
+  function run(
+    armedCase: ArmedCase,
+    arming: Partial<PullSpec> = { autoMerge: true },
+  ): readonly LoopAction[] {
     const branch = armedCase.unbranched === true ? {} : { branch: 'work/DEV-1' };
     const ticket = { ...started('DEV-1', { pullRequest: 11, ...branch }), ...armedCase.ticket };
     const spec = { tickets: [ticket], liveWorkers: armedCase.live === true ? ['DEV-1'] : [] };
-    const pulls = [pull({ ...reviewed('DEV-1', 11), autoMerge: true, ...armedCase.spec })];
+    const pulls = [pull({ ...reviewed('DEV-1', 11), ...arming, ...armedCase.spec })];
     return decide(spec, { pulls, ...armedCase.options });
   }
 
-  for (const [name, armedCase] of Object.entries(cases)) {
-    it(`${armedCase.keeps === undefined ? 'disarms' : 'keeps'} the merge: ${name}`, () => {
-      const actions = run(armedCase);
+  const table = Object.entries(armings).flatMap(([armingName, arming]) =>
+    Object.entries(cases).map(([name, armedCase]) => ({ armingName, arming, name, armedCase })),
+  );
+  for (const { armingName, arming, name, armedCase } of table) {
+    it(`${armedCase.keeps === undefined ? 'disarms' : 'keeps'} ${armingName}: ${name}`, () => {
+      const actions = run(armedCase, arming);
       const disarms = actions.flatMap((action, index) =>
         action.kind === 'disable-auto-merge' && action.pullRequest === 11 ? [index] : [],
       );
