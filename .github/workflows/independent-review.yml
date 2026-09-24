@@ -1,9 +1,10 @@
 # The independent review of every pull request into develop, run by GitHub.
 #
-# `pull_request_target` on purpose: the workflow, the scripts and the review
-# instructions come from the base branch, so a pull request can rewrite none of
-# them for its own review, and the model credential is never handed to code the
-# pull request controls. The head is checked out beside them as data, in
+# `pull_request_target` on purpose: GitHub runs this workflow, its scripts and
+# the review instructions from the default branch, main, which only a person
+# merges into, so a pull request can rewrite none of them for its own review,
+# and the model credential is never handed to code the pull request controls.
+# A change here therefore reviews anything only once it is promoted to main. The head is checked out beside them as data, in
 # `pr-head/`, and read with read-only tools; nothing from it is installed or
 # run. This is the pattern GitHub and Anthropic document for untrusted heads.
 #
@@ -16,7 +17,7 @@
 # https://code.claude.com/docs/en/github-actions
 name: independent-review
 # The queue believes a run of this workflow by this title, which only this file,
-# as develop holds it, gives to a run: scripts/independent-review-check.mjs.
+# as the default branch holds it, gives to a run: scripts/independent-review-check.mjs.
 # A draft's run is titled apart: the queue never reads it as a review.
 run-name: independent-review #${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.sha }}${{ github.event.pull_request.draft && ' (draft)' || '' }}
 
@@ -40,8 +41,8 @@ jobs:
     # could read as one: skipped is not success.
     if: ${{ github.event.pull_request.draft == false }}
     # The model credential lives in this environment, whose deployment branch
-    # policy admits develop alone: a workflow pushed to any other branch cannot
-    # read it, and `pull_request_target` runs on the base, develop.
+    # policy admits main alone: a workflow pushed to any other branch cannot
+    # read it, and `pull_request_target` runs on the default branch, main.
     environment: independent-review
     runs-on: ubuntu-latest
     timeout-minutes: 30

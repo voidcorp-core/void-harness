@@ -77,11 +77,13 @@ request base. The review itself is a job, `independent-review.yml`, on
 publishes the `independent-review` check on it. In the queue,
 `independent-review-queue.yml` does not believe that check, which any workflow
 of the repository could create: it passes only when every pull request of the
-group has a successful run of the review workflow, run from `develop`, for its
-own head. The job reviews with the `CLAUDE_CODE_OAUTH_TOKEN` secret of the
-`independent-review` environment, whose deployment branch policy admits
-`develop` alone, so a workflow pushed to another branch cannot read it; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
-and [the review-in-GitHub decision](decisions-log/2026-09-24-review-runs-in-github-actions--f592ded5-108e-474e-b23e-173493550326.md).
+group has a successful run of the review workflow for its own head, run from
+`main`: `pull_request_target` takes the workflow from the default branch, so a
+change to the review applies once promoted. The job reviews with the
+`CLAUDE_CODE_OAUTH_TOKEN` secret of the `independent-review` environment,
+whose deployment branch policy admits `main` alone, so a workflow pushed to
+another branch cannot read it; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
+and [the review-in-GitHub decision](decisions-log/2026-09-24-review-runs-from-default-branch--c3c5eada-4c1d-4570-b707-526df55198b4.md).
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is
 triggered by `push: branches: [main]` and nothing about the two-branch flow touches
