@@ -15,6 +15,9 @@
 # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target
 # https://code.claude.com/docs/en/github-actions
 name: independent-review
+# The queue believes a run of this workflow by this title, which only this file,
+# as develop holds it, gives to a run: scripts/independent-review-check.mjs.
+run-name: independent-review #${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.sha }}
 
 on:
   pull_request_target:
@@ -32,6 +35,13 @@ concurrency:
 
 jobs:
   review:
+    # A draft is not reviewed, and its run must not end as a success the queue
+    # could read as one: skipped is not success.
+    if: ${{ github.event.pull_request.draft == false }}
+    # The model credential lives in this environment, whose deployment branch
+    # policy admits develop alone: a workflow pushed to any other branch cannot
+    # read it, and `pull_request_target` runs on the base, develop.
+    environment: independent-review
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

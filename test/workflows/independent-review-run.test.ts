@@ -5,6 +5,7 @@ import {
   admitVerdict,
   conclusionOf,
   decideStart,
+  exitCodeOf,
   previousBlocking,
   renderVerdictComment,
   roundOf,
@@ -57,6 +58,16 @@ describe('which head the review job reviews', () => {
 
   it('refuses an event with no pull request head', () => {
     expect(() => decideStart({ event: {}, repository })).toThrow(/no pull request/);
+  });
+});
+
+// The queue believes the run itself, so its conclusion must say what the check says.
+describe('how a review run ends', () => {
+  it('fails the run for a fork and for any review that does not pass', () => {
+    expect(exitCodeOf({ kind: 'review', conclusion: 'success' })).toBe(0);
+    expect(exitCodeOf({ kind: 'review', conclusion: 'failure' })).toBe(1);
+    expect(exitCodeOf({ kind: 'fork' })).toBe(1);
+    expect(exitCodeOf({ kind: 'exempt' })).toBe(0);
   });
 });
 

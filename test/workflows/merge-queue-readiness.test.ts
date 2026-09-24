@@ -90,9 +90,25 @@ describe('independent review', () => {
     expect(review).toMatch(/uses: anthropics\/claude-code-action@[0-9a-f]{40} /);
   });
 
+  // The queue believes a run of this workflow by its title; a draft or fork
+  // head must never end as a successful run under that title.
+  it('titles each run with the pull request and head, and skips drafts outright', () => {
+    expect(reviewSource).toContain(
+      `run-name: independent-review #${expression('github.event.pull_request.number')} ${expression('github.event.pull_request.head.sha')}`,
+    );
+    expect(review).toContain(`if: ${expression('github.event.pull_request.draft == false')}`);
+  });
+
+  // A repository secret is readable by any workflow pushed to any branch; one in
+  // an environment limited to develop is readable by jobs running on develop.
+  it('reads the model credential from an environment, never from the repository secrets', () => {
+    expect(review).toMatch(/^ {4}environment: independent-review$/m);
+    expect(review).toContain(`claude_code_oauth_token: ${expression('secrets.CLAUDE_CODE_OAUTH_TOKEN')}`);
+  });
+
   it('holds only what publishing a check and a comment needs', () => {
     expect(review).toMatch(/permissions:\n {6}contents: read\n {6}checks: write\n {6}pull-requests: write\n/);
-    expect(queued).toMatch(/permissions:\n {6}contents: read\n {6}checks: read\n {6}pull-requests: read\n/);
+    expect(queued).toMatch(/permissions:\n {6}actions: read\n {6}contents: read\n {6}pull-requests: read\n/);
     expect(queued).not.toMatch(/: write/);
     expect(reviewSource).toMatch(/^permissions: \{\}$/m);
     expect(queueSource).toMatch(/^permissions: \{\}$/m);

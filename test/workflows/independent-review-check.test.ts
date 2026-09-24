@@ -8,6 +8,8 @@ import {
   GITHUB_ACTIONS_APP_ID,
   parseQueueRef,
   REVIEW_CHECK_NAME,
+  REVIEW_WORKFLOW,
+  reviewRunTitle,
 } from '../../scripts/independent-review-check.mjs';
 import { decideStart } from '../../scripts/independent-review-run.mjs';
 
@@ -55,6 +57,39 @@ interface Fixture {
   readonly entries?: readonly QueueEntry[];
   /** The head of the base branch as GitHub reports it; `develop` is at sha('0'). */
   readonly baseHead?: string;
+  /** Whether the commit the review runs ran their workflow from is on develop; it is unless false. */
+  readonly workflowOnBase?: boolean;
+  /** Runs to serve as they are, instead of the ones derived from `verdicts`. */
+  readonly runs?: readonly Record<string, unknown>[];
+}
+
+type Rest = (path: string) => Promise<unknown>;
+
+/** A run of the review workflow as the REST API lists it, for one pull request head. */
+function reviewRun(number: number, head: string, run: ReviewRun, over: Record<string, unknown> = {}) {
+  return {
+    display_title: reviewRunTitle(number, head),
+    event: 'pull_request_target',
+    path: REVIEW_WORKFLOW,
+    head_sha: sha('d'),
+    status: run.status.toLowerCase(),
+    conclusion: run.conclusion?.toLowerCase() ?? null,
+    created_at: run.completedAt ?? '2026-09-24T09:00:00Z',
+    run_attempt: 1,
+    ...over,
+  };
+}
+
+/** The runs the verdicts stand for: one per reviewed head, numbered by the queue entry holding it. */
+function runsOf(fixture: Fixture): Record<string, unknown>[] {
+  if (fixture.runs !== undefined) return [...fixture.runs];
+  return Object.entries(fixture.verdicts ?? {}).flatMap(([head, verdict]) => {
+    const number = fixture.entries?.find((entry) => entry.prHead === head)?.number ?? 0;
+    const runs: readonly ReviewRun[] = typeof verdict === 'string'
+      ? [{ status: 'COMPLETED', conclusion: verdict, completedAt: '2026-09-24T10:00:00Z' }]
+      : verdict;
+    return runs.map((run) => reviewRun(number, head, run));
+  });
 }
 
 interface ReviewRun {
@@ -84,8 +119,15 @@ function queue(entries: readonly QueueEntry[], baseHead: string): unknown {
   return { data: { repository: { mergeQueue, ref: { target: { oid: baseHead } } } } };
 }
 
-function fakeGithub(fixture: Fixture): { graphql: Graphql; asked: Variables[] } {
+function fakeGithub(fixture: Fixture): { graphql: Graphql; rest: Rest; asked: Variables[]; paths: string[] } {
   const asked: Variables[] = [];
+  const paths: string[] = [];
+  const rest: Rest = async (path) => {
+    paths.push(path);
+    if (path.includes('/compare/')) return { status: fixture.workflowOnBase === false ? 'diverged' : 'behind' };
+    const all = runsOf(fixture).filter((run) => run.status === 'completed');
+    return { total_count: all.length, workflow_runs: all };
+  };
   const graphql: Graphql = async (query, variables) => {
     asked.push(variables);
     if (query.includes('mergeQueue')) {
@@ -94,7 +136,7 @@ function fakeGithub(fixture: Fixture): { graphql: Graphql; asked: Variables[] } 
     const oid = variables.oid ?? '';
     return reviewChecks(oid, fixture.verdicts?.[oid]);
   };
-  return { graphql, asked };
+  return { graphql, rest, asked, paths };
 }
 
 function mergeGroupEvent(number: number, head: string): Record<string, unknown> {
@@ -117,12 +159,13 @@ const twoEntries: readonly QueueEntry[] = [
 describe('independent review verdict check', () => {
   it('accepts a merge group only when every grouped pull request is approved', async () => {
     const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
-    const { graphql } = fakeGithub({ verdicts, entries: twoEntries });
+    const { graphql, rest } = fakeGithub({ verdicts, entries: twoEntries });
     const verified = await checkIndependentReview({
       eventName: 'merge_group',
       event: mergeGroupEvent(9, sha('b')),
       repository,
       graphql,
+      rest,
     });
     expect(verified).toEqual([
       { number: 9, sha: sha('2') },
@@ -131,38 +174,41 @@ describe('independent review verdict check', () => {
   });
 
   it('refuses a merge group when one grouped pull request lacks a verdict', async () => {
-    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries: twoEntries });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries: twoEntries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
+        rest,
       }),
-    ).rejects.toThrow(/#7 .*carries no independent-review check/);
+    ).rejects.toThrow(/#7 .*has no completed run of/);
   });
 
   it('refuses a merge group whose pull request was reviewed on an older SHA', async () => {
     const entries = [{ number: 7, head: sha('a'), base: sha('0'), prHead: sha('1') }];
-    const { graphql } = fakeGithub({ verdicts: { [sha('9')]: 'SUCCESS' }, entries });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('9')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(7, sha('a')),
         repository,
         graphql,
+        rest,
       }),
-    ).rejects.toThrow(/#7 .*carries no independent-review check/);
+    ).rejects.toThrow(/#7 .*has no completed run of/);
   });
 
   it('refuses a merge group whose entry is absent from the queue', async () => {
-    const { graphql } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' }, entries: [] });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' }, entries: [] });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(7, sha('a')),
         repository,
         graphql,
+        rest,
       }),
     ).rejects.toThrow(/no merge queue entry/);
   });
@@ -171,26 +217,28 @@ describe('independent review verdict check', () => {
     // #9 claims a base nothing in the queue produced: #7's group commit was
     // recreated, or the walk would stop before a pull request never reviewed.
     const entries = [{ number: 9, head: sha('b'), base: sha('c'), prHead: sha('2') }];
-    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
+        rest,
       }),
     ).rejects.toThrow(/stops at .* not the head of develop/);
   });
 
   it('refuses a group once the base branch has moved past the walk', async () => {
     const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
-    const { graphql } = fakeGithub({ verdicts, entries: twoEntries, baseHead: sha('e') });
+    const { graphql, rest } = fakeGithub({ verdicts, entries: twoEntries, baseHead: sha('e') });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
+        rest,
       }),
     ).rejects.toThrow(/not the head of develop/);
   });
@@ -201,26 +249,28 @@ describe('independent review verdict check', () => {
       { number: 9, head: sha('b'), base: sha('a'), prHead: sha('2') },
     ];
     const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
-    const { graphql } = fakeGithub({ verdicts, entries });
+    const { graphql, rest } = fakeGithub({ verdicts, entries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
+        rest,
       }),
     ).rejects.toThrow(/cycle/);
   });
 
   it('refuses a queue ref that names another pull request than the entry', async () => {
     const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
-    const { graphql } = fakeGithub({ verdicts, entries: twoEntries });
+    const { graphql, rest } = fakeGithub({ verdicts, entries: twoEntries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(7, sha('b')),
         repository,
         graphql,
+        rest,
       }),
     ).rejects.toThrow(/names #7 but the queue entry is #9/);
   });
@@ -237,6 +287,7 @@ describe('independent review verdict check', () => {
           event: mergeGroupEvent(9, sha('b')),
           repository,
           graphql,
+          rest: async () => ({}),
         }),
       ).rejects.toThrow(/independent-review/);
     }
@@ -247,10 +298,31 @@ describe('independent review verdict check', () => {
     expect(GITHUB_ACTIONS_APP_ID).toBe(15368);
   });
 
-  it('asks GitHub only for the review check runs of the GitHub Actions app', async () => {
-    const { graphql, asked } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' }, entries: twoEntries });
-    await checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql });
-    expect(asked.at(-1)).toMatchObject({ oid: sha('1'), app: 15368, check: 'independent-review' });
+  // Any workflow of the repository runs as the GitHub Actions app and could
+  // create the check; only a run of the review workflow, from develop, is believed.
+  it('believes only runs of the review workflow, from develop, for this exact head', async () => {
+    const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
+    const { graphql, rest, paths } = fakeGithub({ verdicts, entries: twoEntries });
+    await checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql, rest });
+    expect(paths[0]).toContain('actions/workflows/independent-review.yml/runs?event=pull_request_target&status=completed');
+    expect(paths).toContain(`repos/voidcorp-core/void-harness/compare/develop...${sha('d')}`);
+    const success = { status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: '2026-09-24T10:00:00Z' };
+    const forged = [
+      reviewRun(9, sha('2'), success),
+      reviewRun(7, sha('1'), success, { path: '.github/workflows/push.yml' }),
+      reviewRun(7, sha('1'), success, { event: 'push' }),
+      reviewRun(7, sha('1'), success, { display_title: reviewRunTitle(7, sha('9')) }),
+    ];
+    const { graphql: g2, rest: r2 } = fakeGithub({ entries: twoEntries, runs: forged });
+    await expect(
+      checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql: g2, rest: r2 }),
+    ).rejects.toThrow(/#7 head .* has no completed run of/);
+    // A run of the same path from a workflow commit develop does not hold: a
+    // pull request aimed at another base, whose file an author controls.
+    const { graphql: g3, rest: r3 } = fakeGithub({ verdicts, entries: twoEntries, workflowOnBase: false });
+    await expect(
+      checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql: g3, rest: r3 }),
+    ).rejects.toThrow(/which develop does not hold/);
   });
 
   it('refuses a group whose review is still running, or whose latest review failed', async () => {
@@ -259,23 +331,23 @@ describe('independent review verdict check', () => {
       { status: 'COMPLETED', conclusion: 'FAILURE', completedAt: '2026-09-24T11:00:00Z' },
       { status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: '2026-09-24T10:00:00Z' },
     ];
-    for (const [verdict, message] of [[running, /is PENDING/], [reversed, /is FAILURE/]] as const) {
-      const { graphql } = fakeGithub({ verdicts: { [sha('1')]: verdict, [sha('2')]: 'SUCCESS' }, entries: twoEntries });
+    for (const [verdict, message] of [[running, /has no completed run of/], [reversed, /concluded failure/]] as const) {
+      const { graphql, rest } = fakeGithub({ verdicts: { [sha('1')]: verdict, [sha('2')]: 'SUCCESS' }, entries: twoEntries });
       await expect(
-        checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql }),
+        checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql, rest }),
       ).rejects.toThrow(message);
     }
   });
 
   it('refuses any other event rather than passing on it', async () => {
     for (const eventName of ['pull_request', 'pull_request_target']) {
-      const { graphql } = fakeGithub({});
-      await expect(checkIndependentReview({ eventName, event: {}, repository, graphql }))
+      const { graphql, rest } = fakeGithub({});
+      await expect(checkIndependentReview({ eventName, event: {}, repository, graphql, rest }))
         .rejects.toThrow(/unsupported event/);
     }
-    const { graphql } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' } });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' } });
     await expect(
-      checkIndependentReview({ eventName: 'push', event: {}, repository, graphql }),
+      checkIndependentReview({ eventName: 'push', event: {}, repository, graphql, rest }),
     ).rejects.toThrow(/unsupported event push/);
   });
 
@@ -433,12 +505,13 @@ describe('the release back-merge', () => {
       { ...twoEntries[0], prHead: head, pull: backMergePull } as QueueEntry,
       twoEntries[1] as QueueEntry,
     ];
-    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     const verified = await checkIndependentReview({
       eventName: 'merge_group',
       event: mergeGroupEvent(9, sha('b')),
       repository,
       graphql,
+      rest,
       git,
     });
     expect(verified).toEqual([
@@ -455,16 +528,17 @@ describe('the release back-merge', () => {
       { ...twoEntries[0], prHead: extra, pull: backMergePull } as QueueEntry,
       twoEntries[1] as QueueEntry,
     ];
-    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
+        rest,
         git,
       }),
-    ).rejects.toThrow(/#7 head .* carries no/);
+    ).rejects.toThrow(/#7 head .* has no completed run of/);
   });
 
   it('checks a queued entry whose author only resembles the back-merge', async () => {
@@ -473,15 +547,16 @@ describe('the release back-merge', () => {
       { ...twoEntries[0], pull: impostor } as QueueEntry,
       twoEntries[1] as QueueEntry,
     ];
-    const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
+    const { graphql, rest } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
+        rest,
       }),
-    ).rejects.toThrow(/#7 head .* carries no/);
+    ).rejects.toThrow(/#7 head .* has no completed run of/);
   });
 });
 
@@ -511,13 +586,14 @@ describe('merge queue ref', () => {
   it('refuses a queue ref whose base differs from the merge group base', async () => {
     const event = mergeGroupEvent(7, sha('a'));
     const group = { ...(event.merge_group as object), base_ref: 'refs/heads/main' };
-    const { graphql } = fakeGithub({ entries: twoEntries });
+    const { graphql, rest } = fakeGithub({ entries: twoEntries });
     await expect(
       checkIndependentReview({
         eventName: 'merge_group',
         event: { merge_group: group },
         repository,
         graphql,
+        rest,
       }),
     ).rejects.toThrow(/targets develop but the merge group targets main/);
   });

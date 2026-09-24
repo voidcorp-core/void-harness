@@ -34,8 +34,9 @@ protection accepts for the check.
 
 Positive:
 
-- No review secret exists on any developer's or worker's machine; what forges
-  an approval is now a GitHub App identity, which no local token can assume.
+- No review secret exists on any developer's or worker's machine; what lets a
+  pull request through the queue is a run of a workflow develop holds, which no
+  local credential can fabricate.
 - The signing key, `review-key`, `verdict`, the signature format, the public key
   on the base and their verification script are deleted rather than guarded.
 - The workflow, its scripts and the reviewer's instructions come from the base
@@ -46,10 +47,15 @@ Negative:
 
 - Each ready pull request costs a review run in CI, against the repository's
   `CLAUDE_CODE_OAUTH_TOKEN` secret.
-- A pull request can still add a `pull_request` workflow that publishes a check
-  under the same name; the loop never merges a change under `.github/**`, and
-  pinning required workflows to the base stays the open question the merge
-  queue decision recorded.
+- The check alone proves nothing: any workflow of the repository runs as the
+  GitHub Actions app, and one pushed to a throwaway branch could create it on
+  another head. The merge queue therefore believes a run of the review workflow
+  itself, identified by its file, its event, the title it gives a run and a
+  workflow commit develop holds, and the run fails whenever the review does.
+- A pull request that rewrites the queue workflow still runs its own version
+  in the queue; the loop never merges a change under `.github/**`, and pinning
+  required workflows to the base stays the open question the merge queue
+  decision recorded.
 
 ## Alternatives considered
 

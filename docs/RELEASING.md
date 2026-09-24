@@ -74,11 +74,13 @@ required check of `develop` also answers `merge_group`, the only event a queue
 waits on, and falls back to the group's `base_sha` wherever it read the pull
 request base. The review itself is a job, `independent-review.yml`, on
 `pull_request_target`: it reads the head as data with read-only tools and
-publishes the `independent-review` check on it, which branch protection accepts
-from GitHub Actions alone. In the queue, `independent-review-queue.yml` passes
-only when every pull request of the group carries that check, successful, on
-its own head. The job reviews with the repository's `CLAUDE_CODE_OAUTH_TOKEN`
-secret; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
+publishes the `independent-review` check on it. In the queue,
+`independent-review-queue.yml` does not believe that check, which any workflow
+of the repository could create: it passes only when every pull request of the
+group has a successful run of the review workflow, run from `develop`, for its
+own head. The job reviews with the `CLAUDE_CODE_OAUTH_TOKEN` secret of the
+`independent-review` environment, whose deployment branch policy admits
+`develop` alone, so a workflow pushed to another branch cannot read it; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
 and [the review-in-GitHub decision](decisions-log/2026-09-24-review-runs-in-github-actions--f592ded5-108e-474e-b23e-173493550326.md).
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is

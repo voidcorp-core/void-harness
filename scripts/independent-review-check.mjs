@@ -6,18 +6,23 @@
 // The review is a GitHub Actions job (.github/workflows/independent-review.yml,
 // on `pull_request_target`): it reads the pull request head without executing
 // it and publishes its verdict as a check run named `independent-review` on
-// that head. Branch protection requires that check from the GitHub Actions app
-// alone, so nothing on a developer's or a worker's machine can produce it: a
-// token with write access can post a commit status or a comment, never a check
-// run as that app. On `merge_group` the checks run on a synthetic group commit
-// nobody reviewed, so the group is walked back through the merge queue, entry
-// by entry, and every pull request it contains must carry a successful review
-// check on its own head SHA. This job never runs on `pull_request`: a job there
+// that head. Branch protection requires that check from the GitHub Actions app,
+// but any workflow of the repository runs as that app: one pushed to a
+// throwaway branch could create the check on another pull request's head. So
+// in the queue the check is not what is believed. On `merge_group` the group is
+// walked back through the merge queue, entry by entry, and every pull request it
+// contains must have a completed run of the review workflow itself whose
+// provenance GitHub alone sets: the file `.github/workflows/independent-review.yml`,
+// the event `pull_request_target`, the title that workflow gives its runs from
+// the pull request and head it reviewed, and a workflow commit develop holds, so
+// the file that ran is develop's and not one a pull request aimed at another
+// base carries. The latest such run must have succeeded, which it does only when
+// the review blocked nothing. This job never runs on `pull_request`: a job there
 // that skipped would report success under the required name.
 //
 // Every doubt fails: an unknown event, a malformed ref, an API error, an entry
-// missing from the queue, a review check still running or absent. A missing
-// review is never read as approval.
+// missing from the queue, a review run absent, running or from anywhere else.
+// A missing review is never read as approval.
 //
 // One pull request needs no review: the release back-merge (back-merge.yml),
 // which carries only the release output a person approved by merging the
@@ -47,6 +52,15 @@ export const REVIEW_CHECK_NAME = 'independent-review';
  * by an app; the `GITHUB_TOKEN` of a workflow creates it as this one.
  */
 export const GITHUB_ACTIONS_APP_ID = 15368;
+/** The review workflow, the only one whose runs are believed in the queue. */
+export const REVIEW_WORKFLOW = '.github/workflows/independent-review.yml';
+/** The title the review workflow gives a run, from the pull request and head it reviews. */
+export const reviewRunTitle = (number, sha) => `independent-review #${number} ${sha}`;
+// Runs read per pull request, newest first: a head is reviewed on the push that
+// made it, so its run is among the latest. One older than this is not found,
+// and the queue refuses rather than reads further.
+const RUN_PAGES_MAX = 5;
+const RUNS_PER_PAGE = 100;
 
 // Observed on every back-merge so far (#287 to #379). The login carries the
 // `[bot]` suffix only in REST, which a user account cannot register.
@@ -199,12 +213,55 @@ export async function reviewCheckState(graphql, coordinates, sha) {
   return latestReviewConclusion(commit, sha);
 }
 
-async function requireReview(graphql, coordinates, pull) {
-  const state = await reviewCheckState(graphql, coordinates, pull.sha);
+async function restCall(rest, path) {
+  try {
+    return await rest(path);
+  } catch (error) {
+    return fail(`GitHub API call failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/** The latest completed run of the review workflow for this head, or undefined. */
+async function latestReviewRun(rest, coordinates, pull) {
+  const title = reviewRunTitle(pull.number, pull.sha);
+  const base = `repos/${coordinates.owner}/${coordinates.name}/actions/workflows/independent-review.yml/runs`;
+  const matching = [];
+  for (let page = 1; page <= RUN_PAGES_MAX; page += 1) {
+    const query = `event=pull_request_target&status=completed&per_page=${RUNS_PER_PAGE}&page=${page}`;
+    const runs = field(await restCall(rest, `${base}?${query}`), 'workflow_runs');
+    if (!Array.isArray(runs)) fail('the review workflow runs are unreadable');
+    matching.push(...runs.filter((run) => field(run, 'display_title') === title
+      && field(run, 'event') === 'pull_request_target'
+      && field(run, 'path') === REVIEW_WORKFLOW
+      && field(run, 'status') === 'completed'));
+    if (runs.length < RUNS_PER_PAGE) break;
+  }
+  const order = (run) => [Date.parse(String(field(run, 'created_at'))), Number(field(run, 'run_attempt'))];
+  matching.sort((left, right) => {
+    const [a, b] = [order(left), order(right)];
+    return a[0] - b[0] || a[1] - b[1];
+  });
+  return matching.at(-1);
+}
+
+/** Whether `sha` is on `branch`: the workflow file that ran is then the branch's. */
+async function onBranch(rest, coordinates, branch, sha) {
+  const path = `repos/${coordinates.owner}/${coordinates.name}/compare/${branch}...${sha}`;
+  const status = field(await restCall(rest, path), 'status');
+  return status === 'behind' || status === 'identical';
+}
+
+async function requireReview(rest, coordinates, pull, base) {
   const label = `#${pull.number} head ${pull.sha}`;
   const why = pull.refused === undefined ? '' : ` (not exempt as the back-merge: ${pull.refused})`;
-  if (state === undefined) fail(`${label} carries no ${REVIEW_CHECK_NAME} check from GitHub Actions${why}`);
-  if (state !== 'SUCCESS') fail(`${label}: the ${REVIEW_CHECK_NAME} check is ${state}`);
+  const run = await latestReviewRun(rest, coordinates, pull);
+  if (run === undefined) fail(`${label} has no completed run of ${REVIEW_WORKFLOW}${why}`);
+  const conclusion = field(run, 'conclusion');
+  if (conclusion !== 'success') fail(`${label}: its latest review run concluded ${String(conclusion)}`);
+  const workflowSha = requireSha(field(run, 'head_sha'), `${label} review run commit`);
+  if (!(await onBranch(rest, coordinates, base, workflowSha))) {
+    fail(`${label}: its review run ran a workflow from ${workflowSha}, which ${base} does not hold`);
+  }
 }
 
 /** The back-merge, from the queue's GraphQL view of a pull request. */
@@ -349,17 +406,18 @@ export function backMergeRefusal(git, sha, options = {}) {
   return undefined;
 }
 
-export async function checkIndependentReview({ eventName, event, repository, graphql, git }) {
+export async function checkIndependentReview({ eventName, event, repository, graphql, rest, git }) {
   const coordinates = splitRepository(repository);
   if (eventName !== 'merge_group') fail(`unsupported event ${String(eventName)}; the review itself runs on pull_request_target`);
   const pulls = await mergeGroupPulls(event, graphql, coordinates);
+  const base = branchName(field(field(event, 'merge_group'), 'base_ref'));
   for (const pull of pulls) {
     if (!pull.exempt) continue;
     const refused = git === undefined ? 'no git to read its commits' : backMergeRefusal(git, pull.sha);
     if (refused !== undefined) Object.assign(pull, { exempt: false, refused });
   }
   for (const pull of pulls) {
-    if (!pull.exempt) await requireReview(graphql, coordinates, pull);
+    if (!pull.exempt) await requireReview(rest, coordinates, pull, base);
   }
   return pulls.map(({ number, sha, exempt }) =>
     exempt ? { number, sha, exempt: 'back-merge' } : { number, sha });
@@ -382,6 +440,7 @@ async function main() {
     event: JSON.parse(readFileSync(eventPath, 'utf8')),
     repository: process.env.GITHUB_REPOSITORY,
     graphql: async (text, variables) => ghGraphql(text, variables),
+    rest: async (path) => JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8', timeout: 30_000 })),
     git: (args) => execFileSync('git', args, { encoding: 'utf8', timeout: 120_000 }),
   });
   for (const pull of pulls) {

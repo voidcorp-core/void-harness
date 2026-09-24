@@ -124,6 +124,17 @@ export function conclusionOf(admission) {
   };
 }
 
+/**
+ * How the run ends. The queue believes a run of this workflow, not the check
+ * any workflow of the repository could create, so the run must fail wherever
+ * the check does: a fork, and a review that blocked, crashed or was refused.
+ */
+export function exitCodeOf({ kind, conclusion }) {
+  if (kind === 'fork') return 1;
+  if (kind === 'review') return conclusion === 'success' ? 0 : 1;
+  return 0;
+}
+
 /** Every verdict block the review job posted, oldest first; unreadable ones are skipped. */
 function postedVerdicts(bodies) {
   return bodies.flatMap((body) => {
@@ -200,6 +211,8 @@ function start() {
   }
   output('review', decision.kind === 'review' ? 'true' : 'false');
   process.stdout.write(`independent-review: #${decision.number} ${decision.headSha} ${decision.kind}\n`);
+  // The review is still to come here; only a fork ends the run now.
+  if (decision.kind === 'fork') process.exitCode = exitCodeOf({ kind: 'fork' });
 }
 
 function finish() {
@@ -220,6 +233,7 @@ function finish() {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## independent-review: ${title}\n\n${summary}\n`);
   }
   process.stdout.write(`independent-review: #${number} ${headSha} ${conclusion}\n`);
+  process.exitCode = exitCodeOf({ kind: 'review', conclusion });
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

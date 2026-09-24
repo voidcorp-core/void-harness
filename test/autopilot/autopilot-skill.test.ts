@@ -156,7 +156,8 @@ describe('the review runs in GitHub, out of the reach of every worker', () => {
   it('names the job, its trigger and the check only GitHub Actions creates', () => {
     expect(flat(body(SKILL))).toMatch(/`\.github\/workflows\/independent-review\.yml` reviews every ready pull request/);
     expect(flat(body(SKILL))).toMatch(/on `pull_request_target`/);
-    expect(flat(body(SKILL))).toMatch(/only the GitHub Actions app can create/);
+    expect(flat(body(SKILL))).toMatch(/The merge queue does not believe that check/);
+    expect(flat(body(SKILL))).toMatch(/only on a successful run of that workflow, run from the base, for that exact head/);
     expect(flat(body(SKILL))).toMatch(/No key or secret for it lives on this machine/);
   });
 
