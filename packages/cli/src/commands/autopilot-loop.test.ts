@@ -5,8 +5,6 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderJudgmentComment } from '../lib/autopilot/judgment-comment.js';
 import { gitIn } from '../lib/autopilot/loop-observe.js';
-import { keyFingerprint, publicKeyOf, verifiedVerdicts } from '../lib/autopilot/review-signature.js';
-import { signedVerdictComment, TEST_REPOSITORY } from '../lib/autopilot/review-signature-fixtures.js';
 import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
 
 // The loop commands run in process against a real scratch repository (git is
@@ -54,7 +52,7 @@ function project(): string {
   roots.push(root);
   git(root, 'init', '-q');
   mkdirSync(join(root, '.void'));
-  // What the harness install ignores: the private review key lives there.
+  // What the harness install ignores: the loop's local state lives there.
   writeFileSync(join(root, '.gitignore'), '.void/machine/\n');
   writeFileSync(join(root, '.void', 'program.md'), PROGRAM);
   git(root, 'add', '.');
@@ -63,17 +61,16 @@ function project(): string {
 }
 
 /**
- * Pull request 11, open on `work/DEV-1` against develop, reviewed on its head.
- * With a private key, its verdict comment is signed with it as `autopilot
- * verdict` posts it; without, it carries only the comment and the status.
+ * Pull request 11, open on `work/DEV-1` against develop, reviewed on its head:
+ * the `independent-review` check passed and the review job posted its verdict,
+ * unless `reviewer` names another author for the comment.
  */
 function reviewedPull(
-  privateKey?: string,
-  options: { head?: string; armed?: boolean; queued?: boolean } = {},
+  options: { head?: string; armed?: boolean; queued?: boolean; reviewer?: string } = {},
 ): string {
   const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
-  const [status] = JSON.parse(fixture('status-contexts.json')) as Record<string, unknown>[];
-  const rollup = view.statusCheckRollup as unknown[];
+  const rollup = view.statusCheckRollup as Record<string, unknown>[];
+  const review = { ...rollup[0], name: 'independent-review', conclusion: 'SUCCESS' };
   const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: Record<string, unknown>[] };
   return JSON.stringify({
     ...view,
@@ -84,8 +81,12 @@ function reviewedPull(
     ...(options.head === undefined ? {} : { headRefOid: options.head }),
     ...(options.armed === true ? { autoMergeRequest: armedRequest() } : {}),
     ...(options.queued === true ? queuedView() : {}),
-    statusCheckRollup: [...rollup, { ...status, context: 'void/independent-review', state: 'SUCCESS' }],
-    comments: [...comments, { ...comments[0], body: verdictComment(privateKey) }],
+    statusCheckRollup: [...rollup, review],
+    comments: [...comments, {
+      ...comments[0],
+      body: renderJudgmentComment('review-verdict', cleanVerdict),
+      author: { login: options.reviewer ?? 'github-actions' },
+    }],
     changedFiles: 1,
   });
 }
@@ -118,34 +119,13 @@ function pullFiles(): string {
   return JSON.stringify([{ ...entry, filename: 'packages/dev-1/index.ts', status: 'modified' }]);
 }
 
-/** The reviewer's comment, signed with the review key when one is given. */
-function verdictComment(privateKey?: string): string {
-  if (privateKey === undefined) return renderJudgmentComment('review-verdict', cleanVerdict);
-  return signedVerdictComment(cleanVerdict, { pullRequest: 11, ticketId: 'DEV-1', privateKey });
-}
+const gh = (args: readonly string[]): string => answer(args);
 
-const gh = ghFor(undefined);
-
-/**
- * gh as it answers once the public half of `privateKey` was merged on develop:
- * the key the required check reads, and the one `next` compares with its own.
- */
-function ghFor(privateKey: string | undefined, published: string | 'unpublished' | undefined = privateKey) {
-  const onBase = published === 'unpublished' ? undefined : published;
-  return (args: readonly string[]): string => answer(args, privateKey, onBase);
-}
-
-function answer(args: readonly string[], privateKey?: string, published?: string): string {
+function answer(args: readonly string[], view: string = reviewedPull()): string {
   const line = args.join(' ');
   if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
-  if (line.includes('repo view')) return `${TEST_REPOSITORY}\n`;
-  if (line.includes('contents/.github/void-review.pub?ref=develop')) {
-    if (published === undefined) throw new Error('gh: HTTP 404: Not Found');
-    return `${Buffer.from(publicKeyOf(published)).toString('base64')}\n`;
-  }
-  if (line.includes('pr view 11')) return reviewedPull(privateKey);
+  if (line.includes('pr view 11')) return view;
   if (line.includes('pulls/11/files')) return pullFiles();
-  if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
   if (line.includes('isInMergeQueue')) return membership(false);
   if (line.includes('timelineItems')) return fixture('timeline-commit-then-ejection.json').replace(
     /"nodes":\[.*\]/,
@@ -194,13 +174,6 @@ const HEAD = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
 const cleanVerdict = { headSha: HEAD, round: 1, blocking: [], advisory: [] };
 const queuedTicket = { id: 'DEV-2', status: 'Todo', humanWait: false, readiness: ready };
 
-/** Draw the review key as the orchestrator does once; its private half. */
-function drawKey(root: string): string {
-  const result = runAutopilotCommand(['review-key', '--json'], '', context(root));
-  expect(result.exitCode, result.stderr).toBe(0);
-  return readFileSync(join(root, '.void', 'machine', 'autopilot', 'review-key.pem'), 'utf8');
-}
-
 function next(root: string, stdin: string, runner?: (args: readonly string[]) => string) {
   const result = runAutopilotCommand(['next', '--json'], stdin, context(root, runner));
   return { ...result, decision: result.exitCode === 0 ? JSON.parse(result.stdout) : undefined };
@@ -210,8 +183,7 @@ describe('autopilot next', () => {
   it('seats the head of the queue and arms the merge of a reviewed unit', () => {
     const root = project();
     expect(runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root)).exitCode).toBe(0);
-    const key = drawKey(root);
-    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), ghFor(key));
+    const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), gh);
     expect(decision.actions).toEqual([
       {
         kind: 'enable-auto-merge',
@@ -226,9 +198,8 @@ describe('autopilot next', () => {
   it('withholds the merge of a unit that changed the shared Git state', () => {
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    const key = drawKey(root);
     git(root, 'tag', 'stray');
-    const { decision } = next(root, trackerJson([heldTicket], []), ghFor(key));
+    const { decision } = next(root, trackerJson([heldTicket], []), gh);
     expect(decision.actions[0]).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'shared-state-changed',
@@ -236,33 +207,14 @@ describe('autopilot next', () => {
     });
   });
 
-  it('arms nothing on a verdict and a status the review key did not sign', () => {
-    // What a worker holding the same credentials can post by hand: the comment
-    // and a success status on the head, without the orchestration checkout's key.
+  it('arms nothing on a verdict another author posted beside a passing check', () => {
+    // A worker's token can post the same comment block; only the review job's
+    // counts. The check itself comes from GitHub Actions alone.
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    const key = drawKey(root);
-    const unsigned = next(root, trackerJson([heldTicket], []), ghFor(undefined, key)).decision;
-    expect(unsigned.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
-    const stranger = drawKey(project());
-    const forged = next(root, trackerJson([heldTicket], []), ghFor(stranger, key)).decision;
-    expect(forged.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
-  });
-
-  it('believes nothing once the key published on the base is not its own, and says so', () => {
-    // A worker that swaps .github/void-review.pub for its own key makes the
-    // required check accept its signatures; the loop keeps its own key and
-    // refuses them all, so nothing it would arm rests on the swapped key.
-    const root = project();
-    runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    const key = drawKey(root);
-    const theirs = drawKey(project());
-    const swapped = next(root, trackerJson([heldTicket], []), ghFor(theirs, theirs));
-    expect(swapped.decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
-    expect(swapped.decision.reviewKey).toMatch(/not this checkout's key/);
-    const missing = next(root, trackerJson([heldTicket], []), ghFor(key, 'unpublished'));
-    expect(missing.decision.reviewKey).toMatch(/carries no \.github\/void-review\.pub/);
-    expect(next(root, trackerJson([heldTicket], []), ghFor(key)).decision.reviewKey).toBe('trusted');
+    const forged = (args: readonly string[]) => answer(args, reviewedPull({ reviewer: 'folpe' }));
+    const { decision } = next(root, trackerJson([heldTicket], []), forged);
+    expect(decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
   });
 
   it('refuses a tracker observation with the field at fault', () => {
@@ -301,214 +253,10 @@ describe('autopilot judgment', () => {
     expect(unknown.stderr).toMatch(/conflict-class/);
   });
 
-  it('no longer renders a review verdict: `autopilot verdict` is its only writer', () => {
+  it('renders no review verdict: the review job in GitHub Actions is its only writer', () => {
     const result = runAutopilotCommand(['judgment', 'review-verdict'], JSON.stringify(cleanVerdict));
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toMatch(/autopilot verdict/);
-  });
-});
-
-describe('autopilot verdict', () => {
-  // The only way a verdict reaches a pull request: admitted, bound to the head
-  // the pull request has now, posted as a comment and a status together, and
-  // the job that enforces it re-run when it disagrees.
-  const RUN = 35694132291;
-
-  function pullView(
-    options: { head?: string; state?: string; reviewJob?: string } = {},
-  ): string {
-    const view = JSON.parse(fixture('pr-view-open.json')) as Record<string, unknown>;
-    const rollup = view.statusCheckRollup as Record<string, unknown>[];
-    const [firstRun] = rollup;
-    const { comments } = JSON.parse(fixture('pr-view-comments.json')) as { comments: unknown[] };
-    const { changedFiles } = JSON.parse(fixture('pr-view-files.json')) as Record<string, unknown>;
-    const job = options.reviewJob === undefined ? [] : [{ ...firstRun, name: 'independent-review', conclusion: options.reviewJob }];
-    return JSON.stringify({
-      ...view,
-      number: 11,
-      state: options.state ?? 'OPEN',
-      headRefName: 'work/DEV-1',
-      headRefOid: options.head ?? HEAD,
-      baseRefName: 'develop',
-      statusCheckRollup: [...rollup, ...job],
-      comments,
-      changedFiles,
-    });
-  }
-
-  function recorder(view: string) {
-    const calls: string[][] = [];
-    const run = (args: readonly string[]): string => {
-      calls.push([...args]);
-      if (args[0] === 'pr' && args[1] === 'view') return view;
-      if (args[0] === 'repo' && args[1] === 'view') return `${TEST_REPOSITORY}\n`;
-      return '{}';
-    };
-    return { run, calls };
-  }
-
-  /** A project whose orchestration checkout drew its review key. */
-  function keyed(): { root: string; key: string } {
-    const root = project();
-    return { root, key: drawKey(root) };
-  }
-
-  function verdict(
-    root: string,
-    stdin: unknown,
-    view: string,
-    argv: readonly string[] = ['--ticket', 'DEV-1', '--pr', '11'],
-  ) {
-    const { run, calls } = recorder(view);
-    const result = runAutopilotCommand(['verdict', ...argv, '--json'], JSON.stringify(stdin), context(root, run));
-    const reads = (call: readonly string[]) => call[1] === 'view' && (call[0] === 'pr' || call[0] === 'repo');
-    return { result, calls, writes: calls.filter((call) => !reads(call)) };
-  }
-
-  it('posts the signed comment, then the status, on the head it read, and re-runs the red job', () => {
-    const { root, key } = keyed();
-    const { result, writes } = verdict(root, cleanVerdict, pullView({ reviewJob: 'FAILURE' }));
-    expect(result.exitCode, result.stderr).toBe(0);
-    expect(writes).toHaveLength(3);
-    const [comment, status, rerun] = writes;
-    expect(comment?.slice(0, 2)).toEqual(['api', 'repos/{owner}/{repo}/issues/11/comments']);
-    const body = (comment?.find((arg) => arg.startsWith('body=')) ?? '').slice('body='.length);
-    expect(body.startsWith(renderJudgmentComment('review-verdict', cleanVerdict))).toBe(true);
-    expect(verifiedVerdicts(publicKeyOf(key), [body])).toEqual([
-      expect.objectContaining({
-        repository: TEST_REPOSITORY,
-        ticketId: 'DEV-1',
-        pullRequest: 11,
-        headSha: HEAD,
-        state: 'success',
-        signedAt: NOW,
-      }),
-    ]);
-    // The signature names the key by its fingerprint and never carries the private half.
-    expect(body).toContain(keyFingerprint(publicKeyOf(key)));
-    expect(writes.flat().some((arg) => arg.includes(key.split('\n')[1] ?? '?'))).toBe(false);
-    expect(status?.slice(0, 2)).toEqual(['api', `repos/{owner}/{repo}/statuses/${HEAD}`]);
-    expect(status).toEqual(expect.arrayContaining(['state=success', 'context=void/independent-review']));
-    expect(rerun).toEqual(['run', 'rerun', String(RUN), '--failed']);
-    expect(JSON.parse(result.stdout)).toMatchObject({ pullRequest: 11, headSha: HEAD, state: 'success', rerun: RUN });
-  });
-
-  it('writes a failure for a blocking verdict and leaves a job already red alone', () => {
-    const blocking = {
-      ...cleanVerdict,
-      blocking: [{ location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' }],
-    };
-    const { result, writes } = verdict(keyed().root, blocking, pullView({ reviewJob: 'FAILURE' }));
-    expect(result.exitCode).toBe(0);
-    expect(writes).toHaveLength(2);
-    expect(writes[1]).toEqual(expect.arrayContaining(['state=failure']));
-  });
-
-  it('writes nothing for a head the pull request has moved past', () => {
-    const { result, writes } = verdict(keyed().root, cleanVerdict, pullView({ head: 'b'.repeat(40) }));
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toMatch(/head/);
-    expect(writes).toEqual([]);
-  });
-
-  it('writes nothing on a pull request that is no longer open', () => {
-    const { result, writes } = verdict(keyed().root, cleanVerdict, pullView({ state: 'MERGED' }));
-    expect(result.exitCode).toBe(2);
-    expect(writes).toEqual([]);
-  });
-
-  it('asks GitHub nothing where no review key was drawn, or without the ticket', () => {
-    const keyless = verdict(project(), cleanVerdict, pullView());
-    expect(keyless.result.exitCode).toBe(2);
-    expect(keyless.result.stderr).toMatch(/no review key/);
-    expect(keyless.calls).toEqual([]);
-    const { root } = keyed();
-    for (const argv of [['--pr', '11'], ['--ticket', '../x', '--pr', '11']]) {
-      const unnamed = verdict(root, cleanVerdict, pullView(), argv);
-      expect(unnamed.result.exitCode, argv.join(' ')).toBe(2);
-      expect(unnamed.result.stderr).toMatch(/ticket/);
-      expect(unnamed.calls).toEqual([]);
-    }
-  });
-
-  it('asks GitHub nothing for a verdict it refuses, or without the pull request', () => {
-    const { root } = keyed();
-    const refused = verdict(root, { ...cleanVerdict, round: 3 }, pullView());
-    expect(refused.result.exitCode).toBe(2);
-    expect(refused.result.stderr).toMatch(/round/);
-    expect(refused.calls).toEqual([]);
-    const unnamed = verdict(root, cleanVerdict, pullView(), ['--ticket', 'DEV-1']);
-    expect(unnamed.result.exitCode).toBe(2);
-    expect(unnamed.result.stderr).toMatch(/--pr/);
-    expect(unnamed.calls).toEqual([]);
-  });
-});
-
-describe('autopilot review-key', () => {
-  // Drawn once by the orchestrator: the private half stays in this checkout,
-  // ignored by git; the public half is versioned for a person to merge.
-  const privatePath = (root: string) => join(root, '.void', 'machine', 'autopilot', 'review-key.pem');
-  const publicPath = (root: string) => join(root, '.github', 'void-review.pub');
-
-  it('draws the key once, readable by its owner alone, and writes its public half', () => {
-    const root = project();
-    const first = runAutopilotCommand(['review-key', '--json'], '', context(root, unreachableGh));
-    expect(first.exitCode, first.stderr).toBe(0);
-    const drawn = JSON.parse(first.stdout) as { created: boolean; fingerprint: string; publicKeyPath: string };
-    const privateKey = readFileSync(privatePath(root), 'utf8');
-    expect(privateKey).toMatch(/^-----BEGIN PRIVATE KEY-----/);
-    expect(statSync(privatePath(root)).mode & 0o777).toBe(0o600);
-    expect(readFileSync(publicPath(root), 'utf8')).toBe(publicKeyOf(privateKey));
-    expect(drawn).toEqual({
-      created: true,
-      fingerprint: keyFingerprint(publicKeyOf(privateKey)),
-      publicKeyPath: '.github/void-review.pub',
-    });
-    expect(first.stdout).not.toContain(privateKey.split('\n')[1]);
-    // Again: nothing is drawn, and a public half deleted or edited is restored.
-    writeFileSync(publicPath(root), 'edited');
-    const again = runAutopilotCommand(['review-key', '--json'], '', context(root, unreachableGh));
-    expect(JSON.parse(again.stdout)).toMatchObject({ created: false, fingerprint: drawn.fingerprint });
-    expect(readFileSync(privatePath(root), 'utf8')).toBe(privateKey);
-    expect(readFileSync(publicPath(root), 'utf8')).toBe(publicKeyOf(privateKey));
-  });
-
-  it('refuses to draw a private key git would not ignore', () => {
-    const root = project();
-    rmSync(join(root, '.gitignore'));
-    const result = runAutopilotCommand(['review-key'], '', context(root, unreachableGh));
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toMatch(/ignore/);
-    expect(existsSync(privatePath(root))).toBe(false);
-  });
-});
-
-describe('the checkout a review secret lives in', () => {
-  // A linked worktree is a worker's: drawing the key or signing a verdict there
-  // would put the secret where the worker reads, and sign a verdict of its own.
-  function linkedWorktree(): string {
-    const root = project();
-    const linked = join(mkdtempSync(join(tmpdir(), 'vh-autopilot-linked-')), 'work');
-    roots.push(linked);
-    expect(git(root, 'worktree', 'add', '-q', '-b', 'work/DEV-1', linked).status).toBe(0);
-    return linked;
-  }
-
-  it('refuses to draw the review key from a linked worktree, and writes nothing', () => {
-    const linked = linkedWorktree();
-    const result = runAutopilotCommand(['review-key'], '', context(linked, unreachableGh));
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toMatch(/orchestration checkout/);
-    expect(existsSync(join(linked, '.void', 'machine', 'autopilot'))).toBe(false);
-    expect(existsSync(join(linked, '.github', 'void-review.pub'))).toBe(false);
-  });
-
-  it('refuses to write a verdict from a linked worktree, before asking GitHub', () => {
-    const linked = linkedWorktree();
-    const argv = ['verdict', '--ticket', 'DEV-1', '--pr', '11'];
-    const result = runAutopilotCommand(argv, JSON.stringify(cleanVerdict), context(linked, unreachableGh));
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toMatch(/orchestration checkout/);
+    expect(result.stderr).toMatch(/review job/);
   });
 });
 
@@ -544,7 +292,7 @@ describe('autopilot arm and disarm', () => {
 
   it('records the head, arms on exactly that head, and checks GitHub armed it', () => {
     const root = project();
-    const gh = sequence([reviewedPull(), reviewedPull(undefined, { armed: true })]);
+    const gh = sequence([reviewedPull(), reviewedPull({ armed: true })]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD, '--json'];
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
@@ -554,7 +302,7 @@ describe('autopilot arm and disarm', () => {
 
   it('arms nothing on a head the pull request has moved past', () => {
     const root = project();
-    const gh = sequence([reviewedPull(undefined, { head: 'b'.repeat(40) })]);
+    const gh = sequence([reviewedPull({ head: 'b'.repeat(40) })]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
     expect(result.exitCode).toBe(2);
@@ -567,7 +315,7 @@ describe('autopilot arm and disarm', () => {
     const unarmed = sequence([reviewedPull(), reviewedPull()]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     expect(runAutopilotCommand(argv, '', { ...context(root), gh: unarmed.run }).stderr).toMatch(/not armed/);
-    const moved = sequence([reviewedPull(), reviewedPull(undefined, { armed: true, head: 'b'.repeat(40) })]);
+    const moved = sequence([reviewedPull(), reviewedPull({ armed: true, head: 'b'.repeat(40) })]);
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: moved.run });
     expect(result.exitCode).toBe(2);
     expect(moved.writes().at(-1)).toEqual(['pr', 'merge', '11', '--disable-auto']);
@@ -575,7 +323,7 @@ describe('autopilot arm and disarm', () => {
 
   it('disarms, then checks GitHub no longer holds the auto-merge', () => {
     const root = project();
-    const gh = sequence([reviewedPull(undefined, { armed: true }), reviewedPull()]);
+    const gh = sequence([reviewedPull({ armed: true }), reviewedPull()]);
     const result = runAutopilotCommand(['disarm', '--pr', '11', '--json'], '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
     expect(gh.writes()).toEqual([['pr', 'merge', '11', '--disable-auto']]);
@@ -583,7 +331,7 @@ describe('autopilot arm and disarm', () => {
     const idle = sequence([reviewedPull()]);
     expect(runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: idle.run }).exitCode).toBe(0);
     expect(idle.writes()).toEqual([]);
-    const stuck = sequence([reviewedPull(undefined, { armed: true }), reviewedPull(undefined, { armed: true })]);
+    const stuck = sequence([reviewedPull({ armed: true }), reviewedPull({ armed: true })]);
     const refused = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: stuck.run });
     expect(refused.exitCode).toBe(2);
     expect(refused.stderr).toMatch(/still armed/);
@@ -593,7 +341,7 @@ describe('autopilot arm and disarm', () => {
     // Once the checks pass, arming on a base with a merge queue queues the pull
     // request and leaves no auto-merge request behind.
     const root = project();
-    const gh = sequence([reviewedPull(), reviewedPull(undefined, { queued: true })], [true]);
+    const gh = sequence([reviewedPull(), reviewedPull({ queued: true })], [true]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD, '--json'];
     const result = runAutopilotCommand(argv, '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
@@ -602,13 +350,13 @@ describe('autopilot arm and disarm', () => {
 
   it('takes a queued pull request out of the merge queue, which --disable-auto leaves alone', () => {
     const root = project();
-    const gh = sequence([reviewedPull(undefined, { queued: true }), reviewedPull()], [true, false]);
+    const gh = sequence([reviewedPull({ queued: true }), reviewedPull()], [true, false]);
     const result = runAutopilotCommand(['disarm', '--pr', '11', '--json'], '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
     expect(gh.writes()).toHaveLength(1);
     expect(dequeue(gh.writes()[0])).toBe(true);
     expect(JSON.parse(result.stdout)).toMatchObject({ pullRequest: 11, disarmed: true });
-    const stuck = sequence([reviewedPull(undefined, { queued: true }), reviewedPull()], [true, true]);
+    const stuck = sequence([reviewedPull({ queued: true }), reviewedPull()], [true, true]);
     const refused = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: stuck.run });
     expect(refused.exitCode).toBe(2);
     expect(refused.stderr).toMatch(/still armed/);
@@ -616,7 +364,7 @@ describe('autopilot arm and disarm', () => {
 
   it('turns the auto-merge off before it dequeues, so GitHub cannot queue it again in between', () => {
     const root = project();
-    const both = reviewedPull(undefined, { armed: true, queued: false });
+    const both = reviewedPull({ armed: true, queued: false });
     const gh = sequence([both, reviewedPull()], [true, false]);
     const result = runAutopilotCommand(['disarm', '--pr', '11'], '', { ...context(root), gh: gh.run });
     expect(result.exitCode, result.stderr).toBe(0);
@@ -638,14 +386,13 @@ describe('autopilot arm and disarm', () => {
   it('has next disarm and hand back a pull request pushed after it was armed', () => {
     const root = project();
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
-    const key = drawKey(root);
-    const arming = sequence([reviewedPull(key), reviewedPull(key, { armed: true })]);
+    const arming = sequence([reviewedPull(), reviewedPull({ armed: true })]);
     const argv = ['arm', '--ticket', 'DEV-1', '--pr', '11', '--head', HEAD];
     expect(runAutopilotCommand(argv, '', { ...context(root), gh: arming.run }).exitCode).toBe(0);
     const moved = (args: readonly string[]): string =>
       args.join(' ').includes('pr view 11')
-        ? reviewedPull(key, { armed: true, head: 'b'.repeat(40) })
-        : answer(args, key, key);
+        ? reviewedPull({ armed: true, head: 'b'.repeat(40) })
+        : answer(args);
     const { decision } = next(root, trackerJson([heldTicket], []), moved);
     expect(decision.actions.slice(0, 2)).toEqual([
       { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: 'b'.repeat(40), armedSha: HEAD },
@@ -689,10 +436,9 @@ describe('autopilot stop', () => {
   it('disarms every armed pull request before it freezes, a proven one included', () => {
     // Freezing means nothing moves; a merge GitHub runs on its own moves develop.
     const root = project();
-    const key = drawKey(root);
     runAutopilotCommand(['stop', '--now'], '', context(root));
     const armed = (args: readonly string[]) => {
-      if (args.join(' ').includes('pr view 11')) return reviewedPull(key, { armed: true });
+      if (args.join(' ').includes('pr view 11')) return reviewedPull({ armed: true });
       return args.some((arg) => arg.includes('isInMergeQueue')) ? membership(false) : unreachableGh();
     };
     const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), armed);
@@ -704,10 +450,9 @@ describe('autopilot stop', () => {
 
   it('disarms a pull request sitting in the merge queue before it freezes', () => {
     const root = project();
-    const key = drawKey(root);
     runAutopilotCommand(['stop', '--now'], '', context(root));
     const queued = (args: readonly string[]) => {
-      if (args.join(' ').includes('pr view 11')) return reviewedPull(key, { queued: true });
+      if (args.join(' ').includes('pr view 11')) return reviewedPull({ queued: true });
       return args.some((arg) => arg.includes('isInMergeQueue')) ? membership(true) : unreachableGh();
     };
     const { decision } = next(root, trackerJson([heldTicket, queuedTicket], ['DEV-2']), queued);

@@ -2,7 +2,7 @@
  * The loop arms a merge in exactly one place, one way, and merges nowhere.
  *
  * GitHub performs every merge: the loop only arms one, through its merge queue
- * or an auto-merge request, on the head a signed verdict proves. Arming is the
+ * or an auto-merge request, on a head the review job passed. Arming is the
  * boundary most likely to be crossed by a helpful edit -- dropping
  * `--match-head-commit` "because the head was just read", or adding `--admin`
  * to get past a slow check, reads as a convenience and removes the proof.

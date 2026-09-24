@@ -114,7 +114,7 @@ describe('release operator contract', () => {
   it('states the three merge authorities the promotion audit accepts', () => {
     expect(RELEASING).toContain('scripts/promotion-authority.mjs');
     expect(RELEASING).toMatch(/merged\s+by hand by the named human/);
-    expect(RELEASING).toMatch(/success\s+`void\/independent-review`\s+status/);
+    expect(RELEASING).toMatch(/successful\s+`independent-review`\s+check run from\s+GitHub Actions/);
     expect(RELEASING).toMatch(/proved by\s+construction/);
     expect(RELEASING).toMatch(/whoever merged it and\s+whatever its timeline records/);
     expect(RELEASING).not.toContain('aligning that audit with auto-merge is an');

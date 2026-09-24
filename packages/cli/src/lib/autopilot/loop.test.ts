@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parsePullRequestView } from './loop-observe.js';
-import { signedVerdictComment, TEST_REPOSITORY, TEST_REVIEW_KEY } from './review-signature-fixtures.js';
 import {
   admitLoopTracker,
   decideLoop,
@@ -166,9 +165,8 @@ interface PullSpec {
   /** Ejections of this head from the queue; one when it was just ejected, by default. */
   readonly ejections?: number;
   /** The conclusion of the `independent-review` job, absent unless given. */
-  readonly reviewJob?: 'SUCCESS' | 'FAILURE';
-  /** The attempt of the run holding the `independent-review` job; its first unless given. */
-  readonly reviewJobAttempt?: number;
+  /** The attempt of the run that published a review which failed with no verdict; its first unless given. */
+  readonly reviewAttempt?: number;
   /** The paths the pull request changes; one ordinary document unless given. */
   readonly files?: readonly string[];
   /** Renamed files, destination to source, as REST reports them in `previous_filename`. */
@@ -188,11 +186,6 @@ const realComments = (): Raw[] =>
     ) as { comments: Raw[] }
   ).comments;
 
-/** A verdict as `autopilot verdict` posts it: the block, signed for the status posted. */
-function signedVerdict(spec: PullSpec): string {
-  const state = spec.review === 'FAILURE' ? 'failure' : 'success';
-  return signedVerdictComment(spec.verdict, { pullRequest: spec.number, ticketId: 'DEV-1', state });
-}
 
 /** A pull request read through the real parser from a real `gh pr view` capture. */
 function pull(spec: PullSpec): PullRequestObservation {
@@ -202,12 +195,15 @@ function pull(spec: PullSpec): PullRequestObservation {
   const rollup = [
     ...passing,
     ...(spec.failingCheck === true ? [{ ...firstRun, name: 'validate', conclusion: 'FAILURE' }] : []),
-    ...(spec.reviewJob === undefined
-      ? []
-      : [{ ...firstRun, name: 'independent-review', conclusion: spec.reviewJob }]),
+    // The review check the job publishes on the head, with the run it came from.
     ...(spec.review === undefined
       ? []
-      : [{ ...statusShape(), context: 'void/independent-review', state: spec.review }]),
+      : [{
+        ...firstRun,
+        name: 'independent-review',
+        status: spec.review === 'PENDING' ? 'IN_PROGRESS' : 'COMPLETED',
+        conclusion: spec.review === 'PENDING' ? '' : spec.review,
+      }]),
   ];
   const armed = JSON.parse(
     readFileSync(new URL('./__fixtures__/gh/pr-view-auto-merge.json', import.meta.url), 'utf8'),
@@ -215,6 +211,8 @@ function pull(spec: PullSpec): PullRequestObservation {
   const paths = spec.files ?? ['docs/VOID-MACHINE-VISION.md'];
   const headSha = String(spec.number).padStart(40, 'a');
   const comment = (body: string) => ({ ...realComments()[0], body });
+  // The verdict comment as the review job posts it, under the Actions bot.
+  const posted = (body: string) => ({ ...comment(body), author: { login: 'github-actions' } });
   const parsed = parsePullRequestView(
     JSON.stringify({
       ...view,
@@ -230,16 +228,15 @@ function pull(spec: PullSpec): PullRequestObservation {
       changedFiles: spec.changedFiles ?? paths.length,
       comments: [
         ...realComments(),
-        ...(spec.verdict === undefined ? [] : [comment(signedVerdict(spec))]),
+        ...(spec.verdict === undefined ? [] : [posted(block('review-verdict', spec.verdict))]),
         ...(spec.conflict === undefined ? [] : [comment(block('conflict-class', spec.conflict))]),
       ],
     }),
-    { publicKey: TEST_REVIEW_KEY.publicKey, repository: TEST_REPOSITORY, ticketId: 'DEV-1' },
   );
-  const reviewFailures = spec.reviewFailures ?? (spec.review === 'FAILURE' ? 1 : 0);
+  const reviewFailures = spec.reviewFailures ?? parsed.reviewFailures;
   const ejections = spec.ejections ?? (spec.queue === 'ejected' ? 1 : 0);
-  const attempt =
-    spec.reviewJob === 'FAILURE' ? { reviewCheckAttempt: spec.reviewJobAttempt ?? 1 } : {};
+  const crashed = spec.review === 'FAILURE' && parsed.verdict === undefined;
+  const attempt = crashed ? { reviewCheckAttempt: spec.reviewAttempt ?? 1 } : {};
   const files = paths.map((path) => {
     const previousPath = spec.renamed?.[path];
     return previousPath === undefined ? { path } : { path, previousPath };
@@ -669,16 +666,20 @@ describe('a held ticket and its pull request', () => {
     });
   });
 
-  it('sends a verdict it cannot read, or that contradicts its status, to a human', () => {
-    expect(one({}, { review: 'FAILURE' })).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
+  // A failed check with no admissible verdict of the job on this head did not
+  // judge it: the job crashed, or its output was refused. It is re-run.
+  it('re-runs a review that failed without a verdict it can read on this head', () => {
     const unscenarioed = { headSha: headOf(11), round: 1, blocking: [{ location: 'a.ts:1', scenario: '', correction: 'x' }], advisory: [] };
-    expect(one({}, { verdict: unscenarioed, review: 'FAILURE' })).toMatchObject({
-      kind: 'mark-human-wait',
-      reason: 'verdict-unproven',
-    });
-    // The parser drops a failure signed over a clean verdict; the kernel still refuses one.
-    const failedClean = { ...pull({ ...reviewed('DEV-1', 11), review: 'FAILURE' }), verdict: approving(11) };
+    const blocking = { headSha: headOf(12), round: 1, blocking: [{ location: 'a.ts:1', scenario: 'Breaks.', correction: 'Fix.' }], advisory: [] };
+    for (const verdict of [undefined, approving(11), unscenarioed, blocking]) {
+      expect(one({}, { review: 'FAILURE', verdict }), JSON.stringify(verdict)).toMatchObject({ kind: 'rerun-review-check' });
+    }
+  });
+
+  it('sends a verdict that contradicts its check to a human', () => {
     const held = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    // The parser drops a verdict its check contradicts; the kernel still refuses one.
+    const failedClean = { ...pull({ ...reviewed('DEV-1', 11), review: 'FAILURE' }), verdict: approving(11) };
     expect(actionFor(decide({ tickets: held }, { pulls: [failedClean] }), 'DEV-1')).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'verdict-contradicts-review',
@@ -698,12 +699,6 @@ describe('a held ticket and its pull request', () => {
       kind: 'mark-human-wait',
       reason: 'verdict-contradicts-review',
     });
-    // A blocking verdict on an older head says nothing about this one.
-    expect(one({}, { verdict: { ...blocking, headSha: headOf(12) }, review: 'FAILURE' })).toMatchObject({
-      kind: 'mark-human-wait',
-      reason: 'verdict-unproven',
-      detail: expect.stringMatching(/no verdict on this head/),
-    });
   });
 
   it('arms nothing on a success status without a clean verdict bound to that head', () => {
@@ -717,7 +712,7 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { verdict: { ...approving(11), headSha: headOf(12) } })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'verdict-unproven',
-      detail: expect.stringMatching(/no verdict on this head/),
+      detail: expect.stringMatching(/no verdict the review job posted on this head/),
     });
   });
 
@@ -730,9 +725,8 @@ describe('a held ticket and its pull request', () => {
     });
   });
 
-  it('re-runs the review job that failed before the verdict landed on the same head', () => {
-    // The job ran before the reviewer posted, and a status event starts no
-    // workflow: the required check stays red and the auto-merge never fires.
+  it('re-runs the review job that failed without judging the head', () => {
+    // Without a re-run the required check stays red and the ticket waits forever.
     const rerun = {
       kind: 'rerun-review-check',
       ticketId: 'DEV-1',
@@ -740,14 +734,12 @@ describe('a held ticket and its pull request', () => {
       headSha: headOf(11),
       run: 35694132291,
     };
-    expect(one({}, { reviewJob: 'FAILURE' })).toEqual(rerun);
-    expect(one({}, { reviewJob: 'FAILURE', autoMerge: true })).toEqual(rerun);
-    expect(one({}, { reviewJob: 'SUCCESS' })).toMatchObject({ kind: 'enable-auto-merge' });
+    expect(one({}, { review: 'FAILURE', verdict: undefined })).toEqual(rerun);
   });
 
   it('sends a failed review job that names no run to a human, as an unreadable observation', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
-    const { reviewCheckRun, ...nameless } = pull({ ...reviewed('DEV-1', 11), reviewJob: 'FAILURE' });
+    const { reviewCheckRun, ...nameless } = pull({ ...reviewed('DEV-1', 11), review: 'FAILURE', verdict: undefined });
     expect(reviewCheckRun).toBeDefined();
     expect(actionFor(decide({ tickets }, { pulls: [nameless] }), 'DEV-1')).toMatchObject({
       kind: 'mark-human-wait',
@@ -758,11 +750,11 @@ describe('a held ticket and its pull request', () => {
 
   it('re-runs the review job twice at most on one head, then asks a human', () => {
     // GitHub numbers the attempts of a run, so a restarted orchestrator cannot
-    // reset the count; the re-run the verdict command made is one of the two.
-    expect(one({}, { reviewJob: 'FAILURE', reviewJobAttempt: 2 })).toMatchObject({
+    // reset the count.
+    expect(one({}, { review: 'FAILURE', verdict: undefined, reviewAttempt: 2 })).toMatchObject({
       kind: 'rerun-review-check',
     });
-    expect(one({}, { reviewJob: 'FAILURE', reviewJobAttempt: 3 })).toMatchObject({
+    expect(one({}, { review: 'FAILURE', verdict: undefined, reviewAttempt: 3 })).toMatchObject({
       kind: 'mark-human-wait',
       reason: 'review-check-reruns-exhausted',
     });
@@ -785,7 +777,7 @@ describe('a held ticket and its pull request', () => {
       actions.filter((action) => 'ticketId' in action && action.ticketId === 'DEV-1');
     const disarm = { kind: 'disable-auto-merge', ticketId: 'DEV-1', pullRequest: 11, headSha: headOf(11) };
 
-    it('leaves it alone on the head it was armed on, while the review key proves its verdict', () => {
+    it('leaves it alone on the head it was armed on, while the verdict of the review job holds', () => {
       expect(forDev1(decide({ tickets }, { pulls: [armedPull()] }))).toEqual([
         { kind: 'wait', ticketId: 'DEV-1', reason: 'merging' },
       ]);
@@ -799,7 +791,7 @@ describe('a held ticket and its pull request', () => {
       ]);
     });
 
-    it('disarms it when the armed head carries no verdict the review key proves, then asks a human', () => {
+    it('disarms it when the armed head carries no verdict of the review job, then asks a human', () => {
       for (const spec of [{ verdict: undefined }, { review: 'FAILURE' as const, verdict: undefined }]) {
         const [first, second] = forDev1(decide({ tickets }, { pulls: [armedPull(spec)] }));
         expect(first).toEqual({ ...disarm, armedSha: headOf(11) });
@@ -952,9 +944,10 @@ describe('protected paths', () => {
     for (const file of [
       'packages/cli/src/lib/autopilot/loop.ts',
       'packages/cli/src/lib/autopilot/loop-observe.ts',
-      'packages/cli/src/lib/autopilot/review-signature.ts',
       'packages/cli/src/commands/autopilot-loop.ts',
-      '.github/void-review.pub',
+      'scripts/independent-review-run.mjs',
+      '.github/review/prompt.md',
+      '.github/workflows/independent-review.yml',
     ]) {
       const action = actionFor(decide({ tickets }, { pulls: [touching(['docs/a.md', file])] }), 'DEV-1');
       expect(action, file).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
@@ -1296,7 +1289,6 @@ describe('no action leaves an armed merge the loop cannot vouch for', () => {
     'proven and current': { keeps: 'wait' },
     'draining, proven and current': { options: { signal: 'drain' }, keeps: 'wait' },
     // The job that lets a proven head through ran before the verdict landed.
-    'review job failing on a proven head': { spec: { reviewJob: 'FAILURE' }, keeps: 'rerun-review-check' },
     'head moved after arming': { options: { armedOn: { 'DEV-1': 'b'.repeat(40) } } },
     'armed outside autopilot arm': { options: { unarmed: ['DEV-1'] } },
     'verdict unproven': { spec: { verdict: undefined } },
@@ -1309,8 +1301,8 @@ describe('no action leaves an armed merge the loop cannot vouch for', () => {
     'unexpected base': { spec: { base: 'main' } },
     'unexpected branch': { ticket: { branch: 'work/other' } },
     'promotion head': { unbranched: true, spec: { branch: 'develop' } },
-    'review job failing on an unproven head': { spec: { reviewJob: 'FAILURE', verdict: undefined } },
-    'review job re-runs exhausted': { spec: { reviewJob: 'FAILURE', reviewJobAttempt: 3 } },
+    'review crashed without a verdict': { spec: { review: 'FAILURE', verdict: undefined } },
+    'review re-runs exhausted': { spec: { review: 'FAILURE', verdict: undefined, reviewAttempt: 3 } },
     'ticket in human wait': { ticket: { humanWait: true } },
     'immediate stop': { options: { signal: 'now' } },
   };

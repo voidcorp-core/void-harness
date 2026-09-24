@@ -84,8 +84,9 @@ skip a step, merge, or decide that a refusal does not apply to it.
 **Workers**, one per slot. Each carries one ticket from claim to an open pull request, in its own
 worktree, by running `void-implement` whole.
 
-**Reviewer.** The independent pass of `void-implement`, in a fresh context, on the exact head SHA of
-the pull request. There is no second review at merge time: this verdict is what GitHub checks.
+**Reviewer.** The independent pass of `void-implement`, run by GitHub itself: the
+`independent-review` job, in a fresh context, on the exact head SHA of every ready pull request.
+There is no second review at merge time: its check is what GitHub requires.
 
 A role that starts doing another's job is the failure this split exists to prevent: an orchestrator
 that "just looks at the diff" becomes a reviewer nobody bounded, and a worker that posts its own
@@ -146,7 +147,7 @@ Act on each returned action, then ask again:
 | `mark-human-wait` | record it in `recent` with its `reason`, which `recent` requires and the recap repeats, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `void-harness autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head and reads GitHub back; never `gh pr merge --auto` by hand, never `--admin` |
 | `disable-auto-merge` | `void-harness autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it turns its auto-merge off, then takes it out of the merge queue, and fails while GitHub still shows either; never `gh pr merge --disable-auto` alone, which leaves a queued pull request in the queue |
-| `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head; twice at most per run, then `review-check-reruns-exhausted` |
+| `rerun-review-check` | `gh run rerun <run> --failed`: the review job failed on this head without posting a verdict, a crash or an output it refused; twice at most per run, then `review-check-reruns-exhausted` |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
 | `freeze` | stop acting, once the disarms before it succeeded |
@@ -199,16 +200,13 @@ head is unreviewed), the seal no longer proves a clean verdict on the armed head
 for its head and hands it to nobody (`wait merging`, `rerun-review-check`): a worker at work, any
 hand-back, a human wait and an immediate stop all come with the disarm. Disarm first, always.
 
-**The review key.** Once per repository, `autopilot review-key` draws an Ed25519 key in this
-checkout: the private half into `.void/machine/autopilot/review-key.pem` (mode 0600, refused unless
-git ignores it), the public half into `.github/void-review.pub`, which a person commits and merges
-into the base. `autopilot verdict` signs every verdict with the private half; the required
-`independent-review` job verifies the signature with the public half read from the base, and
-`next` believes a verdict only when it verifies and the key on the base is this checkout's own. A
-comment and a status posted without the key, by a worker or an injected command, pass neither.
-`review-key` and `verdict` refuse to run outside this checkout: a linked worktree is a worker's.
-Never copy the private half anywhere. It guards against a worker and an injection, not against a
-process that reads this checkout with your rights.
+**The review runs in GitHub.** `.github/workflows/independent-review.yml` reviews every ready
+pull request into the base on `pull_request_target`: its workflow, scripts and instructions come
+from the base, the head is read as data and never run, and the verdict becomes the
+`independent-review` check on that head, which only the GitHub Actions app can create and branch
+protection accepts from nowhere else. No key or secret for it lives on this machine, so neither a
+worker nor a compromised dependency it runs can forge an approval. The repository holds the
+`CLAUDE_CODE_OAUTH_TOKEN` secret the job reviews with.
 
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
 pull request link, the human-wait label); the rest comes from GitHub. The label is the one every
@@ -222,9 +220,8 @@ ticket whose state is ambiguous goes to a human rather than being relaunched.
 
 **Judgments live on the pull request.** The reviewer's verdict and a worker's conflict class are
 comments carrying a machine block: two HTML comment markers around a fenced JSON value. The verdict
-is written only by `void-harness autopilot verdict`, which posts it together with the
-`void/independent-review` status; `next` believes a verdict comment only when that status on the
-same head agrees with the latest verdict the review key signed on it. The conflict class is the block `void-harness autopilot judgment conflict-class`
+is posted only by the review job, beside its check; `next` believes the job's latest verdict on the
+head only when that check agrees with it, and a block anyone else posts is text. The conflict class is the block `void-harness autopilot judgment conflict-class`
 prints for the JSON on its stdin. `next` reads both from GitHub and admits them again, so the
 tracker you pipe in never carries them and a restart loses nothing.
 
@@ -242,8 +239,9 @@ through `mission verify`, a committed candidate through `mission writer-event`. 
 only these typed events, no free note; what is not yet one of them does not survive a respawn, and
 uncommitted edits survive only in the worktree. When its proofs are green it runs
 `autopilot fingerprint --after <ticket>`, pushes its own branch, opens one pull request towards the
-base, and moves the ticket to In Review. The reviewer's pass is that cycle's independent review; its
-blocking findings come back as a hand-back and are corrected as a batch, per `void-implement`.
+base, ready for review rather than as a draft, and moves the ticket to In Review. The review job's
+pass is that cycle's independent review; it reviews ready pull requests only, so a draft waits.
+Blocking findings come back as a hand-back and are corrected as a batch, per `void-implement`.
 
 On a hand-back the worker reads the reason: failing checks, blocking findings, a conflict, or a
 base that moved. It updates its branch by merging the base into it,
@@ -252,8 +250,7 @@ never by rewriting pushed history, re-runs its proofs, and pushes again.
 May: run every `void-implement` pass whose predicate fires, run its own gates, apply a migration in
 dev/local only, push its own branch without force, and open or update its own pull request.
 
-May not: enable auto-merge, merge anything, post the `void/independent-review` status or re-run its
-job, move a ticket to Done, close or cancel a ticket, touch another ticket's branch or worktree,
+May not: enable auto-merge, merge anything, post a verdict or re-run the review job, move a ticket to Done, close or cancel a ticket, touch another ticket's branch or worktree,
 prune the mission journals, or write the git state the repository shares -- `refs/stash`, tags,
 notes, remotes, the repository config.
 
@@ -261,34 +258,25 @@ notes, remotes, the repository config.
 
 ## Reviewer
 
-Spawned by the orchestrator when the kernel answers `wait` with `awaiting-review`, in a fresh
-context, pinned to the head SHA of the pull request, working from this checkout, where the review
-key is. One full pass.
+The `independent-review` job, on every push to a ready pull request and when one is marked ready.
+Its instructions are `.github/review/prompt.md` on the base; it reads the diff and the head with
+read-only tools and returns `blocking` and `advisory` findings under a JSON schema. The job binds
+them to the head and the round, posts the verdict comment and concludes the check: success with no
+blocking finding, failure otherwise, failure too when the output is missing or out of bounds.
 
 **What blocks.** Only what is wrong or dangerous, with a concrete scenario: incorrect behaviour, a
 vulnerability, an unstable or empty proof, a broken consumer. Each blocking finding names its
 location, the scenario and the correction. Everything else is advisory. The number of blocking
 findings measures nothing; a pass that files four advisories and blocks on none is a good pass.
 
-**Advisories** go into a single Triage issue per ticket and never come back into the loop.
+**Advisories** of a merged ticket's verdict go into a single Triage issue per ticket, filed by the
+orchestrator, and never come back into the loop.
 
-**Rounds.** After a correction, round 2 checks only the blocking points of round 1 against the new
-diff; it opens no new general reading. Still blocking after round 2, the kernel hands the ticket to
-a human with the finding. The kernel counts rounds on GitHub, one per head whose
-`void/independent-review` status failed, not from the round a verdict announces: a reviewer
-restarted without memory cannot reopen the count. After an update on the base, the same targeted check covers the new diff
-only.
-
-**Publishing the verdict.** Pipe the typed `review` judgment, with the `headSha` it read, into
-`void-harness autopilot verdict --ticket <id> --pr <number>`, run from this checkout. It is the
-only path: it refuses a head the pull request has moved past, posts the verdict comment signed by
-the review key over the repository, ticket, pull request, head, outcome and findings, then the
-`void/independent-review` status on
-that head (`success` with no blocking finding, `failure` otherwise), and re-runs the
-`independent-review` job when its completed run disagrees, since a status event starts no
-workflow. Never post the comment or the status yourself: without the signature, neither the
-required check nor the kernel believes it. Any new push changes the head SHA and needs a new
-verdict.
+**Rounds.** After a correction, round 2 is handed round 1's blocking findings and checks only those
+against the new diff; it opens no new general reading. Still blocking after round 2, the kernel
+hands the ticket to a human with the finding. The kernel counts rounds on GitHub, one per head the
+job blocked, not from the round a verdict announces, and a job that failed without a verdict is a
+crash it re-runs, not a round.
 
 ---
 
@@ -345,8 +333,8 @@ never from memory of the session.
 |---|---|
 | "The checks are green, enable auto-merge myself" | Only `enable-auto-merge` from the kernel arms a merge, and only on the SHA it names. |
 | "The worker already reviewed its diff" | Self-review is not independent. The reviewer is a separate context on the exact SHA. |
-| "Run `verdict` from the worker's worktree, it is quicker" | It refuses to: the review key never leaves this checkout, or a worker could sign its own verdict. |
-| "I posted the status, the check will pass" | A status triggers no workflow. Re-run the `independent-review` job. |
+| "Post the verdict comment by hand, it is quicker" | Only the review job's comment counts, and only its check is required. A hand-written one is text. |
+| "The review job crashed, approve it and move on" | A crash is re-run, twice at most, then a person looks. Nothing approves a head the job did not review. |
 | "That advisory matters, block on it" | Blocking needs a scenario where it is wrong or dangerous. Otherwise it goes to the Triage issue. |
 | "This duplicate ticket can just be closed" | The curator never closes. Comment, and leave it to a person. |
 | "P1 on the label, so it goes first" | The ranking reads the project, not the label. Justify the move on the ticket. |

@@ -55,8 +55,8 @@ those pull requests to a person.
 The promotion audit in `promotion.yml` follows the same rule: every commit it
 promotes entered `develop` through a merged pull request, and
 `scripts/promotion-authority.mjs` accepts that pull request in exactly three
-cases. Its head SHA carries a success `void/independent-review` status, the
-verdict the required check demanded before it could merge, whoever merged it and
+cases. Its head SHA carries a successful `independent-review` check run from
+GitHub Actions, the review the required check demanded before it could merge, whoever merged it and
 whatever its timeline records: `gh pr merge --auto` on a pull request already
 mergeable merges at once and leaves no auto-merge event. Or it was merged
 by hand by the named human, with no auto-merge or merge queue event in its
@@ -65,21 +65,21 @@ back-merge, proved by construction with the same check the `independent-review`
 job runs, replayed against `develop` as it stood (the first parent of the
 integration commit); one that does not hold needs the verdict like any other
 automatic merge. Everything else refuses the promotion, and so does every doubt:
-a missing field, a status not read on the head, a truncated timeline, a git or
+a missing field, a check not read on the head, a truncated timeline, a git or
 API error. Automatic merges into `develop` therefore reach `main` only with the
 evidence that let them merge, and the promotion itself stays a human merge.
 
-**`develop` is ready for a merge queue, not yet using one.** Every workflow that
-carries a required check of `develop` also answers `merge_group`, the only event
-a queue waits on, and falls back to the group's `base_sha` wherever it read the
-pull request base. The `independent-review` job passes only when the reviewer's
-`void/independent-review` commit status is `success` on the head SHA of the pull
-request, or of every pull request in the merge group. Until the review public
-key `.github/void-review.pub` is merged into `develop`, no verdict can be signed,
-so the job passes and says in its summary that it is not configured; from the
-merge of the key on, it is strict. Turning the queue on and
-requiring that check is a repository setting a human takes; see
-[the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md).
+**`develop` merges through a merge queue.** Every workflow that carries a
+required check of `develop` also answers `merge_group`, the only event a queue
+waits on, and falls back to the group's `base_sha` wherever it read the pull
+request base. The review itself is a job, `independent-review.yml`, on
+`pull_request_target`: it reads the head as data with read-only tools and
+publishes the `independent-review` check on it, which branch protection accepts
+from GitHub Actions alone. In the queue, `independent-review-queue.yml` passes
+only when every pull request of the group carries that check, successful, on
+its own head. The job reviews with the repository's `CLAUDE_CODE_OAUTH_TOKEN`
+secret; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
+and [the review-in-GitHub decision](decisions-log/2026-09-24-review-runs-in-github-actions--f592ded5-108e-474e-b23e-173493550326.md).
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is
 triggered by `push: branches: [main]` and nothing about the two-branch flow touches

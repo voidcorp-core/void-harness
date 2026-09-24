@@ -1,4 +1,4 @@
-// `autopilot next | stop | fingerprint | review-key | arm | disarm | verdict | judgment`: the
+// `autopilot next | stop | fingerprint | arm | disarm | judgment`: the
 // continuous loop's operator surface.
 //
 // Unlike the cluster subcommands, `next` observes GitHub and git itself. GitHub
@@ -8,12 +8,12 @@
 // never decides a merge. The command judges nothing: it admits what it is given
 // and returns the kernel's actions.
 //
-// Local state is four things under `.void/machine/autopilot/`, all written only
-// by an explicit command: the stop signal, one digest-only fingerprint per
-// ticket, recorded before its unit begins, the private review key, drawn once
-// and read only by `verdict`, and the head each ticket's auto-merge was armed
-// on, which GitHub does not keep. The public review key is versioned beside
-// the workflows, where only a merge changes it.
+// Local state is three things under `.void/machine/autopilot/`, all written
+// only by an explicit command: the stop signal, one digest-only fingerprint per
+// ticket, recorded before its unit begins, and the head each ticket's
+// auto-merge was armed on, which GitHub does not keep. No secret lives here:
+// the review runs in GitHub Actions and publishes its verdict as a check only
+// that app can create.
 
 import {
   existsSync,
@@ -32,7 +32,7 @@ import {
   type JudgmentKind,
   renderJudgmentComment,
 } from '../lib/autopilot/judgment-comment.js';
-import { admitReviewVerdict, type ReviewVerdict, ticketIdSchema } from '../lib/autopilot/judgments.js';
+import { ticketIdSchema } from '../lib/autopilot/judgments.js';
 import {
   admitLoopTracker,
   type ArmedRecord,
@@ -51,26 +51,14 @@ import {
 import {
   type GhRunner,
   type GitRunner,
-  type VerdictVerifier,
   observeGithub,
   PULL_REQUEST_FIELDS,
   parsePullRequestView,
   readQueueMembership,
-  pullRequestComments,
-  REVIEW_STATUS_CONTEXT,
   readSharedState,
   resolveLoopBase,
 } from '../lib/autopilot/loop-observe.js';
 import { readProgramDescriptor } from '../lib/autopilot/program.js';
-import {
-  generateReviewKey,
-  keyFingerprint,
-  publicKeyOf,
-  REVIEW_PUBLIC_KEY_PATH,
-  renderSignature,
-  signVerdict,
-  verdictDigest,
-} from '../lib/autopilot/review-signature.js';
 import {
   admitFingerprint,
   changedParts,
@@ -84,10 +72,8 @@ const LOOP_SUBCOMMANDS = [
   'next',
   'stop',
   'fingerprint',
-  'review-key',
   'arm',
   'disarm',
-  'verdict',
 ] as const;
 export type LoopSubcommand = (typeof LOOP_SUBCOMMANDS)[number];
 
@@ -112,14 +98,10 @@ export function loopCommand(
       return stopCommand(argv, context);
     case 'fingerprint':
       return fingerprintCommand(argv, context);
-    case 'review-key':
-      return reviewKeyCommand(context);
     case 'arm':
       return armCommand(argv, context);
     case 'disarm':
       return disarmCommand(argv, context);
-    case 'verdict':
-      return verdictCommand(argv, stdin, context);
     default:
       return subcommand satisfies never;
   }
@@ -136,14 +118,11 @@ export interface LoopRunners {
   readonly root: string;
   readonly gh?: GhRunner;
   readonly git?: GitRunner;
-  /** The clock a verdict is signed at; the wall clock unless a test fixes it. */
-  readonly now?: string;
 }
 
 const LOOP_DIRECTORY = join('.void', 'machine', 'autopilot');
 export const STOP_SIGNAL_PATH = join(LOOP_DIRECTORY, 'stop');
 const FINGERPRINT_DIRECTORY = join(LOOP_DIRECTORY, 'fingerprints');
-const REVIEW_KEY_PATH = join(LOOP_DIRECTORY, 'review-key.pem');
 const ARMED_DIRECTORY = join(LOOP_DIRECTORY, 'armed');
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const armedRecordSchema = z.strictObject({
@@ -158,36 +137,6 @@ function runner<T>(value: T | undefined, name: string): T {
     `the loop has no ${name} runner`,
     'the command was invoked without an execution context that can observe',
     'invoke autopilot through the CLI entry point rather than calling it directly',
-  );
-}
-
-/**
- * Refuse to run anywhere but the orchestration checkout, where the review
- * secret lives. A linked worktree, which is what a worker runs in, has a Git
- * directory of its own under the repository's common one; the main checkout's
- * are the same directory. Git resolves both, so the comparison follows what
- * `git worktree` does rather than a path layout, and `--path-format=absolute`
- * keeps git from answering `.git` relative to where it runs. It stops a
- * mistake or an injected command in a worker, not a separate clone, which
- * holds no secret to use.
- */
-function requireOrchestrationCheckout(context: LoopRunners, command: string): void {
-  const git = runner(context.git, 'git');
-  let answer: string;
-  try {
-    answer = git(['rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir']);
-  } catch (error) {
-    answer = error instanceof Error ? error.message : String(error);
-  }
-  const [gitDir, commonDir, ...rest] = answer.trim().split('\n');
-  if (gitDir !== undefined && gitDir === commonDir && rest.length === 0) return;
-  throw autopilotFailure(
-    'AUTOPILOT_CONTRACT',
-    `${command} runs only in the orchestration checkout`,
-    commonDir === undefined
-      ? `git could not name this checkout: ${answer.trim().slice(0, 200)}`
-      : `this is a linked worktree (${gitDir}) of ${commonDir}, where a worker runs`,
-    'run it from the main checkout of the repository, the one the loop runs in',
   );
 }
 
@@ -376,15 +325,8 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   if (signal === 'now') return freezeCommand(program, tracker, current, context);
   const gh = runner(context.gh, 'gh');
   const base = resolveLoopBase(gh, program.autopilot.base);
-  const reviewKey = trustedReviewKey(gh, context.root, base);
-  const verifiers = new Map<number, VerdictVerifier>();
-  for (const ticket of tracker.tickets) {
-    if (ticket.pullRequest === undefined || reviewKey.publicKey === undefined) continue;
-    const { publicKey, repository } = reviewKey;
-    verifiers.set(ticket.pullRequest, { publicKey, repository, ticketId: ticket.id });
-  }
   const pullRequests = pullRequestsToObserve(program, tracker);
-  const github = observeGithub(gh, { base, pullRequests, verifiers });
+  const github = observeGithub(gh, { base, pullRequests });
   const before = new Map<string, SharedFingerprint>();
   for (const ticket of tracker.tickets) {
     const recorded = recordedFingerprint(context.root, ticket.id);
@@ -397,62 +339,7 @@ export function nextCommand(stdin: string, context: LoopRunners): LoopCommandOut
   }
   const sharedState = { current, before };
   const decision = decideLoop({ program, tracker, github, signal, sharedState, armed });
-  const warning = reviewKey.problem === undefined ? '' : `review key: ${reviewKey.problem}\n`;
-  return {
-    value: { ...decision, reviewKey: reviewKey.problem ?? 'trusted' },
-    human: `${warning}${renderDecision(decision)}`,
-  };
-}
-
-/** `owner/name`, as gh resolves the current repository. */
-function repositoryName(gh: GhRunner): string {
-  return gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']).trim();
-}
-
-/**
- * The public review key the loop verifies verdicts with, and the repository it
- * signs for. It is trusted only when the key versioned on the base, which the
- * required check reads, is the public half of the private key this checkout
- * holds: a key someone else published answers a private key the loop never
- * drew, so nothing signed with it is believed, and every armed merge on an
- * unbelieved verdict is disarmed.
- */
-function trustedReviewKey(
-  gh: GhRunner,
-  root: string,
-  base: string,
-): { readonly publicKey?: string; readonly repository: string; readonly problem?: string } {
-  const repository = repositoryName(gh);
-  const privateKey = readIfPresent(join(root, REVIEW_KEY_PATH));
-  if (privateKey === undefined) {
-    return { repository, problem: 'no private key here; run `autopilot review-key`' };
-  }
-  const local = publicKeyOf(privateKey);
-  let published: string | undefined;
-  try {
-    const endpoint = `repos/{owner}/{repo}/contents/${REVIEW_PUBLIC_KEY_PATH}?ref=${base}`;
-    const content = gh(['api', endpoint, '--jq', '.content']).replace(/\s/g, '');
-    published = Buffer.from(content, 'base64').toString('utf8');
-  } catch {
-    published = undefined;
-  }
-  if (published === undefined || published.trim() === '') {
-    return { repository, problem: `${base} carries no ${REVIEW_PUBLIC_KEY_PATH}` };
-  }
-  let matches = false;
-  try {
-    matches = keyFingerprint(published) === keyFingerprint(local);
-  } catch {
-    matches = false;
-  }
-  if (!matches) {
-    return {
-      repository,
-      problem: `${REVIEW_PUBLIC_KEY_PATH} on ${base} is not this checkout's key;`
-        + ' no verdict is believed',
-    };
-  }
-  return { publicKey: local, repository };
+  return { value: decision, human: renderDecision(decision) };
 }
 
 /**
@@ -476,7 +363,7 @@ function freezeCommand(
     for (const number of numbers) {
       const view = viewOf(gh, number);
       const queue = readQueueMembership(gh, number).queued ? 'queued' : 'none';
-      const unread = { ejections: 0, reviewFailures: 0, files: [] } as const;
+      const unread = { ejections: 0, files: [] } as const;
       pullRequests.set(number, { ...view, queue, ...unread });
     }
   } catch (error) {
@@ -588,57 +475,6 @@ export function fingerprintCommand(
   return {
     value: { ticketId: after, unchanged: true },
     human: `${after}: shared state unchanged\n`,
-  };
-}
-
-/**
- * `autopilot review-key`: draw the review key once, in this checkout.
- *
- * The private half is written once, mode 0600, under `.void/machine/`, which
- * git must ignore: a key a commit could carry is refused before it exists. The
- * public half is written to `.github/void-review.pub`, for a person to commit
- * in a pull request they merge into the base, since the loop never merges a
- * change to `.github/`. A second run draws nothing: it rewrites the public
- * half from the private one and prints its fingerprint. Replacing the key is
- * deleting the private file by hand, deliberately, never a flag an agent passes.
- */
-export function reviewKeyCommand(context: LoopRunners): LoopCommandOutput {
-  requireOrchestrationCheckout(context, 'autopilot review-key');
-  const git = runner(context.git, 'git');
-  const privatePath = join(context.root, REVIEW_KEY_PATH);
-  let ignored = false;
-  try {
-    git(['check-ignore', '--quiet', '--no-index', REVIEW_KEY_PATH]);
-    ignored = true;
-  } catch {
-    ignored = false;
-  }
-  if (!ignored) {
-    throw autopilotFailure(
-      'AUTOPILOT_CONTRACT',
-      'the private review key would not be ignored by git',
-      `${REVIEW_KEY_PATH} is not covered by any ignore rule`,
-      'ignore `.void/machine/` (the harness install does), then run it again',
-    );
-  }
-  const existing = readIfPresent(privatePath);
-  const drawn = existing === undefined ? generateReviewKey() : undefined;
-  if (drawn !== undefined && !writeOnce(privatePath, drawn.privateKey, 0o600)) {
-    throw autopilotFailure(
-      'AUTOPILOT_CONTRACT',
-      'another run drew the review key at the same time',
-      `${REVIEW_KEY_PATH} appeared while this one was drawing`,
-      'run `autopilot review-key` again; it reads the key already drawn',
-    );
-  }
-  const publicKey = publicKeyOf(existing ?? drawn?.privateKey ?? '');
-  writeAtomically(join(context.root, REVIEW_PUBLIC_KEY_PATH), publicKey);
-  const fingerprint = keyFingerprint(publicKey);
-  return {
-    value: { created: drawn !== undefined, fingerprint, publicKeyPath: REVIEW_PUBLIC_KEY_PATH },
-    human:
-      `review key ${fingerprint}${drawn === undefined ? '' : ' drawn'}\n` +
-      `commit ${REVIEW_PUBLIC_KEY_PATH} in a pull request a person merges into the base\n`,
   };
 }
 
@@ -779,8 +615,8 @@ export function disarmCommand(argv: readonly string[], context: LoopRunners): Lo
  * `autopilot judgment conflict-class`: the comment block for the conflict class
  * on stdin, admitted before it is printed. The worker posts exactly this, so the
  * kernel finds it on the pull request after a restart and admits it a second
- * time there. A review verdict is not rendered here: `autopilot verdict` is the
- * only path that writes one.
+ * time there. A review verdict is not rendered here: the review job in GitHub
+ * Actions is the only one that posts it, beside the check it publishes.
  */
 export function judgmentCommand(argv: readonly string[], stdin: string): LoopCommandOutput {
   const value = jsonFrom(stdin, 'judgment');
@@ -789,8 +625,8 @@ export function judgmentCommand(argv: readonly string[], stdin: string): LoopCom
     throw autopilotFailure(
       'AUTOPILOT_USAGE',
       'a review verdict is not rendered for posting by hand',
-      'the comment and the `void/independent-review` status must be written together',
-      'pipe the verdict into `void-harness autopilot verdict --pr <number>`',
+      'the review job in GitHub Actions posts it beside the independent-review check',
+      'mark the pull request ready for review; the job reviews it and posts the verdict',
     );
   }
   const kinds = JUDGMENT_KINDS.filter((known) => known !== 'review-verdict');
@@ -819,7 +655,7 @@ function jsonFrom(stdin: string, command: string): unknown {
   }
 }
 
-function pullRequestNumber(argv: readonly string[], command = 'autopilot verdict'): number {
+function pullRequestNumber(argv: readonly string[], command: string): number {
   const text = flagValue(argv, '--pr');
   const number = Number(text);
   if (text !== undefined && /^[1-9][0-9]{0,9}$/.test(text)) return number;
@@ -831,109 +667,3 @@ function pullRequestNumber(argv: readonly string[], command = 'autopilot verdict
   );
 }
 
-/** A status description is at most 140 characters on GitHub. */
-function statusDescription(verdict: ReviewVerdict): string {
-  const count = verdict.blocking.length;
-  if (count === 0) return `round ${verdict.round}: nothing blocking`;
-  return `round ${verdict.round}: ${count} blocking finding${count === 1 ? '' : 's'}`;
-}
-
-/**
- * `autopilot verdict --ticket <id> --pr <n>`: the only path that writes a review verdict.
- *
- * The verdict on stdin is admitted, then bound to the head the pull request has
- * now: a verdict on any other head judged code that is no longer there. The
- * comment carries a signature by this checkout's review key over the
- * repository, the ticket, the pull request, the head, the outcome and the
- * findings, which the loop and the required job both verify: a status and a
- * comment alone are what anyone could post. It runs only here, where the
- * private key is. The comment goes first and the status second, so a failure
- * between the two leaves a signed comment no status confirms, which neither
- * believes, rather than a status with no verdict behind it. The job that
- * enforces the status is re-run when its completed run disagrees, because a
- * status event starts no workflow.
- */
-export function verdictCommand(
-  argv: readonly string[],
-  stdin: string,
-  context: LoopRunners,
-): LoopCommandOutput {
-  const value = jsonFrom(stdin, 'verdict');
-  const number = pullRequestNumber(argv);
-  const ticket = flagValue(argv, '--ticket');
-  const ticketId = ticketIdSchema.safeParse(ticket);
-  if (!ticketId.success) {
-    throw autopilotFailure(
-      'AUTOPILOT_USAGE',
-      'autopilot verdict needs the ticket the pull request carries',
-      ticket === undefined ? '--ticket was not given' : `${JSON.stringify(ticket)} is not a ticket`,
-      'pass it as `--ticket <id>`; the signature binds it',
-    );
-  }
-  // What was given is read first, what this checkout holds second.
-  requireOrchestrationCheckout(context, 'autopilot verdict');
-  const privateKey = readIfPresent(join(context.root, REVIEW_KEY_PATH));
-  if (privateKey === undefined) {
-    throw autopilotFailure(
-      'AUTOPILOT_CONTRACT',
-      'this checkout holds no review key',
-      `${REVIEW_KEY_PATH} is absent`,
-      'draw it once with `autopilot review-key` and have a person merge the public half',
-    );
-  }
-  const admission = admitReviewVerdict(value);
-  if (!admission.ok) {
-    throw autopilotFailure(
-      'AUTOPILOT_INPUT',
-      'the review verdict was refused',
-      admission.reason,
-      'correct the named field; a refused verdict is never posted',
-    );
-  }
-  const verdict = admission.value;
-  const gh = runner(context.gh, 'gh');
-  const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
-  const viewText = gh(viewArgs);
-  const pr = parsePullRequestView(viewText);
-  if (pr.state !== 'open' || pr.headSha !== verdict.headSha) {
-    throw autopilotFailure(
-      'AUTOPILOT_CONTRACT',
-      `the verdict does not judge #${number} as it stands`,
-      pr.state !== 'open'
-        ? `#${number} is ${pr.state}`
-        : `the verdict reads head ${verdict.headSha}; #${number} is now at ${pr.headSha}`,
-      'review the current head and post a verdict bound to it',
-    );
-  }
-  const clean = verdict.blocking.length === 0;
-  const state = clean ? 'success' : 'failure';
-  const repository = repositoryName(gh);
-  const signature = signVerdict(privateKey, {
-    repository,
-    ticketId: ticketId.data,
-    pullRequest: number,
-    headSha: verdict.headSha,
-    state,
-    verdictDigest: verdictDigest(verdict),
-    signedAt: context.now ?? new Date().toISOString(),
-  });
-  const body =
-    `${renderJudgmentComment('review-verdict', verdict)}${renderSignature(signature)}\n`;
-  gh(['api', `repos/{owner}/{repo}/issues/${number}/comments`, '-f', `body=${body}`]);
-  gh([
-    'api', `repos/{owner}/{repo}/statuses/${verdict.headSha}`,
-    '-f', `state=${state}`,
-    '-f', `context=${REVIEW_STATUS_CONTEXT}`,
-    '-f', `description=${statusDescription(verdict)}`,
-  ]);
-  const run = pr.reviewCheckRun;
-  const disagrees = clean ? pr.reviewCheck === 'failing' : pr.reviewCheck === 'passing';
-  if (run !== undefined && disagrees) {
-    gh(['run', 'rerun', String(run), ...(clean ? ['--failed'] : [])]);
-  }
-  const rerun = run !== undefined && disagrees ? { rerun: run } : {};
-  return {
-    value: { pullRequest: number, headSha: verdict.headSha, state, ...rerun },
-    human: `#${number} at ${verdict.headSha}: ${state}${run !== undefined && disagrees ? `, run ${run} re-run` : ''}\n`,
-  };
-}

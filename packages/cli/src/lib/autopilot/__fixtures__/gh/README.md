@@ -19,7 +19,6 @@ variants from them by overriding fields; no shape here was written by hand.
 | `pr-queue-membership-absent.json` | the same query on PR 381 (this repository), outside the queue |
 | `queue-absent.json` | `gh api graphql` `repository.mergeQueue(branch: "develop")` on this repository |
 | `queue-present.json` | the same query on zed-industries/zed `main` |
-| `pr-commits-review-status.json` | `gh api graphql` `pullRequest.commits(last: 100) { commit { oid status { context(name: "EasyCLA") { state } } } }` of kubernetes/kubernetes PR 142273: statuses per commit, null where a commit has none |
 | `protection-required-checks-strict.json` | `gh api repos/{owner}/{repo}/branches/develop/protection/required_status_checks` (this repository): classic protection with `strict: true` |
 | `rules-branch-required-checks.json` | `gh api repos/zed-industries/zed/rules/branches/main`: rulesets, one `required_status_checks` rule with `strict_required_status_checks_policy: false` |
 | `timeline-*.json` | `gh api graphql` `pullRequest.timelineItems` (merge queue events and commits) of zed PRs 64552 and 64434 |

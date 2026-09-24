@@ -202,8 +202,8 @@ jobs:
               number=$(jq -r '.number' <<<"$pr")
 
               # Who had the right to merge it is decided in one tested place:
-              # folpe by hand, an automatic merge whose head carries a success
-              # void/independent-review verdict, or the back-merge proved by
+              # folpe by hand, an automatic merge whose head carries a successful
+              # independent-review check from GitHub Actions, or the back-merge proved by
               # construction. Anything else, or any doubt, refuses.
               if [ -z "${authority_for[$integration_oid]:-}" ]; then
                 authority_for[$integration_oid]=$(node \
