@@ -65,11 +65,11 @@ describe('release automation authority', () => {
     expect(promotion).toContain('EXPECTED_HUMAN: folpe');
     expect(promotion).toContain('ADDED_TO_MERGE_QUEUE_EVENT');
     expect(promotion).toContain('headRefOid');
-    expect(promotion).toContain('checkSuites(first:50,filterBy:{appId:15368})');
-    expect(promotion).toContain('checkRuns(first:20,filterBy:{checkName:\\"independent-review\\"})');
+    expect(promotion).toContain('checkSuites(first:5,filterBy:{appId:15368})');
+    expect(promotion).toContain('checkRuns(first:3,filterBy:{checkName:\\"independent-review\\"})');
     expect(promotion).toContain('scripts/promotion-authority.mjs');
     expect(promotion).toContain('unexplained commit');
-    expect(promotion).toContain('PROMOTION_BATCH_SIZE: 40');
+    expect(promotion).toContain('PROMOTION_BATCH_SIZE: 30');
     expect(promotion).toContain('PROMOTION_API_RETRIES: 3');
     expect(promotion).toContain('query_for_batch');
     expect(promotion).toContain('GitHub GraphQL API error for batch');
@@ -132,5 +132,29 @@ describe('release operator contract', () => {
     ]) {
       expect(RELEASING).toContain(control);
     }
+  });
+});
+
+// GitHub refuses a GraphQL query whose worst case exceeds 500,000 nodes, and
+// the promotion audit asks for a batch of integration commits at once. The
+// check-run reading added by DEV-877 first asked for 50 suites of 20 runs per
+// pull request and pushed the batch to 4,608,000: the audit refused every
+// promotion. The worst case is recomputed here from the query itself.
+describe('the promotion audit query', () => {
+  it('stays under the GraphQL node limit in the worst case', () => {
+    const promotion = workflow('promotion.yml');
+    const first = (field: string): number => {
+      const match = new RegExp(`${field}\\((?:first|last):(\\d+)`).exec(promotion);
+      if (match === null) throw new Error(`${field} is not bounded in promotion.yml`);
+      return Number(match[1]);
+    };
+    const batch = Number(/PROMOTION_BATCH_SIZE: (\d+)/.exec(promotion)?.[1]);
+    const pulls = first('associatedPullRequests');
+    const perPull = first('commits') * (1 + first('checkSuites') * (1 + first('checkRuns')))
+      + first('timelineItems');
+    const worst = batch * (1 + pulls * (1 + perPull));
+    expect(worst).toBeLessThan(500_000);
+    // With margin: a field added later should not land exactly on the limit.
+    expect(worst).toBeLessThan(450_000);
   });
 });
