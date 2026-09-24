@@ -85,7 +85,7 @@ describe('independent-review job', () => {
       )}`,
     );
     expect(review).toContain('persist-credentials: false');
-    expect(review).toContain('run: node scripts/independent-review-check.mjs');
+    expect(review).toMatch(/^ {10}node scripts\/independent-review-check\.mjs$/m);
   });
 
   it('checks out the history the back-merge commits are verified against', () => {

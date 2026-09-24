@@ -74,7 +74,10 @@ carries a required check of `develop` also answers `merge_group`, the only event
 a queue waits on, and falls back to the group's `base_sha` wherever it read the
 pull request base. The `independent-review` job passes only when the reviewer's
 `void/independent-review` commit status is `success` on the head SHA of the pull
-request, or of every pull request in the merge group. Turning the queue on and
+request, or of every pull request in the merge group. Until the review public
+key `.github/void-review.pub` is merged into `develop`, no verdict can be signed,
+so the job passes and says in its summary that it is not configured; from the
+merge of the key on, it is strict. Turning the queue on and
 requiring that check is a repository setting a human takes; see
 [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md).
 

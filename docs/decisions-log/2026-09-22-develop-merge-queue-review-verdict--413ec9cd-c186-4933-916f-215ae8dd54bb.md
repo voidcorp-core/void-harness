@@ -77,6 +77,20 @@ latest verdict signed for that head by the review key says `success`.
   swapped on the base answers a private key the loop never drew, so the loop
   believes nothing and disarms what it armed. A worker without the private key
   cannot make the required check pass, whatever command it runs.
+- A bootstrap window opens the check until the key exists. The job and its
+  script arrive on `develop` through a pull request the job itself judges,
+  and `.github/void-review.pub` is merged by a later one; with no key on the
+  base, no verdict can be signed or verified, so a strict check would refuse
+  every pull request, the one carrying the key included. While the base
+  commit holds no `.github/void-review.pub`, read through `git ls-tree` on the
+  checked-out base, the job passes and says it is not configured, in a notice
+  and in its step summary. A git error fails the step rather than read as an
+  absent key. The window closes when the key is merged into `develop`: from
+  then on the base's script alone decides, unchanged and strict, and fails on
+  any doubt, a missing script included. No other path is relaxed. Reopening
+  the window means deleting the key from the base, which touches
+  `.github/**`, ground the loop never arms (see the protected paths below),
+  so only a person merging that deletion can do it.
 - The public key is a versioned file, not a repository variable. GitHub lets
   any collaborator with write access create or update a repository variable
   ([REST, variables](https://docs.github.com/en/rest/actions/variables#create-a-repository-variable):
@@ -255,6 +269,9 @@ Negative:
   still reads and merges. The status stays on the commit after the merge, so a
   verdict later rewritten to failure refuses the next promotion until someone
   looks.
+- Until the key is merged into `develop`, `independent-review` proves
+  nothing: every pull request passes it with a notice. The queue should not
+  be made to depend on it before the key has landed.
 - The merge queue requires a repository owned by an organization. Consumers
   outside one fall back to serial merges, per the spec.
 
