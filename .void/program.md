@@ -35,13 +35,10 @@ autopilot:
       - packages/harness-graph/catalog.v3.json
     reconcileOnly: []
   # Additions only. The floor lives in PROTECTED_PATHS_FLOOR and already covers
-  # `.github/**`, the installed hooks, the loop's own sources and the scripts
-  # that judge a merge or a publication; this list can widen that ground, never
-  # narrow it. `union-review.ts` is named here because `sameBranch` decides the
-  # refusal to merge into the branch that deploys, and the floor does not carry
-  # it yet.
-  protectedPaths:
-    - packages/cli/src/lib/autopilot/union-review.ts
+  # `.github/**`, the installed hooks, the loop's own sources, the refusal to
+  # merge into the branch that deploys, and the scripts that judge a merge or a
+  # publication; this list can widen that ground, never narrow it.
+  protectedPaths: []
 ---
 
 # Program: autonomous until develop

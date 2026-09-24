@@ -90,10 +90,6 @@ try {
     // The skill and its adapter, in the directory this runtime actually reads.
     const home = runtime === 'codex' ? '.agents' : '.claude';
     requirePath(join(fixture, home, 'skills', 'void-autopilot', 'SKILL.md'), `${runtime} autopilot skill`);
-    requirePath(
-      join(fixture, home, 'skills', 'void-autopilot', 'workflows', 'autopilot.workflow.js'),
-      `${runtime} autopilot workflow`,
-    );
     // No `.claude/commands/` assertion. Claude Code merged custom commands into
     // skills, and the install stopped writing that directory at all — a command
     // file was Claude-only while the harness targets three runtimes.
@@ -104,6 +100,8 @@ try {
     for (const stale of [
       join(fixture, home, 'skills', 'backlog-autopilot'),
       join(fixture, home, 'skills', 'autopilot'),
+      // The cluster engine's fan-out, removed with the engine.
+      join(fixture, home, 'skills', 'void-autopilot', 'workflows'),
       join(fixture, '.claude', 'commands'),
     ]) {
       if (existsSync(stale)) fail(`the installed tree still ships the retired surface (${stale})`);

@@ -37,10 +37,7 @@ function productionFiles(directory: string): readonly string[] {
 
 // Shared test observations live beside the planner but are not CLI mechanisms.
 // Keep them in the import graph so a production import still fails below.
-const TEST_SUPPORT = new Set([
-  join(SRC, 'lib', 'autopilot', 'worktree-fixtures.ts'),
-  join(SRC, 'lib', 'autopilot', 'review-signature-fixtures.ts'),
-]);
+const TEST_SUPPORT = new Set([join(SRC, 'lib', 'autopilot', 'review-signature-fixtures.ts')]);
 const files = productionFiles(SRC);
 const source = new Map(files.map((file) => [file, readFileSync(file, 'utf8')]));
 
@@ -101,6 +98,6 @@ describe('every declared autopilot mechanism has a caller', () => {
   // finding no exports at all, which is the failure mode of every graph test.
   it('reaches the commands it starts from, and the library they use', () => {
     expect(reached.size).toBeGreaterThan(files.length / 2);
-    expect([...reached].some((file) => file.includes(join('lib', 'autopilot', 'union-review')))).toBe(true);
+    expect([...reached].some((file) => file.includes(join('lib', 'autopilot', 'branch-identity')))).toBe(true);
   });
 });

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:5d7bedcf042dfa95fbf4e79b49308f996d158e8e478f29dcc8d172d83ad540d3"
+    "rootHash": "sha256:469123888a1ecaa1e2790ca5171116a456e68d3b5a484ed5f3defd725a59f655"
   },
   "nodes": [
     {
@@ -3551,7 +3551,7 @@
             }
           ],
           "id": "skill:void-autopilot",
-          "lines": 375,
+          "lines": 365,
           "name": "void-autopilot",
           "owner": "folpe",
           "pack": null,
@@ -3560,7 +3560,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-autopilot/SKILL.md",
-          "staticTokens": 6230,
+          "staticTokens": 6115,
           "type": "skill"
         }
       },
@@ -5345,34 +5345,6 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/void-verify/SKILL.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:workflow-def:workflow-def:autopilot",
-      "kind": "workflow-def",
-      "label": "autopilot",
-      "data": {
-        "legacy": {
-          "description": "",
-          "id": "workflow-def:autopilot",
-          "lines": 0,
-          "name": "autopilot",
-          "pack": null,
-          "source": "packages/core/skills/void-autopilot/workflows/autopilot.workflow.js",
-          "staticTokens": 0,
-          "type": "workflow-def"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/skills/void-autopilot/workflows/autopilot.workflow.js",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -8252,32 +8224,6 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-llm-cost-discipline"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:edge:composes:adc7f444024c5b088f995b8b64493aae",
-      "from": "catalog:skill:skill:void-autopilot",
-      "to": "catalog:workflow-def:workflow-def:autopilot",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "autopilot SKILL.md: Claude executes the orchestration plan with its Workflow primitive",
-          "from": "skill:void-autopilot",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "workflow-def:autopilot"
         }
       },
       "provenance": {

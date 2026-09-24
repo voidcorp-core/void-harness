@@ -97,7 +97,7 @@ export function isLoopSubcommand(subcommand: string): subcommand is LoopSubcomma
 
 /**
  * The continuous loop's subcommands that observe or write local state, routed
- * here so the cluster engine's dispatcher names none of them.
+ * here so the router in autopilot.ts stays a table and a switch.
  */
 export function loopCommand(
   subcommand: LoopSubcommand,

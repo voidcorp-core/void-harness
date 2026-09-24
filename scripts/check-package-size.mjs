@@ -57,10 +57,11 @@ export const PACKAGE_LIMITS = Object.freeze({
   // Own the supported compiler API offline with about 45 kB of headroom.
   // The native autopilot loop measures 2016.5 kB on 2026-09-24 (develop:
   // 1996.1 kB): about 20 kB of new loop code in dist/main.js, no fixture or
-  // test code packed. It ships beside the cluster engine it replaces until
-  // step 7 of the native loop plan removes that engine; the ceiling comes back
-  // down in that same commit.
-  voidharness: 2_050_000,
+  // test code packed. It shipped beside the cluster engine it replaced until
+  // step 7 of the native loop plan removed that engine: 1942.1 kB on
+  // 2026-09-24 (develop: 2018.6 kB). The ceiling comes back down with it, to
+  // the same 45 kB of headroom the compiler worker was given.
+  voidharness: 1_985_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

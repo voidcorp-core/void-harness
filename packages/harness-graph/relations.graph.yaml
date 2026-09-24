@@ -421,7 +421,6 @@ edges:
   - { from: skill:void-implement, to: skill:void-commit-discipline, kind: composes, evidence: "implement SKILL.md: Ship pass: Compose commit-discipline, open the PR, attach the evidence" }
   - { from: skill:void-ticket, to: skill:void-implement, kind: routes-to, evidence: "implement SKILL.md: Upstream: ticket produces the ticket and declares its conditional passes" }
   - { from: skill:void-autopilot, to: skill:void-implement, kind: composes, evidence: "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once" }
-  - { from: skill:void-autopilot, to: workflow-def:autopilot, kind: composes, evidence: "autopilot SKILL.md: Claude executes the orchestration plan with its Workflow primitive" }
   # Feedback circuit: hooks measure, graph explains, audit proposes, learn owns the HITL change.
   - { from: hook:activation-meter, to: skill:void-graph, kind: companion-of, evidence: "void-graph SKILL.md: the analyzer correlates the installed model with activation-meter mission events" }
   - { from: hook:outcome-meter, to: skill:void-graph, kind: companion-of, evidence: "graph cost joins PostToolUse outcomes to component invocations to expose yield" }

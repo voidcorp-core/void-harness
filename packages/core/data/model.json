@@ -1703,7 +1703,7 @@
         }
       ],
       "id": "skill:void-autopilot",
-      "lines": 375,
+      "lines": 365,
       "name": "void-autopilot",
       "owner": "folpe",
       "pack": null,
@@ -1712,7 +1712,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-autopilot/SKILL.md",
-      "staticTokens": 6230,
+      "staticTokens": 6115,
       "type": "skill"
     },
     {
@@ -2840,16 +2840,6 @@
       "source": "packages/core/skills/void-verify/SKILL.md",
       "staticTokens": 2267,
       "type": "skill"
-    },
-    {
-      "description": "",
-      "id": "workflow-def:autopilot",
-      "lines": 0,
-      "name": "autopilot",
-      "pack": null,
-      "source": "packages/core/skills/void-autopilot/workflows/autopilot.workflow.js",
-      "staticTokens": 0,
-      "type": "workflow-def"
     }
   ],
   "edges": [
@@ -3454,13 +3444,6 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once"
-    },
-    {
-      "from": "skill:void-autopilot",
-      "to": "workflow-def:autopilot",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "autopilot SKILL.md: Claude executes the orchestration plan with its Workflow primitive"
     },
     {
       "from": "skill:void-brainstorm",

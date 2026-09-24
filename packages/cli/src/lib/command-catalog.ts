@@ -120,7 +120,7 @@ export const COMMAND_CATALOG = {
     "help": [
       {
         "signature": "autopilot [sub]",
-        "description": "Drain a bounded cluster of ready work units into one integration PR you merge. plan \u00b7 start \u00b7 status \u00b7 resume \u00b7 abort; --json for the skill. Resumes from .void/program.md, so no unit or run id is passed."
+        "description": "The kernel of the continuous delivery loop: next \u00b7 stop \u00b7 arm \u00b7 disarm \u00b7 verdict \u00b7 fingerprint \u00b7 review-key \u00b7 judgment; --json for the skill. Reads .void/program.md, the tracker on stdin and GitHub; decides, and acts only to arm, disarm and post a signed verdict."
       }
     ]
   },

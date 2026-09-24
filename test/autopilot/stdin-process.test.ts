@@ -2,11 +2,9 @@
  * The pipe, across a real process.
  *
  * Every other autopilot proof calls `runAutopilotCommand(argv, stdin)` with the
- * payload already in hand, so all of them were green while the shell above it
- * handed eleven subcommands an empty string. `reconcile` — the whole point of
- * the footprint audit — answered "the reconcile observation on stdin is not
- * valid JSON" to valid JSON, and no test could see it, because no test had ever
- * crossed the boundary where stdin exists.
+ * payload already in hand. The cluster engine this loop replaced was green that
+ * way while its shell handed eleven subcommands an empty string: no test had
+ * ever crossed the boundary where stdin exists.
  *
  * So this spawns a process, writes the payload into its pipe, and reads what
  * comes back. It runs the SOURCE through Node with tsx's loader rather than
@@ -42,111 +40,23 @@ function pipeInto(argv: readonly string[], stdin: string): CliRun {
   return { stdout: result.stdout ?? '', stderr: result.stderr ?? '', exitCode: result.status };
 }
 
-const BASE = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 const HEAD = `${'a'.repeat(39)}1`;
 
-function workerResult(over: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    schemaVersion: 1,
-    ticketId: 'DEV-1',
-    status: 'completed',
-    branch: 'autopilot-worker/cluster-1/DEV-1',
-    baseSha: BASE,
-    headSha: HEAD,
-    commits: [HEAD],
-    files: ['packages/cli/src/a.ts'],
-    proofs: [{ name: 'suite', command: ['pnpm', 'test'], hash: 'd'.repeat(64) }],
-    decisions: [],
-    review: { kind: 'panel', passes: [{ name: 'code-review', context: 'fresh-context-subagent' }] },
-    panel: { provider: 'orchestrator', rounds: [] },
-    blocker: null,
-    ...over,
-  };
-}
+describe('the autopilot shell, across a real pipe', () => {
+  it('hands a piped judgment to the command that admits it', () => {
+    const judgment = { headSha: HEAD, class: 'semantic', reason: 'Both sides changed the grant.' };
+    const run = pipeInto(['judgment', 'conflict-class'], JSON.stringify(judgment));
 
-/** The payload the skill pipes in, with DEV-1 carrying a file DEV-2 declared. */
-function contaminated(over: Record<string, unknown> = {}): string {
-  return JSON.stringify({
-    schemaVersion: 1,
-    clusterId: 'cluster-1',
-    base: { branch: 'develop', sha: BASE },
-    cluster: ['DEV-1', 'DEV-2'],
-    footprints: [
-      { id: 'DEV-1', areas: ['packages/cli/src'] },
-      { id: 'DEV-2', areas: ['packages/core/templates'] },
-    ],
-    results: [workerResult()],
-    failures: [],
-    observations: [
-      {
-        ticketId: 'DEV-1',
-        baseSha: BASE,
-        headSha: HEAD,
-        commits: [{ sha: HEAD, parents: [BASE] }],
-        observedFiles: ['packages/cli/src/a.ts', 'packages/core/templates/PROJECT-DOCTRINE.md'],
-      },
-    ],
-    reconcileOnly: [],
-    ...over,
+    expect(run.exitCode, run.stderr).toBe(0);
+    expect(run.stdout).toContain('void-autopilot:conflict-class');
+    expect(run.stdout).toContain(HEAD);
   });
-}
 
-describe('the CLI reads the observation a pipeline gives it', () => {
-  it('runs the footprint audit on a payload piped into `reconcile`', () => {
-    const run = pipeInto(['reconcile', '--json'], contaminated());
+  it('answers a command that reads no pipe without waiting on one', () => {
+    const run = pipeInto(['arm', '--pr', '11'], 'not json at all');
 
+    expect(run.exitCode).toBe(2);
     expect(run.stderr).not.toMatch(/not valid JSON/);
-    expect(run.exitCode).toBe(0);
-    const emitted = JSON.parse(run.stdout);
-    expect(emitted.plan.integrate).toEqual([]);
-    expect(JSON.stringify(emitted.plan.excluded)).toContain('footprint-breach');
-    expect(JSON.stringify(emitted.plan.excluded)).toContain('packages/core/templates/PROJECT-DOCTRINE.md');
-  });
-
-  it('plans the merge of a clean payload piped into `reconcile`', () => {
-    // The other direction: a refusal that fires on everything proves nothing
-    // about the pipe, since an unread stdin refuses too.
-    const run = pipeInto(
-      ['reconcile', '--json'],
-      contaminated({
-        observations: [
-          {
-            ticketId: 'DEV-1',
-            baseSha: BASE,
-            headSha: HEAD,
-            commits: [{ sha: HEAD, parents: [BASE] }],
-            observedFiles: ['packages/cli/src/a.ts'],
-          },
-        ],
-      }),
-    );
-
-    expect(run.exitCode).toBe(0);
-    const emitted = JSON.parse(run.stdout);
-    expect(emitted.plan.integrate).toEqual(['DEV-1']);
-    expect(emitted.plan.steps.length).toBeGreaterThan(0);
-  });
-
-  it('refuses a cluster shortened to hide a ticket its own results name', () => {
-    // Both declared lists shortened together, consistently. The third list in
-    // the same payload still holds DEV-2, which is the proof of the shortening.
-    const run = pipeInto(
-      ['reconcile', '--json'],
-      contaminated({
-        cluster: ['DEV-1'],
-        footprints: [{ id: 'DEV-1', areas: ['packages/cli/src'] }],
-        results: [workerResult(), workerResult({ ticketId: 'DEV-2', status: 'blocked', headSha: null, commits: [], proofs: [], blocker: 'stash collision' })],
-      }),
-    );
-
-    expect(run.exitCode).not.toBe(0);
-    expect(run.stderr).toContain('DEV-2');
-    expect(run.stderr).toMatch(/AUTOPILOT_CONTRACT/);
-  });
-
-  it('answers `abort` without waiting on a pipe it never reads', () => {
-    const run = pipeInto(['abort', '--run', 'plan'], 'not json at all');
-
-    expect(run.stderr).not.toMatch(/not valid JSON/);
+    expect(run.stderr).toMatch(/--ticket/);
   });
 });

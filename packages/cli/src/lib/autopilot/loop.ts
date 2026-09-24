@@ -33,7 +33,7 @@ import {
   type SharedFingerprint,
   type SharedStateReading,
 } from './shared-state.js';
-import { sameBranch } from './union-review.js';
+import { sameBranch } from './branch-identity.js';
 
 /** A tracker scope larger than this is a backlog dump, not a loop observation. */
 export const TRACKED_TICKETS_MAX = 256;
@@ -75,6 +75,9 @@ export const PROTECTED_PATHS_FLOOR = [
   'packages/cli/src/lib/autopilot/loop.ts',
   'packages/cli/src/lib/autopilot/loop-observe.ts',
   'packages/cli/src/lib/autopilot/review-signature.ts',
+  // Decides whether the base is the branch that deploys, the one merge refused
+  // whatever the verdict says.
+  'packages/cli/src/lib/autopilot/branch-identity.ts',
   'packages/cli/src/commands/autopilot-loop.ts',
   // The sources above run only after a release and a reinstall; these run now.
   // The installed runner, the files that wire it into Claude and Codex, and the
