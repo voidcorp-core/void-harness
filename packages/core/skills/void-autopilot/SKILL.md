@@ -142,8 +142,8 @@ Act on each returned action, then ask again:
 |---|---|
 | `assign` | claim the ticket (In Progress, assigned), run `autopilot fingerprint --before <ticket>`, create or reuse its worktree, spawn its worker |
 | `wait` | nothing; the reason says who is working |
-| `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request |
-| `mark-human-wait` | record it in `recent` with its `reason`, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
+| `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request; a respawned worker resumes its mission (see Respawning) |
+| `mark-human-wait` | record it in `recent` with its `reason`, which `recent` requires and the recap repeats, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `void-harness autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head and reads GitHub back; never `gh pr merge --auto` by hand, never `--admin` |
 | `disable-auto-merge` | `void-harness autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it fails while GitHub still shows the auto-merge |
 | `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head; twice at most per run, then `review-check-reruns-exhausted` |
@@ -162,6 +162,17 @@ own checkout and never works in the main one. When the project uses the cockpit 
 described in the harness's native supervision guide, each worker and reviewer is launched once in
 its own surface to the right of the orchestrator; without it, workers are native subagents. The
 presentation shows the loop; it never grants a permission, a proof or a merge.
+
+**Respawning.** A respawned worker resumes; it never starts the ticket again. Its code is in its
+worktree and its branch, its progress in its mission journal, `.void/machine/runs/<mission>/events.jsonl`
+under the installation root, which is the main checkout and not the worktree. It finds its mission
+as the open one whose `mission.json` carries the ticket id as its title, runs
+`void-harness mission resume --id <mission> --json` and acts on the recovery decision it prints,
+then goes on with `mission dispatch`. `resume` records itself once per checkpoint; it exits 1 while
+the mission waits and refuses a closed one, and neither is answered by opening a new mission: the
+worker reports it. When the worktree is gone, recreate it from the branch. When the branch the
+tracker names for the ticket is gone too, locally and on the remote, the work is lost: do not
+spawn over it, record `mark-human-wait` yourself with the reason `branch-missing`.
 
 **The fingerprint.** A worktree isolates the working tree, the index and `HEAD`, and nothing else:
 the local config and the files it includes, the stash, tags, notes, remotes, the local base and
@@ -222,7 +233,12 @@ tracker you pipe in never carries them and a restart loses nothing.
 Given: one ticket id, its worktree, its branch, the programme's plan and spec. The worker re-fetches
 the complete ticket itself; it never works from a summary.
 
-It runs `void-implement` whole in that worktree. When its proofs are green it runs
+It runs `void-implement` whole in that worktree, and starts its mission with the ticket id as its
+`--title`, which is how a respawn finds it again. Before any context compaction it writes to the
+mission what it has done: each specialist result through `mission specialist-event`, each proof
+through `mission verify`, a committed candidate through `mission writer-event`. The journal accepts
+only these typed events, no free note; what is not yet one of them does not survive a respawn, and
+uncommitted edits survive only in the worktree. When its proofs are green it runs
 `autopilot fingerprint --after <ticket>`, pushes its own branch, opens one pull request towards the
 base, and moves the ticket to In Review. The reviewer's pass is that cycle's independent review; its
 blocking findings come back as a hand-back and are corrected as a batch, per `void-implement`.
