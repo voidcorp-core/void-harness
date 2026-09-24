@@ -37,19 +37,6 @@ function requirePath(path, label) {
   if (!existsSync(path)) fail(`the installed tree has no ${label} (${path})`);
 }
 
-/** A candidate observation the CLI can plan from, with no tracker involved. */
-const OBSERVATION = JSON.stringify({
-  schemaVersion: 1,
-  tickets: [
-    { id: 'DEV-1', ready: true, priority: 2, boardOrder: 0, blockedByOpen: false, dependsOn: [], estimate: 3 },
-    { id: 'DEV-2', ready: true, priority: 2, boardOrder: 1, blockedByOpen: false, dependsOn: [], estimate: 3 },
-  ],
-  footprints: [
-    { id: 'DEV-1', areas: ['src/a'], highRisk: false, confidence: 0.9 },
-    { id: 'DEV-2', areas: ['src/b'], highRisk: false, confidence: 0.9 },
-  ],
-});
-
 const temporary = await mkdtemp(join(tmpdir(), 'void-autopilot-conformance-'));
 const npm = packageManagerCommand('npm');
 
@@ -121,30 +108,44 @@ try {
     requireConformanceExit(help, 'autopilot --help');
     if (!help.stdout.includes('autopilot')) fail('autopilot --help printed no usage');
 
-    const planned = await runConformanceProcess({
+    // The kernel decides offline from the installed package: a judgment piped in
+    // is admitted and rendered without GitHub, the tracker or an agent.
+    const headSha = 'a'.repeat(40);
+    const judged = await runConformanceProcess({
+      command: process.execPath,
+      args: [bin, 'autopilot', 'judgment', 'conflict-class'],
+      cwd: fixture,
+      env: environment,
+      input: JSON.stringify({ headSha, class: 'semantic', reason: 'Both sides changed the grant.' }),
+    });
+    requireConformanceExit(judged, 'autopilot judgment conflict-class');
+    if (!judged.stdout.includes('void-autopilot:conflict-class') || !judged.stdout.includes(headSha)) {
+      fail('autopilot judgment printed no conflict-class block bound to its head');
+    }
+
+    // Merging is armed only on a verdict the programme consented to, on the
+    // consumer's machine too: no invocation flag grants it.
+    const armed = await runConformanceProcess({
+      command: process.execPath,
+      args: [bin, 'autopilot', 'next', '--auto-merge'],
+      cwd: fixture,
+      env: environment,
+      input: '{}',
+    });
+    if (armed.outcome.kind !== 'exited' || armed.outcome.code === 0) {
+      fail('the installed CLI did not refuse --auto-merge with a non-zero exit');
+    }
+
+    // The cluster engine was removed, not left reachable under its old names.
+    const clustered = await runConformanceProcess({
       command: process.execPath,
       args: [bin, 'autopilot', 'plan', '--json'],
       cwd: fixture,
       env: environment,
-      input: OBSERVATION,
+      input: '{}',
     });
-    requireConformanceExit(planned, 'autopilot plan');
-    const plan = JSON.parse(planned.stdout);
-    if (plan.schemaVersion !== 1) fail(`autopilot plan returned schemaVersion ${plan.schemaVersion}`);
-    if (!Array.isArray(plan.cluster) || plan.cluster.length === 0) {
-      fail('autopilot plan produced no cluster from two independent ready tickets');
-    }
-
-    // Merging is a human gate on the consumer's machine too, not only here.
-    const armed = await runConformanceProcess({
-      command: process.execPath,
-      args: [bin, 'autopilot', 'plan', '--auto-merge'],
-      cwd: fixture,
-      env: environment,
-      input: OBSERVATION,
-    });
-    if (armed.outcome.kind !== 'exited' || armed.outcome.code === 0) {
-      fail('the installed CLI did not refuse --auto-merge with a non-zero exit');
+    if (clustered.outcome.kind !== 'exited' || clustered.outcome.code === 0) {
+      fail('the installed CLI still answers the removed `autopilot plan`');
     }
 
     const retired = await runConformanceProcess({
