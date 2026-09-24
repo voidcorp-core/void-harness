@@ -2,12 +2,16 @@
 schemaVersion: 1
 status: executing
 program: autonomous-until-develop
-plan: docs/plans/2026-09-16-seven-ticket-delivery.md
-spec: docs/specs/2026-09-16-seven-ticket-delivery.md
+plan: docs/plans/2026-09-22-autopilot-native-loop-plan.md
+spec: docs/specs/2026-09-22-autopilot-native-loop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-844, DEV-531, DEV-611, DEV-630, DEV-682, DEV-662, DEV-635]
+  # Selection belongs to the curator, which reads the project and the tracker;
+  # the continuous loop never reads this list. It still bounds two older
+  # readers: the cluster engine's `plan` pool, and a resume that names no unit.
+  # Keep it to what a person would accept being picked without being asked.
+  order: [DEV-858, DEV-877, DEV-859]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -29,33 +33,40 @@ autopilot:
       - packages/cli/core-assets/**
       - packages/harness-graph/model.json
       - packages/harness-graph/catalog.v3.json
-      # DEV-677 and DEV-673 both rewrite the merge grant, so the router must
-      # sequence them rather than fan them out. Declared here rather than left to
-      # footprint inference, because a semantic conflict in the guard that
-      # authorizes a merge is the one no tooling resolves after the fact.
-      - packages/cli/src/lib/autopilot/union-review.ts
     reconcileOnly: []
+  # Additions only. The floor lives in PROTECTED_PATHS_FLOOR and already covers
+  # `.github/**`, the installed hooks, the loop's own sources and the scripts
+  # that judge a merge or a publication; this list can widen that ground, never
+  # narrow it. `union-review.ts` is named here because `sameBranch` decides the
+  # refusal to merge into the branch that deploys, and the floor does not carry
+  # it yet.
+  protectedPaths:
+    - packages/cli/src/lib/autopilot/union-review.ts
 ---
 
 # Program: autonomous until develop
 
-## Scope explicitly expanded on 16 September 2026
+## Scope, since 24 September 2026
 
-Folpe explicitly requested DEV-844 first from the test-cost audit and the six
-proposed units DEV-531/611/630/682/662/635, each with its own implementing agent.
-The linked spec and plan record this authorized scope change. Prior motion,
-update-proposal and doctrine-routing choices remain approved. DEV-610/645 are
-already delivered and are not reopened. Mutable state belongs only to Linear.
+The programme runs the continuous delivery loop named in frontmatter. A curator
+selects and ranks the work from the project and the tracker, reading Todo, then
+Backlog, then Triage; it enriches a unit before declaring it ready and never
+closes or deletes one. Four slots at most run at a time, one worker per unit in
+its own worktree, each running the complete `void-implement` cycle. One pull
+request per unit targets `develop`, auto-merge is the default there, and the
+GitHub merge queue replays the checks on the combined result. An independent
+reviewer's verdict, signed and verified by a required check, is what authorizes
+a merge; no human reads the code for it.
 
-The programme retains its existing non-production merge grant and protection
-requirements. At most two writers run concurrently; declarations containing
-shared generated assets are sequenced by the orchestration plan. No
-reconcileOnly exception is introduced here. Unit plans must remain compatible
-with the complete provider-native ticket and its current blocker relations.
+The earlier scope of 16 September (DEV-844 first, then DEV-531/611/630/682/662/635)
+is delivered or lapsed, and is not reopened here. The non-production merge grant
+and the protection requirements are unchanged: the loop merges into `develop`
+only, never into `main`, and promotion to production stays a person's.
 
 Corrections stay in the artefact being worked on. A change contradicting an
-accepted decision requires supersession, never an in-place rewrite. This scope
-was selected by Folpe; completion never selects or repoints a successor pool.
+accepted decision requires supersession, never an in-place rewrite. Completion
+never selects or repoints a successor pool: the curator does, each time the
+project moves.
 
 ## Sources of truth
 
