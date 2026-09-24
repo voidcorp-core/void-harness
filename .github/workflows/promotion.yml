@@ -111,6 +111,11 @@ jobs:
             echo "no review App id to hold the independent-review check to." >&2
             exit 1
           fi
+          # GitHub Actions, whose check any job's GITHUB_TOKEN can post.
+          if [ "$REVIEW_APP_ID" = 15368 ]; then
+            echo "the review App id is the GitHub Actions app." >&2
+            exit 1
+          fi
 
           audit_file=$(mktemp)
           response_file=$(mktemp)

@@ -49,6 +49,9 @@ export const REVIEW_CHECK_NAME = 'independent-review';
 
 // Observed on every back-merge so far (#287 to #379). The login carries the
 // `[bot]` suffix only in REST, which a user account cannot register.
+// The app every job's GITHUB_TOKEN belongs to: never an identity for the review.
+const GITHUB_ACTIONS_APP_ID = 15368;
+
 export const BACK_MERGE = {
   repository: 'voidcorp-core/void-harness',
   head: 'chore/back-merge-main',
@@ -215,6 +218,7 @@ export function mergeGroupFromRun(run) {
   if (field(run, 'event') !== 'merge_group') fail('the triggering run is not a merge group');
   const headRef = `refs/heads/${String(field(run, 'head_branch'))}`;
   const { base } = parseQueueRef(headRef);
+  if (base !== BACK_MERGE.base) fail(`the merge group targets ${base}, not ${BACK_MERGE.base}`);
   return {
     merge_group: {
       head_sha: requireSha(field(run, 'head_sha'), 'merge group head'),
@@ -369,6 +373,9 @@ export function backMergeRefusal(git, sha, options = {}) {
 export async function checkIndependentReview({ eventName, event, repository, graphql, git, appId }) {
   const coordinates = splitRepository(repository);
   if (!Number.isInteger(appId) || appId < 1) fail('no review App id to hold the review check to');
+  if (appId === GITHUB_ACTIONS_APP_ID) {
+    fail('the review App id is the GitHub Actions app, whose check any job can post');
+  }
   if (eventName !== 'merge_group') fail(`unsupported event ${String(eventName)}; the review itself runs on pull_request_target`);
   const pulls = await mergeGroupPulls(event, graphql, coordinates);
   for (const pull of pulls) {

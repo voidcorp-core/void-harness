@@ -186,6 +186,13 @@ describe('promotion integration authority', () => {
     expect(readFileSync(join(result.root, 'last-query'), 'utf8')).toContain('checkSuites(first:5,filterBy:{appId:4242})');
   });
 
+  it('refuses the GitHub Actions app as the review App', () => {
+    const result = runAudit({ reviewAppId: '15368' });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('the review App id is the GitHub Actions app.');
+    expect(existsSync(join(result.root, 'query-count'))).toBe(false);
+  });
+
   it.each(['', '0', '15368 ', 'abc'])('refuses to audit without a review App id (%j)', (reviewAppId) => {
     const result = runAudit({ reviewAppId });
     expect(result.status).not.toBe(0);

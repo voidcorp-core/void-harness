@@ -61,6 +61,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
+      # No App token is alive while the model reads the head: the one that
+      # opens the check is revoked at once, the one that concludes it is minted
+      # after the review. The action alone revokes only when the job ends.
+      # https://docs.github.com/en/rest/apps/installations#revoke-an-installation-access-token
       - name: Mint the review App token, allowed to write checks and nothing else
         id: app
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -68,12 +72,18 @@ jobs:
           client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
           private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
           permission-checks: write
+          skip-token-revoke: true
       - name: Decide whether this head is reviewed, and open its check
         id: start
         env:
           GH_TOKEN: ${{ github.token }}
           CHECKS_TOKEN: ${{ steps.app.outputs.token }}
         run: node scripts/independent-review-run.mjs start
+      - name: Revoke the token that opened the check
+        if: always() && steps.app.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: gh api --method DELETE installation/token
       - name: Check out the head, as data
         if: steps.start.outputs.review == 'true'
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -111,11 +121,19 @@ jobs:
             --add-dir pr-head
             --max-turns 40
             --json-schema '${{ steps.inputs.outputs.schema }}'
+      - name: Mint the review App token that concludes the check
+        id: app-finish
+        if: always() && steps.start.outputs.review == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          permission-checks: write
       - name: Publish the verdict and conclude the check
         if: always() && steps.start.outputs.review == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          CHECKS_TOKEN: ${{ steps.app.outputs.token }}
+          CHECKS_TOKEN: ${{ steps.app-finish.outputs.token }}
           PULL_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           CHECK_RUN_ID: ${{ steps.start.outputs.check_run_id }}

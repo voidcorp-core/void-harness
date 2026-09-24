@@ -106,8 +106,15 @@ describe('independent review', () => {
     expect(review).toMatch(APP_TOKEN);
     expect(verify).toMatch(APP_TOKEN);
     const checksToken = `CHECKS_TOKEN: ${expression('steps.app.outputs.token')}`;
-    expect(review.split(checksToken)).toHaveLength(3);
     expect(verify).toContain(checksToken);
+    // No App token is alive while the model reads the head.
+    const [opening = '', rest = ''] = review.split('      - name: Review\n');
+    expect(opening.split(checksToken)).toHaveLength(2);
+    expect(opening).toContain('skip-token-revoke: true');
+    expect(opening).toMatch(/if: always\(\) && steps\.app\.outputs\.token != ''\n.*\n {10}GH_TOKEN: \$\{\{ steps\.app\.outputs\.token \}\}\n {8}run: gh api --method DELETE installation\/token\n/);
+    expect(rest).not.toContain(checksToken);
+    expect(rest).toMatch(APP_TOKEN);
+    expect(rest).toContain(`CHECKS_TOKEN: ${expression('steps.app-finish.outputs.token')}`);
     expect(verify).toContain(`REVIEW_APP_ID: ${expression('vars.REVIEW_APP_ID')}`);
   });
 

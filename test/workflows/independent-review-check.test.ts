@@ -267,12 +267,16 @@ describe('independent review verdict check', () => {
     expect(asked.at(-1)).toMatchObject({ oid: sha('1'), app: APP, check: 'independent-review' });
     const { graphql: other } = fakeGithub({ verdicts, entries: twoEntries });
     await expect(
-      checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql: other, appId: 15368 }),
+      checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql: other, appId: 777 }),
     ).rejects.toThrow(/carries no independent-review check from the review App/);
     // Without an App id to hold the check to, nothing is believed.
     await expect(
       checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql }),
     ).rejects.toThrow(/review App id/);
+    // GitHub Actions as the review App would believe any job's check again.
+    await expect(
+      checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql, appId: 15368 }),
+    ).rejects.toThrow(/GitHub Actions app, whose check any job can post/);
   });
 
   it('refuses a group whose review is still running, or whose latest review failed', async () => {
@@ -533,6 +537,14 @@ describe('the merge group behind a workflow run', () => {
       .toThrow(/not a merge group/);
     expect(() => mergeGroupFromRun({ event: 'merge_group', head_sha: sha('b'), head_branch: 'develop' }))
       .toThrow(/not a merge queue ref/);
+  });
+
+  // The queue verified here is develop's; one created on another branch
+  // tomorrow is not signed until someone decides it should be.
+  it('refuses a merge group queued on any branch but develop', () => {
+    expect(() => mergeGroupFromRun({
+      event: 'merge_group', head_sha: sha('b'), head_branch: `gh-readonly-queue/main/pr-9-${sha('0')}`,
+    })).toThrow(/targets main, not develop/);
   });
 });
 
