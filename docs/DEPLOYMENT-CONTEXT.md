@@ -47,6 +47,32 @@ So the model port takes **either** a credential the operator owns **or** an iden
 the host renews, and neither is special-cased in the core. Any model choice is made with
 Folpe, on a sourced comparison.
 
+## In the third shape, Cortex is the model
+
+Folpe's intent for shape 3: Cortex becomes Machine's way to a model. Machine stops talking
+to a provider and talks to Cortex, which decides behind it and brings its memory and
+context.
+
+**Proposed form, to confirm with the Cortex side: Cortex exposes an OpenAI-compatible
+API.** That is already the shape of the shared-server tier, so Machine keeps **one** model
+adapter and the three cases differ only by URL and credential. Nothing about Cortex enters
+the core, shape 2 keeps working by pointing the same adapter elsewhere, and no inference
+protocol has to be invented, specified or maintained by two teams.
+
+Two concerns stay separate:
+
+- **Inference** goes through that endpoint.
+- **Identity and permissions** stay the signature contract (JWKS): who the client is, what
+  it may do, for how long.
+
+If Cortex later offers more than that format can express — its memory, task routing, a
+typed judgment — a second, native Cortex adapter is added beside the first, and the core
+is untouched.
+
+**This is a default, not a settled decision.** It is the cheapest shape that keeps the
+three promises, and it is to be challenged when Machine is actually containerized, with
+the Cortex side, on what its API can hold.
+
 ## What the instance imposes
 
 - One client is one compose project, `cortex-<client>`; the project name comes from the
@@ -77,7 +103,8 @@ Folpe, on a sourced comparison.
 - **Exposure shape.** Subdomain (`machine.<client>.declik.ai`) or path, and whether
   Machine is exposed at all in the first client instance.
 - **Coupling contract with Cortex.** Issuer, audience, permissions, lifetime, rotation and
-  revocation, specified with the Cortex side before any implementation.
+  revocation, specified with the Cortex side before any implementation, along with the
+  shape of the model endpoint proposed above.
 - **Per-client environment.** The list of variables Machine needs, to extend `new.sh`.
 
 ## What this changes in current work
