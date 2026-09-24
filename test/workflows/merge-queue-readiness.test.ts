@@ -93,8 +93,10 @@ describe('independent review', () => {
   // The queue believes a run of this workflow by its title; a draft or fork
   // head must never end as a successful run under that title.
   it('titles each run with the pull request and head, and skips drafts outright', () => {
+    // A draft's run is titled apart, so the queue can never read it as the
+    // review of that head, whatever GitHub concludes a run with no job.
     expect(reviewSource).toContain(
-      `run-name: independent-review #${expression('github.event.pull_request.number')} ${expression('github.event.pull_request.head.sha')}`,
+      `run-name: independent-review #${expression('github.event.pull_request.number')} ${expression('github.event.pull_request.head.sha')}${expression("github.event.pull_request.draft && ' (draft)' || ''")}`,
     );
     expect(review).toContain(`if: ${expression('github.event.pull_request.draft == false')}`);
   });

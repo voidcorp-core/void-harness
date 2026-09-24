@@ -17,7 +17,8 @@
 name: independent-review
 # The queue believes a run of this workflow by this title, which only this file,
 # as develop holds it, gives to a run: scripts/independent-review-check.mjs.
-run-name: independent-review #${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.sha }}
+# A draft's run is titled apart: the queue never reads it as a review.
+run-name: independent-review #${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.sha }}${{ github.event.pull_request.draft && ' (draft)' || '' }}
 
 on:
   pull_request_target:
