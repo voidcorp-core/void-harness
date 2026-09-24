@@ -63,7 +63,7 @@ context.
 
 **Proposed form, to settle with the Cortex side: Cortex exposes a model endpoint the
 chosen runtime can already consume**, rather than a protocol of its own. Which shape that
-is — OpenAI-compatible, Anthropic Messages, or both — follows from the runtime Machine
+is (OpenAI-compatible, Anthropic Messages, or both) follows from the runtime Machine
 composes, and is not decided here. What matters is the property: an endpoint an existing
 runtime speaks to means nothing about Cortex enters the core, shape 2 keeps working by
 pointing the same configuration elsewhere, and no inference protocol is invented,
@@ -75,8 +75,8 @@ Two concerns stay separate:
 - **Identity and permissions** would go through the proposed signature contract (JWKS):
   who the client is, what it may do, for how long.
 
-If Cortex later offers more than that format can express — its memory, task routing, a
-typed judgment — a native Cortex adapter is added behind a port, and the core is
+If Cortex later offers more than that format can express (its memory, task routing, a
+typed judgment), a native Cortex adapter is added behind a port, and the core is
 untouched.
 
 **This is a default, not a settled decision.** It is the cheapest shape that keeps the
