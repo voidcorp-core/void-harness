@@ -5,8 +5,8 @@ description: Vider la file des PR ouvertes sans casser le dépôt. Ordre par dé
 
 # merge — voidcorp craftsman edition
 
-`void-implement` s'arrête à la PR ouverte. `void-autopilot` produit une PR d'intégration. Personne ne dit
-comment vider la file. Ce geste a l'air trivial jusqu'au moment où il ne l'est pas.
+`void-implement` s'arrête à la PR ouverte. `void-autopilot` laisse à une personne les PR qu'il ne peut
+pas armer. Personne ne dit comment vider la file. Ce geste a l'air trivial jusqu'au moment où il ne l'est pas.
 
 **Attribution**: see `.source`.
 
@@ -105,7 +105,7 @@ de la branche locale.
 
 ## Composition
 
-- **Amont — `void-implement`** ouvre les PR que cette skill draine ; **`void-autopilot`** en produit une par
-  cluster.
+- **Amont — `void-implement`** ouvre les PR que cette skill draine ; **`void-autopilot`** lui laisse celles qu'il
+  rend à une personne (chemin protégé, verdict non prouvé, branche qui déploie).
 - **Avec `void-verify`** : après le dernier merge, la base se prouve, elle ne se suppose pas.
 - **Avec `void-commit-discipline`** : un commit de merge dit pourquoi il a lieu, comme les autres.

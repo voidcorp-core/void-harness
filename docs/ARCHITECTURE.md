@@ -155,11 +155,10 @@ verified command stay in `workRoot`. The session checkpoint stays with its tree.
 ### Working checkout ownership
 
 Working Git checkouts live outside the repository at the durable location in
-[WORKTREES.md](WORKTREES.md). The v2 autopilot observation explicitly supplies
-physical paths, Git inventory and ticket-to-branch bindings. Pure planning returns
-absolute assignments and argv; the existing runtime owns execution and fresh
-observations. Checkout lifetime follows the ticket and observed merge, independently
-of run/session/presentation lifetime. Useful ignored evidence must be preserved
+[WORKTREES.md](WORKTREES.md). The autopilot orchestrator creates or reuses the
+worktree of each ticket it assigns before its worker starts, and the worker's
+commits are the record. Checkout lifetime follows the ticket and observed merge,
+independently of run/session/presentation lifetime. Useful ignored evidence must be preserved
 before removal even when Git reports clean. This does not change repository-owned
 runtime state or installation-root resolution above.
 
@@ -195,7 +194,8 @@ The harness assumes **TypeScript + web**. The core is not framework-agnostic acr
 The Void Machine has no native track. Its Rust workspace was removed without a port, for lack of
 a caller ([decision](decisions-log/2026-09-21-void-machine-rust-removal-without-port--ec77d2de-4719-4fe6-8d21-c0dbe403d6ac.md)).
 The private TypeScript package `packages/void-machine/` is the Machine foundation and ships in no
-tarball. Git observation, cluster reconciliation and the merge policy that autopilot runs live in
+tarball. The autopilot loop's kernel (state rebuilt from the tracker, GitHub and git, the slot
+and collision rules, the shared-state fingerprint and the merge refusals) lives in
 `packages/cli/src/lib/autopilot/`. A future independent Rust/Go/Python product could still live in
 a sibling repo, reusing mechanics not skills.
 

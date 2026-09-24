@@ -9,7 +9,6 @@
 // `mergeGate` hand a merge to a machine.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { DEFAULT_CHAIN_BUDGET_MS, parseChainBudget } from './chain.js';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { autopilotFailure } from './errors.js';
@@ -48,10 +47,6 @@ export interface AutopilotConfig {
   readonly schemaVersion: 1;
   /** Ceiling on one cluster, 1..4. */
   readonly clusterSize: number;
-  /** How long one unattended run keeps taking units, in milliseconds. */
-  readonly chainBudgetMs: number;
-  /** True when the programme wrote `chainBudget`; false when it fell back. */
-  readonly chainBudgetDeclared: boolean;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
   /**
@@ -339,37 +334,6 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
     );
   }
 
-  // How long one unattended run keeps taking units. Declared beside the consent
-  // rather than passed as a flag, and expressed as a duration because that is what
-  // someone means: "drain the backlog while I am out" is two hours or six, never
-  // a number of tickets. The invocation may override it for a single run.
-  // Whether it was WRITTEN, not what it evaluates to. Two hours declared by hand
-  // and two hours defaulted are the same number and not the same statement: the
-  // first is a ceiling someone consented to, the second is a fallback nobody
-  // chose, and refusing an explicit `6h` against the second would be a default
-  // impersonating a declaration.
-  const rawBudget = block.chainBudget;
-  const chainBudgetDeclared = rawBudget !== undefined;
-  let chainBudgetMs = DEFAULT_CHAIN_BUDGET_MS;
-  if (rawBudget !== undefined) {
-    if (typeof rawBudget !== 'string') {
-      invalid(
-        'the program descriptor declares an unusable chain budget',
-        `\`autopilot.chainBudget\` is ${String(rawBudget)}, which is not a duration`,
-        'write it as a duration, e.g. `chainBudget: 2h`',
-      );
-    }
-    try {
-      chainBudgetMs = parseChainBudget(rawBudget as string);
-    } catch (error) {
-      invalid(
-        'the program descriptor declares an unusable chain budget',
-        error instanceof Error ? error.message : 'unreadable duration',
-        'write it as a duration, e.g. `chainBudget: 2h`',
-      );
-    }
-  }
-
   const base = block.base ?? 'auto';
   if (typeof base !== 'string' || base.trim().length === 0) {
     invalid(
@@ -406,8 +370,6 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
   return {
     schemaVersion: 1,
     clusterSize: clusterSize as number,
-    chainBudgetMs,
-    chainBudgetDeclared,
     base,
     mergeGate,
     ...(deployBranch === undefined ? {} : { deployBranch }),

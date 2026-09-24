@@ -19,6 +19,3 @@ Sources for `void-autopilot` (see `docs/plans/skill-audits/void-autopilot.md` fo
 - Codex subagents (native) — workers when no cockpit surface is available. Subagents share
   filesystem access, so the isolation comes from the pre-created worktrees and explicit workdirs,
   never from an assumed sandbox.
-- Kept only for the cluster engine until its removal: Anthropic's Workflow tool (which runs
-  `workflows/autopilot.workflow.js`) and the two-phase commit / lease literature, adapted down
-  to a logically atomic lease (observe, act idempotently, re-observe, compensate).

@@ -357,16 +357,6 @@ never from memory of the session.
 
 ---
 
-## The cluster engine, until its removal
-
-The previous engine -- one integration pull request per cluster, reconciled and granted by the
-`plan`, `orchestrate`, `reconcile` and `grant` subcommands -- still ships while the loop proves
-itself on a real batch. `workflows/autopilot.workflow.js` and `references/codex-subagents.md` drive
-it. Do not start it for new work unless a person asks for it by name; it is removed once the loop
-has passed that batch.
-
----
-
 ## Composition
 
 Upstream: `void-ticket` authors and enriches the tickets and the programme descriptor. Per ticket:

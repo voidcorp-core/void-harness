@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaClaims, areaIsNarrower, areasOverlap, compileArea } from './footprint-area.js';
+import { areaClaims, areasOverlap, compileArea } from './footprint-area.js';
 
 // Patterns a human plausibly writes in a ticket, plus the shapes that turn a
 // reading of an area into a reading of a string.
@@ -174,16 +174,5 @@ describe('areasOverlap', () => {
     expect(areaClaims(glob, directory.area)).toBe(false);
     expect(areasOverlap(glob, directory)).toBe(true);
     expect(areasOverlap(directory, glob)).toBe(true);
-  });
-
-  it('leaves the audit reading alone: reach decides lanes, never whose file it is', () => {
-    // `areaIsNarrower` is what refuses a range, and it must stay a question
-    // about claims. A glob and a directory sharing a reach are a tie for the
-    // audit even though they are a collision for the ordering step.
-    const glob = compileArea('packages/**/*.test.ts');
-    const directory = compileArea('packages/core/b');
-
-    expect(areaIsNarrower(directory, glob)).toBe(false);
-    expect(areaIsNarrower(glob, directory)).toBe(false);
   });
 });

@@ -180,17 +180,16 @@ Claude gets `/void-graph`, `/void-doctor`, `/void-audit`, `/void-feedback` and
 
 ## Parallel fan-out
 
-Codex has no `Workflow` tool, and for a while this document listed that as a
-residual gap. It is not one. Autopilot's fan-out is defined by an
-`OrchestrationPlan` the CLI computes and an adapter executes: Claude runs it
-through `Workflow`, Codex through its **native subagents**. Both consume the
-same plan, derive execution from it rather than re-deriving it, and return the
-same `WorkerResult`; `test/autopilot/autopilot-codex-subagents.test.ts` pins
-that contract parity so the two cannot drift into deciding different things.
+Codex has no `Workflow` tool, and the autopilot loop does not need one. Its
+kernel, `void-harness autopilot next`, decides every slot from the tracker,
+GitHub and git, and the skill acts on those actions with whatever the runtime
+offers: Codex spawns a worker per `assign` through its **native subagents**,
+Claude through its own delegation. Neither runtime decides anything the kernel
+did not, so the two cannot drift into deciding different things.
 
 What is still open is BEHAVIOURAL parity of a real Codex run, which needs an
-execution conformance gate and belongs to the certification range. Contract
-parity is proven; runtime equivalence is asserted, not measured.
+execution conformance gate and belongs to the certification range. The loop was
+proved on Claude; runtime equivalence on Codex is asserted, not measured.
 
 ## The irreducible residual
 

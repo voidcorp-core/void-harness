@@ -909,6 +909,14 @@ describe('protected paths', () => {
     }
   });
 
+  it('holds back the refusal to merge into the branch that deploys', () => {
+    // `sameBranch` is the one guard a verdict cannot override: relaxed and
+    // merged by the loop, it would let the loop merge into production.
+    const file = 'packages/cli/src/lib/autopilot/branch-identity.ts';
+    const action = actionFor(decide({ tickets }, { pulls: [touching([file])] }), 'DEV-1');
+    expect(action).toMatchObject({ kind: 'mark-human-wait', reason: 'protected-path' });
+  });
+
   it('holds back the files a judging workflow runs from outside .github', () => {
     // promotion.yml audits a promotion with the script develop carries, and
     // void-enforce replays the auto-merge contract and the enforcement floor

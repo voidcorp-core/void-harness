@@ -28,7 +28,9 @@ const CORE = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 
  * would break `biome lint` / `eslint` in a consumer project if `.claude/` were
  * not excluded for them at install time.
  */
-const ENGINE_SCRIPTS = ['skills/void-autopilot/workflows/autopilot.workflow.js'];
+// Empty since the cluster engine's Workflow script left with the engine. An
+// entry added here must be a real file, which the last test below enforces.
+const ENGINE_SCRIPTS: readonly string[] = [];
 
 function distributedScripts(directory: string, found: string[] = []): string[] {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
