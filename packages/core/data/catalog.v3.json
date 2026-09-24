@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:77b142bcec973e4d4ffea2522d5924d28fc044cabe43be1681f6ccac74c9afcf"
+    "rootHash": "sha256:13d43b946a5f903b242d0a9a2b7b7d1fdb9329714320b2d6a2ab7780986a09ad"
   },
   "nodes": [
     {
@@ -4379,7 +4379,7 @@
             }
           ],
           "id": "skill:void-learn",
-          "lines": 215,
+          "lines": 226,
           "name": "void-learn",
           "owner": "folpe",
           "pack": null,
@@ -4388,7 +4388,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-learn/SKILL.md",
-          "staticTokens": 3025,
+          "staticTokens": 3311,
           "type": "skill"
         }
       },
