@@ -132,8 +132,11 @@ try {
       env: environment,
       input: '{}',
     });
-    if (armed.outcome.kind !== 'exited' || armed.outcome.code === 0) {
-      fail('the installed CLI did not refuse --auto-merge with a non-zero exit');
+    // Any failure is not enough: in this fixture `next` has no programme, so it
+    // could fail for that reason alone. The refusal must name the flag.
+    if (armed.outcome.kind !== 'exited' || armed.outcome.code === 0
+      || !armed.stderr.includes('autopilot does not accept --auto-merge')) {
+      fail('the installed CLI did not refuse --auto-merge by name');
     }
 
     // The cluster engine was removed, not left reachable under its old names.
@@ -144,8 +147,9 @@ try {
       env: environment,
       input: '{}',
     });
-    if (clustered.outcome.kind !== 'exited' || clustered.outcome.code === 0) {
-      fail('the installed CLI still answers the removed `autopilot plan`');
+    if (clustered.outcome.kind !== 'exited' || clustered.outcome.code === 0
+      || !clustered.stderr.includes("autopilot has no 'plan' subcommand")) {
+      fail('the installed CLI did not refuse the removed `autopilot plan` as unknown');
     }
 
     const retired = await runConformanceProcess({
