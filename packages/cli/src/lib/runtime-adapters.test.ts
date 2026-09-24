@@ -194,8 +194,11 @@ describe('claude adapter', () => {
     const checks = await adapterFor('claude').doctorChecks(dir);
     expect(checks.find((check) => check.name === 'claude agents')).toMatchObject({
       ok: false,
-      message: expect.stringContaining('security-engineer'),
+      message: expect.stringContaining('security-engineer (installed v1, this CLI carries v2)'),
     });
+    // The capability is what `mission dispatch` stops on: the repair travels with it.
+    const capability = await specialistCapabilityFor(dir, 'claude');
+    expect(capability.limitations.join(' ')).toContain('`void-harness runtime add claude`');
   });
 
   it('keeps the marketplace behind an explicit adapter mode', async () => {
