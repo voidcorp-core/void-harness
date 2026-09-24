@@ -221,10 +221,10 @@ describe('autopilot next', () => {
     runAutopilotCommand(['fingerprint', '--before', 'DEV-1'], '', context(root));
     const key = drawKey(root);
     const unsigned = next(root, trackerJson([heldTicket], []), ghFor(undefined, key)).decision;
-    expect(unsigned.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    expect(unsigned.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
     const stranger = drawKey(project());
     const forged = next(root, trackerJson([heldTicket], []), ghFor(stranger, key)).decision;
-    expect(forged.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    expect(forged.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
   });
 
   it('believes nothing once the key published on the base is not its own, and says so', () => {
@@ -236,7 +236,7 @@ describe('autopilot next', () => {
     const key = drawKey(root);
     const theirs = drawKey(project());
     const swapped = next(root, trackerJson([heldTicket], []), ghFor(theirs, theirs));
-    expect(swapped.decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    expect(swapped.decision.actions[0]).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
     expect(swapped.decision.reviewKey).toMatch(/not this checkout's key/);
     const missing = next(root, trackerJson([heldTicket], []), ghFor(key, 'unpublished'));
     expect(missing.decision.reviewKey).toMatch(/carries no \.github\/void-review\.pub/);
@@ -584,6 +584,18 @@ describe('autopilot stop', () => {
       { kind: 'drain', reason: 'requested' },
       { kind: 'recap', merged: [], humanWait: [] },
     ]);
+  });
+
+  it('prints in the text recap why each ticket went to a human', () => {
+    const root = project();
+    runAutopilotCommand(['stop', '--drain'], '', context(root));
+    const withRecent = JSON.stringify({
+      ...(JSON.parse(trackerJson([], [])) as Record<string, unknown>),
+      recent: [{ ticketId: 'DEV-0', outcome: 'human-wait', reason: 'branch-missing' }],
+    });
+    const result = runAutopilotCommand(['next'], withRecent, context(root));
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toContain('recap: merged none; waiting DEV-0 (branch-missing)');
   });
 
   it('freezes without asking GitHub anything when no pull request is in flight', () => {

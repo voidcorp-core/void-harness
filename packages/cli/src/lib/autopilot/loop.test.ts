@@ -7,6 +7,7 @@ import {
   decideLoop,
   type GithubObservation,
   HUMAN_WAIT_LABEL,
+  HUMAN_WAIT_REASONS,
   type LoopAction,
   type LoopInput,
   type LoopTracker,
@@ -555,9 +556,16 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { state: 'CLOSED' })).toMatchObject({ kind: 'mark-human-wait', reason: 'pull-request-closed' });
   });
 
-  it('sends a pull request on an unexpected base or branch to a human', () => {
-    expect(one({}, { base: 'main' })).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
-    expect(one({ branch: 'work/other' }, {})).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+  it('sends a pull request on an unexpected base to a human, naming the base', () => {
+    expect(one({}, { base: 'main' })).toMatchObject({ kind: 'mark-human-wait', reason: 'pull-request-off-base' });
+  });
+
+  it('sends a pull request whose branch is not the one the tracker names to a human', () => {
+    expect(one({ branch: 'work/other' }, {})).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'tracker-github-mismatch',
+      detail: expect.stringMatching(/work\/other/),
+    });
   });
 
   it('compares the pull request with the base as resolved, not as declared', () => {
@@ -601,7 +609,7 @@ describe('a held ticket and its pull request', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
     expect(actionFor(decide({ tickets }), 'DEV-1')).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'github-unreadable',
     });
   });
 
@@ -662,11 +670,18 @@ describe('a held ticket and its pull request', () => {
   });
 
   it('sends a verdict it cannot read, or that contradicts its status, to a human', () => {
-    expect(one({}, { review: 'FAILURE' })).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    expect(one({}, { review: 'FAILURE' })).toMatchObject({ kind: 'mark-human-wait', reason: 'verdict-unproven' });
     const unscenarioed = { headSha: headOf(11), round: 1, blocking: [{ location: 'a.ts:1', scenario: '', correction: 'x' }], advisory: [] };
     expect(one({}, { verdict: unscenarioed, review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'verdict-unproven',
+    });
+    // The parser drops a failure signed over a clean verdict; the kernel still refuses one.
+    const failedClean = { ...pull({ ...reviewed('DEV-1', 11), review: 'FAILURE' }), verdict: approving(11) };
+    const held = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    expect(actionFor(decide({ tickets: held }, { pulls: [failedClean] }), 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'verdict-contradicts-review',
     });
     const blocking = {
       headSha: headOf(11),
@@ -676,12 +691,17 @@ describe('a held ticket and its pull request', () => {
     };
     expect(one({}, { verdict: blocking, review: 'SUCCESS' })).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'verdict-unproven',
+    });
+    const passedBlocking = { ...pull(reviewed('DEV-1', 11)), verdict: blocking };
+    expect(actionFor(decide({ tickets: held }, { pulls: [passedBlocking] }), 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'verdict-contradicts-review',
     });
     // A blocking verdict on an older head says nothing about this one.
     expect(one({}, { verdict: { ...blocking, headSha: headOf(12) }, review: 'FAILURE' })).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'verdict-unproven',
       detail: expect.stringMatching(/no verdict on this head/),
     });
   });
@@ -691,12 +711,12 @@ describe('a held ticket and its pull request', () => {
     // is what says a reviewer read this head and found nothing blocking.
     expect(one({}, { verdict: undefined })).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'verdict-unproven',
       detail: expect.stringMatching(/no verdict/),
     });
     expect(one({}, { verdict: { ...approving(11), headSha: headOf(12) } })).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'verdict-unproven',
       detail: expect.stringMatching(/no verdict on this head/),
     });
   });
@@ -723,6 +743,17 @@ describe('a held ticket and its pull request', () => {
     expect(one({}, { reviewJob: 'FAILURE' })).toEqual(rerun);
     expect(one({}, { reviewJob: 'FAILURE', autoMerge: true })).toEqual(rerun);
     expect(one({}, { reviewJob: 'SUCCESS' })).toMatchObject({ kind: 'enable-auto-merge' });
+  });
+
+  it('sends a failed review job that names no run to a human, as an unreadable observation', () => {
+    const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    const { reviewCheckRun, ...nameless } = pull({ ...reviewed('DEV-1', 11), reviewJob: 'FAILURE' });
+    expect(reviewCheckRun).toBeDefined();
+    expect(actionFor(decide({ tickets }, { pulls: [nameless] }), 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'github-unreadable',
+      detail: expect.stringMatching(/names no run/),
+    });
   });
 
   it('re-runs the review job twice at most on one head, then asks a human', () => {
@@ -779,7 +810,7 @@ describe('a held ticket and its pull request', () => {
     it('disarms one armed outside `autopilot arm`, whose head nobody recorded, then asks a human', () => {
       const [first, second] = forDev1(decide({ tickets }, { pulls: [armedPull()], unarmed: ['DEV-1'] }));
       expect(first).toEqual(disarm);
-      expect(second).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+      expect(second).toMatchObject({ kind: 'mark-human-wait', reason: 'arming-unrecorded' });
     });
   });
 
@@ -821,7 +852,7 @@ describe('a held ticket and its pull request', () => {
     });
     expect(one({}, { conflict: { headSha: headOf(11), class: 'semantic' }, mergeState: 'DIRTY' })).toMatchObject({
       kind: 'mark-human-wait',
-      reason: 'ambiguous-state',
+      reason: 'conflict-class-unreadable',
     });
     // A class given on an older head answered an older conflict: ask again.
     expect(one({}, { conflict: { ...semantic, headSha: headOf(12) }, mergeState: 'DIRTY' })).toMatchObject({
@@ -1026,7 +1057,10 @@ describe('shared repository state', () => {
 
   it('refuses to publish a unit whose state before it was never recorded', () => {
     const actions = decide({ tickets }, { pulls, unrecorded: ['DEV-1'] });
-    expect(actionFor(actions, 'DEV-1')).toMatchObject({ kind: 'mark-human-wait', reason: 'ambiguous-state' });
+    expect(actionFor(actions, 'DEV-1')).toMatchObject({
+      kind: 'mark-human-wait',
+      reason: 'shared-fingerprint-missing',
+    });
   });
 
   it("ignores the upstream the worker set on its own branch, and only that one", () => {
@@ -1131,13 +1165,40 @@ describe('stopping', () => {
   it('writes the recap once a drain holds no slot any more', () => {
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')];
     const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'MERGED' })];
-    const recent = [{ ticketId: 'DEV-0', outcome: 'human-wait' as const }];
+    const recent = [{ ticketId: 'DEV-0', outcome: 'human-wait' as const, reason: 'branch-missing' }];
     const actions = decide({ tickets, recent }, { signal: 'drain', pulls });
     expect(actions).toContainEqual({
       kind: 'recap',
       merged: ['DEV-1'],
-      humanWait: ['DEV-0'],
+      humanWait: [{ ticketId: 'DEV-0', reason: 'branch-missing' }],
     });
+  });
+
+  it('names in the recap why each ticket sent to a human this tick went there', () => {
+    const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' })];
+    const pulls = [pull({ ...reviewed('DEV-1', 11), base: 'main' })];
+    const actions = decide({ tickets }, { signal: 'drain', pulls });
+    expect(actions).toContainEqual({
+      kind: 'recap',
+      merged: [],
+      humanWait: [{ ticketId: 'DEV-1', reason: 'pull-request-off-base' }],
+    });
+  });
+
+  it('refuses a ticket recorded in human wait without the reason it went there', () => {
+    const raw = trackerRaw({ tickets: [], recent: [{ ticketId: 'DEV-0', outcome: 'human-wait' }] });
+    expect(admitLoopTracker(raw)).toMatchObject({ ok: false, reason: expect.stringMatching(/reason/) });
+  });
+
+  it('keeps no catch-all cause: every way to a human names its own', () => {
+    expect(HUMAN_WAIT_REASONS).not.toContain('ambiguous-state');
+    expect(HUMAN_WAIT_REASONS).toEqual(expect.arrayContaining([
+      'github-unreadable',
+      'tracker-github-mismatch',
+      'branch-missing',
+      'verdict-unproven',
+      'shared-fingerprint-missing',
+    ]));
   });
 
   it('drains when the quota runs low', () => {
@@ -1149,8 +1210,8 @@ describe('stopping', () => {
   it('drains after three consecutive tickets sent to a human', () => {
     const recent = [
       { ticketId: 'DEV-7', outcome: 'merged' as const },
-      { ticketId: 'DEV-8', outcome: 'human-wait' as const },
-      { ticketId: 'DEV-9', outcome: 'human-wait' as const },
+      { ticketId: 'DEV-8', outcome: 'human-wait' as const, reason: 'semantic-conflict' },
+      { ticketId: 'DEV-9', outcome: 'human-wait' as const, reason: 'branch-missing' },
     ];
     const tickets = [started('DEV-1', { pullRequest: 11, branch: 'work/DEV-1' }), queued('DEV-2')];
     const pulls = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
@@ -1176,7 +1237,7 @@ describe('stopping', () => {
     const mixed = [
       { ticketId: 'DEV-6', outcome: 'human-wait' as const, reason: 'semantic-conflict' },
       gate('DEV-7'),
-      { ticketId: 'DEV-8', outcome: 'human-wait' as const },
+      { ticketId: 'DEV-8', outcome: 'human-wait' as const, reason: 'github-unreadable' },
     ];
     const closed = [pull({ ...reviewed('DEV-1', 11), state: 'CLOSED' })];
     expect(decide({ tickets, recent: mixed }, { pulls: closed })).toContainEqual({

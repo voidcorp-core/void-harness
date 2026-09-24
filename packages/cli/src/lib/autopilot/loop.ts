@@ -184,8 +184,20 @@ const trackerTicketSchema = z.strictObject({
   readiness: z.unknown().optional(),
 });
 
+// Each way to a human names its own cause, so a recap can tell a GitHub read
+// that failed from a tracker that disagrees with GitHub or a verdict nobody
+// proved. `branch-missing` is the one the orchestrator records itself: the
+// kernel never observes worktrees or worker branches.
 export const HUMAN_WAIT_REASONS = [
-  'ambiguous-state',
+  'github-unreadable',
+  'tracker-github-mismatch',
+  'pull-request-off-base',
+  'branch-missing',
+  'verdict-unproven',
+  'verdict-contradicts-review',
+  'conflict-class-unreadable',
+  'shared-fingerprint-missing',
+  'arming-unrecorded',
   'pull-request-closed',
   'semantic-conflict',
   'review-rounds-exhausted',
@@ -200,14 +212,14 @@ export const HUMAN_WAIT_REASONS = [
 ] as const;
 export type HumanWaitReason = (typeof HUMAN_WAIT_REASONS)[number];
 
-// The reason a ticket went to a human is optional: one left out counts in the
-// streak, which is the side that stops the loop.
+// The reason a ticket went to a human is required: the recap repeats it, and
+// the streak skips only the waits a merge gate asks for.
 const recentOutcomeSchema = z.discriminatedUnion('outcome', [
   z.strictObject({ ticketId: ticketIdSchema, outcome: z.literal('merged') }),
   z.strictObject({
     ticketId: ticketIdSchema,
     outcome: z.literal('human-wait'),
-    reason: z.enum(HUMAN_WAIT_REASONS).optional(),
+    reason: z.enum(HUMAN_WAIT_REASONS),
   }),
 ]);
 
@@ -249,6 +261,12 @@ export type HandBackReason =
   | 'conflict'
   | 'update-on-base'
   | 'head-moved-after-arming';
+/** A ticket the run sent to a human, and why: what the recap reports. */
+export interface HumanWaitEntry {
+  readonly ticketId: string;
+  readonly reason: HumanWaitReason;
+}
+
 export type DrainReason = 'requested' | 'quota-low' | 'human-wait-streak' | 'backlog-exhausted';
 
 export type LoopAction =
@@ -302,7 +320,7 @@ export type LoopAction =
   | {
       readonly kind: 'recap';
       readonly merged: readonly string[];
-      readonly humanWait: readonly string[];
+      readonly humanWait: readonly HumanWaitEntry[];
     };
 
 /**
@@ -510,7 +528,7 @@ interface SlotContext {
 function conflictOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
   if (pr.conflict === undefined) return handBack(ticket.id, 'conflict', pr.number);
   const admission = admitConflictClass(pr.conflict);
-  if (!admission.ok) return toHuman(ticket.id, 'ambiguous-state', admission.reason);
+  if (!admission.ok) return toHuman(ticket.id, 'conflict-class-unreadable', admission.reason);
   // A class given on another head answered another conflict: the worker classifies this one.
   if (admission.value.headSha !== pr.headSha) return handBack(ticket.id, 'conflict', pr.number);
   if (admission.value.class === 'semantic') {
@@ -522,18 +540,18 @@ function conflictOutcome(ticket: TrackerTicket, pr: PullRequestObservation): Slo
 function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
   if (pr.verdict === undefined) {
     const detail = 'the review failed and no verdict on this head confirms it';
-    return toHuman(ticket.id, 'ambiguous-state', detail);
+    return toHuman(ticket.id, 'verdict-unproven', detail);
   }
   const admission = admitReviewVerdict(pr.verdict);
-  if (!admission.ok) return toHuman(ticket.id, 'ambiguous-state', admission.reason);
+  if (!admission.ok) return toHuman(ticket.id, 'verdict-unproven', admission.reason);
   const verdict = admission.value;
   if (verdict.headSha !== pr.headSha) {
     const detail = `the verdict was given on another head (${verdict.headSha}), not ${pr.headSha}`;
-    return toHuman(ticket.id, 'ambiguous-state', detail);
+    return toHuman(ticket.id, 'verdict-unproven', detail);
   }
   if (verdict.blocking.length === 0) {
     const detail = 'the review failed on a verdict with no blocking finding';
-    return toHuman(ticket.id, 'ambiguous-state', detail);
+    return toHuman(ticket.id, 'verdict-contradicts-review', detail);
   }
   // Counted on GitHub: the round a verdict announces is the reviewer's memory,
   // and a restarted reviewer has none.
@@ -543,6 +561,11 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
     return toHuman(ticket.id, 'review-rounds-exhausted', detail);
   }
   return handBack(ticket.id, 'review-blocking', pr.number);
+}
+
+interface Unapproved {
+  readonly reason: Extract<HumanWaitReason, 'verdict-unproven' | 'verdict-contradicts-review'>;
+  readonly detail: string;
 }
 
 /**
@@ -555,17 +578,23 @@ function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation)
  * verdict here is one written through `autopilot verdict` in the orchestration
  * checkout, which alone holds the private key.
  */
-function unapprovedReason(pr: PullRequestObservation): string | undefined {
+function unapprovedReason(pr: PullRequestObservation): Unapproved | undefined {
   if (pr.verdict === undefined) {
-    return 'the review passed and no verdict on this head, signed by the review key,'
+    const detail = 'the review passed and no verdict on this head, signed by the review key,'
       + ' confirms it';
+    return { reason: 'verdict-unproven', detail };
   }
   const admission = admitReviewVerdict(pr.verdict);
-  if (!admission.ok) return admission.reason;
+  if (!admission.ok) return { reason: 'verdict-unproven', detail: admission.reason };
   if (admission.value.headSha !== pr.headSha) {
-    return `the verdict was given on another head (${admission.value.headSha}), not ${pr.headSha}`;
+    const detail =
+      `the verdict was given on another head (${admission.value.headSha}), not ${pr.headSha}`;
+    return { reason: 'verdict-unproven', detail };
   }
-  if (admission.value.blocking.length > 0) return 'the review passed on a verdict that blocks';
+  if (admission.value.blocking.length > 0) {
+    const detail = 'the review passed on a verdict that blocks';
+    return { reason: 'verdict-contradicts-review', detail };
+  }
   return undefined;
 }
 
@@ -581,7 +610,7 @@ function sharedStateOutcome(
   const before = shared.before.get(ticket.id);
   if (before === undefined) {
     const detail = 'no shared Git state fingerprint was recorded before the unit began';
-    return toHuman(ticket.id, 'ambiguous-state', detail);
+    return toHuman(ticket.id, 'shared-fingerprint-missing', detail);
   }
   const changed = changedParts(before, fingerprintOf(shared.current, before.protectedBranches));
   if (changed.length === 0) return undefined;
@@ -677,14 +706,14 @@ function armedOutcome(
   const record = input.armed.get(ticket.id);
   if (record === undefined || record.pullRequest !== pr.number) {
     const detail = `#${pr.number} is armed and no \`autopilot arm\` recorded its head`;
-    return { ...toHuman(ticket.id, 'ambiguous-state', detail), disarm };
+    return { ...toHuman(ticket.id, 'arming-unrecorded', detail), disarm };
   }
   if (record.headSha !== pr.headSha) {
     return { ...handBack(ticket.id, 'head-moved-after-arming', pr.number), disarm };
   }
   if (vouches(ticket, pr, input)) return undefined;
   const unproven =
-    pr.review === 'success' ? unapprovedReason(pr) : `the review status is ${pr.review}`;
+    pr.review === 'success' ? unapprovedReason(pr)?.detail : `the review status is ${pr.review}`;
   const detail = `#${pr.number} is armed on ${pr.headSha} and ${unproven ?? 'is unproven'}`;
   return { ...toHuman(ticket.id, 'armed-verdict-unproven', detail), disarm };
 }
@@ -724,14 +753,14 @@ function openPullOutcome(
     return toHuman(ticket.id, 'promotion-pull-request', detail);
   }
   const base = context.input.github.base;
-  const branchDiffers = ticket.branch !== undefined && pr.headRef !== ticket.branch;
-  if (pr.baseRef !== base || branchDiffers) {
-    return toHuman(
-      ticket.id,
-      'ambiguous-state',
-      `#${pr.number} goes ${pr.headRef} -> ${pr.baseRef}, ` +
-        `the loop expects ${ticket.branch ?? '?'} -> ${base}`,
-    );
+  if (pr.baseRef !== base) {
+    const detail = `#${pr.number} targets ${pr.baseRef}, the loop merges into ${base}`;
+    return toHuman(ticket.id, 'pull-request-off-base', detail);
+  }
+  if (ticket.branch !== undefined && pr.headRef !== ticket.branch) {
+    const detail =
+      `the tracker names ${ticket.branch} for the ticket, #${pr.number} comes from ${pr.headRef}`;
+    return toHuman(ticket.id, 'tracker-github-mismatch', detail);
   }
   if (pr.draft) return handBack(ticket.id, 'resume', pr.number);
   if (pr.conflicted) return conflictOutcome(ticket, pr);
@@ -739,14 +768,14 @@ function openPullOutcome(
   if (pr.review === 'failure') return reviewFailureOutcome(ticket, pr);
   if (pr.review !== 'success') return wait(ticket.id, 'awaiting-review');
   const unapproved = unapprovedReason(pr);
-  if (unapproved !== undefined) return toHuman(ticket.id, 'ambiguous-state', unapproved);
+  if (unapproved !== undefined) return toHuman(ticket.id, unapproved.reason, unapproved.detail);
   // The job ran before the verdict landed on this same head, and a status event
   // starts no workflow: without a re-run the required check stays red and an
   // armed auto-merge waits forever.
   if (pr.reviewCheck === 'failing') {
     if (pr.reviewCheckRun === undefined || pr.reviewCheckAttempt === undefined) {
       const detail = `the independent-review job of #${pr.number} failed and names no run`;
-      return toHuman(ticket.id, 'ambiguous-state', detail);
+      return toHuman(ticket.id, 'github-unreadable', detail);
     }
     if (pr.reviewCheckAttempt > REVIEW_CHECK_RERUNS_MAX) {
       const reruns = pr.reviewCheckAttempt - 1;
@@ -768,7 +797,7 @@ function slotOutcome(ticket: TrackerTicket, context: SlotContext): SlotOutcome {
   const number = ticket.pullRequest;
   const pr = number === undefined ? undefined : context.input.github.pullRequests.get(number);
   if (number !== undefined && pr === undefined) {
-    return toHuman(ticket.id, 'ambiguous-state', `pull request #${number} was not observed`);
+    return toHuman(ticket.id, 'github-unreadable', `pull request #${number} was not observed`);
   }
   if (pr?.state === 'merged') return { outcome: 'merged' };
   if (context.live.has(ticket.id)) return wait(ticket.id, 'worker-active');
@@ -934,17 +963,14 @@ export function decideLoop(input: LoopInput): LoopDecision {
     outcomes.filter(({ slot }) => slot.outcome === outcome).map(({ ticket }) => ticket);
   const stillHeld = whose('held');
   const merged = whose('merged').map((ticket) => ticket.id);
-  const waited = whose('human-wait').map((ticket) => ticket.id);
   const recent = input.tracker.recent;
-  const waitedNow = slotActions.flatMap((action) =>
-    action.kind === 'mark-human-wait'
-      ? [{ outcome: 'human-wait' as const, reason: action.reason }]
-      : [],
+  const waited: HumanWaitEntry[] = slotActions.flatMap((action) =>
+    action.kind === 'mark-human-wait' ? [{ ticketId: action.ticketId, reason: action.reason }] : [],
   );
   const history: Outcome[] = [
     ...recent,
     ...merged.map(() => ({ outcome: 'merged' as const })),
-    ...waitedNow,
+    ...waited.map(({ reason }) => ({ outcome: 'human-wait' as const, reason })),
   ];
   let drain: DrainReason | undefined;
   if (input.signal === 'drain') drain = 'requested';
@@ -974,13 +1000,17 @@ function disarmsOf(tickets: readonly TrackerTicket[], input: LoopInput): LoopAct
 function recapOf(
   recent: LoopTracker['recent'],
   merged: readonly string[],
-  waited: readonly string[],
+  waited: readonly HumanWaitEntry[],
 ): LoopAction {
-  const of = (outcome: 'merged' | 'human-wait') =>
-    recent.filter((entry) => entry.outcome === outcome).map((entry) => entry.ticketId);
+  const earlierMerged = recent.flatMap((entry) =>
+    entry.outcome === 'merged' ? [entry.ticketId] : [],
+  );
+  const earlierWaited = recent.flatMap((entry) =>
+    entry.outcome === 'human-wait' ? [{ ticketId: entry.ticketId, reason: entry.reason }] : [],
+  );
   return {
     kind: 'recap',
-    merged: [...of('merged'), ...merged],
-    humanWait: [...of('human-wait'), ...waited],
+    merged: [...earlierMerged, ...merged],
+    humanWait: [...earlierWaited, ...waited],
   };
 }

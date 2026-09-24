@@ -350,7 +350,7 @@ function renderAction(action: LoopAction, humanWaitLabel: string): string {
       return 'freeze';
     case 'recap':
       return `recap: merged ${action.merged.join(', ') || 'none'}; waiting ${
-        action.humanWait.join(', ') || 'none'
+        action.humanWait.map((entry) => `${entry.ticketId} (${entry.reason})`).join(', ') || 'none'
       }`;
     default:
       return action satisfies never;
