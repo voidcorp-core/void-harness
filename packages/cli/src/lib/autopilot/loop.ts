@@ -45,8 +45,8 @@ export const TRACKED_TICKETS_MAX = 256;
 export const HUMAN_WAIT_LABEL = 'void:human-wait';
 /**
  * Paths the loop never merges itself: the machinery that decides whether a
- * change may merge. The workflows and actions run the required checks, the
- * script and the public review key judge the verdict, the programme grants
+ * change may merge. The workflows and actions run the required checks and
+ * the review itself, the review scripts publish and verify it, the programme grants
  * the merge, and the hooks hold the enforcement floor. A change to any of them merged by the loop
  * would be the loop approving its own judge. A programme adds to this floor
  * through `autopilot.protectedPaths`; nothing removes from it.
@@ -54,6 +54,7 @@ export const HUMAN_WAIT_LABEL = 'void:human-wait';
 export const PROTECTED_PATHS_FLOOR = [
   '.github/**',
   'scripts/independent-review-check.mjs',
+  'scripts/independent-review-run.mjs',
   // What a judging workflow runs from outside `.github`: the promotion audit
   // runs develop's own copy, void-enforce replays the auto-merge contract and
   // the enforcement floor from the pull request, and ci.yml's required verdict
@@ -74,7 +75,6 @@ export const PROTECTED_PATHS_FLOOR = [
   // and the one command that writes and proves a verdict.
   'packages/cli/src/lib/autopilot/loop.ts',
   'packages/cli/src/lib/autopilot/loop-observe.ts',
-  'packages/cli/src/lib/autopilot/review-signature.ts',
   // Decides whether the base is the branch that deploys, the one merge refused
   // whatever the verdict says.
   'packages/cli/src/lib/autopilot/branch-identity.ts',
@@ -98,10 +98,9 @@ const LIVE_WORKERS_MAX = 16;
  */
 const EJECTIONS_PER_HEAD_MAX = 2;
 /**
- * The review job is re-run twice at most on one run, whoever asked: the verdict
- * command after it posts, then the loop. GitHub numbers the attempts, so the
- * count survives a restart. Past it, the job fails for a reason a re-run does
- * not reach, and a person has to look.
+ * A review that crashed is re-run twice at most on one run. GitHub numbers the
+ * attempts, so the count survives a restart. Past it, the job fails for a
+ * reason a re-run does not reach, and a person has to look.
  */
 const REVIEW_CHECK_RERUNS_MAX = 2;
 /** A blocking review is answered twice at most; the third failure goes to a human. */
@@ -128,19 +127,17 @@ export interface PullRequestObservation {
   readonly autoMerge: boolean;
   /** Every check but the independent review, which `review` carries. */
   readonly checks: 'pending' | 'passing' | 'failing';
-  /** The `void/independent-review` commit status on the head commit. */
+  /** The `independent-review` check the review job published on the head commit. */
   readonly review: 'absent' | 'pending' | 'success' | 'failure';
-  /** The `independent-review` job on the head commit, which enforces that status. */
-  readonly reviewCheck: 'absent' | 'pending' | 'passing' | 'failing';
-  /** The GitHub Actions run holding that job, when its URL names one. */
+  /** The GitHub Actions run that published it, when its URL names one. */
   readonly reviewCheckRun?: number;
-  /** That run's attempt, read only when the job failed: 1 until someone re-runs it. */
+  /** That run's attempt, read only when the review failed with no verdict: 1 until re-run. */
   readonly reviewCheckAttempt?: number;
   /** The last merge queue event not followed by a commit. */
   readonly queue: QueueEvent;
   /** Ejections of the current head from the merge queue since its last commit. */
   readonly ejections: number;
-  /** Distinct heads of this pull request whose review status failed: the rounds used. */
+  /** Distinct heads of this pull request the review job blocked: the rounds used. */
   readonly reviewFailures: number;
   /**
    * The last judgment blocks posted as comments, raw: admitted where they are
@@ -541,11 +538,32 @@ function conflictOutcome(ticket: TrackerTicket, pr: PullRequestObservation): Slo
   return handBack(ticket.id, 'conflict', pr.number);
 }
 
-function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
-  if (pr.verdict === undefined) {
-    const detail = 'the review failed and no verdict on this head confirms it';
-    return toHuman(ticket.id, 'verdict-unproven', detail);
+/**
+ * A review that failed and posted no verdict on this head did not judge it: the
+ * job crashed or its output was refused. Re-running it is the answer, twice at
+ * most on one run; GitHub numbers the attempts, so the count survives a restart.
+ */
+function crashedReviewOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
+  if (pr.reviewCheckRun === undefined || pr.reviewCheckAttempt === undefined) {
+    const detail = `the independent-review check of #${pr.number} failed and names no run`;
+    return toHuman(ticket.id, 'github-unreadable', detail);
   }
+  if (pr.reviewCheckAttempt > REVIEW_CHECK_RERUNS_MAX) {
+    const reruns = pr.reviewCheckAttempt - 1;
+    const detail = `run ${pr.reviewCheckRun} of #${pr.number} still fails after ${reruns} re-runs`;
+    return toHuman(ticket.id, 'review-check-reruns-exhausted', detail);
+  }
+  return held({
+    kind: 'rerun-review-check',
+    ticketId: ticket.id,
+    pullRequest: pr.number,
+    headSha: pr.headSha,
+    run: pr.reviewCheckRun,
+  });
+}
+
+function reviewFailureOutcome(ticket: TrackerTicket, pr: PullRequestObservation): SlotOutcome {
+  if (pr.verdict === undefined) return crashedReviewOutcome(ticket, pr);
   const admission = admitReviewVerdict(pr.verdict);
   if (!admission.ok) return toHuman(ticket.id, 'verdict-unproven', admission.reason);
   const verdict = admission.value;
@@ -573,19 +591,15 @@ interface Unapproved {
 }
 
 /**
- * Why a success status on the head is not enough to arm a merge, or nothing.
- *
- * The status is a flag anyone holding the same credentials can raise; the
- * verdict is what says a reviewer read this exact head and found nothing that
- * blocks. Both are required, and they must agree. `loop-observe` hands over a
- * verdict only when the review key signed it for this ticket and head, so a
- * verdict here is one written through `autopilot verdict` in the orchestration
- * checkout, which alone holds the private key.
+ * Why a passing review check on the head is not enough to arm a merge, or
+ * nothing. The check is what branch protection trusts; the verdict the review
+ * job posted beside it is what the loop reads the findings from. Both are
+ * required, and they must agree: `loop-observe` hands over only a verdict the
+ * review job posted on this head that says what its check says.
  */
 function unapprovedReason(pr: PullRequestObservation): Unapproved | undefined {
   if (pr.verdict === undefined) {
-    const detail = 'the review passed and no verdict on this head, signed by the review key,'
-      + ' confirms it';
+    const detail = 'the review passed and no verdict the review job posted on this head confirms it';
     return { reason: 'verdict-unproven', detail };
   }
   const admission = admitReviewVerdict(pr.verdict);
@@ -782,27 +796,6 @@ function openPullOutcome(
   if (pr.review !== 'success') return wait(ticket.id, 'awaiting-review');
   const unapproved = unapprovedReason(pr);
   if (unapproved !== undefined) return toHuman(ticket.id, unapproved.reason, unapproved.detail);
-  // The job ran before the verdict landed on this same head, and a status event
-  // starts no workflow: without a re-run the required check stays red and an
-  // armed auto-merge waits forever.
-  if (pr.reviewCheck === 'failing') {
-    if (pr.reviewCheckRun === undefined || pr.reviewCheckAttempt === undefined) {
-      const detail = `the independent-review job of #${pr.number} failed and names no run`;
-      return toHuman(ticket.id, 'github-unreadable', detail);
-    }
-    if (pr.reviewCheckAttempt > REVIEW_CHECK_RERUNS_MAX) {
-      const reruns = pr.reviewCheckAttempt - 1;
-      const detail = `run ${pr.reviewCheckRun} of #${pr.number} still fails after ${reruns} re-runs`;
-      return toHuman(ticket.id, 'review-check-reruns-exhausted', detail);
-    }
-    return held({
-      kind: 'rerun-review-check',
-      ticketId: ticket.id,
-      pullRequest: pr.number,
-      headSha: pr.headSha,
-      run: pr.reviewCheckRun,
-    });
-  }
   return mergeOutcome(ticket, pr, context);
 }
 

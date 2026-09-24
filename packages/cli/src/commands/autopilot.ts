@@ -21,7 +21,7 @@ export interface AutopilotCommandResult {
 export interface AutopilotCommandContext {
   /** Project root under which .void/machine/autopilot lives. */
   readonly root: string;
-  /** ISO instant a verdict is signed at; injected so the surface stays testable. */
+  /** ISO instant the command runs at; injected so the surface stays testable. */
   readonly now: string;
   /** How the loop reaches GitHub; the shell passes the real `gh`. */
   readonly gh?: GhRunner;

@@ -31,7 +31,6 @@ import type {
   PullRequestObservation,
   QueueEvent,
 } from './loop.js';
-import { verdictDigest, verifiedVerdicts } from './review-signature.js';
 import type { SharedStateReading } from './shared-state.js';
 
 /** Runs `gh` (or `git`) with argv, never through a shell, and returns its stdout. */
@@ -55,10 +54,14 @@ export const PULL_REQUEST_FIELDS = [
   'changedFiles',
 ] as const;
 
-/** The reviewer's verdict, a commit status the CI job then enforces. */
-export const REVIEW_STATUS_CONTEXT = 'void/independent-review';
-/** The CI job that enforces the verdict; the verdict itself is what the loop reads. */
-const REVIEW_CHECK_NAME = 'independent-review';
+/**
+ * The review check, a check run the review job creates on the head with its
+ * GITHUB_TOKEN: GitHub Actions is its only source, and branch protection
+ * accepts it from nowhere else. It is the review, not a job enforcing one.
+ */
+export const REVIEW_CHECK_NAME = 'independent-review';
+/** The account the review job posts its verdict comment as, as `gh pr view` names it. */
+export const REVIEW_AUTHOR = 'github-actions';
 
 /** A loop holds four slots; this bounds one tick's reads with room to spare. */
 const PULL_REQUESTS_MAX = 32;
@@ -99,8 +102,12 @@ const pullRequestViewSchema = z.object({
   statusCheckRollup: z.array(
     z.discriminatedUnion('__typename', [checkRunSchema, statusContextSchema]),
   ),
-  // Oldest first, as gh prints them; only the body is read, for judgment blocks.
-  comments: z.array(z.object({ body: z.string() })),
+  // Oldest first, as gh prints them: the body for judgment blocks, the author
+  // to tell the review job's verdict from anyone else's text.
+  comments: z.array(z.object({
+    body: z.string(),
+    author: z.object({ login: z.string() }).nullable().optional(), // allow-null: a deleted account
+  })),
   // GitHub's own count, which tells the kernel a file list was cut short.
   changedFiles: z.int().nonnegative(),
 });
@@ -141,9 +148,7 @@ function checkStateOf(entry: RollupEntry): CheckState {
 function checksOf(rollup: readonly RollupEntry[]): CheckState {
   const states = rollup
     .filter((entry) =>
-      entry.__typename === 'CheckRun'
-        ? entry.name !== REVIEW_CHECK_NAME
-        : entry.context !== REVIEW_STATUS_CONTEXT,
+      entry.__typename !== 'CheckRun' || entry.name !== REVIEW_CHECK_NAME,
     )
     .map(checkStateOf);
   if (states.includes('failing')) return 'failing';
@@ -152,28 +157,19 @@ function checksOf(rollup: readonly RollupEntry[]): CheckState {
   return 'passing';
 }
 
-type ReviewCheck = Pick<PullRequestObservation, 'reviewCheck' | 'reviewCheckRun'>;
-
-/** The `independent-review` job, which only enforces the verdict, and the run that holds it. */
-function reviewCheckOf(rollup: readonly RollupEntry[]): ReviewCheck {
-  const job = rollup.find(
+/** The review check on the head, and the Actions run that published it. */
+function reviewOf(
+  rollup: readonly RollupEntry[],
+): Pick<PullRequestObservation, 'review' | 'reviewCheckRun'> {
+  const check = rollup.find(
     (entry) => entry.__typename === 'CheckRun' && entry.name === REVIEW_CHECK_NAME,
   );
-  if (job === undefined || job.__typename !== 'CheckRun') return { reviewCheck: 'absent' };
-  const url = typeof job.detailsUrl === 'string' ? job.detailsUrl : '';
+  if (check === undefined || check.__typename !== 'CheckRun') return { review: 'absent' };
+  const url = typeof check.detailsUrl === 'string' ? check.detailsUrl : '';
   const run = ACTIONS_RUN_URL.exec(url)?.[1];
-  const state = checkStateOf(job);
-  return { reviewCheck: state, ...(run === undefined ? {} : { reviewCheckRun: Number(run) }) };
-}
-
-function reviewOf(rollup: readonly RollupEntry[]): PullRequestObservation['review'] {
-  const status = rollup.find(
-    (entry) => entry.__typename === 'StatusContext' && entry.context === REVIEW_STATUS_CONTEXT,
-  );
-  if (status === undefined) return 'absent';
-  const state = checkStateOf(status);
-  if (state === 'passing') return 'success';
-  return state === 'failing' ? 'failure' : 'pending';
+  const state = checkStateOf(check);
+  const review = state === 'passing' ? 'success' : state === 'failing' ? 'failure' : 'pending';
+  return { review, ...(run === undefined ? {} : { reviewCheckRun: Number(run) }) };
 }
 
 function unreadable(what: string, cause: string): never {
@@ -198,55 +194,42 @@ function parseJson<T>(what: string, schema: z.ZodType<T>, text: string): T {
   return unreadable(what, issues.join('; '));
 }
 
-/** What a verdict on one pull request is verified against. */
-export interface VerdictVerifier {
-  /** The review public key, once the loop checked it against the one on the base. */
-  readonly publicKey: string;
-  /** `owner/name`, which a signature binds so it does not carry over to a fork. */
-  readonly repository: string;
-  /** The ticket the pull request carries, which the signature binds too. */
-  readonly ticketId: string;
-}
-
-/**
- * The verdict the review key signed last for this head, when the status on the
- * same head says the same: clean with `success`, blocking with `failure`. A
- * status and a comment are text anyone with the same credentials can write;
- * the signature is what only the orchestration checkout's key makes, over the
- * repository, the ticket, the pull request, the head, the outcome and a digest
- * of the findings in the same comment. The latest by the time it was signed at
- * decides, so a copy of an older verdict posted again changes nothing, and a
- * status the latest signed verdict contradicts believes neither. Without a
- * verifier nothing is believed.
- */
-function believedVerdict(
-  bodies: readonly string[],
-  target: { readonly pullRequest: number; readonly headSha: string },
-  review: PullRequestObservation['review'],
-  verifier: VerdictVerifier | undefined,
-): unknown {
-  if (verifier === undefined || (review !== 'success' && review !== 'failure')) return undefined;
-  const signed = bodies.flatMap((body) => {
-    const findings = judgmentsOf([body], 'review-verdict').flatMap((raw) => {
+/** Every admissible verdict the review job posted, oldest first. */
+function postedVerdicts(comments: readonly PullRequestComment[]) {
+  return comments
+    .filter((comment) => comment.author?.login === REVIEW_AUTHOR)
+    .flatMap((comment) => judgmentsOf([comment.body], 'review-verdict'))
+    .flatMap((raw) => {
       const admission = admitReviewVerdict(raw);
       return admission.ok ? [admission.value] : [];
     });
-    return verifiedVerdicts(verifier.publicKey, [body]).flatMap((fields) => {
-      const bound =
-        fields.repository === verifier.repository &&
-        fields.ticketId === verifier.ticketId &&
-        fields.pullRequest === target.pullRequest &&
-        fields.headSha === target.headSha;
-      const verdict = findings.find((finding) => verdictDigest(finding) === fields.verdictDigest);
-      if (!bound || verdict === undefined || verdict.headSha !== target.headSha) return [];
-      return [{ fields, verdict }];
-    });
-  });
-  // Stable: verdicts signed at the same instant keep their comment order.
-  signed.sort((left, right) => Date.parse(left.fields.signedAt) - Date.parse(right.fields.signedAt));
-  const latest = signed.at(-1);
-  if (latest === undefined || latest.fields.state !== review) return undefined;
-  return (latest.verdict.blocking.length === 0) === (review === 'success') ? latest.verdict : undefined;
+}
+
+/**
+ * The verdict the review job posted last on this head, when the review check
+ * on the same head agrees with it: clean with success, blocking with failure.
+ * The check is what branch protection trusts; the comment carries the findings
+ * a worker answers, so one that disagrees with the check is believed nowhere.
+ */
+function believedVerdict(
+  comments: readonly PullRequestComment[],
+  headSha: string,
+  review: PullRequestObservation['review'],
+): unknown {
+  if (review !== 'success' && review !== 'failure') return undefined;
+  const latest = postedVerdicts(comments).filter((verdict) => verdict.headSha === headSha).at(-1);
+  if (latest === undefined) return undefined;
+  return (latest.blocking.length === 0) === (review === 'success') ? latest : undefined;
+}
+
+/**
+ * The review rounds a pull request used: its distinct heads the review job
+ * blocked. Read from what the job posted, so a job that failed without a
+ * verdict, a crash the loop re-runs, is not a round.
+ */
+function reviewRoundsOf(comments: readonly PullRequestComment[]): number {
+  const blocked = postedVerdicts(comments).filter((verdict) => verdict.blocking.length > 0);
+  return new Set(blocked.map((verdict) => verdict.headSha)).size;
 }
 
 /** One page of a pull request's files, each rename with its source. */
@@ -279,26 +262,21 @@ function readPullRequestFiles(run: GhRunner, number: number, changedFiles: numbe
   return files;
 }
 
-/** The bodies of the comments of one `gh pr view --json <PULL_REQUEST_FIELDS>` answer. */
-export function pullRequestComments(text: string): string[] {
-  const view = parseJson('pull request', pullRequestViewSchema, text);
-  return view.comments.map((comment) => comment.body);
-}
+
+type PullRequestComment = z.infer<typeof pullRequestViewSchema>['comments'][number];
 
 /**
  * One `gh pr view --json <PULL_REQUEST_FIELDS>` answer, without its GraphQL and
- * REST parts. `verifier` checks the verdict of the ticket this pull request
- * carries; without one, no verdict is believed.
+ * REST parts. The verdict and the rounds are read from the review job's own
+ * comments, the review from the check it published.
  */
 export function parsePullRequestView(
   text: string,
-  verifier?: VerdictVerifier,
-): Omit<PullRequestObservation, 'queue' | 'ejections' | 'reviewFailures' | 'files'> {
+): Omit<PullRequestObservation, 'queue' | 'ejections' | 'files'> {
   const view = parseJson('pull request', pullRequestViewSchema, text);
   const bodies = view.comments.map((comment) => comment.body);
-  const review = reviewOf(view.statusCheckRollup);
-  const target = { pullRequest: view.number, headSha: view.headRefOid };
-  const verdict = believedVerdict(bodies, target, review, verifier);
+  const { review, reviewCheckRun } = reviewOf(view.statusCheckRollup);
+  const verdict = believedVerdict(view.comments, view.headRefOid, review);
   const conflict = latestJudgment(bodies, 'conflict-class');
   return {
     ...(verdict === undefined ? {} : { verdict }),
@@ -314,7 +292,8 @@ export function parsePullRequestView(
     autoMerge: view.autoMergeRequest !== null, // allow-null: the absence gh reports
     checks: checksOf(view.statusCheckRollup),
     review,
-    ...reviewCheckOf(view.statusCheckRollup),
+    ...(reviewCheckRun === undefined ? {} : { reviewCheckRun }),
+    reviewFailures: reviewRoundsOf(view.comments),
     changedFiles: view.changedFiles,
   };
 }
@@ -408,72 +387,6 @@ export function parseQueueTimeline(text: string): QueueEvent {
   if (last?.__typename !== 'RemovedFromMergeQueueEvent') return 'none';
   return last.reason === 'merged' ? 'none' : 'ejected';
 }
-
-/** A pull request longer than this is not a loop unit; its rounds are refused, not guessed. */
-const REVIEW_COMMITS_MAX = 100;
-
-const reviewRoundsSchema = z.object({
-  data: z.object({
-    repository: z.object({
-      pullRequest: z.object({
-        commits: z.object({
-          totalCount: z.int().nonnegative(),
-          nodes: z.array(
-            z.object({
-              commit: z.object({
-                oid: z.string(),
-                // allow-null: GitHub reports a commit without statuses, and a
-                // status without this context, as null.
-                status: z
-                  .object({ context: z.object({ state: z.string() }).nullable() })
-                  .nullable(),
-              }),
-            }),
-          ),
-        }),
-      }),
-    }),
-  }),
-  errors: graphqlErrors,
-});
-
-/**
- * How many review rounds GitHub holds for a pull request: its distinct commits
- * whose `void/independent-review` status failed. A reviewer restarted with no
- * memory cannot reset this count, which is why the bound reads it and not the
- * round the verdict announces.
- */
-export function parseReviewRounds(text: string): number {
-  const answer = parseJson('review history', reviewRoundsSchema, text);
-  if (answer.errors !== undefined) {
-    return unreadable('review history', answer.errors.map((error) => error.message).join('; '));
-  }
-  const { commits } = answer.data.repository.pullRequest;
-  if (commits.totalCount > commits.nodes.length) {
-    return unreadable(
-      'review history',
-      `${commits.totalCount} commits, only ${commits.nodes.length} read; a round could be missed`,
-    );
-  }
-  const failed = commits.nodes.filter((node) => {
-    const state = node.commit.status?.context?.state;
-    return state === 'FAILURE' || state === 'ERROR';
-  });
-  return new Set(failed.map((node) => node.commit.oid)).size;
-}
-
-const REVIEW_ROUNDS_QUERY = `query(
-  $owner: String!, $name: String!, $number: Int!, $context: String!
-) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      commits(last: ${REVIEW_COMMITS_MAX}) {
-        totalCount
-        nodes { commit { oid status { context(name: $context) { state } } } }
-      }
-    }
-  }
-}`;
 
 /**
  * The ejections of the current head: removals from the queue for any reason but
@@ -597,8 +510,6 @@ function requireUpToDateBase(run: GhRunner, base: string): void {
 export interface GithubRequest {
   readonly base: string;
   readonly pullRequests: readonly number[];
-  /** What each pull request's verdict is verified against, by pull request. */
-  readonly verifiers?: ReadonlyMap<number, VerdictVerifier>;
 }
 
 /** One tick's view of GitHub: the queue once, then each pull request and its queue event. */
@@ -618,8 +529,7 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
   const pullRequests = new Map<number, PullRequestObservation>();
   for (const number of request.pullRequests) {
     const viewArgs = ['pr', 'view', String(number), '--json', PULL_REQUEST_FIELDS.join(',')];
-    const verifier = request.verifiers?.get(number);
-    const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs), verifier));
+    const view = observed(`#${number}`, () => parsePullRequestView(run(viewArgs)));
     const timelineArgs = ['api', 'graphql', ...REPOSITORY_FIELDS, '-F', `number=${number}`];
     const timeline = observed(`#${number}`, () =>
       run([...timelineArgs, '-f', `query=${TIMELINE_QUERY}`]),
@@ -631,12 +541,10 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
     const event = observed(`#${number}`, () => parseQueueTimeline(timeline));
     const queue = queued ? 'queued' : event === 'queued' ? 'none' : event;
     const ejections = observed(`#${number}`, () => parseEjections(timeline));
-    const roundArgs = [...timelineArgs, '-F', `context=${REVIEW_STATUS_CONTEXT}`];
-    const reviewFailures = observed(`#${number}`, () =>
-      parseReviewRounds(run([...roundArgs, '-f', `query=${REVIEW_ROUNDS_QUERY}`])),
-    );
-    // Read only when the loop may re-run the job: a passing job is never re-run.
-    const checkRun = view.reviewCheck === 'failing' ? view.reviewCheckRun : undefined;
+    // Read only when the loop may re-run the review: a review that failed and
+    // posted no verdict on this head crashed rather than judged.
+    const crashed = view.review === 'failure' && view.verdict === undefined;
+    const checkRun = crashed ? view.reviewCheckRun : undefined;
     const attempt =
       checkRun === undefined
         ? {}
@@ -646,7 +554,7 @@ export function observeGithub(run: GhRunner, request: GithubRequest): GithubObse
             ),
           };
     const files = observed(`#${number}`, () => readPullRequestFiles(run, number, view.changedFiles));
-    pullRequests.set(number, { ...view, files, queue, ejections, reviewFailures, ...attempt });
+    pullRequests.set(number, { ...view, files, queue, ejections, ...attempt });
   }
   if (!mergeQueue) requireUpToDateBase(run, request.base);
   return { base: request.base, mergeQueue, pullRequests };

@@ -18,10 +18,8 @@ Usage:
   echo '<LoopTracker>'           | void-harness autopilot next [--json]
   void-harness autopilot stop --drain | --now [--json]
   void-harness autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
-  void-harness autopilot review-key [--json]
   void-harness autopilot arm --ticket <id> --pr <number> --head <sha> [--json]
   void-harness autopilot disarm --pr <number> [--json]
-  echo '<ReviewVerdict>' | void-harness autopilot verdict --ticket <id> --pr <number> [--json]
   echo '<ConflictClass>'         | void-harness autopilot judgment conflict-class
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
@@ -36,25 +34,16 @@ the digests of the shared Git state around one unit: local config and its
 includes, stash, tags, notes, remotes, the local base and deploy branches,
 replace refs, hooks/ and info/. The upstream (remote, merge) of every branch but
 those is left out, since units in flight set and remove their own. --after fails
-when it moved, and a second --before is refused. review-key draws the Ed25519
-review key once: the private half into .void/machine/autopilot/review-key.pem
-(mode 0600, refused unless git ignores it), the public half into
-.github/void-review.pub, for a person to merge into the base; again, it only
-rewrites the public half. verdict is the only path that writes a review verdict:
-it admits it, checks its headSha is the pull request head now, posts the verdict
-comment signed by the review key over the repository, ticket, pull request, head,
-outcome and findings, then the void/independent-review status on that head, and
-re-runs the independent-review job when its completed run disagrees. The
-required job verifies the signature with the public key on the base branch;
-next believes the latest signed verdict on the head only when the status agrees
-and the key on the base is this checkout's own. review-key and verdict run only
-in the orchestration checkout, never in a linked worktree. arm answers
+when it moved, and a second --before is refused. The review is not posted from here: a GitHub Actions job reviews every ready
+pull request and publishes its verdict as the independent-review check, which
+branch protection accepts from GitHub Actions alone, beside a verdict comment
+next reads back. arm answers
 enable-auto-merge: it records the head in .void/machine/autopilot/armed/<id>.json,
 arms on exactly that head, and reads GitHub back: armed is an auto-merge request
 or, once the checks pass on a base with a merge queue, a queue entry; a head
 already merged counts. disarm answers
 disable-auto-merge, which next returns before any outcome that stops watching
-an armed pull request: its head moved since arm recorded it, no signed verdict
+an armed pull request: its head moved since arm recorded it, no verdict of the review job
 proves it, no arm recorded it, a worker or a person takes the ticket, or an
 immediate stop; it turns the auto-merge off, dequeues, reads GitHub back and
 fails while still armed. judgment admits a conflict class, bound to its
@@ -71,7 +60,7 @@ stdin JSON (LoopTracker):
 
 There is no --auto-merge flag. A machine merge is declared once in the program
 (autopilot.mergeGate: union-reviewed, plus deployBranch), and the loop arms one
-only on a head a signed verdict proves, never into the branch that deploys.
+only on a head the review job passed, never into the branch that deploys.
 `.trimStart();
 
 /**
@@ -85,11 +74,9 @@ export const SUBCOMMANDS = Object.freeze({
   next: 'reads-stdin',
   stop: 'no-stdin',
   fingerprint: 'no-stdin',
-  'review-key': 'no-stdin',
   arm: 'no-stdin',
   disarm: 'no-stdin',
   judgment: 'reads-stdin',
-  verdict: 'reads-stdin',
 } as const);
 
 export type AutopilotSubcommand = keyof typeof SUBCOMMANDS;

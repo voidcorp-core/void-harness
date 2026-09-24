@@ -94,7 +94,7 @@ describe('remote effects stay with the roles that own them', () => {
     const mayNot = /May not:([\s\S]*?)\n\n/.exec(body(SKILL))?.[1] ?? '';
     expect(mayNot).toMatch(/enable auto-merge/i);
     expect(mayNot).toMatch(/merge anything/i);
-    expect(mayNot).toMatch(/void\/independent-review/);
+    expect(mayNot).toMatch(/post a verdict or re-run the review job/);
     expect(mayNot).toMatch(/Done/);
     expect(mayNot).toMatch(/close or cancel/i);
   });
@@ -150,27 +150,27 @@ describe('the curator ranks, and never disposes', () => {
   });
 });
 
-describe('the reviewer publishes a verdict GitHub can read', () => {
-  // A commit status triggers no workflow run, so the required check keeps its
-  // previous answer until the job is re-run: a verdict posted and not re-run
-  // leaves the pull request stuck while every agent believes it passed.
-  it('publishes the verdict through the one command that writes comment and status together', () => {
-    expect(flat(body(SKILL))).toMatch(/`void-harness autopilot verdict --ticket <id> --pr <number>`, run from this checkout\. It is the only path/);
-    expect(flat(body(SKILL))).toMatch(/re-runs the `independent-review` job when its completed run disagrees/);
-    expect(flat(body(SKILL))).toMatch(/status event starts no workflow/i);
-    expect(flat(body(SKILL))).toMatch(/Never post the comment or the status yourself/);
+describe('the review runs in GitHub, out of the reach of every worker', () => {
+  // A verdict the orchestration checkout signed could be signed by anything
+  // running there; a check only GitHub Actions can create cannot.
+  it('names the job, its trigger and the check only GitHub Actions creates', () => {
+    expect(flat(body(SKILL))).toMatch(/`\.github\/workflows\/independent-review\.yml` reviews every ready pull request/);
+    expect(flat(body(SKILL))).toMatch(/on `pull_request_target`/);
+    expect(flat(body(SKILL))).toMatch(/The merge queue does not believe that check/);
+    expect(flat(body(SKILL))).toMatch(/only on a successful run of that workflow, run from the base, for that exact head/);
+    expect(flat(body(SKILL))).toMatch(/No key or secret for it lives on this machine/);
   });
 
-  it('keeps the review key in the orchestration checkout and its public half on the base', () => {
-    expect(flat(body(SKILL))).toMatch(/`autopilot review-key` draws an Ed25519 key in this checkout/);
-    expect(flat(body(SKILL))).toMatch(/verifies the signature with the public half read from the base/);
-    expect(flat(body(SKILL))).toMatch(/Never copy the private half anywhere/);
+  it('lets no agent post a verdict, and re-runs a crash rather than approving it', () => {
+    expect(flat(body(SKILL))).toMatch(/The verdict is posted only by the review job/);
+    expect(flat(body(SKILL))).toMatch(/May not: enable auto-merge, merge anything, post a verdict or re-run the review job/);
+    expect(flat(body(SKILL))).toMatch(/a job that failed without a verdict is a crash it re-runs, not a round/);
   });
 
   it('blocks only on a scenario, files advisories once, and stops at two rounds', () => {
     expect(flat(body(SKILL))).toMatch(/Only what is wrong or dangerous, with a concrete scenario/);
     expect(flat(body(SKILL))).toMatch(/single Triage issue per ticket/);
-    expect(flat(body(SKILL))).toMatch(/round 2 checks only the blocking points/i);
+    expect(flat(body(SKILL))).toMatch(/round 2 is handed round 1's blocking findings and checks only those/i);
   });
 });
 

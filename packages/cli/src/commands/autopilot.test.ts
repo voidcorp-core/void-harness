@@ -55,7 +55,7 @@ describe('runAutopilotCommand boundary', () => {
 
   it('marks as reading a pipe exactly the commands that parse one', () => {
     const readers = Object.entries(SUBCOMMANDS).filter(([, mode]) => mode === 'reads-stdin').map(([name]) => name);
-    expect(readers.sort()).toEqual(['judgment', 'next', 'verdict']);
+    expect(readers.sort()).toEqual(['judgment', 'next']);
     for (const name of readers) expect(readsStdin([name])).toBe(true);
   });
 });

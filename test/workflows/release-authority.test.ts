@@ -65,7 +65,8 @@ describe('release automation authority', () => {
     expect(promotion).toContain('EXPECTED_HUMAN: folpe');
     expect(promotion).toContain('ADDED_TO_MERGE_QUEUE_EVENT');
     expect(promotion).toContain('headRefOid');
-    expect(promotion).toContain('context(name:\\"void/independent-review\\")');
+    expect(promotion).toContain('checkSuites(first:50,filterBy:{appId:15368})');
+    expect(promotion).toContain('checkRuns(first:20,filterBy:{checkName:\\"independent-review\\"})');
     expect(promotion).toContain('scripts/promotion-authority.mjs');
     expect(promotion).toContain('unexplained commit');
     expect(promotion).toContain('PROMOTION_BATCH_SIZE: 40');
@@ -113,7 +114,7 @@ describe('release operator contract', () => {
   it('states the three merge authorities the promotion audit accepts', () => {
     expect(RELEASING).toContain('scripts/promotion-authority.mjs');
     expect(RELEASING).toMatch(/merged\s+by hand by the named human/);
-    expect(RELEASING).toMatch(/success\s+`void\/independent-review`\s+status/);
+    expect(RELEASING).toMatch(/successful\s+`independent-review`\s+check run from\s+GitHub Actions/);
     expect(RELEASING).toMatch(/proved by\s+construction/);
     expect(RELEASING).toMatch(/whoever merged it and\s+whatever its timeline records/);
     expect(RELEASING).not.toContain('aligning that audit with auto-merge is an');

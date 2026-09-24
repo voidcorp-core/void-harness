@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { promotionAuthority } from '../../scripts/promotion-authority.mjs';
 
 // The pull request shape is the one promotion.yml asks GitHub for, per
-// integration commit: `status` is null on a commit with no status at all and
-// `context` is null when the named context is absent (both observed live).
+// integration commit: the head's check suites from the GitHub Actions app,
+// each with its `independent-review` check runs.
 const sha = (digit: string): string => digit.repeat(40);
 const HEAD = sha('a');
 const INTEGRATION = sha('b');
@@ -15,8 +15,12 @@ const INTEGRATION = sha('b');
 type Pull = Record<string, unknown>;
 
 function verdictOn(oid: string, state: string | undefined): Pull {
-  const status = state === undefined ? null : { context: { state } };
-  return { commits: { nodes: [{ commit: { oid, status } }] } };
+  const runs = state === undefined ? []
+    : state === 'PENDING'
+      ? [{ status: 'IN_PROGRESS', conclusion: null, completedAt: null }]
+      : [{ status: 'COMPLETED', conclusion: state, completedAt: '2026-09-24T10:00:00Z' }];
+  const suites = runs.length === 0 ? [] : [{ checkRuns: { totalCount: runs.length, nodes: runs } }];
+  return { commits: { nodes: [{ commit: { oid, checkSuites: { totalCount: suites.length, nodes: suites } } }] } };
 }
 
 function event(typename: string): Pull {
@@ -91,18 +95,18 @@ describe('promotion authority of a pull request merged into develop', () => {
   );
 
   it.each([
-    ['no status at all', verdictOn(HEAD, undefined)],
+    ['no review check at all', verdictOn(HEAD, undefined)],
     ['a pending verdict', verdictOn(HEAD, 'PENDING')],
     ['a failed verdict', verdictOn(HEAD, 'FAILURE')],
     ['an errored verdict', verdictOn(HEAD, 'ERROR')],
     ['a verdict on another commit', verdictOn(sha('c'), 'SUCCESS')],
     ['no commit to read', { commits: { nodes: [] } }],
     ['no commit list', { commits: null }],
-    ['an unreadable status', { commits: { nodes: [{ commit: { oid: HEAD, status: 'ok' } }] } }],
+    ['unreadable checks', { commits: { nodes: [{ commit: { oid: HEAD, checkSuites: 'ok' } }] } }],
     ['no head SHA', { headRefOid: null, ...verdictOn(HEAD, 'SUCCESS') }],
   ])('refuses an automatic merge with %s', (_name, shape) => {
     const verdict = judge(automatic('AutoMergeEnabledEvent', shape));
-    expect(verdict).toEqual({ refused: expect.stringMatching(/void\/independent-review|head/) });
+    expect(verdict).toEqual({ refused: expect.stringMatching(/independent-review|head|check/) });
   });
 
   it('demands the verdict even when the named human armed the auto-merge', () => {
@@ -242,7 +246,7 @@ describe('promotion authority of the release back-merge', () => {
     const { git, head, integration, asked } = backMergedRepository(false);
     const fork = backMerge(head, integration, { isCrossRepository: true });
     const verdict = promotionAuthority(fork, { integrationOid: integration, human: 'folpe', git });
-    expect(verdict).toEqual({ refused: expect.stringMatching(/void\/independent-review/) });
+    expect(verdict).toEqual({ refused: expect.stringMatching(/carries no independent-review check/) });
     expect(asked).toEqual([]);
   });
 });

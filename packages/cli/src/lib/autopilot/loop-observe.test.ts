@@ -13,15 +13,12 @@ import {
   PULL_REQUEST_FILE_PAGES_MAX,
   parseEjections,
   parseQueueTimeline,
-  parseReviewRounds,
   parseRunAttempt,
   PULL_REQUEST_FIELDS,
   readSharedState,
   resolveLoopBase,
 } from './loop-observe.js';
 import { renderJudgmentComment } from './judgment-comment.js';
-import { generateReviewKey } from './review-signature.js';
-import { signedVerdictComment, TEST_REPOSITORY, TEST_REVIEW_KEY } from './review-signature-fixtures.js';
 import { changedParts, fingerprintOf } from './shared-state.js';
 
 // Every double below is a real `gh` output captured read-only (see
@@ -53,56 +50,19 @@ function withRollup(view: Raw, rollup: readonly Raw[]): string {
   return JSON.stringify({ ...view, statusCheckRollup: rollup });
 }
 
-/** What the loop verifies a verdict with: the review key, the repository, the ticket. */
-const VERIFIER = { publicKey: TEST_REVIEW_KEY.publicKey, repository: TEST_REPOSITORY, ticketId: 'DEV-1' };
-
-/** A verdict comment as `autopilot verdict` posts it: the block, then its signature. */
-function signed(
-  judgment: { headSha: string; blocking: readonly unknown[] },
-  pullRequest: number,
-  options: { signedAt?: string; privateKey?: string; ticketId?: string } = {},
-) {
-  return signedVerdictComment(judgment, { pullRequest, ticketId: 'DEV-1', ...options });
+/** The review check as the review job publishes it, from a real check run shape. */
+function reviewCheck(conclusion: string): Raw {
+  const [run] = openView().statusCheckRollup as Raw[];
+  return conclusion === 'PENDING'
+    ? { ...run, name: 'independent-review', status: 'IN_PROGRESS', conclusion: '' }
+    : { ...run, name: 'independent-review', conclusion };
 }
 
-/** A commit status named like the reviewer's verdict, from a real status shape. */
-function verdict(state: string): Raw {
-  const [real] = statusContexts();
-  return { ...real, context: 'void/independent-review', state };
+/** A comment on a real comment shape, by the review job's bot unless another author is given. */
+function commentBy(body: string, login = 'github-actions'): Raw {
+  const [real] = openView().comments as Raw[];
+  return { ...real, body, author: { login } };
 }
-
-describe('parseReviewRounds', () => {
-  // The rounds are what GitHub holds, not what a reviewer remembers: every
-  // distinct head of the pull request whose review status failed is a round.
-  const commits = (): Raw => JSON.parse(fixture('pr-commits-review-status.json')) as Raw;
-  const nodesOf = (answer: Raw): Raw[] =>
-    ((((answer.data as Raw).repository as Raw).pullRequest as Raw).commits as Raw).nodes as Raw[];
-  const withStates = (states: readonly (string | undefined)[]): string => {
-    const answer = commits();
-    nodesOf(answer).forEach((node, index) => {
-      const state = states[index];
-      const commit = node.commit as Raw;
-      commit.status = state === undefined ? null : { context: { state } };
-    });
-    return JSON.stringify(answer);
-  };
-
-  it('counts no round on a pull request the reviewer never failed', () => {
-    expect(parseReviewRounds(fixture('pr-commits-review-status.json'))).toBe(0);
-  });
-
-  it('counts each head whose review failed or errored', () => {
-    expect(parseReviewRounds(withStates(['FAILURE', undefined, 'ERROR', 'SUCCESS']))).toBe(2);
-    expect(parseReviewRounds(withStates([undefined, undefined, undefined, 'FAILURE']))).toBe(1);
-  });
-
-  it('refuses a history it could not read whole', () => {
-    const answer = commits();
-    const pullRequest = ((answer.data as Raw).repository as Raw).pullRequest as Raw;
-    (pullRequest.commits as Raw).totalCount = 101;
-    expect(() => parseReviewRounds(JSON.stringify(answer))).toThrow(/commits/);
-  });
-});
 
 describe('parsePullRequestView', () => {
   it('reads an open pull request whose checks all passed', () => {
@@ -118,7 +78,7 @@ describe('parsePullRequestView', () => {
       autoMerge: false,
       checks: 'passing',
       review: 'absent',
-      reviewCheck: 'absent',
+      reviewFailures: 0,
       changedFiles: 15,
     });
   });
@@ -152,7 +112,7 @@ describe('parsePullRequestView', () => {
     expect(parsePullRequestView(withRollup(openView(), [])).checks).toBe('pending');
   });
 
-  it('reads commit statuses as checks, except the review verdict', () => {
+  it('reads commit statuses as checks', () => {
     const [pending, success] = statusContexts();
     const view = openView();
     expect(parsePullRequestView(withRollup(view, [success as Raw])).checks).toBe('passing');
@@ -161,51 +121,36 @@ describe('parsePullRequestView', () => {
     expect(parsePullRequestView(withRollup(view, [failed])).checks).toBe('failing');
   });
 
-  it('reads the verdict of the independent review from its commit status', () => {
+  it('reads the review from its check, apart from the checks, with the run to re-run', () => {
     const view = openView();
     const passing = view.statusCheckRollup as Raw[];
-    for (const [state, review] of [
+    for (const [conclusion, review] of [
       ['SUCCESS', 'success'],
       ['FAILURE', 'failure'],
-      ['ERROR', 'failure'],
       ['PENDING', 'pending'],
     ] as const) {
-      const read = parsePullRequestView(withRollup(view, [...passing, verdict(state)]));
+      const read = parsePullRequestView(withRollup(view, [...passing, reviewCheck(conclusion)]));
       expect(read.review).toBe(review);
-      // The verdict is the reviewer's, not a check a worker has to repair.
+      // The review is the reviewer's, not a check a worker has to repair.
       expect(read.checks).toBe('passing');
+      // The run id of the captured `detailsUrl`, which `gh run rerun` takes.
+      expect(read.reviewCheckRun).toBe(35694132291);
     }
-  });
-
-  it('reads the independent review job apart from the checks, with the run to re-run', () => {
-    const view = openView();
-    const [run] = view.statusCheckRollup as Raw[];
-    const job = { ...run, name: 'independent-review', conclusion: 'FAILURE' };
-    const rollup = [...(view.statusCheckRollup as Raw[]), job];
-    const read = parsePullRequestView(withRollup(view, rollup));
-    // A worker has nothing to repair in it: it only enforces the verdict.
-    expect(read.checks).toBe('passing');
-    // The run id of the captured `detailsUrl`, which `gh run rerun` takes.
-    expect(read).toMatchObject({ reviewCheck: 'failing', reviewCheckRun: 35694132291 });
-    expect(parsePullRequestView(viewText('pr-view-open.json')).reviewCheck).toBe('absent');
+    expect(parsePullRequestView(viewText('pr-view-open.json')).review).toBe('absent');
   });
 
   it('reads the latest verdict and conflict class posted as comment blocks', () => {
     const base = openView();
-    const comments = base.comments as Raw[];
-    const [real] = comments;
     const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
     const verdictJudgment = { headSha: head, round: 1, blocking: [], advisory: [] };
     const conflictJudgment = { headSha: head, class: 'semantic', reason: 'Both sides changed the grant.' };
     const posted = [
-      { ...real, body: signed(verdictJudgment, base.number as number) },
-      { ...real, body: renderJudgmentComment('conflict-class', conflictJudgment) },
+      commentBy(renderJudgmentComment('review-verdict', verdictJudgment)),
+      commentBy(renderJudgmentComment('conflict-class', conflictJudgment), 'folpe'),
     ];
-    const rollup = [...(base.statusCheckRollup as Raw[]), verdict('SUCCESS')];
-    const read = parsePullRequestView(
-      JSON.stringify({ ...base, statusCheckRollup: rollup, comments: [...comments, ...posted] }),
-      VERIFIER,
-    );
+    const rollup = [...(base.statusCheckRollup as Raw[]), reviewCheck('SUCCESS')];
+    const comments = [...(base.comments as Raw[]), ...posted];
+    const read = parsePullRequestView(JSON.stringify({ ...base, statusCheckRollup: rollup, comments }));
     expect(read.verdict).toEqual(verdictJudgment);
     expect(read.conflict).toEqual(conflictJudgment);
     const bare = parsePullRequestView(viewText('pr-view-open.json'));
@@ -213,33 +158,23 @@ describe('parsePullRequestView', () => {
     expect(bare.conflict).toBeUndefined();
   });
 
-  it('believes the latest signed verdict on the head only when the status says the same', () => {
-    // A comment is text anyone with the same credentials can post; the status
-    // and the signed comment are written together by `autopilot verdict` alone,
-    // so a status the latest signed verdict does not confirm believes neither.
+  it('believes the latest verdict of the review job on the head only when its check agrees', () => {
+    // The check is what branch protection trusts, from GitHub Actions alone;
+    // the comment carries the findings. One that disagrees is believed nowhere.
     const base = openView();
-    const [real] = base.comments as Raw[];
     const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
     const clean = { headSha: head, round: 1, blocking: [], advisory: [] };
     const finding = { location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' };
     const blocking = { ...clean, blocking: [finding] };
-    const at = (hour: number) => `2026-09-22T${String(hour).padStart(2, '0')}:00:00.000Z`;
-    const read = (status: string | undefined, ...judgments: unknown[]) => {
-      const rollup = [...(base.statusCheckRollup as Raw[]), ...(status === undefined ? [] : [verdict(status)])];
-      const comments = judgments.map((judgment, index) => ({
-        ...real,
-        body:
-          typeof judgment === 'string'
-            ? judgment
-            : signed(judgment as typeof clean, base.number as number, { signedAt: at(10 + index) }),
-      }));
-      const text = JSON.stringify({ ...base, statusCheckRollup: rollup, comments });
-      return parsePullRequestView(text, VERIFIER).verdict;
+    const read = (check: string | undefined, ...judgments: unknown[]) => {
+      const rollup = [...(base.statusCheckRollup as Raw[]), ...(check === undefined ? [] : [reviewCheck(check)])];
+      const comments = judgments.map((judgment) =>
+        typeof judgment === 'string' ? commentBy(judgment) : commentBy(renderJudgmentComment('review-verdict', judgment)));
+      return parsePullRequestView(JSON.stringify({ ...base, statusCheckRollup: rollup, comments })).verdict;
     };
     expect(read('SUCCESS', clean)).toEqual(clean);
     expect(read('FAILURE', blocking)).toEqual(blocking);
     expect(read('SUCCESS', blocking, clean)).toEqual(clean);
-    // A status that an older signed verdict agrees with, but not the latest, is not believed.
     expect(read('FAILURE', blocking, clean)).toBeUndefined();
     expect(read('FAILURE', clean)).toBeUndefined();
     expect(read('SUCCESS', blocking)).toBeUndefined();
@@ -250,35 +185,36 @@ describe('parsePullRequestView', () => {
     expect(read('SUCCESS', clean, malformed)).toEqual(clean);
   });
 
-  it('believes a verdict only when the review key signed it for this ticket and pull request', () => {
-    // The status and the comment are text anyone holding the same credentials
-    // can write. The signature is what only the orchestration checkout's key
-    // makes: without it, or with another key, nothing is believed.
+  it('believes a verdict only from the review job, never from another author', () => {
     const base = openView();
-    const [real] = base.comments as Raw[];
-    const number = base.number as number;
     const head = 'ca7fdc0008c5b597224c37b195e2a0ba0cd58e63';
     const clean = { headSha: head, round: 1, blocking: [], advisory: [] };
-    const parse = (bodies: readonly string[], verifier: typeof VERIFIER | 'none' = VERIFIER) => {
-      const rollup = [...(base.statusCheckRollup as Raw[]), verdict('SUCCESS')];
-      const comments = bodies.map((body) => ({ ...real, body }));
-      const text = JSON.stringify({ ...base, statusCheckRollup: rollup, comments });
-      return (verifier === 'none' ? parsePullRequestView(text) : parsePullRequestView(text, verifier)).verdict;
-    };
-    expect(parse([signed(clean, number)])).toEqual(clean);
-    // The comment and the status alone, as a worker could post them by hand.
-    expect(parse([renderJudgmentComment('review-verdict', clean)])).toBeUndefined();
-    // No key to verify with: the published key did not match the loop's own.
-    expect(parse([signed(clean, number)], 'none')).toBeUndefined();
-    // Signed with a key the loop does not hold, or checked against a replaced one.
-    const stranger = generateReviewKey();
-    expect(parse([signed(clean, number, { privateKey: stranger.privateKey })])).toBeUndefined();
-    expect(parse([signed(clean, number)], { ...VERIFIER, publicKey: stranger.publicKey })).toBeUndefined();
-    // Signed for another pull request, another ticket, or findings edited since.
-    expect(parse([signed(clean, number + 1)])).toBeUndefined();
-    expect(parse([signed(clean, number, { ticketId: 'DEV-2' })])).toBeUndefined();
-    const edited = signed(clean, number).replace('"advisory": []', '"advisory": [{ "note": "Planted." }]');
-    expect(parse([edited])).toBeUndefined();
+    const rollup = [...(base.statusCheckRollup as Raw[]), reviewCheck('SUCCESS')];
+    const parse = (comment: Raw) =>
+      parsePullRequestView(JSON.stringify({ ...base, statusCheckRollup: rollup, comments: [comment] })).verdict;
+    const body = renderJudgmentComment('review-verdict', clean);
+    expect(parse(commentBy(body))).toEqual(clean);
+    // The same block posted by a person or a worker's token is text, not a verdict.
+    expect(parse(commentBy(body, 'folpe'))).toBeUndefined();
+    expect(parse({ ...commentBy(body), author: null })).toBeUndefined();
+  });
+
+  // The rounds are what GitHub holds, not what a reviewer remembers: every head
+  // the review job blocked counts once, and a crash without a verdict is not one.
+  it('counts the review rounds as the distinct heads the review job blocked', () => {
+    const base = openView();
+    const finding = { location: 'a.ts:1', scenario: 'It merges red.', correction: 'Refuse it.' };
+    const blocked = (sha: string) =>
+      commentBy(renderJudgmentComment('review-verdict', { headSha: sha, round: 1, blocking: [finding], advisory: [] }));
+    const clean = commentBy(renderJudgmentComment('review-verdict', { headSha: 'c'.repeat(40), round: 2, blocking: [], advisory: [] }));
+    const rounds = (comments: readonly Raw[]) =>
+      parsePullRequestView(JSON.stringify({ ...base, comments })).reviewFailures;
+    expect(rounds([])).toBe(0);
+    expect(rounds([blocked('a'.repeat(40)), blocked('a'.repeat(40)), clean])).toBe(1);
+    expect(rounds([blocked('a'.repeat(40)), blocked('b'.repeat(40))])).toBe(2);
+    expect(rounds([commentBy(renderJudgmentComment('review-verdict', {
+      headSha: 'a'.repeat(40), round: 1, blocking: [finding], advisory: [],
+    }), 'folpe')])).toBe(0);
   });
 
   it('reads a conflict and a branch behind its base', () => {
@@ -430,7 +366,6 @@ describe('observeGithub', () => {
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
       'isInMergeQueue': fixture('pr-queue-membership-absent.json'),
-      'commits(last': fixture('pr-commits-review-status.json'),
       'pulls/381/files': fixture('pulls-files-rest.json'),
     });
     const observed = observeGithub(run, { base: 'develop', pullRequests: [381] });
@@ -462,8 +397,7 @@ describe('observeGithub', () => {
           'pr view 381': viewText('pr-view-open.json'),
           'timelineItems': timeline,
           'isInMergeQueue': fixture(membership),
-          'commits(last': fixture('pr-commits-review-status.json'),
-          'pulls/381/files': fixture('pulls-files-rest.json'),
+              'pulls/381/files': fixture('pulls-files-rest.json'),
         }).run,
         { base: 'develop', pullRequests: [381] },
       ).pullRequests.get(381)?.queue;
@@ -482,7 +416,6 @@ describe('observeGithub', () => {
       'pr view 381': withRollup(view, [...(view.statusCheckRollup as Raw[]), failed]),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
       'isInMergeQueue': fixture('pr-queue-membership-absent.json'),
-      'commits(last': fixture('pr-commits-review-status.json'),
       'run view 35694132291': fixture('run-view-attempt.json'),
       'pulls/381/files': fixture('pulls-files-rest.json'),
     });
@@ -496,7 +429,6 @@ describe('observeGithub', () => {
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
       'isInMergeQueue': fixture('pr-queue-membership-absent.json'),
-      'commits(last': fixture('pr-commits-review-status.json'),
       'pulls/381/files': fixture('pulls-files-rest.json'),
     });
     expect(observeGithub(quiet.run, { base: 'develop', pullRequests: [381] }).pullRequests.get(381))
@@ -523,7 +455,6 @@ describe('observeGithub', () => {
         if (line.includes('pr view 381')) return JSON.stringify({ ...openView(), changedFiles });
         if (line.includes('timelineItems')) return fixture('timeline-requeued-after-ejections.json');
         if (line.includes('isInMergeQueue')) return fixture('pr-queue-membership-absent.json');
-        if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
         if (line.includes('pulls/381/files')) return page();
         throw new Error(`unexpected gh call: ${line}`);
       };
