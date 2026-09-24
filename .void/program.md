@@ -1,13 +1,17 @@
 ---
 schemaVersion: 1
-status: executing
+status: completed
 program: autonomous-until-develop
-plan: docs/plans/2026-09-10-native-void-machine-pivot-plan.md
-spec: docs/specs/2026-09-10-native-void-machine-pivot.md
+plan: docs/plans/2026-09-22-autopilot-native-loop-plan.md
+spec: docs/specs/2026-09-22-autopilot-native-loop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-820]
+  # Selection belongs to the curator, which reads the project and the tracker;
+  # the continuous loop never reads this list. It still bounds one older
+  # reader: a resume that names no unit. Keep it to what a person would accept
+  # being picked without being asked; DEV-858 is done and DEV-859 canceled.
+  order: [DEV-877]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -29,80 +33,37 @@ autopilot:
       - packages/cli/core-assets/**
       - packages/harness-graph/model.json
       - packages/harness-graph/catalog.v3.json
-      # DEV-677 and DEV-673 both rewrite the merge grant, so the router must
-      # sequence them rather than fan them out. Declared here rather than left to
-      # footprint inference, because a semantic conflict in the guard that
-      # authorizes a merge is the one no tooling resolves after the fact.
-      - packages/cli/src/lib/autopilot/union-review.ts
     reconcileOnly: []
+  # Additions only. The floor lives in PROTECTED_PATHS_FLOOR and already covers
+  # `.github/**`, the installed hooks, the loop's own sources, the refusal to
+  # merge into the branch that deploys, and the scripts that judge a merge or a
+  # publication; this list can widen that ground, never narrow it.
+  protectedPaths: []
 ---
 
 # Program: autonomous until develop
 
-## Reliability sequence approved on 2026-09-05
+## Scope, since 24 September 2026
 
-The target direction is [Void Machine](../docs/VOID-MACHINE-VISION.md), supplied
-by Folpe on 2026-09-05. DEV-833 must start by confronting it with the repository
-and applicable decisions, then propose a spec and a migration for approval.
-Recording this vision does not authorize an immediate rewrite or replace the
-executing plan. Historical accepted decisions remain intact.
+The programme runs the continuous delivery loop named in frontmatter. A curator
+selects and ranks the work from the project and the tracker, reading Todo, then
+Backlog, then Triage; it enriches a unit before declaring it ready and never
+closes or deletes one. Four slots at most run at a time, one worker per unit in
+its own worktree, each running the complete `void-implement` cycle. One pull
+request per unit targets `develop`, auto-merge is the default there, and the
+GitHub merge queue replays the checks on the combined result. An independent
+reviewer's verdict, signed and verified by a required check, is what authorizes
+a merge; no human reads the code for it.
 
-Folpe places the reliability sequence before expanding the native kernel:
-DEV-831 repairs preparation review progress; DEV-832 proves the real implement,
-autopilot and brainstorm paths, including interruption and cleanup; DEV-822
-carries reliable test guidance into consumers; DEV-395 finishes the GStack
-teardown; DEV-833 is a brainstorm with Folpe about measured product value.
-Notify Folpe when DEV-833 becomes ready and conduct it together. Do not infer
-approval from green CI or complete this discussion autonomously.
+The earlier scope of 16 September (DEV-844 first, then DEV-531/611/630/682/662/635)
+is delivered or lapsed, and is not reopened here. The non-production merge grant
+and the protection requirements are unchanged: the loop merges into `develop`
+only, never into `main`, and promotion to production stays a person's.
 
-The complete ordered chain is visible on the open epic
-[DEV-807](https://linear.app/voidcorp/issue/DEV-807), not only in the completed
-DEV-666 audit. Native Linear dependencies own readiness and mutable progress.
-The measurement discussion is now closed as a direction decision. The active
-programme uses the native Void Machine pivot spec and plan. VM-01 through VM-06
-are merged; VM-07 (DEV-820) is the current descriptor and does not authorize a
-native cutover beyond the bounded unit currently in progress.
-
-Implement owns one ticket's risk-appropriate quality cycle. Autopilot owns
-dependency selection, isolation, recovery, resource limits, cleanup and exact
-integration. The DEV-833 discussion compares their added value under controlled
-conditions before choosing further mechanisms; it is not a claim that the
-existing layers have already earned their cost.
-
-This file is the stable global context for the executing program. It deliberately names neither a
-current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
-review state and the remote resume trail; this file only locates that state.
-
-On 2026-09-10, the approved native pivot replaced the unadmitted measurement
-chain as the active delivery path. The campaign artefacts remain versioned
-research history; the execution handoff in the pivot plan owns DEV-820.
-
-The pointer now follows the native Void Machine foundation. VM-03 established
-the portable skill package boundary, VM-04 established durable no-effect proof,
-and VM-05 certified the Codex subscription adapter, while VM-06 certified the
-Claude subscription adapter. The only human
-promotion gate remains the branch that deploys.
-
-`progress.order` is a deterministic tie-break among ready units, not mutable
-execution state. The current order starts with VM-07 after VM-06's merged
-handoff.
-
-The measurement discussion was explicitly concluded on 2026-09-10. No
-per-ticket human gate is declared for the native pivot; promotion to the
-deploying branch remains human.
-
-**Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
-documented failure of this whole family of workflows -- the files stop matching what
-implementation revealed -- and it is caused by deferring. Three corrections went into the spec and
-the plan the day they were found rather than into a "v2": the unconstrained argv, the three causes
-absence conflated, and the six unattended hours nobody could read.
-
-**And a correction names what it touches before it lands.** A correction is local and urgent while
-doctrine is global and quiet, so the cheapest move is to solve the immediate problem and not notice
-that a decision forbade it. Honouring a decision, or touching none, is applied in place and said
-out loud. Contradicting one is not a correction at all: it is a supersession, and it goes through
-the decision file that already exists for that. See the decision on correcting in flight unless it
-supersedes.
+Corrections stay in the artefact being worked on. A change contradicting an
+accepted decision requires supersession, never an in-place rewrite. Completion
+never selects or repoints a successor pool: the curator does, each time the
+project moves.
 
 ## Sources of truth
 
@@ -162,19 +123,20 @@ a stale ticket premise from four independent lenses, and the run closed six prod
 grants. What it also revealed -- a context pack that was empty at the stage where the panel
 convenes first -- was fixed inside the same unit.
 
-The gate now is the merge of the integration PR into `develop`, and promotion to `main` stays
-human as always. Findings are arbitrated inside the cycle by the forced comparison against the
-unit in progress, so no queue accumulates and no human is a bottleneck on them.
+Checkpoint B was read on 2026-09-24 and is closed: the continuous loop merged DEV-682 (#401) and
+DEV-860 (#402) into `develop` with nobody acting, then #404 and #405 went through the merge queue
+on signed verdicts. The cluster engine was removed after it, as the plan's step 7 required.
 
-Promotion to `main` remains human, and what a person judges there is the feature. The integration
-PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came
-back clean; unread, inconclusive or stale all refuse. `autopilot` may select independent ready units
-only through its documented attended confirmation flow. The program descriptor does not create a headless backend and
-does not weaken single-writer rules for lockfiles, migrations, generated assets, or shared
-contracts.
+The loop arms a merge into `develop` only on the head a signed review verdict proves, through the
+merge queue, and never on a pull request that touches the machinery that judges merges: those go
+to a person. Promotion to `main` remains human, and what a person judges there is the feature. The
+program descriptor does not create a headless backend and does not weaken single-writer rules for
+lockfiles, migrations, generated assets, or shared contracts.
 
 ## Program completion
 
-When all scoped implementation units are done and both human gates were explicitly approved, the
-final program change sets this file's `status` to `completed`. It does not repoint itself to a
+When all seven scoped implementation units are verified and delivered into `develop`
+under the declared `union-reviewed` merge gate, the final program change sets this
+file's `status` to `completed`. Promotion to `main` is not a completion prerequisite
+and remains a separate human decision. This program never repoints itself to a
 different plan or progress scope.

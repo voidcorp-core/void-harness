@@ -30,7 +30,8 @@ in this harness checkout; it is not yet an npm-installed runtime feature.
    proofs. Missing observations are UNKNOWN. Model, ctx and quota remain unknown
    unless available from the runtime. An idle screen is not proof of a stalled task.
 6. Close only owned, completed display resources after native process termination
-   is observed. Preserve unfinished work and native resume references. No automatic
+   is observed and the return and useful proof artifacts have been recovered.
+   Preserve unfinished work and native resume references. No automatic
    process kill, worktree deletion or branch cleanup belongs to presentation.
 
 ## Adapter boundary and local invocation

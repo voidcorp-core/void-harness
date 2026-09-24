@@ -1,0 +1,104 @@
+---
+title: Deliver isolated official TypeScript syntax inspection
+date: 2026-09-16
+status: completed
+spec: docs/specs/2026-09-16-owned-typescript-syntax.md
+ticket: ""
+author: folpe + Codex
+high_risk: true
+---
+
+# Goal
+
+Replace the rejected Babel implementation in PR #386 with the harness-owned
+TypeScript 6 API, explicit policy/adapter/process/distribution boundaries and
+measured performance. The user approved execution of this design and its
+performance gate; no further selection from the unrelated programme is needed.
+
+## Steps
+
+### 1. Prove ordinary-worker feasibility
+
+- Depends on: none.
+- TDD mode: exploratory for disposable /private/tmp measurement scripts only.
+- Pin @typescript/typescript6 in packages/hook-runner/package.json using pnpm.
+- Measure fresh process startup, module load, parse, syntactic diagnostics and
+  traversal on the real Cortex PostgreSQL test and bounded synthetic inputs.
+- Gate: no deadline increase; report all samples and p50/p95/p99, memory.
+- Expected commit: docs/build evidence only; throwaway code never shipped.
+
+### 2. Inspect proposed source through the owned worker
+
+- Depends on: 1.
+- TDD mode: strict.
+- Files: hook-runner enforcement syntax-analysis, syntax-inspection and their
+  tests; new syntax protocol/policy/worker modules; hook-runner build scripts.
+- Preserve real semantic and hostile-consumer tests. Add worker-artifact,
+  protocol, failure and dependency-boundary regressions before implementation.
+- Gate: observed RED, then complete enforcement suite and package typecheck.
+- Expected commits: test(hooks) regression then fix(hooks) owned TS worker.
+
+### 3. Deliver paired assets through every supported surface
+
+- Depends on: 2.
+- TDD mode: strict.
+- Files: CLI codex-floor, runtime-assets/adapters, plugin-cache, self-host
+  compile/doctor and tests; core assets/mirror; verify artifact catalogue.
+- Extend existing inventories and transactions; missing/incompatible worker
+  refuses; offline packed install and update/rollback cover both runtimes.
+- Gate: native install/doctor/self-host/packed tests plus deterministic rebuild.
+- Expected commits: test(cli) paired-delivery regression then fix(cli) delivery.
+
+### 4. Measure and review the shipped correction
+
+- Depends on: 3.
+- TDD mode: strict for any correction; benchmark glue covered by actual runs.
+- Files: hook-runner benchmark, CI supported-OS evidence, architecture/evidence
+  docs and proposed ADR, actual tarball size ceiling only after measurement.
+- Gate: full pnpm typecheck/test, targeted lint (existing nested-worktree global
+  lint obstruction disclosed), hook benchmarks, worker distribution benchmarks,
+  exact artifact parity, real Cortex read-only dogfood and independent review.
+- Expected commit: fix/docs/perf according to any final measured correction.
+- Replace PR386 body with final TS design/evidence. No merge or npm release.
+
+## Review checkpoints
+
+Report feasibility measurements before completing delivery. Escalate a measured
+incompatibility with fixed budgets; do not replace the parser or add a daemon.
+Independent architecture/security/QA review before updating the PR. Native
+review evidence is not canonical mission certification.
+
+## Resume point
+
+Steps 1–3 are implemented and verified. The user approved the shared five-second
+operation ceiling after the one-second cold run failed 3/180 inspections. The
+final worker passes 180/180 inspections on Node 24 and 150/150 on Node 22.12.
+No retries, cache, persistent process or consumer compiler fallback were added.
+
+Step 4: final pnpm test passes 5,344 tests across 485 files. Workspace typecheck,
+targeted lint, parent-hook benchmark, deterministic rebuild, actual isolated
+self-host compilation and read-only Cortex dogfood pass. Native independent
+static review has no remaining finding; reported health/lifecycle defects were
+fixed with observed regressions. Details and evidence limitations are in
+[worker measurements](../audits/2026-09-16-typescript-syntax.md).
+
+The requested [test audit](../audits/2026-09-16-test-performance.md) covers all
+485 files with a complete cost CSV and ranked, evidence-backed optimization
+proposals. It preserves the red measurement and distinguishes it from the final
+green suite. Audit proposals have not silently changed the testing architecture.
+
+The generated-artifact gate and normal commit hooks pass. Correction commit
+`44c15121` passes offline packed installation for Claude, Codex and both runtimes,
+updates and receipt recovery, plus 150/150 inspections of the installed worker.
+The actual 1,954,726-byte tarball passes its 2,000,000-byte ceiling.
+Implementation and local verification are complete. PR386 is the review handoff;
+cross-platform CI remains its own gate. No merge or npm release.
+The first CI run passes validation, browser conformance and all three-platform
+doctor, graph and packed-install checks. Its enforcement failure exposed a CI
+content/runtime payload limit conflation and missing generated-identity coverage
+declaration. Four RED cases precede the correction in `94ce08c1`; the corrected
+adapter passes 115 targeted tests with runtime limits unchanged. The final PR
+revision must pass the CI gate again.
+The source floor and Cortex installations remain untouched. The installed
+one-second floor initially refused edits under load; smaller supported edits
+subsequently passed without bypass or installation modification.

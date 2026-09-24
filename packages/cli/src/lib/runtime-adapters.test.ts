@@ -194,8 +194,11 @@ describe('claude adapter', () => {
     const checks = await adapterFor('claude').doctorChecks(dir);
     expect(checks.find((check) => check.name === 'claude agents')).toMatchObject({
       ok: false,
-      message: expect.stringContaining('security-engineer'),
+      message: expect.stringContaining('security-engineer (installed v1, this CLI carries v2)'),
     });
+    // The capability is what `mission dispatch` stops on: the repair travels with it.
+    const capability = await specialistCapabilityFor(dir, 'claude');
+    expect(capability.limitations.join(' ')).toContain('`void-harness runtime add claude`');
   });
 
   it('keeps the marketplace behind an explicit adapter mode', async () => {
@@ -235,6 +238,15 @@ describe('claude adapter', () => {
     // tools, because the allowlist already denies them.
     expect(inspection.specialistCapability.status).toBe('available');
     expect(inspection.specialistCapability.limitations.join(' ')).not.toMatch(/MCP/i);
+  });
+
+  it('refuses wired evidence for an incompatible local syntax worker', async () => {
+    const dir = scratch();
+    await adapterFor('claude').wire(ctxFor(dir));
+    writeFileSync(join(dir, '.void/hooks/_syntax-worker.cjs'), 'incompatible worker');
+    const inspection = await adapterFor('claude').inspect(dir);
+    expect(inspection.evidence.wired).toBe(false);
+    expect(inspection.evidence.fired).toBe(false);
   });
 });
 

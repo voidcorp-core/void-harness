@@ -1,16 +1,17 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const workflow = readFileSync(new URL('../../.github/workflows/promotion.yml', import.meta.url), 'utf8');
 const start = workflow.indexOf('          commit_count=');
 const end = workflow.indexOf('          body=$(printf', start);
 const audit = workflow.slice(start, end).replace(/^ {10}/gm, '');
 
-function history(direct = false) {
-  const root = mkdtempSync(join(tmpdir(), 'void-promotion-'));
+function history(root: string, direct = false) {
   const git = (...args: string[]) => execFileSync('git', args, {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_COMMITTER_NAME: 'Test',
@@ -64,7 +65,42 @@ for index in "\${!oids[@]}"; do
 done
 printf '}}}\n'
 `, { mode: 0o755 });
-  return { root, bin, commits, inner, integration, directOid };
+  const seed = git('rev-parse', 'refs/remotes/origin/main');
+  return { root, bin, commits, inner, integration, directOid, seed };
+}
+
+let baselineRoot = '';
+let baseline: ReturnType<typeof history>;
+let directBaseline: ReturnType<typeof history>;
+const scenarioRoots: string[] = [];
+
+beforeAll(() => {
+  baselineRoot = mkdtempSync(join(tmpdir(), 'void-promotion-baselines-'));
+  const regularRoot = join(baselineRoot, 'regular');
+  const directRoot = join(baselineRoot, 'direct');
+  mkdirSync(regularRoot);
+  mkdirSync(directRoot);
+  baseline = history(regularRoot);
+  directBaseline = history(directRoot, true);
+});
+
+afterAll(() => {
+  if (baselineRoot) rmSync(baselineRoot, { recursive: true, force: true });
+});
+
+afterEach(() => {
+  for (const root of scenarioRoots) rmSync(root, { recursive: true, force: true });
+  scenarioRoots.length = 0;
+});
+
+function copyHistory(direct = false) {
+  const source = direct ? directBaseline : baseline;
+  const root = mkdtempSync(join(tmpdir(), 'void-promotion-'));
+  // Register before copying so a failed copy is cleaned by afterEach too.
+  scenarioRoots.push(root);
+  // Full copies preserve isolation; no shared Git objects, refs or query counters.
+  cpSync(source.root, root, { recursive: true, verbatimSymlinks: true });
+  return { ...source, root, bin: join(root, 'bin') };
 }
 
 function runAudit(options: {
@@ -73,8 +109,10 @@ function runAudit(options: {
   paginated?: boolean;
   failOnce?: boolean;
   failAlways?: boolean;
+  /** Merge facts of the integration PR, over a hand merge by folpe. */
+  pull?: (fixture: ReturnType<typeof copyHistory>) => Record<string, unknown>;
 } = {}) {
-  const fixture = history(options.direct);
+  const fixture = copyHistory(options.direct);
   for (const oid of fixture.commits) {
     const pr = {
       number: 331, baseRefName: 'develop', headRefName: 'outer', isCrossRepository: false,
@@ -83,6 +121,7 @@ function runAudit(options: {
       headRepository: { nameWithOwner: 'voidcorp-core/void-harness' },
       headRepositoryOwner: { login: 'voidcorp-core' },
       timelineItems: { nodes: [], pageInfo: { hasNextPage: false } },
+      ...options.pull?.(fixture),
     };
     // GitHub reports the inner PR for its original commit, not the later outer PR.
     const nodes = oid === fixture.inner && !options.direct && !options.mismatched
@@ -97,6 +136,7 @@ function runAudit(options: {
     cwd: fixture.root, encoding: 'utf8', timeout: 10_000,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, FIXTURES: fixture.root,
       FAIL_ONCE: options.failOnce ? '1' : '0', FAIL_ALWAYS: options.failAlways ? '1' : '0',
+      GITHUB_WORKSPACE: ROOT,
       EXPECTED_OWNER: 'voidcorp-core', EXPECTED_NAME: 'void-harness',
       EXPECTED_REPOSITORY: 'voidcorp-core/void-harness', EXPECTED_HUMAN: 'folpe',
       MAX_PROMOTION_COMMITS: '500', PROMOTION_BATCH_SIZE: '40',
@@ -139,5 +179,70 @@ describe('promotion integration authority', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('GitHub GraphQL API error for batch');
     expect(result.stderr).not.toContain('unexplained commit');
+  });
+
+  describe('automatic merges into develop', () => {
+    type Fixture = ReturnType<typeof copyHistory>;
+    const event = (typename: string) =>
+      ({ __typename: typename, actor: { login: 'folpe' }, createdAt: '2026-09-23T10:00:00Z' });
+    const verdict = (oid: string, state: string | null) =>
+      ({
+        nodes: [{
+          commit: {
+            oid,
+            checkSuites: state === null
+              ? { totalCount: 0, nodes: [] }
+              : {
+                totalCount: 1,
+                nodes: [{ checkRuns: { totalCount: 1, nodes: [{ status: 'COMPLETED', conclusion: state, completedAt: '2026-09-24T10:00:00Z' }] } }],
+              },
+          },
+        }],
+      });
+
+    function merged(typename: string, state: string | null, head = 'e'.repeat(40)) {
+      return {
+        headRefOid: head,
+        mergedBy: { login: 'github-merge-queue' },
+        timelineItems: { nodes: [event(typename)], pageInfo: { hasNextPage: false } },
+        commits: verdict(head, state),
+      };
+    }
+
+    const backMerge = (head: (fixture: Fixture) => string) => (fixture: Fixture) => ({
+      ...merged('AutoMergeEnabledEvent', null, head(fixture)),
+      headRefName: 'chore/back-merge-main',
+      mergedBy: { login: 'voidcorp-release' },
+    });
+
+    it.each(['AutoMergeEnabledEvent', 'AddedToMergeQueueEvent'])(
+      'accepts a %s merge whose head carries a success verdict',
+      (typename) => {
+        const result = runAudit({ pull: () => merged(typename, 'SUCCESS') });
+        expect(result.status, result.stderr).toBe(0);
+        expect(result.stdout).toContain('authority: `review-verdict`');
+      },
+    );
+
+    it.each([null, 'FAILURE', 'PENDING'])(
+      'refuses an automatic merge whose verdict is %s',
+      (state) => {
+        const result = runAudit({ pull: () => merged('AutoMergeEnabledEvent', state) });
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain('merged automatically');
+      },
+    );
+
+    it('accepts the back-merge by its construction, without a verdict', () => {
+      const result = runAudit({ pull: backMerge((fixture) => fixture.seed) });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('authority: `back-merge`');
+    });
+
+    it('refuses a back-merge its construction does not explain and no verdict covers', () => {
+      const result = runAudit({ pull: backMerge((fixture) => fixture.inner) });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('not the back-merge');
+    });
   });
 });

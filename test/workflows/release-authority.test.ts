@@ -43,7 +43,7 @@ describe('release automation authority', () => {
     expect(autoMergeActions).toEqual([]);
   });
 
-  it('rechecks live auto-merge state on every pull request transition', () => {
+  it('rechecks live auto-merge state on every pull request transition and refuses it into main', () => {
     expect(voidEnforce).toMatch(
       /types:\s*\[[^\]]*auto_merge_enabled[^\]]*auto_merge_disabled[^\]]*\]/,
     );
@@ -51,9 +51,8 @@ describe('release automation authority', () => {
     expect(voidEnforce).toContain('gh pr view "$PR_NUMBER"');
     expect(voidEnforce).toContain('autoMergeRequest');
     expect(voidEnforce).toContain("EXPECTED_REPOSITORY: voidcorp-core/void-harness");
-    expect(voidEnforce).toContain("EXPECTED_HEAD: chore/back-merge-main");
-    expect(voidEnforce).toContain("EXPECTED_BASE: develop");
-    expect(voidEnforce).toContain('isCrossRepository');
+    expect(voidEnforce).toContain('FORBIDDEN_BASE: main');
+    expect(voidEnforce).toContain('assertAutoMergeAllowed');
   });
 
   it('audits every promotion commit and its merge authority', () => {
@@ -64,8 +63,13 @@ describe('release automation authority', () => {
     expect(promotion).toContain('AUTO_MERGE_ENABLED_EVENT');
     expect(promotion).toContain('mergedBy');
     expect(promotion).toContain('EXPECTED_HUMAN: folpe');
+    expect(promotion).toContain('ADDED_TO_MERGE_QUEUE_EVENT');
+    expect(promotion).toContain('headRefOid');
+    expect(promotion).toContain('checkSuites(first:5,filterBy:{appId:15368})');
+    expect(promotion).toContain('checkRuns(first:3,filterBy:{checkName:\\"independent-review\\"})');
+    expect(promotion).toContain('scripts/promotion-authority.mjs');
     expect(promotion).toContain('unexplained commit');
-    expect(promotion).toContain('PROMOTION_BATCH_SIZE: 40');
+    expect(promotion).toContain('PROMOTION_BATCH_SIZE: 30');
     expect(promotion).toContain('PROMOTION_API_RETRIES: 3');
     expect(promotion).toContain('query_for_batch');
     expect(promotion).toContain('GitHub GraphQL API error for batch');
@@ -103,7 +107,17 @@ describe('release operator contract', () => {
     expect(RELEASING).toMatch(/Release\s+action 1:/);
     expect(RELEASING).toMatch(/Release\s+action 2:/);
     expect(RELEASING).toContain('There is no normal-path workflow dispatch, deployment approval');
-    expect(RELEASING).toContain('sole canonical native auto-merge path');
+    expect(RELEASING).toContain('the one pull request\n   the review verdict exempts');
+    expect(RELEASING).toContain('refuses an armed auto-merge');
+  });
+
+  it('states the three merge authorities the promotion audit accepts', () => {
+    expect(RELEASING).toContain('scripts/promotion-authority.mjs');
+    expect(RELEASING).toMatch(/merged\s+by hand by the named human/);
+    expect(RELEASING).toMatch(/successful\s+`independent-review`\s+check run from\s+GitHub Actions/);
+    expect(RELEASING).toMatch(/proved by\s+construction/);
+    expect(RELEASING).toMatch(/whoever merged it and\s+whatever its timeline records/);
+    expect(RELEASING).not.toContain('aligning that audit with auto-merge is an');
   });
 
   it('documents tag-bound recovery and every external authority boundary', () => {
@@ -118,5 +132,29 @@ describe('release operator contract', () => {
     ]) {
       expect(RELEASING).toContain(control);
     }
+  });
+});
+
+// GitHub refuses a GraphQL query whose worst case exceeds 500,000 nodes, and
+// the promotion audit asks for a batch of integration commits at once. The
+// check-run reading added by DEV-877 first asked for 50 suites of 20 runs per
+// pull request and pushed the batch to 4,608,000: the audit refused every
+// promotion. The worst case is recomputed here from the query itself.
+describe('the promotion audit query', () => {
+  it('stays under the GraphQL node limit in the worst case', () => {
+    const promotion = workflow('promotion.yml');
+    const first = (field: string): number => {
+      const match = new RegExp(`${field}\\((?:first|last):(\\d+)`).exec(promotion);
+      if (match === null) throw new Error(`${field} is not bounded in promotion.yml`);
+      return Number(match[1]);
+    };
+    const batch = Number(/PROMOTION_BATCH_SIZE: (\d+)/.exec(promotion)?.[1]);
+    const pulls = first('associatedPullRequests');
+    const perPull = first('commits') * (1 + first('checkSuites') * (1 + first('checkRuns')))
+      + first('timelineItems');
+    const worst = batch * (1 + pulls * (1 + perPull));
+    expect(worst).toBeLessThan(500_000);
+    // With margin: a field added later should not land exactly on the limit.
+    expect(worst).toBeLessThan(450_000);
   });
 });

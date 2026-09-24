@@ -152,6 +152,16 @@ restating the rule. `.void/machine/` is per-repository state, so the mission jou
 plan, evidence and the status snapshot are written there, while the ticket, the diff and the
 verified command stay in `workRoot`. The session checkpoint stays with its tree.
 
+### Working checkout ownership
+
+Working Git checkouts live outside the repository at the durable location in
+[WORKTREES.md](WORKTREES.md). The autopilot orchestrator creates or reuses the
+worktree of each ticket it assigns before its worker starts, and the worker's
+commits are the record. Checkout lifetime follows the ticket and observed merge,
+independently of run/session/presentation lifetime. Useful ignored evidence must be preserved
+before removal even when Git reports clean. This does not change repository-owned
+runtime state or installation-root resolution above.
+
 ## Decision records
 
 ADRs are an append-only data model, not a generated document:
@@ -181,30 +191,13 @@ storage dependency.
 
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
-The Void Machine native track is the bounded exception: `native/void-machine/`
-contains a Rust workspace for the read-only doctor kernel and host adapter. It
-shares no TypeScript runtime code and is exposed through a thin compatibility
-launcher; platform binaries are built by their native lane rather than bundled
-into the universal npm tarball. A future independent Rust/Go/Python product
-could still live in a sibling repo, reusing mechanics not skills.
-
-The native machine's external Git boundary is split the same way: the Rust core
-defines a provider-neutral effect identity, fencing state machine, and immutable
-commit proof, while the host adapter observes commit ranges and hashes shared
-repository state without retaining its contents. The CLI's SQLite ledger is the
-durable outbox for those effects; a claimed effect cannot be replayed under a
-different fence, and an ambiguous command is closed until a human resolves it.
-The Rust core also owns bounded cluster reconciliation: worker reports must cover
-the declared ticket set, completed work must carry review provenance and observed
-files must stay within declared footprints. Parallel collisions are rejected,
-declared sequential collisions are accepted, and the reconciliation ledger makes
-resume idempotent by refusing a ticket that was already accepted.
-The merge boundary follows the same fail-closed rule: the native policy requires
-positive branch protection, green checks and a fresh clean review on the exact
-head, emits one non-forced `gh pr merge --match-head-commit` command, and records
-the merge once. A target that is missing, protected without required checks, equal
-to or indistinguishable from the deploying branch, or subject to a human gate is
-refused before any remote mutation.
+The Void Machine has no native track. Its Rust workspace was removed without a port, for lack of
+a caller ([decision](decisions-log/2026-09-21-void-machine-rust-removal-without-port--ec77d2de-4719-4fe6-8d21-c0dbe403d6ac.md)).
+The private TypeScript package `packages/void-machine/` is the Machine foundation and ships in no
+tarball. The autopilot loop's kernel (state rebuilt from the tracker, GitHub and git, the slot
+and collision rules, the shared-state fingerprint and the merge refusals) lives in
+`packages/cli/src/lib/autopilot/`. A future independent Rust/Go/Python product could still live in
+a sibling repo, reusing mechanics not skills.
 
 ## Stack profile compilation
 
@@ -234,6 +227,10 @@ Rules:
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
 - **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created, already owned, or found already identical byte-for-byte to what it compiled — a managed asset matching our own output is ours, and letting it fall out of the receipt is what made a later version meet an asset it could not recognise. Unowned native conflicts fail unless `--force` (all of them named in one message, not the first alone), and even force never grants deletion ownership over a pre-existing file.
+- **Layout repair survives install failure.** `update` migrates legacy layout before invoking
+  `init`. That idempotent repair is outside the install transaction and remains applied if
+  installation fails. The failure message preserves the underlying error and names this boundary;
+  it does not claim that every failure rolled back or that publication never happened.
 - **Failed installs clean before exiting.** The owned compilation stage is removed before the
   failure exit, as well as after success. A test observes staging paths at the exit boundary:
   throwing from a mocked `process.exit` would otherwise run `finally` and hide a real-process leak.
@@ -352,6 +349,18 @@ deliberate session close and stay readable offline; neither the checkpoint nor t
 a current or next unit.
 Human gates and merges remain human. A standalone ticket or sequential plan keeps using its normal
 ticket or resume-point flow and does not need a programme descriptor.
+
+### Session update proposal
+
+For a local installation behind the cached published version, `freshnessRelay` supplies
+SessionStart model context asking the agent to offer `void-harness update` once near its
+first reply. The offer explains that update writes project files and links the public
+[release notes](https://github.com/voidcorp-core/void-harness/releases) for possible breaking
+changes. Execution requires explicit human permission, including during autonomous work.
+Refusal or silence leaves the task proceeding without updating or repeating the offer in
+that session. This is agent guidance, not a technical authorization barrier. Current,
+ahead, unknown, marketplace and unknown-source cases remain silent; the terminal notice,
+cached detection and background refresh keep their existing behavior and startup budget.
 
 ### Mechanical context continuity
 
@@ -509,14 +518,24 @@ remain characterization inputs only and are not part of the active runtime.
 The local runtime therefore requires Node only, not `jq` or a POSIX shell.
 
 Context-sensitive focused-test checks reconstruct the complete proposed file
-before inspecting syntax. They use the project's TypeScript 5 compiler in a
-bounded child process; no compiler is bundled or downloaded. Ordinary tests
+before inspecting syntax. They use the official harness-owned TypeScript 6 API in a
+bounded child process. The hook invokes a companion `_syntax-worker.cjs` whose
+size and SHA-256 identity it verifies before execution. Only the worker loads
+TypeScript. No consumer compiler, configuration, plugin
+or import is resolved or executed, and no compiler is downloaded. Ordinary tests
 without suspicious tokens and an unambiguous prohibited call at the start of a
-file retain their dependency-free paths. Missing context or compiler capability
-is `TEST_SYNTAX_UNVERIFIED`, a refusal rather than an assertion that code was
-checked. This is a quality check over trusted project tooling, not a sandbox for
-hostile compiler packages. See [hook test evidence](HOOK-TEST-EVIDENCE.md) for
+file retain their inexpensive paths. Missing context or parser failure is
+`TEST_SYNTAX_UNVERIFIED`, a refusal rather than an assertion that code was
+checked. See [hook test evidence](HOOK-TEST-EVIDENCE.md) for
 limits, supported edits and the structural E2E declaration contract.
+
+The boundary has five responsibilities: the rule reconstructs proposed source;
+the process adapter enforces isolation and validates the versioned protocol;
+the worker validates requests; the TypeScript adapter returns syntax facts;
+the pure policy maps those facts to existing verdicts. Both runtime installers
+and source self-host use the same paired-asset builder. Installation health
+refuses missing or incompatible workers. No extraction cache, dynamic evaluation
+or persistent compiler process is involved.
 
 Every active hook records a bounded, redacted `hook.completed` event. Lifecycle
 states distinguish `ok`, `skipped` and `degraded`; enforcement additionally
@@ -674,6 +693,33 @@ unchanged builds and committed renames. A partial or concurrently-mutated build
 keeps the last green cache and stays explicitly `partial`, so downstream context
 selection falls back to source instead of trusting incomplete topology. Git
 proof is the only authority for `previous-id` rename continuity.
+Declared intent is compiled into the same ProjectGraph: direct ADR Markdown files under
+`docs/decisions-log/` produce `decision` nodes, and direct YAML files under
+`.void/knowledge/invariants/` produce `invariant` nodes. The scanner admits only that
+specific hidden directory in addition to its existing public configuration paths. The
+existing descriptor, root, file and aggregate bounds still apply. Modern ADRs declare
+`id`, `title`, `status`, optional `supersedes` and `affects`; historical date/title ADRs
+retain the existing `legacy:<basename>` identity and accepted status. An invariant
+requires `id`, `scope`, `severity`, `statement`, `enforced_by`, `verified_by` and
+`decided_by`; references are explicit file paths or decision IDs, never inferred.
+
+Implementation files point to decisions through `decided_by` and to invariants through
+`constrained_by`; invariants point to verification files through `verified_by` and to
+decisions through `decided_by`. These three spellings extend only binary relation kind
+validation. New intent nodes and relations carry `origin: declared`, confidence 1 and
+the declaring source's exact SHA-256. Supersession is preserved as readable data, with no
+arbitration of contradictory decisions. Duplicate identities, malformed declarations
+and unresolved references produce source diagnostics without inventing entities.
+
+The declarative YAML adapter uses the existing yaml dependency and explicit bounded
+validators inside the graph package, never CLI parsing code. Declaration extraction is
+stored in the existing cache and its new extraction version invalidates older entries.
+`void-harness why <file>` always observes that incremental builder, preserving current
+diagnostics even when `.void/knowledge.json` already exists; it never writes that artifact.
+It renders decisions, invariants and declared verification evidence with provenance,
+explicit absence and partial/degraded caveats. Traversal uses the existing 500-node,
+12-level default; terminal output and diagnostics are bounded with announced truncation.
+
 Seven read-only queries answer the impact and targeted-context questions over an extracted
 snapshot: `explain`, `path`, `impact`, `subgraph`, `owners`, `testsFor`, and `staleness`. Each is
 deterministic, takes a node/depth budget, and reports `truncated` rather than returning a silently
@@ -1438,3 +1484,18 @@ print output and failure traces for fourteen days. Zero retries and finite
 execution limits keep a failure red. Visual review and real assistive testing
 remain separate from automated assertions; see [the suite contract](../test/browser/README.md)
 and [the decision](decisions-log/2026-09-13-isolated-consumer-browser-ci--392e4254-fb63-4743-af1f-4c99a035170d.md).
+
+## Bounded independent review
+
+The existing Mission Engine owns the review state and correction budget; the CLI owns
+Git subject observation, receipt ingestion and append-only persistence. Skills describe
+the same procedure rather than defining a separate review engine. See
+[the bounded review decision](decisions-log/2026-09-19-bounded-independent-review--eb08fcc8-d50a-4574-89da-d5a174f4035d.md).
+
+Risk-specific preparation advice precedes implementation. One read-only independent
+review examines a commit, comparison base and acceptance criteria. Corrections receive
+targeted verification, at most two batches, retaining unaffected conclusions and proofs.
+Advisories, incomplete responses and transport retries never consume correction budget.
+Native context identity is provenance metadata; absent identity alone is not a delivery
+refusal when actual independent execution and the review subject remain evidenced.
+Unresolved concrete blockers, invalid evidence and missing required isolation still refuse.

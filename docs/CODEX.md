@@ -12,6 +12,16 @@ no `@import`). In the **harness repo itself** the `scripts/sync-agent-docs.sh`
 gate keeps both in lockstep (section-heading parity in CI + a both-or-neither
 pre-commit check).
 
+The shared agent-doc generator gives both runtimes the same bounded merge-consent
+rule: an authorized merge includes the coordinator's routine local synchronization
+without another confirmation. Verify the branch, remote and merged commit; fetch
+and advance the clean local target branch with `git merge --ff-only` to that
+verified commit. Local changes, divergence or an unexpected remote tip stop this
+follow-through. This grants no additional remote merge, deployment, history rewrite
+or shared Git mutations by commit-only workers. Runtime sandbox and approval
+controls still apply. Installed documents receive the rule through the normal
+harness installation/update path, not direct edits to protected installed assets.
+
 In a **consumer project** the doc is **per-runtime**: each runtime adapter writes
 only its own doc. `void-harness init --runtime claude` emits just `CLAUDE.md`,
 `--runtime codex` just `AGENTS.md`, `--runtime both` (the default when neither is
@@ -170,17 +180,16 @@ Claude gets `/void-graph`, `/void-doctor`, `/void-audit`, `/void-feedback` and
 
 ## Parallel fan-out
 
-Codex has no `Workflow` tool, and for a while this document listed that as a
-residual gap. It is not one. Autopilot's fan-out is defined by an
-`OrchestrationPlan` the CLI computes and an adapter executes: Claude runs it
-through `Workflow`, Codex through its **native subagents**. Both consume the
-same plan, derive execution from it rather than re-deriving it, and return the
-same `WorkerResult`; `test/autopilot/autopilot-codex-subagents.test.ts` pins
-that contract parity so the two cannot drift into deciding different things.
+Codex has no `Workflow` tool, and the autopilot loop does not need one. Its
+kernel, `void-harness autopilot next`, decides every slot from the tracker,
+GitHub and git, and the skill acts on those actions with whatever the runtime
+offers: Codex spawns a worker per `assign` through its **native subagents**,
+Claude through its own delegation. Neither runtime decides anything the kernel
+did not, so the two cannot drift into deciding different things.
 
 What is still open is BEHAVIOURAL parity of a real Codex run, which needs an
-execution conformance gate and belongs to the certification range. Contract
-parity is proven; runtime equivalence is asserted, not measured.
+execution conformance gate and belongs to the certification range. The loop was
+proved on Claude; runtime equivalence on Codex is asserted, not measured.
 
 ## The irreducible residual
 

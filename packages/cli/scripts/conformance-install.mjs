@@ -43,12 +43,27 @@ async function installPackage(temporary, tarball) {
   return join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
 }
 
+const CUSTOM_DOCTRINE = '# Project rules\r\n\r\n- Preserve accents: dépôt, and this custom rule.\r\n';
+
+async function assertDoctrine(fixture, bin, stage) {
+  const custom = await readFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'), 'utf8');
+  if (custom !== CUSTOM_DOCTRINE) throw new Error(`${stage} changed customized PROJECT-DOCTRINE bytes`);
+  const expected = await readFile(join(dirname(bin), '..', 'core-assets', 'PHILOSOPHY.md'), 'utf8');
+  const installed = await readFile(join(fixture, '.void', 'installed', 'PHILOSOPHY.md'), 'utf8');
+  if (installed !== expected || !installed.includes('${VOID_WORKTREES:-${XDG_DATA_HOME:-$HOME/.local/share}/git-worktrees}')
+    || !installed.includes('git worktree move') || !installed.includes('git worktree prune')) {
+    throw new Error(`${stage} did not deliver the packaged universal worktree invariant`);
+  }
+}
+
 async function exerciseRuntime(temporary, bin, runtime) {
   const fixture = join(temporary, `fixture-${runtime}`);
   await mkdir(join(fixture, 'tmp'), { recursive: true });
   await writeFile(join(fixture, 'package.json'), JSON.stringify({
     name: `conformance-${runtime}`, private: true,
   }));
+  await mkdir(join(fixture, '.void'), { recursive: true });
+  await writeFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'), CUSTOM_DOCTRINE);
   const environment = conformanceFixtureEnvironment(fixture);
   const started = performance.now();
   await run(
@@ -59,8 +74,22 @@ async function exerciseRuntime(temporary, bin, runtime) {
     environment,
   );
 
+  await assertDoctrine(fixture, bin, `${runtime} init`);
+  await run(`${runtime} re-init`, process.execPath, [bin, 'init', '--runtime', runtime, '--no-interactive'], fixture, environment);
+  await assertDoctrine(fixture, bin, `${runtime} re-init`);
+
   requirePath(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), `${runtime} receipt`);
   requirePath(join(fixture, '.void', 'hooks', '_void-hook.mjs'), `${runtime} hook runner`);
+  const syntaxWorker = join(fixture, '.void', 'hooks', '_syntax-worker.cjs');
+  requirePath(syntaxWorker, `${runtime} syntax worker`);
+  if (runtime === 'codex') {
+    const performanceReport = await run(
+      'packed TypeScript worker performance', process.execPath,
+      [fileURLToPath(new URL('../../hook-runner/benchmarks/syntax-worker.mjs', import.meta.url))],
+      fixture, { ...environment, VOID_BENCHMARK_WORKER: syntaxWorker },
+    );
+    process.stdout.write(performanceReport.stdout);
+  }
   if (runtime !== 'codex') {
     requirePath(join(fixture, '.claude', 'skills', 'void-tdd', 'SKILL.md'), `${runtime} Claude skill`);
     requirePath(join(fixture, '.claude', 'agents', 'doctrine-critic.md'), `${runtime} Claude agent`);
@@ -72,7 +101,6 @@ async function exerciseRuntime(temporary, bin, runtime) {
 
   const skillRoot = runtime === 'codex' ? '.agents' : '.claude';
   const receiptPath = join(fixture, '.void', 'machine', 'receipts', 'install-v1.json');
-  const installed = JSON.parse(await readFile(receiptPath, 'utf8'));
   const adjacent = join(fixture, skillRoot, 'skills', 'private', 'SKILL.md');
   await mkdir(dirname(adjacent), { recursive: true });
   await writeFile(adjacent, '# private user skill\n');
@@ -83,11 +111,17 @@ async function exerciseRuntime(temporary, bin, runtime) {
     fixture,
     environment,
   );
+  await assertDoctrine(fixture, bin, `${runtime} update`);
   if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
     throw new Error(`${runtime} update changed an adjacent user file`);
   }
+  // Normal update may complete ownership from the manifest. The recovery
+  // baseline is that current receipt, not the earlier init receipt.
+  const installed = JSON.parse(await readFile(receiptPath, 'utf8'));
+  const doctrineBeforeRecovery = await readFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'));
+  const adjacentBeforeRecovery = await readFile(adjacent);
   // A fresh clone has the versioned manifest, but no machine-local receipt.
-  // Preserve the original fixture evidence rather than manufacturing ownership.
+  // Preserve the current fixture evidence rather than manufacturing ownership.
   await rename(receiptPath, join(fixture, 'original-install-receipt.json'));
   await run(
     `${runtime} update without machine receipt`,
@@ -96,6 +130,11 @@ async function exerciseRuntime(temporary, bin, runtime) {
     fixture,
     environment,
   );
+  await assertDoctrine(fixture, bin, `${runtime} receipt recovery`);
+  if (!(await readFile(join(fixture, '.void', 'PROJECT-DOCTRINE.md'))).equals(doctrineBeforeRecovery)
+    || !(await readFile(adjacent)).equals(adjacentBeforeRecovery)) {
+    throw new Error(`${runtime} receipt recovery changed preserved user bytes`);
+  }
   const recovered = JSON.parse(await readFile(receiptPath, 'utf8'));
   const identity = (receipt) => JSON.stringify({
     source: receipt.source,

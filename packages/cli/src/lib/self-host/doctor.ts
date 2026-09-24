@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { syntaxWorkerHealth } from '../syntax-worker-health.js';
 import { randomUUID } from 'node:crypto';
 import {
   accessSync,
@@ -131,11 +132,14 @@ function discoveryCheck(artifactRoot: string): SelfHostCheck {
     '.codex/agents/experience-designer.toml',
     '.codex/agents/visual-craft-director.toml',
     '.void/hooks/_void-hook.mjs',
+    '.void/hooks/_syntax-worker.cjs',
   ];
   const missing = required.filter((path) =>
     !existsSync(join(artifactRoot, ...path.split('/'))),
   );
-  return missing.length === 0
+  const syntaxIssue = missing.length === 0
+    ? syntaxWorkerHealth(join(artifactRoot, '.void', 'hooks')) : undefined;
+  return missing.length === 0 && syntaxIssue === undefined
     ? {
         id: 'discovery',
         status: 'ok',
@@ -144,7 +148,7 @@ function discoveryCheck(artifactRoot: string): SelfHostCheck {
     : {
         id: 'discovery',
         status: 'failed',
-        detail: `missing compiled surfaces: ${missing.join(', ')}`,
+        detail: syntaxIssue ?? `missing compiled surfaces: ${missing.join(', ')}`,
       };
 }
 

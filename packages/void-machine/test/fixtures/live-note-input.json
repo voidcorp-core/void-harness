@@ -1,0 +1,16 @@
+{
+  "requestId": "m2-live-local-01",
+  "question": "What is the retained scope and what remains deferred?",
+  "sources": [
+    {
+      "sourceId": "machine-readme",
+      "title": "Machine foundation",
+      "text": "Private Machine foundation. Any future distribution uses the existing voidharness CLI; the former A5 cutover is deferred under the clean-sheet mandate."
+    },
+    {
+      "sourceId": "m1-boundary",
+      "title": "M1 private application boundary",
+      "text": "M1 private application boundary. src/application/note.ts composes two injected asynchronous executors."
+    }
+  ]
+}

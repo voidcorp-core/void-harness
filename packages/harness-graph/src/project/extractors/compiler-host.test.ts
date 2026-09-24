@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	LOST_WITHOUT_COMPILER,
 	createNodeCompilerLookup,
 	resolveProjectCompiler,
 	selectCompilerAdapter,
@@ -125,6 +126,21 @@ describe('resolveProjectCompiler', () => {
 		expect(resolution.kind).toBe('unloadable');
 	});
 
+	it('names the official alias for a TypeScript 7 project, whose `typescript` has no API', async () => {
+		// The exports of typescript@7.0.2 (`lib/version.cjs`) as `import()` hands them over.
+		const seven = { version: '7.0.2', versionMajorMinor: '7.0' };
+		const resolution = await resolveProjectCompiler('/project', {
+			...lookup(),
+			load: async () => ({ default: seven, ...seven }),
+		});
+
+		expect(resolution.kind).toBe('unsupported');
+		if (resolution.kind === 'resolved') return;
+		expect(resolution.detail).toContain('7.0.2');
+		expect(resolution.detail).toContain('"typescript": "npm:@typescript/typescript6@^6.0.2"');
+		expect(resolution.lost).toEqual(LOST_WITHOUT_COMPILER);
+	});
+
 	it('names the capability lost, so a partial snapshot says what it is missing', async () => {
 		const resolution = await resolveProjectCompiler('/project', {
 			...lookup(),
@@ -144,6 +160,15 @@ describe('selectCompilerAdapter', () => {
 			expect(selectCompilerAdapter(version), version).toMatchObject({
 				kind: 'supported',
 				adapter: 'typescript-5',
+			});
+		}
+	});
+
+	it('selects the TypeScript 6 adapter, the API a TypeScript 7 project exposes under `typescript`', () => {
+		for (const version of ['6.0.0', '6.0.3', '6.1.0-dev.20260901']) {
+			expect(selectCompilerAdapter(version), version).toMatchObject({
+				kind: 'supported',
+				adapter: 'typescript-6',
 			});
 		}
 	});

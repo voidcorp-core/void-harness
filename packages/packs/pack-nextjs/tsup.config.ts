@@ -3,9 +3,11 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts', 'src/async/index.ts'],
   format: ['esm'],
-  target: 'node20',
+  target: 'node24',
   outDir: 'dist',
-  dts: true,
+  // Declarations come from `tsc` in the build script: tsup's dts build forces
+  // `baseUrl`, which TypeScript 6 deprecates and TypeScript 7 removes.
+  dts: false,
   sourcemap: true,
   clean: true,
   splitting: false,

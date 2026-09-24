@@ -9,8 +9,8 @@ inputs:
   base-ref:
     description: >-
       Git ref to diff the head against (the PR base). Defaults to the pull
-      request's base SHA, then origin/<base branch>. Set explicitly for a
-      push-triggered run.
+      request's base SHA, then the merge group's base SHA in a merge queue,
+      then origin/<base branch>. Set explicitly for a push-triggered run.
     required: false
     default: ''
 
@@ -24,11 +24,15 @@ runs:
         # void-harness repo; the shared script + _checks.sh live three levels up.
         INPUT_BASE_REF: ${{ inputs.base-ref }}
         PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # A merge queue runs on `merge_group`, which carries no pull_request
+        # payload and no github.base_ref: its base is the group's parent commit.
+        MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         PR_BASE_REF: ${{ github.base_ref }}
       run: |
         set -euo pipefail
         base="${INPUT_BASE_REF:-}"
         [ -z "$base" ] && base="${PR_BASE_SHA:-}"
+        [ -z "$base" ] && base="${MERGE_GROUP_BASE_SHA:-}"
         [ -z "$base" ] && [ -n "${PR_BASE_REF:-}" ] && base="origin/${PR_BASE_REF}"
         # A missing base is handled fail-closed by the script itself (red check).
         "${GITHUB_ACTION_PATH}/../../../packages/core/enforce/ci-enforce.sh" --base "$base"

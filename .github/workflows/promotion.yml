@@ -38,7 +38,11 @@ env:
   EXPECTED_BASE: main
   EXPECTED_HUMAN: folpe
   MAX_PROMOTION_COMMITS: 500
-  PROMOTION_BATCH_SIZE: 40
+  # GitHub refuses a query whose worst case exceeds 500,000 nodes; each commit
+  # of the batch asks for 100 pull requests, each with its head's review checks
+  # (5 suites of 3 runs, 2 and 1 observed) and 100 timeline events.
+  # test/workflows/release-authority.test.ts recomputes the bound.
+  PROMOTION_BATCH_SIZE: 30
   PROMOTION_API_RETRIES: 3
   PROMOTION_RETRY_DELAY_SECONDS: 1
 
@@ -72,6 +76,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The merge authority of each pull request is judged by
+      # scripts/promotion-authority.mjs, on the same Node as the
+      # independent-review job. https://github.com/actions/setup-node/tree/v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+
       - name: Audit and maintain the promotion pull request
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -102,6 +113,7 @@ jobs:
           mapfile -t integration_oids < <(git rev-list --first-parent --reverse origin/main..origin/develop)
           mapfile -t commit_oids < <(git rev-list --reverse origin/main..origin/develop)
           integration_for_commit=()
+          declare -A authority_for=()
           for oid in "${commit_oids[@]}"; do
             integration_oid=''
             for entry in "${integration_oids[@]}"; do
@@ -121,7 +133,7 @@ jobs:
             local query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ '
             local index=0
             for integration_oid in "$@"; do
-              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
+              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid checkSuites(first:5,filterBy:{appId:15368}){totalCount nodes{checkRuns(first:3,filterBy:{checkName:\"independent-review\"}){totalCount nodes{status conclusion completedAt}}}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
               index=$((index + 1))
             done
             query+='} }'
@@ -193,40 +205,25 @@ jobs:
               pr=$(jq -c '.[0]' <<<"$candidates")
               number=$(jq -r '.number' <<<"$pr")
 
-              if jq -e '.timelineItems.pageInfo.hasNextPage' <<<"$pr" >/dev/null; then
-                printf 'PR #%s has more than 100 auto-merge events; timeline audit is incomplete.\n' \
-                  "$number" >&2
-                exit 1
+              # Who had the right to merge it is decided in one tested place:
+              # folpe by hand, an automatic merge whose head carries a successful
+              # independent-review check from GitHub Actions, or the back-merge proved by
+              # construction. Anything else, or any doubt, refuses.
+              if [ -z "${authority_for[$integration_oid]:-}" ]; then
+                authority_for[$integration_oid]=$(node \
+                  "$GITHUB_WORKSPACE/scripts/promotion-authority.mjs" "$integration_oid" <<<"$pr") || {
+                  echo "unauthorized commit $oid: PR #$number had no right to merge it." >&2
+                  exit 1
+                }
               fi
-
-              canonical=$(jq -r \
-                --arg repository "$EXPECTED_REPOSITORY" \
-                '.baseRefName == "develop" and .headRefName == "chore/back-merge-main" and
-                 .headRepository.nameWithOwner == $repository and
-                 .headRepositoryOwner.login == "voidcorp-core" and
-                 (.isCrossRepository | not)' <<<"$pr")
+              authority=${authority_for[$integration_oid]}
               merged_by=$(jq -r '.mergedBy.login // "missing"' <<<"$pr")
-              auto_events=$(jq \
-                '[.timelineItems.nodes[] |
-                  select(.__typename == "AutoMergeEnabledEvent")] | length' <<<"$pr")
 
-              if [ "$canonical" != true ]; then
-                if [ "$merged_by" != "$EXPECTED_HUMAN" ]; then
-                  printf 'PR #%s for commit %s was merged by %s, not %s.\n' \
-                    "$number" "$oid" "$merged_by" "$EXPECTED_HUMAN" >&2
-                  exit 1
-                fi
-                if [ "$auto_events" -ne 0 ]; then
-                  echo "PR #$number armed noncanonical auto-merge for commit $oid." >&2
-                  exit 1
-                fi
-              fi
-
-              printf -- '- `%s` -> integration `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, auto-merge events: %s\n' \
+              printf -- '- `%s` -> integration `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, authority: `%s`\n' \
                 "${oid:0:12}" "${integration_oid:0:12}" "$number" \
                 "$(jq -r '.headRefName' <<<"$pr")" \
                 "$(jq -r '.baseRefName' <<<"$pr")" \
-                "$merged_by" "$auto_events" | tee -a "$audit_file"
+                "$merged_by" "$authority" | tee -a "$audit_file"
             done
           done
 

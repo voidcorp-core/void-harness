@@ -206,11 +206,12 @@ export interface PreparedInstall {
  * which then picks it up as one more staged file — the manifest excludes itself,
  * since a file cannot carry the hash of contents that include that hash.
  */
-export async function stageInstallManifest(stageRoot: string, version: string): Promise<void> {
+export async function stageInstallManifest(stageRoot: string, version: string, projectDoctrineTemplateSha256?: string): Promise<void> {
   const staged = await collectStageFiles(stageRoot);
   const manifest = buildInstallManifest(
     version,
     staged.map((file) => ({ path: file.path, sha256: sha256Of(file.content) })),
+    projectDoctrineTemplateSha256,
   );
   const target = join(stageRoot, ...INSTALL_MANIFEST_PATH.split('/'));
   await mkdir(dirname(target), { recursive: true });

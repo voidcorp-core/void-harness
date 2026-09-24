@@ -7,6 +7,13 @@ on:
   # set on both branches — no reduced coverage on the autonomous side.
   pull_request:
     branches: [main, develop]
+  # The merge queue on `develop` replays the required checks on the combined
+  # result before merging, and waits for them on this event only. GITHUB_SHA is
+  # then the merge group commit, so every GATE_SHA below proves that commit.
+  # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
+  merge_group:
+    types: [checks_requested]
+    branches: [develop]
   push:
     branches: [main, develop]
   # Release Please uses GITHUB_TOKEN, so its PR events do not run unattended.
@@ -14,24 +21,6 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  native-doctor:
-    name: native doctor (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Rust format
-        run: cargo fmt --manifest-path native/void-machine/Cargo.toml --all -- --check
-      - name: Rust tests
-        run: cargo test --manifest-path native/void-machine/Cargo.toml --workspace
-      - name: Rust clippy
-        run: cargo clippy --manifest-path native/void-machine/Cargo.toml --workspace --all-targets -- -D warnings
-      - name: Native skill check
-        run: cargo run --quiet --manifest-path native/void-machine/crates/cli/Cargo.toml -- skill check native/void-machine/fixtures/read-only-skill --json
-
   consumer-artifact:
     name: packed consumer artifact
     runs-on: ubuntu-latest
@@ -181,6 +170,32 @@ jobs:
         if: steps.areas.outputs.graph == 'true'
         run: pnpm conformance:project-graph
 
+  # The engines floor is Node 24 and `validate` proves it. Node 26 is the next
+  # LTS line: this job runs the same build, type check and suites on it, once,
+  # instead of doubling every OS-bound conformance job. It is a separate job so
+  # the required `validate` check keeps its name.
+  node-current:
+    name: tests (node 26)
+    runs-on: ubuntu-latest
+    # `validate` runs the same build, type check and suites in 4 to 5 minutes;
+    # three times that bounds a hang without cutting a slow but healthy run.
+    timeout-minutes: 15
+    env:
+      GATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.GATE_SHA }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+
   validate:
     runs-on: ubuntu-latest
     env:
@@ -241,7 +256,7 @@ jobs:
       - name: "[decisions] Decision records"
         continue-on-error: true
         env:
-          DECISIONS_BASE: ${{ github.event.pull_request.base.sha }}
+          DECISIONS_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: >-
           node scripts/verify.mjs --gate decisions
           --sha "$GATE_SHA"

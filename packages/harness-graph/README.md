@@ -44,6 +44,11 @@ Bounded, root-confined `tsconfig` inheritance accepts the TypeScript 5.9 string 
 forms and is parsed as a complete graph by the
 official Compiler API so `baseUrl`, `paths`, and their declaring config origins retain compiler
 semantics; cyclic, missing, escaping, or over-deep config chains make the snapshot partial.
+The compiler is the analysed project's own `typescript`, resolved from its root: 5.x and 6.x are
+supported. TypeScript 7 ships no JavaScript API, so a TypeScript 7 project is analysed through the
+6.x API it installs under `typescript` per Microsoft's migration
+(`"typescript": "npm:@typescript/typescript6@^6.0.2"`); without it, the snapshot is partial, names
+the lost capabilities and the alias to add, rather than borrowing the harness's compiler.
 Vitest test discovery recognizes only the bounded `it`/`test`, `only`, `skip`, `todo`, `concurrent`,
 `sequential`, `fails`, `skipIf`, `runIf`, and `each` call grammar. `extend`, arbitrary members, and
 non-literal dynamic imports are excluded or diagnosed rather than silently inventing topology.
@@ -129,14 +134,11 @@ Compiler API implementation follows the
 [official TypeScript Compiler API guide](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API),
 including AST traversal and standard `resolveModuleName` behavior.
 
-TypeScript is a production dependency because the compiler is the parser and resolver. On 2026-07-28,
-the checked-in lock resolved `5.9.3` with Apache-2.0 license, repository metadata pointing to
-`microsoft/TypeScript`, no runtime dependencies, no native module, and no install lifecycle script,
-and npm
-integrity
-`sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==`.
-This records package metadata and lock integrity, not an npm provenance attestation.
-`pnpm audit --prod` exited successfully on that date. The cross-platform CI lane runs ProjectGraph tests and
+TypeScript is not a dependency this package ships. The compiler is the parser and resolver, and it
+is the analysed project's own, so `typescript` is an optional peer (`>=5.0.0 <7.0.0`) loaded at
+runtime from the project root; nothing falls back to a copy of ours. The development-only
+`typescript` (the 6.0 API through `@typescript/typescript6`) and `typescript5` (5.9) aliases exist
+so the compiler-dependent suites run once per API a consumer can resolve. The cross-platform CI lane runs ProjectGraph tests and
 typecheck on Ubuntu, macOS, and Windows, then installs the packed artifact with lifecycle scripts
 disabled and imports `@voidcorp/harness-graph/project` from a disposable consumer.
 

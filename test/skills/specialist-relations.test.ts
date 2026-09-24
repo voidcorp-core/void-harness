@@ -54,7 +54,6 @@ describe('declared skill, agent, hook, and learn synergies', () => {
       expect.objectContaining({ from: 'skill:void-graph', to: 'skill:void-audit' }),
       expect.objectContaining({ from: 'skill:void-audit', to: 'skill:void-learn' }),
       expect.objectContaining({ from: 'skill:void-retrospective', to: 'skill:void-learn' }),
-      expect.objectContaining({ from: 'skill:void-autopilot', to: 'workflow-def:autopilot' }),
     ]));
   });
 

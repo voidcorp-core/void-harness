@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -45,7 +46,11 @@ function pluginFixture(hooks: Record<string, { exec: boolean }>): string {
   mkdirSync(join(dir, 'hooks'), { recursive: true });
   for (const [name, { exec }] of Object.entries(hooks)) {
     const abs = join(dir, 'hooks', name);
-    writeFileSync(abs, '#!/usr/bin/env bash\nexit 0\n');
+    const workerBytes = '#!/usr/bin/env bash\nexit 0\n';
+    const header = name === '_void-hook.mjs' ? `// syntax-worker: ${JSON.stringify({
+      sha256: createHash('sha256').update(workerBytes).digest('hex'), bytes: Buffer.byteLength(workerBytes),
+    })}\n` : '';
+    writeFileSync(abs, header + workerBytes);
     chmodSync(abs, exec ? 0o755 : 0o644);
   }
   return dir;
@@ -54,6 +59,7 @@ function pluginFixture(hooks: Record<string, { exec: boolean }>): string {
 describe('hookHealthIssues', () => {
   it('reports nothing when every wired hook exists and is executable', () => {
     const dir = pluginFixture({
+      '_syntax-worker.cjs': { exec: false },
       '_void-hook.mjs': { exec: false },
       'no-any-grep.sh': { exec: true },
       'sessionstart-context.sh': { exec: true },

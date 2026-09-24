@@ -32,18 +32,58 @@ Two long-lived branches, with different gates and different levels of autonomy.
 
 | | `develop` | `main` |
 |---|---|---|
-| Merged by | a human for normal work; native auto-merge only for the canonical release back-merge | a human, after reading the change as a whole |
+| Merged by | native auto-merge, once every required check passes, `independent-review` included | a human, after reading the change as a whole; `void-enforce` refuses an armed auto-merge |
 | Guarantees | the suite passed and the doctrine floor held | the above, plus a human said yes |
-| CI (`ci.yml`, `void-enforce.yml`) | identical job set to `main` | identical job set to `develop` |
+| CI (`ci.yml`, `void-enforce.yml`) | job set of `main`, plus `independent-review` and the `merge_group` trigger | identical job set to `develop`, no merge queue |
 | `release.yml` | never fires | fires on every push — release-please, then publish |
 | Server-side protection | same required checks as `main`, no force-push, no deletion | unchanged |
 
 **`develop` is the integration branch, so it carries the *same* checks as `main`,
-not fewer.** Automation may prepare work there, but normal pull requests still
-stop for a human merge. The only armed auto-merge allowed in the repository is
-`chore/back-merge-main -> develop`, after its required checks pass. A `develop`
+not fewer.** Auto-merge is the default way into it: native auto-merge waits for
+branch protection and every required check, so arming it early bypasses nothing,
+and `independent-review` holds each pull request until a reviewer in a fresh
+context approved its exact head. `void-enforce` refuses an armed auto-merge on any
+pull request into `main`, the promotion and the release pull request included:
+those are the two release actions below, and a person takes both. A `develop`
 without CI would make every automation path blind, which is why protection
 failures are treated as unprotected rather than inferred safe.
+
+The continuous autopilot loop still never arms a change to the machinery that
+judges merges (workflows, the verdict check, the programme, the hooks): it hands
+those pull requests to a person.
+
+The promotion audit in `promotion.yml` follows the same rule: every commit it
+promotes entered `develop` through a merged pull request, and
+`scripts/promotion-authority.mjs` accepts that pull request in exactly three
+cases. Its head SHA carries a successful `independent-review` check run from
+GitHub Actions, the review the required check demanded before it could merge, whoever merged it and
+whatever its timeline records: `gh pr merge --auto` on a pull request already
+mergeable merges at once and leaves no auto-merge event. Or it was merged
+by hand by the named human, with no auto-merge or merge queue event in its
+timeline. Or it is the release
+back-merge, proved by construction with the same check the `independent-review`
+job runs, replayed against `develop` as it stood (the first parent of the
+integration commit); one that does not hold needs the verdict like any other
+automatic merge. Everything else refuses the promotion, and so does every doubt:
+a missing field, a check not read on the head, a truncated timeline, a git or
+API error. Automatic merges into `develop` therefore reach `main` only with the
+evidence that let them merge, and the promotion itself stays a human merge.
+
+**`develop` merges through a merge queue.** Every workflow that carries a
+required check of `develop` also answers `merge_group`, the only event a queue
+waits on, and falls back to the group's `base_sha` wherever it read the pull
+request base. The review itself is a job, `independent-review.yml`, on
+`pull_request_target`: it reads the head as data with read-only tools and
+publishes the `independent-review` check on it. In the queue,
+`independent-review-queue.yml` does not believe that check, which any workflow
+of the repository could create: it passes only when every pull request of the
+group has a successful run of the review workflow for its own head, run from
+`main`: `pull_request_target` takes the workflow from the default branch, so a
+change to the review applies once promoted. The job reviews with the
+`CLAUDE_CODE_OAUTH_TOKEN` secret of the `independent-review` environment,
+whose deployment branch policy admits `main` alone, so a workflow pushed to
+another branch cannot read it; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
+and [the review-in-GitHub decision](decisions-log/2026-09-24-review-runs-from-default-branch--c3c5eada-4c1d-4570-b707-526df55198b4.md).
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is
 triggered by `push: branches: [main]` and nothing about the two-branch flow touches
@@ -88,13 +128,16 @@ commit count: a promotion leaves a merge commit on `main` that `develop` does no
 carry, so counting would open an empty pull request every time, and a robot that
 opens pull requests nobody needs gets merged without being read.
 
-That pull request merges itself once the required checks pass. It is the one
-place auto-merge is allowed, and the reason is a property of its content rather
-than a relaxation: it carries the release output a human approved minutes
-earlier, so a second reading is ceremony. Anything carrying an unread diff still
-stops at a human, which is why `void-autopilot` refuses `--auto-merge` and this does
-not. Native auto-merge is used, so protection and the required checks stand; a
-failing check simply leaves it open. It opens rather than pushes: `develop` is
+That pull request merges itself once the required checks pass. It needs no
+review verdict, and the reason is a property of its content rather than a
+relaxation: it carries the release output a human approved minutes earlier, so a
+second reading is ceremony. The exemption is proved rather than granted on the
+author alone: the `independent-review` job checks that the head is already on
+`main`, or is the clean merge of a `develop` commit and a `main` commit with
+nothing else `main` lacks. A commit pushed onto the branch by anyone else sends it
+back to needing a verdict. Every other pull request into `develop` waits for the
+independent reviewer's verdict on its head. Native auto-merge is used, so
+protection and the required checks stand; a failing check simply leaves it open. It opens rather than pushes: `develop` is
 protected with `enforce_admins`, and a branch only a robot may bypass is not
 protected. A conflict fails the job instead of being resolved unattended, since
 it means `develop` and `main` both touched a file release-please owns.
@@ -143,8 +186,10 @@ Actions on the routine path.
 1. `promotion.yml` maintains one `develop -> main` PR and records every promoted
    commit, its first entry on develop's first-parent history, and the merged PR
    whose `mergeCommit` exactly matches that entry, including nested branch PRs.
-   A later containing merge cannot authorize an earlier direct commit. The audit
-   retains the merge actor, auto-merge history and fail-closed pagination checks. **Release
+   A later containing merge cannot authorize an earlier direct commit. Each pull
+   request must hold one of the three merge authorities above (a success verdict
+   on its head, the named human by hand, or the back-merge proved by
+   construction), with fail-closed pagination checks. **Release
    action 1:** merge that promotion PR after its five current checks pass and the
    complete accounting is explainable.
 2. On `main`, release-please maintains one version/changelog PR. It changes every
@@ -177,8 +222,9 @@ Actions on the routine path.
    bundle instead of pretending the retry signed historical bytes. The separately
    verified artifact manifest binds those bytes to the release commit selected by
    the immutable tag. Registry metadata alone is not success.
-7. `back-merge.yml` returns the approved release output to `develop` through the
-   sole canonical native auto-merge path after the same five checks pass.
+7. `back-merge.yml` returns the approved release output to `develop` through
+   native auto-merge after the same required checks pass, the one pull request
+   the review verdict exempts.
 
 There is no normal-path workflow dispatch, deployment approval, npm token or
 manual laptop publish. A green publish without a green `verify-publication` is an

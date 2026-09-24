@@ -6,11 +6,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { buildDefaultConfig, buildFinalChecklist, configWriteVerdict, installDoctrineFiles, resolveInstallSource, sourceRepoVerdict } from './init.js';
+import { stageInstallManifest } from '../lib/local-install.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import type { Stack } from '../lib/stack.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { afterEach } from 'vitest';
 
@@ -191,6 +193,7 @@ describe('installDoctrineFiles', () => {
       JSON.stringify({
         schemaVersion: 1,
         version: '3.3.0',
+        projectDoctrineTemplateSha256: createHash('sha256').update(body).digest('hex'),
         files: [{ path: '.void/PROJECT-DOCTRINE.md', sha256: createHash('sha256').update(body).digest('hex') }],
       }),
     );
@@ -212,6 +215,49 @@ describe('installDoctrineFiles', () => {
     const stage = staged('OLD TEMPLATE\n');
     await installDoctrineFiles(stage, source(), { installRoot: attesting('OLD TEMPLATE\n') });
     expect(doctrineIn(stage)).toBe('TEMPLATE\n');
+  });
+
+  it('distributes the universal worktree invariant while preserving a customized doctrine on repeated installs', async () => {
+    const core = fileURLToPath(new URL('../../../core/', import.meta.url));
+    const custom = '# My project\r\n\r\n- Keep my conventions and accents: dépôt.\r\n';
+    const stage = staged(custom);
+    const installed = attesting('ORIGINAL TEMPLATE\n');
+
+    await installDoctrineFiles(stage, core, { installRoot: installed });
+    await installDoctrineFiles(stage, core, { installRoot: installed });
+
+    expect(doctrineIn(stage)).toBe(custom);
+    const philosophy = readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8');
+    expect(philosophy).toBe(readFileSync(join(core, 'PHILOSOPHY.md'), 'utf8'));
+    expect(philosophy).toContain(`\${VOID_WORKTREES:-\${XDG_DATA_HOME:-$HOME/.local/share}/git-worktrees}`);
+    expect(philosophy).toContain('git worktree move');
+    expect(philosophy).toContain('git worktree prune');
+  });
+
+  it('preserves custom CRLF doctrine after the real manifest records a preserved first install', async () => {
+    const custom = Buffer.from('# Project rules\r\n\r\n- Preserve accents: dépôt, and this custom rule.\r\n', 'utf8');
+    const stage = staged(custom.toString('utf8'));
+    const core = source();
+    await installDoctrineFiles(stage, core, { installRoot: stage });
+    expect(readFileSync(join(stage, '.void/PROJECT-DOCTRINE.md'))).toEqual(custom);
+    // Persist the actual first-install manifest, not an attesting template mock.
+    await stageInstallManifest(stage, '3.8.0');
+    await installDoctrineFiles(stage, core, { installRoot: stage });
+    expect(readFileSync(join(stage, '.void/PROJECT-DOCTRINE.md'))).toEqual(custom);
+  });
+
+  it('refreshes a proven seeded template but preserves custom bytes in a real manifest with template provenance', async () => {
+    for (const body of ['TEMPLATE\n', '# Personal rules\r\n- dépôt\r\n']) {
+      const stage = staged(body);
+      const core = source();
+      const deliveredHash = createHash('sha256').update('TEMPLATE\n').digest('hex');
+      await stageInstallManifest(stage, '3.8.0', deliveredHash);
+      writeFileSync(join(core, 'PROJECT-DOCTRINE.template.md'), 'NEW TEMPLATE\n');
+      await installDoctrineFiles(stage, core, { installRoot: stage });
+      expect(readFileSync(join(stage, '.void/PROJECT-DOCTRINE.md'))).toEqual(
+        Buffer.from(body === 'TEMPLATE\n' ? 'NEW TEMPLATE\n' : body),
+      );
+    }
   });
 
   it('never touches a project doctrine the project has written into', async () => {

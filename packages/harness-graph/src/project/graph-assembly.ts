@@ -11,6 +11,7 @@ import {
 	type GraphSnapshotV3,
 } from '../model/v3/types.js';
 import type { ProjectGraphCacheEntry, ProjectGraphTombstone } from './cache.js';
+import { collectDeclaredKnowledge } from './declarations.js';
 import type { CompilerResolution, TypeScriptApi } from './extractors/compiler-host.js';
 import {
 	type ProjectGitSnapshot,
@@ -595,6 +596,11 @@ export function assembleProjectGraph(
 	addImportEdges(context);
 	addWorkspaceDependencyEdges(context);
 	addTombstoneNodes(context);
+	const knowledge = collectDeclaredKnowledge(entries);
+	for (const node of knowledge.nodes) context.writer.addNode(node);
+	for (const edge of knowledge.edges) {
+		context.writer.addEdge(edge.kind, edge.from, edge.to, edge.provenance);
+	}
 	return sealProjectGraph(context);
 }
 
@@ -619,7 +625,14 @@ export function exceedsProjectGraphBudget(
 	const moduleUpperBound = new Set(
 		entries.flatMap((entry) => entry.extraction.imports.map((dependency) => dependency.specifier)),
 	).size;
-	const nodeUpperBound =
+	const declared = entries.flatMap((entry) =>
+		entry.extraction.declaration?.ok === true ? [entry.extraction.declaration.value] : [],
+	);
+	const declaredEdgeUpperBound = declared.reduce((total, value) => total + (
+		value.kind === 'decision' ? value.affects.length
+			: value.enforced_by.length + value.verified_by.length + value.decided_by.length
+	), 0);
+	const nodeUpperBound = declared.length +
 		1 +
 		workspaces.length +
 		entries.length +
@@ -632,7 +645,7 @@ export function exceedsProjectGraphBudget(
 		(total, entry) => total + entry.extraction.imports.length * 2,
 		0,
 	);
-	const edgeUpperBound =
+	const edgeUpperBound = declaredEdgeUpperBound +
 		workspaces.length +
 		entries.length +
 		symbolCount * 2 +

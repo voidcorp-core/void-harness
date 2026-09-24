@@ -1,9 +1,12 @@
 import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import {
 	type CompilerLookup,
 	createNodeCompilerLookup,
+	resolveProjectCompiler,
+	type TypeScriptApi,
 } from './extractors/compiler-host.js';
 import { projectPathIsIgnored } from './extractors/filesystem.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
@@ -223,4 +226,42 @@ export function fixtureCompilerLookup(): CompilerLookup {
 		resolve: () => node.resolve(process.cwd()),
 		load: (modulePath: string) => node.load(modulePath),
 	});
+}
+
+/**
+ * The compiler APIs a consumer project can resolve under `typescript`.
+ *
+ * A TypeScript 5 project and a TypeScript 6 or 7 project (through Microsoft's
+ * alias) hand the extractors different defaults: without a tsconfig, 5.x
+ * resolves modules as `node10` and 6.x as `bundler`. Suites whose result
+ * depends on the compiler run once per entry, each through the lookup port
+ * production uses, so a divergence between the two APIs is a red test.
+ */
+export const FIXTURE_COMPILERS = Object.freeze([
+	Object.freeze({
+		label: 'TypeScript 5 API',
+		lookup: packageCompilerLookup('typescript5'),
+		resolutionWithoutConfig: 'node10',
+	}),
+	Object.freeze({
+		label: 'TypeScript 6 API',
+		lookup: packageCompilerLookup('typescript'),
+		resolutionWithoutConfig: 'bundler',
+	}),
+]);
+
+function packageCompilerLookup(packageName: string): CompilerLookup {
+	const node = createNodeCompilerLookup();
+	const resolver = createRequire(import.meta.url);
+	return Object.freeze({
+		resolve: () => resolver.resolve(packageName),
+		load: (modulePath: string) => node.load(modulePath),
+	});
+}
+
+/** Load a fixture compiler through `resolveProjectCompiler`, the production boundary. */
+export async function loadFixtureCompiler(lookup: CompilerLookup): Promise<TypeScriptApi> {
+	const resolution = await resolveProjectCompiler(process.cwd(), lookup);
+	if (resolution.kind !== 'resolved') throw new Error(resolution.detail);
+	return resolution.api;
 }

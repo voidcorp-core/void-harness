@@ -52,7 +52,12 @@ export const GATES = Object.freeze([
     'contract',
     'subprocess',
     ['decisions', 'source'],
-    { ciEnv: { DECISIONS_BASE: '${{ github.event.pull_request.base.sha }}' } },
+    {
+      ciEnv: {
+        DECISIONS_BASE:
+          '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}',
+      },
+    },
   ),
   gate(
     'hook-runner-current',
@@ -64,7 +69,8 @@ export const GATES = Object.freeze([
     {
       artifact: true,
       fix: ['pnpm', 'hooks:build'],
-      drift: ['packages/core/hooks/_void-hook.mjs'],
+      drift: ['packages/core/hooks/_void-hook.mjs', 'packages/core/hooks/_syntax-worker.cjs',
+        'packages/hook-runner/src/enforcement/syntax-worker-identity.generated.ts'],
     },
   ),
   gate(

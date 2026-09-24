@@ -1,0 +1,158 @@
+Décision : porter le socle existant de Void Machine vers TypeScript strict, en corrigeant les frontières architecturales.
+
+La maintenabilité par moi est un critère majeur. L’audit en lecture seule du checkout principal à 1efeedf1 a identifié 8 fichiers Rust, environ 1 542 lignes hors tests, 451 lignes de tests et 28 tests déclarés. Aucun besoin mesuré ne justifie actuellement de conserver deux langages.
+
+Cet audit est un inventaire du code, pas une certification de fonctionnement. Vérifie les évolutions intervenues depuis, sans recommencer un audit général.
+
+1. Ordre des travaux et décision durable
+
+Consigne cette décision dans la vision, la spec, le plan et le checkpoint. Réconcilie les décisions antérieures par une nouvelle ADR, sans réécrire les décisions historiques acceptées.
+
+Termine d’abord le périmètre WORK-1/2/3 déjà engagé. Ne mélange pas leur clôture avec le portage et n’élargis pas leur chantier.
+
+Cette instruction autorise ensuite l’implémentation et les vérifications isolées du portage. Elle n’autorise ni une release ni le remplacement de l’installation active.
+
+2. Périmètre du portage
+
+Reprends les capacités effectivement implémentées en Rust, adaptées idiomatiquement à TypeScript strict sur Node.js.
+
+Le périmètre observé comprend :
+- les commandes doctor et skill check ;
+- les rapports et schémas associés ;
+- l’identification et la validation des paquets de skills ;
+- les états et preuves des effets Git ;
+- l’observation des commits et des mutations partagées du dépôt ;
+- le rapprochement des tickets et résultats d’agents ;
+- les décisions autorisant ou refusant un merge.
+
+Vérifie les dépendances réelles au binaire, au lanceur npm, aux schémas et à la CI. Produis une correspondance courte entre comportement existant, couche propriétaire, destination et preuve de conservation.
+
+Conserve les contrats publics utiles : commandes, rapports, codes de sortie, identités calculées sur les octets, refus de sécurité et sémantique des effets.
+
+Une approximation ou un défaut existant n’est pas une exigence de compatibilité. Toute correction nécessaire doit être explicitée et testée, sans devenir un prétexte à un chantier supplémentaire.
+
+3. Architecture et responsabilité des couches
+
+La migration vise la parité des capacités au niveau du produit, pas leur conservation dans le noyau.
+
+Attribue chaque capacité à son propriétaire avant de la porter :
+
+- Noyau : identités, états, transitions et décisions génériques concernant les missions, unités de travail, autorisations, attentes, résultats et effets à réconcilier.
+- Runtime : exécution, persistance, interruption, reprise, annulation et gestion des ressources, en appliquant les décisions du noyau.
+- Verticale développement : brainstorm logiciel, specs, implémentation, exigences de revue, politiques Git/worktrees et conditions de livraison.
+- Adaptateurs : opérations concrètes sur Git, GitHub, runtimes d’agents, modèles, stockage, terminaux et affichage.
+
+Le noyau ne connaît pas une PR, un commit Git, un fichier SKILL.md, une règle de revue de code ou un panneau Herdr.
+
+La verticale définit la politique métier ; l’adaptateur réalise les opérations techniques. Par exemple, les conditions autorisant un merge appartiennent à la verticale développement ; l’appel GitHub appartient à l’adaptateur. Le noyau traite une opération autorisée et son résultat.
+
+Le runtime suit l’exécution des agents et collecte leurs résultats. L’adaptateur de présentation gère leurs panneaux. Fermer un panneau ne supprime jamais implicitement une worktree, une branche ou des preuves.
+
+Les dépendances vont des couches spécialisées vers les contrats génériques, jamais du noyau vers une verticale. Une nouvelle verticale doit pouvoir utiliser le moteur sans importer les règles du développement logiciel.
+
+Cette séparation doit rester simple : modules cohérents et dépendances explicites. Elle ne nécessite pas plusieurs services, une multiplication des packages ou un framework interne.
+
+N’invente pas une abstraction générique pour chaque fonction existante. Garde les comportements spécialisés dans leur verticale ; n’extrais que les mécanismes nécessaires au parcours accepté.
+
+4. Adaptation à TypeScript
+
+Utilise les primitives standard pour le hachage et JSON, et des parseurs maintenus pour les formats conservés. Ne porte pas les implémentations artisanales de SHA-256, sérialisation JSON ou parsing approximatif lorsqu’une primitive adaptée existe.
+
+Préserve les identités en tenant compte des octets UTF-8 et des formats canoniques. Traite explicitement les limites numériques des contrats Rust lors du passage à TypeScript.
+
+Valide les données aux frontières, représente les états explicitement et sépare les décisions des effets externes.
+
+Examine les capacités TypeScript existantes pour réutilisation ciblée, notamment durable-run.ts. N’importe pas automatiquement le contrôleur de missions du harnais. Réutiliser une capacité exige qu’elle corresponde au besoin et respecte les frontières retenues.
+
+Chaque responsabilité doit avoir un seul propriétaire autoritaire.
+
+5. Ne pas reconduire les blocages du harnais
+
+L’architecture et les mécanismes de contrôle du harnais actuel ne sont pas reconduits par défaut. Chaque mécanisme conservé doit répondre à un besoin concret et justifier son coût d’exécution, de maintenance et de vérification.
+
+L’orchestrateur distribue le travail, transmet les questions et collecte les résultats. Le runtime applique les transitions, attentes, reprises et clôtures de façon déterministe.
+
+Pour la conception du moteur :
+- chaque attente expose une cause, un responsable et une action de résolution ;
+- un complément de contexte conserve la mission et son historique, réutilise les résultats encore valides et ne consomme pas artificiellement un tour ;
+- une preuve future ne bloque pas prématurément ;
+- les décisions et l’état utile sont durables et ne dépendent pas de la mémoire conversationnelle ;
+- un résultat externe ambigu est réconcilié avant toute répétition ;
+- un agent terminé a son résultat collecté puis son panneau possédé fermé, selon un cycle distinct de celui de ses preuves et de sa worktree.
+
+Ces principes guident les frontières et la suite du noyau. Ils ne doivent pas servir à ajouter immédiatement de nouveaux mécanismes hors du périmètre du portage.
+
+6. Périmètre fermé
+
+Cette étape porte l’existant. Elle ne construit pas simultanément tout le futur moteur, une nouvelle plateforme de plugins, un ordonnanceur général ou un système de contrôle supplémentaire.
+
+Les exigences du futur parcours intention → clarification → interruption → reprise → correction → livraison restent dans la spec du noyau.
+
+Ne présente pas la parité avec le Rust actuel comme la réalisation de ce parcours complet. Le portage prépare ce travail ; il ne doit pas l’absorber.
+
+Docker, de nouveaux connecteurs et les mécanismes avancés restent hors de cette étape, sauf dépendance concrète démontrée.
+
+7. Vérifications proportionnées et Mac utilisable
+
+Une seule tâche lourde locale à la fois, avec un seul worker de tests par défaut, y compris entre agents. Les analyses ou éditions indépendantes peuvent avancer en parallèle, mais pas les builds et suites lourdes.
+
+Pas de watch ni de relances de suites inchangées. Regroupe les vérifications et utilise la CI pour la matrice multiplateforme.
+
+Privilégie des tests de contrat communs et quelques intégrations réelles pour les fichiers, processus et Git. Chaque test doit protéger un comportement distinct et utile.
+
+Ne recopie pas un test faible simplement pour conserver le nombre de tests. Ne fige pas les détails internes de l’implémentation.
+
+Vérifie la direction des dépendances avec un moyen simple, sans créer un nouveau dispositif de contrôle disproportionné.
+
+Mesure la durée, le pic mémoire et les processus lancés sur les vérifications représentatives. Rapporte les mesures disponibles ; ne promets pas de gain sans preuve. Le changement de langage ne constitue pas, à lui seul, une preuve d’amélioration des performances.
+
+Nettoie uniquement les artefacts possédés et devenus inutiles. Préserve le travail utilisateur, les modifications non commitées et les preuves nécessaires à la reprise.
+
+8. Revues bornées
+
+Fais une revue indépendante consolidée du portage.
+
+Une remarque bloque seulement si elle démontre une conséquence sur :
+- la sécurité ;
+- les permissions ;
+- l’intégrité des données ;
+- la compatibilité requise ;
+- un critère d’acceptation.
+
+Les autres améliorations sont différées et ne rouvrent pas le périmètre.
+
+Après correction, vérifie les points concernés et leurs dépendances affectées. Ne recommence pas un audit général.
+
+Un blocage persistant produit une explication et une décision explicite, jamais une boucle automatique de revues ou de relances. Ne contourne pas un vrai refus pour terminer.
+
+Le dispositif de contrôle ne doit pas devenir plus complexe à faire fonctionner que le travail qu’il encadre.
+
+9. Critère de fin du portage
+
+Le portage est terminé lorsque :
+- le candidat TypeScript couvre les comportements retenus ;
+- chaque capacité appartient à la bonne couche ;
+- les preuves ciblées passent ;
+- l’entrée CLI et le paquet fonctionnent ;
+- les vérifications multiplateformes nécessaires sont conservées ;
+- les remarques bloquantes de la revue sont résolues ;
+- les documents et références sont cohérents ;
+- les mesures de coût des vérifications sont rapportées avec leurs limites.
+
+Retire alors du candidat l’implémentation Rust remplacée et ses chemins de build devenus inutiles, après vérification des consommateurs concernés. Ne maintiens pas durablement deux moteurs en parallèle.
+
+Préserve l’historique Git et documente la possibilité de retour arrière.
+
+Collecte les résultats des agents, ferme leurs panneaux possédés lorsqu’aucune action ne reste attendue, puis actualise le checkpoint.
+
+Toute publication ou modification de l’installation active reste une étape distincte, soumise à autorisation.
+
+10. Suite du noyau
+
+Après ce portage borné, construis le moteur TypeScript à partir de la vision et des enseignements des incidents, sans reconduire automatiquement le dispositif du harnais.
+
+Le premier parcours d’acceptation doit démontrer une demande allant de l’intention au résultat livré, avec une clarification, une interruption et une correction, sans perte de travail, effet rejoué, validation humaine redondante ni boucle de revue indéfinie.
+
+Mesure aussi le temps, le coût, les ressources locales et les interventions humaines nécessaires.
+
+L’objectif est un moteur maintenable, simple à exploiter et indépendant de ses verticales. Une architecture qui reproduit les blocages et la saturation observés serait un échec, même si ses composants sont individuellement bien conçus.

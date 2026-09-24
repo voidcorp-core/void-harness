@@ -94,11 +94,11 @@
     {
       "description": "Performs an independent diff review for correctness, maintainability, boundary compliance, and evidence-backed release blockers.",
       "id": "agent:independent-code-reviewer",
-      "lines": 57,
+      "lines": 61,
       "name": "independent-code-reviewer",
       "pack": null,
       "source": "packages/core/agents/independent-code-reviewer.md",
-      "staticTokens": 846,
+      "staticTokens": 1361,
       "type": "agent"
     },
     {
@@ -208,7 +208,7 @@
       "name": "visual-craft-director",
       "pack": null,
       "source": "packages/core/agents/visual-craft-director.md",
-      "staticTokens": 966,
+      "staticTokens": 1324,
       "type": "agent"
     },
     {
@@ -1686,7 +1686,7 @@
       "type": "skill"
     },
     {
-      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.",
+      "description": "Use to run the continuous delivery loop, where a curator ranks the backlog, up to four workers each run void-implement to a PR, and a bounded review gates the GitHub merge queue until drained or stopped.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1703,7 +1703,7 @@
         }
       ],
       "id": "skill:void-autopilot",
-      "lines": 399,
+      "lines": 356,
       "name": "void-autopilot",
       "owner": "folpe",
       "pack": null,
@@ -1712,7 +1712,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-autopilot/SKILL.md",
-      "staticTokens": 6823,
+      "staticTokens": 6014,
       "type": "skill"
     },
     {
@@ -1824,7 +1824,7 @@
         }
       ],
       "id": "skill:void-code-review",
-      "lines": 218,
+      "lines": 232,
       "name": "void-code-review",
       "owner": "folpe",
       "pack": null,
@@ -1833,7 +1833,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-code-review/SKILL.md",
-      "staticTokens": 2741,
+      "staticTokens": 3050,
       "type": "skill"
     },
     {
@@ -2195,7 +2195,7 @@
         }
       ],
       "id": "skill:void-implement",
-      "lines": 182,
+      "lines": 183,
       "name": "void-implement",
       "owner": "folpe",
       "pack": null,
@@ -2204,7 +2204,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-implement/SKILL.md",
-      "staticTokens": 5351,
+      "staticTokens": 5527,
       "type": "skill"
     },
     {
@@ -2225,7 +2225,7 @@
         }
       ],
       "id": "skill:void-learn",
-      "lines": 215,
+      "lines": 226,
       "name": "void-learn",
       "owner": "folpe",
       "pack": null,
@@ -2234,7 +2234,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-learn/SKILL.md",
-      "staticTokens": 3025,
+      "staticTokens": 3311,
       "type": "skill"
     },
     {
@@ -2326,7 +2326,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-merge/SKILL.md",
-      "staticTokens": 1247,
+      "staticTokens": 1272,
       "type": "skill"
     },
     {
@@ -2615,7 +2615,7 @@
     },
     {
       "activation": "always",
-      "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
+      "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version; cite the reference when it helps. Use before writing any tool config.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2632,7 +2632,7 @@
         }
       ],
       "id": "skill:void-source-driven-development",
-      "lines": 162,
+      "lines": 158,
       "name": "void-source-driven-development",
       "owner": "folpe",
       "pack": null,
@@ -2641,7 +2641,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-source-driven-development/SKILL.md",
-      "staticTokens": 2384,
+      "staticTokens": 2452,
       "type": "skill"
     },
     {
@@ -2829,7 +2829,7 @@
         }
       ],
       "id": "skill:void-verify",
-      "lines": 175,
+      "lines": 184,
       "name": "void-verify",
       "owner": "folpe",
       "pack": null,
@@ -2838,18 +2838,8 @@
         "codex"
       ],
       "source": "packages/core/skills/void-verify/SKILL.md",
-      "staticTokens": 2084,
+      "staticTokens": 2267,
       "type": "skill"
-    },
-    {
-      "description": "",
-      "id": "workflow-def:autopilot",
-      "lines": 0,
-      "name": "autopilot",
-      "pack": null,
-      "source": "packages/core/skills/void-autopilot/workflows/autopilot.workflow.js",
-      "staticTokens": 0,
-      "type": "workflow-def"
     }
   ],
   "edges": [
@@ -3456,13 +3446,6 @@
       "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once"
     },
     {
-      "from": "skill:void-autopilot",
-      "to": "workflow-def:autopilot",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "autopilot SKILL.md: Claude executes the orchestration plan with its Workflow primitive"
-    },
-    {
       "from": "skill:void-brainstorm",
       "to": "skill:void-plan",
       "kind": "routes-to",
@@ -4055,7 +4038,7 @@
       "to": "skill:void-autopilot",
       "kind": "companion-of",
       "origin": "declared",
-      "evidence": "merge SKILL.md: void-autopilot produces an integration PR this skill can drain"
+      "evidence": "merge SKILL.md: void-autopilot hands this skill the pull requests it leaves to a person"
     },
     {
       "from": "skill:void-merge",

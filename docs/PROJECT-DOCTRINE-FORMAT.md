@@ -11,8 +11,12 @@ are managed by the harness; to change one, open an issue on `voidcorp-core/void-
 
 **Sections appear as you use them.** There is no order to respect and no section you owe: write
 the heading when you have something to put under it, and delete one that stops being true.
-`void-learn` creates the heading it needs when it is absent, and its section routing table decides
-which one a captured rule belongs to.
+
+The list of section kinds has one owner: the section routing table of `void-learn`
+(`packages/core/skills/void-learn/SKILL.md`). This page shows the shape of each kind under the
+same name, and adds none. `void-learn` places a rule by meaning: it appends under the heading
+your file already has for that kind, whatever its wording, creates the table's name only when no
+heading names the kind, and asks you when two headings could hold the rule.
 
 Every example below is an **illustration of the shape**, not a record of anything. Nothing here
 happened.
@@ -34,7 +38,7 @@ to calibrate decisions.
 
 ---
 
-## Domain language (ubiquitous vocabulary)
+## Domain language
 
 If the team uses specific terms for domain concepts, list them here so the
 agent uses the same wording (composes with `void-domain-driven-design`).
@@ -48,7 +52,20 @@ vocabulary to enforce.)
 
 ---
 
-## Trade-offs already decided (link to ADRs)
+## Quality bar
+
+What "done" means on this project, beyond the universal floor in `.void/installed/PHILOSOPHY.md`.
+Write only what raises or specializes that floor here.
+
+- **<rule name>** : <what must hold before a change counts as shipped>.
+  - **Why** : <what shipping without it cost>.
+  - **Enforced by** : <gate / skill / manual review>.
+
+(Add your own bar or delete if the universal floor is enough.)
+
+---
+
+## Trade-offs already decided
 
 The agent MUST NOT re-litigate these. Each entry points to the rationale
 in its own file under `docs/decisions/` (or equivalent) so future contributors can audit
@@ -61,7 +78,7 @@ the choice without paging the original team.
 
 ---
 
-## Project-specific hard rules
+## Hard rules
 
 Rules that apply HERE only — usually because of a specific dependency,
 incident, regulation, or domain constraint. If a rule is universal,
@@ -84,7 +101,7 @@ Shape of a rule, with a plausible one to show what each line carries:
 
 ---
 
-## In-flight decisions / open questions
+## Open questions
 
 Things the team has not yet decided. Useful for the agent so it asks
 instead of guessing.
@@ -92,7 +109,7 @@ instead of guessing.
 - <open question> — owner: <person>, deadline: <date>
 - ...
 
-(Add as they come up. Resolve to "Trade-offs already decided" once the
+(Add as they come up. Move one to "Trade-offs already decided" once the
 ADR is written.)
 
 ---
@@ -115,7 +132,7 @@ is required.)
 
 ---
 
-## Forbidden patterns specific to this codebase
+## Forbidden patterns
 
 Things THIS project has paid for and will never reintroduce. Universal
 anti-patterns (DI containers, CQRS default, raw `process.env`, etc.) are

@@ -106,7 +106,7 @@ async function main() {
       bundle: true,
       platform: 'node',
       format: 'esm',
-      target: 'node22',
+      target: 'node24',
       outfile: featureBundle,
     });
     const feature = await import(pathToFileURL(featureBundle).href);

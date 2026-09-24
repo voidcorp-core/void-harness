@@ -34,7 +34,7 @@ export async function buildVoidGraphBundle(modelJson: string, studioHtml?: strin
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node20',
+    target: 'node24',
     write: false,
     legalComments: 'none',
     define,

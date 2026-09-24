@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
-import { afterAll, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { parseGraphSnapshot } from '../model/v3/schema.js';
 import {
 	buildProjectGraph as buildProjectGraphUnbound,
@@ -36,7 +36,13 @@ import {
 	type ProjectWatchPort,
 } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
-import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+import {
+	cleanupProjectTempDirs,
+	createExactProjectChangeJournal,
+	FIXTURE_COMPILERS,
+	fixtureCompilerLookup,
+	projectTempDir,
+} from './test-support.js';
 
 /**
  * The sentinel half of an injected watch port: a stream that answers.
@@ -535,75 +541,115 @@ it(
 	expect(workspaceLabels).not.toContain('@fixture/outside');
 });
 
-it('renders export surface symbols and export edges for named and default forms', async () => {
-	const root = await isolatedProjectRoot('void-project-exports-');
-	await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
-	await writeFile(
-		join(root, 'exports.ts'),
-		[
-			'const local = 1;',
-			'export { local as publicValue };',
-			'export default function NamedDefault() {}',
-		].join('\n'),
-	);
-	await writeFile(join(root, 'default-interface.ts'), 'export default interface Contract {}\n');
+// Graph content depends on the analysed project's compiler, so these run once
+// per API a consumer can resolve; the rest of this file is about the cache,
+// the journal and Git, which no compiler touches.
+describe.each(FIXTURE_COMPILERS)('graph content under the $label', (compiler) => {
+	const { lookup, resolutionWithoutConfig } = compiler;
+	it('renders export surface symbols and export edges for named and default forms', async () => {
+		const root = await isolatedProjectRoot('void-project-exports-');
+		await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
+		await writeFile(
+			join(root, 'exports.ts'),
+			[
+				'const local = 1;',
+				'export { local as publicValue };',
+				'export default function NamedDefault() {}',
+			].join('\n'),
+		);
+		await writeFile(join(root, 'default-interface.ts'), 'export default interface Contract {}\n');
 
-	const result = await buildProjectGraph({ root, git: { inspect: async () => availableGit() } });
-	const exportedLabels = result.graph.edges
-		.filter((edge) => edge.kind === 'exports')
-		.map((edge) => result.graph.nodes.find((node) => node.id === edge.to)?.label);
+		const result = await buildProjectGraph({
+		root,
+		compilerLookup: lookup,
+		git: { inspect: async () => availableGit() },
+	});
+		const exportedLabels = result.graph.edges
+			.filter((edge) => edge.kind === 'exports')
+			.map((edge) => result.graph.nodes.find((node) => node.id === edge.to)?.label);
 
-	expect(exportedLabels).toEqual(expect.arrayContaining(['default', 'publicValue']));
-	expect(exportedLabels).not.toContain('NamedDefault');
-	expect(result.graph.edges).toContainEqual(
-		expect.objectContaining({
-			kind: 'exports',
-			from: projectFileId('default-interface.ts'),
-			to: expect.stringContaining('default-interface.ts:default'),
-		}),
-	);
-	expect(result.graph.edges).not.toContainEqual(
-		expect.objectContaining({
-			kind: 'exports',
-			from: projectFileId('default-interface.ts'),
-			to: expect.stringContaining('default-interface.ts:Contract'),
-		}),
-	);
-});
+		expect(exportedLabels).toEqual(expect.arrayContaining(['default', 'publicValue']));
+		expect(exportedLabels).not.toContain('NamedDefault');
+		expect(result.graph.edges).toContainEqual(
+			expect.objectContaining({
+				kind: 'exports',
+				from: projectFileId('default-interface.ts'),
+				to: expect.stringContaining('default-interface.ts:default'),
+			}),
+		);
+		expect(result.graph.edges).not.toContainEqual(
+			expect.objectContaining({
+				kind: 'exports',
+				from: projectFileId('default-interface.ts'),
+				to: expect.stringContaining('default-interface.ts:Contract'),
+			}),
+		);
+	});
 
-it('renders test edges for supported direct, modifier, and each call variants', async () => {
-	const root = await isolatedProjectRoot('void-project-test-variants-');
-	await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
-	await writeFile(join(root, 'subject.ts'), 'export const subject = true;\n');
-	await writeFile(
-		join(root, 'variants.ts'),
-		[
-			"import { subject } from './subject.js';",
-			'it' + ".only('only', () => subject);",
-			"test.sequential('sequential', () => subject);",
-			"test.skipIf(true)('conditional', () => subject);",
-			"test.concurrent.each([[1]])('each %s', async () => subject);",
-		].join('\n'),
-	);
+	it('renders test edges for supported direct, modifier, and each call variants', async () => {
+		const root = await isolatedProjectRoot('void-project-test-variants-');
+		await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
+		await writeFile(join(root, 'subject.ts'), 'export const subject = true;\n');
+		await writeFile(
+			join(root, 'variants.ts'),
+			[
+				"import { subject } from './subject.js';",
+				'it' + ".only('only', () => subject);",
+				"test.sequential('sequential', () => subject);",
+				"test.skipIf(true)('conditional', () => subject);",
+				"test.concurrent.each([[1]])('each %s', async () => subject);",
+			].join('\n'),
+		);
 
-	const result = await buildProjectGraph({ root, git: { inspect: async () => availableGit() } });
-	expect(result.graph.edges).toContainEqual(
-		expect.objectContaining({
-			kind: 'tests',
-			from: projectFileId('variants.ts'),
-			to: projectFileId('subject.ts'),
-		}),
-	);
-});
+		const result = await buildProjectGraph({
+		root,
+		compilerLookup: lookup,
+		git: { inspect: async () => availableGit() },
+	});
+		expect(result.graph.edges).toContainEqual(
+			expect.objectContaining({
+				kind: 'tests',
+				from: projectFileId('variants.ts'),
+				to: projectFileId('subject.ts'),
+			}),
+		);
+	});
 
-it(
-	'builds a validated v3 graph for monorepos, cycles, aliases, dynamic imports, tests, and docs',
-	async () => {
-	const root = await fixtureCopy();
-	const result = await buildProjectGraph({ root });
-	assertFixtureEnvelope(result);
-	assertFixtureTopology(result);
-	assertFixtureRelations(result);
+	it(
+		'builds a validated v3 graph for monorepos, cycles, aliases, dynamic imports, tests, and docs',
+		async () => {
+		const root = await fixtureCopy();
+		const result = await buildProjectGraph({ root, compilerLookup: lookup });
+		assertFixtureEnvelope(result);
+		assertFixtureTopology(result);
+		assertFixtureRelations(result);
+	});
+
+	it('resolves a JSON import without a tsconfig the way the project compiler does', async () => {
+		const root = await isolatedProjectRoot('void-project-no-tsconfig-');
+		await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));
+		await writeFile(join(root, 'data.json'), '{"value":1}\n');
+		await writeFile(join(root, 'index.ts'), "import data from './data.json';\nexport {};\n");
+
+		const result = await buildProjectGraph({
+			root,
+			compilerLookup: lookup,
+			git: { inspect: async () => availableGit() },
+		});
+		const edge = expect.objectContaining({
+			kind: 'imports',
+			from: projectFileId('index.ts'),
+			to: projectFileId('data.json'),
+		});
+
+		expect(result.issues).not.toContainEqual(
+			expect.objectContaining({ code: 'compiler-unavailable' }),
+		);
+		// `bundler` implies `resolveJsonModule`; `node10` leaves it off, so a
+		// TypeScript 5 project with no tsconfig cannot import the file at all.
+		if (resolutionWithoutConfig === 'bundler') expect(result.graph.edges).toContainEqual(edge);
+		else expect(result.graph.edges).not.toContainEqual(edge);
+	});
 });
 
 it('reuses SHA-256 extraction records without rereading unchanged files', async () => {

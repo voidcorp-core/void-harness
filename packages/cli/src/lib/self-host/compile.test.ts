@@ -33,6 +33,7 @@ async function temporaryRoot(name: string): Promise<string> {
 
 const copyCommittedRunner: BuildHookBundle = async ({ outfile }) => {
   await cp(join(REPO, 'packages/core/hooks/_void-hook.mjs'), outfile);
+  await cp(join(REPO, 'packages/core/hooks/_syntax-worker.cjs'), join(outfile, '..', '_syntax-worker.cjs'));
 };
 
 afterEach(async () => {
@@ -66,6 +67,7 @@ const HARNESS_SOURCE_FIXTURE: Readonly<Record<string, string>> = {
   'packages/cli/package.json': `${JSON.stringify({ name: 'voidharness' })}\n`,
   'packages/cli/src/index.ts': 'export const cli = true;\n',
   'packages/hook-runner/src/cli.ts': 'export const hook = true;\n',
+  'packages/hook-runner/scripts/build-runtime.mjs': 'export const builder = true;\n',
   'packages/mission-engine/src/index.ts': 'export const engine = true;\n',
   'packages/core/.claude-plugin/plugin.json':
     `${JSON.stringify({ name: 'harness-core', hooks: {} })}\n`,

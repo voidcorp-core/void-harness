@@ -330,7 +330,7 @@ passing lane exits 0. The release gate continues to refuse either nonzero
 outcome. The current lane contains HTTP/SSE server tests, not a browser journey.
 Adding a browser service requires its own observed health and cleanup contract.
 
-The lane uses the [Vitest 4 threads pool](https://vitest.dev/config/pool.html)
+The lane uses the [Vitest 5 threads pool](https://vitest.dev/config/pool.html)
 so its test workers terminate with the bounded parent. It runs once, without
 retry, and never widens sandbox permissions itself. If the probe reports
 `EPERM`, execute the same command in an explicitly available environment that

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "lib": [
+      "ES2022"
+    ],
+    "noEmit": true
+  },
+  "include": [
+    "src/core/**/*.ts",
+    "src/runtime/**/*.ts",
+    "src/verticals/**/*.ts",
+    "types/pure-globals.d.ts"
+  ],
+  "exclude": []
+}

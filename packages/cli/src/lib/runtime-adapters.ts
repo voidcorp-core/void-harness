@@ -1,3 +1,4 @@
+import { syntaxWorkerHealth } from './syntax-worker-health.js';
 // The runtime seam. The harness authors ONE doctrine and compiles it to each
 // agent runtime through an adapter. Core commands (init / runtime add / doctor)
 // iterate the adapters for detect / prerequisites / wire / doctorChecks rather
@@ -35,6 +36,10 @@ import {
   CODEX_AGENTS_DIR,
   canonicalSpecialistContracts,
   codexSpecialistsHealth,
+  describeSpecialistDrift,
+  regularFileText,
+  type SpecialistDrift,
+  specialistDrift,
   wireCodexAgents,
 } from './codex-agents.js';
 import {
@@ -249,31 +254,20 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
       fix: 'reinstall voidharness',
     };
   }
-  const missing: string[] = [];
+  const drifts = new Map<string, SpecialistDrift>();
   for (const contract of contracts) {
     const name = contract.name;
-    if (agentsRoot === undefined) {
-      missing.push(name);
-      continue;
-    }
-    const path = join(agentsRoot, `${name}.md`);
-    if (!await safeRegularFile(path)) {
-      missing.push(name);
-      continue;
-    }
-    const content = await readFile(path, 'utf8');
-    if (
-      !content.includes(`name: ${name}`)
-      || !content.includes(`Canonical contract: \`${contract.id}\` v${contract.version}.`)
-    ) {
-      missing.push(name);
-    }
+    const content = agentsRoot === undefined
+      ? undefined
+      : await regularFileText(join(agentsRoot, `${name}.md`));
+    const drift = specialistDrift(contract, content, [`name: ${name}`]);
+    if (drift !== undefined) drifts.set(name, drift);
   }
-  if (missing.length > 0) {
+  if (drifts.size > 0) {
     return {
       name: 'claude agents',
       ok: false,
-      message: `missing or invalid native specialists: ${missing.join(', ')}`,
+      message: describeSpecialistDrift(drifts, 'void-harness runtime add claude'),
       fix: 'void-harness runtime add claude',
     };
   }
@@ -416,19 +410,24 @@ const claudeAdapter: RuntimeAdapter = {
     let agentsRoot: string | undefined;
     const localRunner = join(root, '.void', 'hooks', '_void-hook.mjs');
     const localAgent = join(root, '.claude', 'agents', 'doctrine-critic.md');
-    if (
-      localSettings
-      && await safeRegularFile(localRunner)
-      && await anyStagedSkill(join(root, '.claude', 'skills'))
-      && await safeRegularFile(localAgent)
-    ) {
-      installed = true;
-      activationHook = localRunner;
-      agentsRoot = join(root, '.claude', 'agents');
+    if (localSettings) {
+      installed = await safeRegularFile(localRunner)
+        && await safeRegularFile(join(root, '.void', 'hooks', '_syntax-worker.cjs'))
+        && await anyStagedSkill(join(root, '.claude', 'skills'))
+        && await safeRegularFile(localAgent);
+      if (installed) {
+        activationHook = localRunner;
+        agentsRoot = join(root, '.claude', 'agents');
+      }
+      const syntaxIssue = syntaxWorkerHealth(join(root, '.void', 'hooks'));
+      checks.push({ name: 'syntax worker', ok: syntaxIssue === undefined,
+        message: syntaxIssue ?? 'worker matches the installed hook', fix: 'void-harness update' });
       checks.push({
         name: 'local assets',
-        ok: true,
-        message: 'installed skills, agents and executable hooks present',
+        ok: installed,
+        message: installed ? 'installed skills, agents and executable hooks present'
+          : 'configured project-local installation is incomplete',
+        fix: 'void-harness update',
       });
     } else {
       const cacheRoot = options?.claudeCacheRoot
@@ -473,9 +472,11 @@ const claudeAdapter: RuntimeAdapter = {
       check.name === 'settings.json'
       || check.name === 'CLAUDE.md'
       || check.name === 'claude agents'
+      || (localSettings && check.name === 'syntax worker')
       || check.name === (localSettings ? 'local assets' : 'plugin cache'),
     );
-    const wired = installed && wiringChecks.length === 4 && wiringChecks.every((check) => check.ok);
+    const wired = installed && wiringChecks.length === (localSettings ? 5 : 4)
+      && wiringChecks.every((check) => check.ok);
     const smoke = wired && activationHook !== undefined
       ? await smokeInstalledHook(activationHook, 'claude')
       : { fired: false as const, detail: 'hook smoke blocked by failed installation or wiring' };

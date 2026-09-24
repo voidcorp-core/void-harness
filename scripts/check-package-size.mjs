@@ -49,7 +49,19 @@ export const PACKAGE_LIMITS = Object.freeze({
   // going to refuse the next commit whatever it contained.
   // DEV-738 measured 901.1 kB after adding verified worker journal routing.
   // Retain a bounded 20 kB margin for this safety behavior; no payload omitted.
-  voidharness: 920_000,
+  // DEV-843 measured 922,113 bytes with the rendered-scope contract and native
+  // agent projection. Packed contents contain no eval fixtures or local receipts.
+  // Keep the complete review contract with bounded headroom; no payload omitted.
+  // The official TypeScript 6 worker measures 1954.7 kB in the real pnpm pack
+  // on 2026-09-16. Both runtime assets and upstream licenses are included.
+  // Own the supported compiler API offline with about 45 kB of headroom.
+  // The native autopilot loop measures 2016.5 kB on 2026-09-24 (develop:
+  // 1996.1 kB): about 20 kB of new loop code in dist/main.js, no fixture or
+  // test code packed. It shipped beside the cluster engine it replaced until
+  // step 7 of the native loop plan removed that engine: 1942.1 kB on
+  // 2026-09-24 (develop: 2018.6 kB). The ceiling comes back down with it, to
+  // the same 45 kB of headroom the compiler worker was given.
+  voidharness: 1_985_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

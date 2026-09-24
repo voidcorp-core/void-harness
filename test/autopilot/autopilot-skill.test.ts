@@ -9,6 +9,25 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import type { LoopAction } from '../../packages/cli/src/lib/autopilot/loop.js';
+
+/** Every action the kernel can return; the type below fails to compile when one is missing. */
+const LOOP_ACTION_KINDS = [
+  'assign',
+  'wait',
+  'hand-back-to-worker',
+  'mark-human-wait',
+  'enable-auto-merge',
+  'disable-auto-merge',
+  'rerun-review-check',
+  'requeue',
+  'drain',
+  'freeze',
+  'recap',
+] as const satisfies readonly LoopAction['kind'][];
+const everyKindListed: [Exclude<LoopAction['kind'], (typeof LOOP_ACTION_KINDS)[number]>] extends [never]
+  ? true
+  : never = true;
 
 const SKILL = readFileSync(new URL('../../packages/core/skills/void-autopilot/SKILL.md', import.meta.url), 'utf8');
 const TICKET_RUNNER = readFileSync(
@@ -68,13 +87,16 @@ describe('delegation to implement', () => {
   });
 });
 
-describe('remote effects are denied to workers', () => {
-  it('states that workers never push, open a pull request, merge, or move a ticket', () => {
+describe('remote effects stay with the roles that own them', () => {
+  // The loop hands a worker its own branch and pull request, and nothing past
+  // them: the merge is GitHub's, the verdict the reviewer's, Done the loop's.
+  it('states that workers never merge, arm a merge, post the verdict, or finish a ticket', () => {
     const mayNot = /May not:([\s\S]*?)\n\n/.exec(body(SKILL))?.[1] ?? '';
-    expect(mayNot).toMatch(/push/i);
-    expect(mayNot).toMatch(/pull request/i);
-    expect(mayNot).toMatch(/merge/i);
-    expect(mayNot).toMatch(/In Review/i);
+    expect(mayNot).toMatch(/enable auto-merge/i);
+    expect(mayNot).toMatch(/merge anything/i);
+    expect(mayNot).toMatch(/post a verdict or re-run the review job/);
+    expect(mayNot).toMatch(/Done/);
+    expect(mayNot).toMatch(/close or cancel/i);
   });
 
   // The section that added the shared-ref prohibition sat 130 lines above this
@@ -82,7 +104,7 @@ describe('remote effects are denied to workers', () => {
   // the version a reader trusts.
   it('carries every prohibition in the one list a reader treats as canonical', () => {
     const mayNot = flat(/May not:([\s\S]*?)\n\n/.exec(body(SKILL))?.[1] ?? '');
-    expect(mayNot).toMatch(/git\s+state the repository shares/i);
+    expect(mayNot).toMatch(/git state the repository shares/i);
     expect(mayNot).toMatch(/refs\/stash/);
     // `.void/machine` is shared between worktrees the same way, and the harness
     // writes it on purpose, so the journals are named rather than left to the
@@ -104,19 +126,66 @@ describe('remote effects are denied to workers', () => {
     }
   });
 
-  it('requires the controller to create every worktree before any spawn', () => {
-    expect(flat(body(SKILL))).toMatch(/before any spawn/i);
+  it('gives every worker its worktree before it starts', () => {
+    expect(flat(body(SKILL))).toMatch(/worktree before it starts/i);
     expect(flat(body(SKILL))).toMatch(/never chooses its own checkout and never works in the main one/i);
   });
 
-  it('requires re-observation rather than concluding from a write that returned', () => {
-    expect(flat(body(SKILL))).toMatch(/re-observe every ticket/i);
-    expect(flat(body(SKILL))).toMatch(/Partial convergence releases what was taken/i);
+  it('keeps migrations out of production', () => {
+    expect(flat(body(SKILL))).toMatch(/dev\/local/i);
+  });
+});
+
+describe('the curator ranks, and never disposes', () => {
+  it('walks the tracker in the declared order and ranks on the project, not the label', () => {
+    expect(flat(body(SKILL))).toMatch(/Todo, then Backlog, then Triage/);
+    expect(flat(body(SKILL))).toMatch(/not by the priority label/i);
   });
 
-  it('keeps migrations sequential and out of production', () => {
-    expect(flat(body(SKILL))).toMatch(/migration is never parallel/i);
-    expect(flat(body(SKILL))).toMatch(/dev\/local/i);
+  it('justifies every move, enriches through void-ticket, and never closes', () => {
+    expect(flat(body(SKILL))).toMatch(/every ticket you move a justification/i);
+    expect(flat(body(SKILL))).toMatch(/goes through `void-ticket` before it can be declared `ready`/);
+    expect(flat(body(SKILL))).toMatch(/Never close, cancel or delete/);
+    expect(flat(body(SKILL))).toMatch(/Re-rank after every merge/);
+  });
+});
+
+describe('the review runs in GitHub, out of the reach of every worker', () => {
+  // A verdict the orchestration checkout signed could be signed by anything
+  // running there; a check only GitHub Actions can create cannot.
+  it('names the job, its trigger and the check only GitHub Actions creates', () => {
+    expect(flat(body(SKILL))).toMatch(/`\.github\/workflows\/independent-review\.yml` reviews every ready pull request/);
+    expect(flat(body(SKILL))).toMatch(/on `pull_request_target`/);
+    expect(flat(body(SKILL))).toMatch(/The merge queue does not believe that check/);
+    expect(flat(body(SKILL))).toMatch(/only on a successful run of that workflow, run from the default branch, for that exact head/);
+    expect(flat(body(SKILL))).toMatch(/No key or secret for it lives on this machine/);
+  });
+
+  it('lets no agent post a verdict, and re-runs a crash rather than approving it', () => {
+    expect(flat(body(SKILL))).toMatch(/The verdict is posted only by the review job/);
+    expect(flat(body(SKILL))).toMatch(/May not: enable auto-merge, merge anything, post a verdict or re-run the review job/);
+    expect(flat(body(SKILL))).toMatch(/a job that failed without a verdict is a crash it re-runs, not a round/);
+  });
+
+  it('blocks only on a scenario, files advisories once, and stops at two rounds', () => {
+    expect(flat(body(SKILL))).toMatch(/Only what is wrong or dangerous, with a concrete scenario/);
+    expect(flat(body(SKILL))).toMatch(/single Triage issue per ticket/);
+    expect(flat(body(SKILL))).toMatch(/round 2 is handed round 1's blocking findings and checks only those/i);
+  });
+});
+
+describe('the orchestrator acts on every action the kernel returns', () => {
+  it('lists every kind the kernel declares', () => {
+    expect(everyKindListed).toBe(true);
+  });
+
+  it.each(LOOP_ACTION_KINDS)('tells the orchestrator what to do on %s', (kind) => {
+    expect(SKILL.split('\n').some((line) => line.startsWith(`| \`${kind}\` |`))).toBe(true);
+  });
+
+  it('fingerprints the shared state around each unit', () => {
+    expect(body(SKILL)).toMatch(/fingerprint --before <ticket>/);
+    expect(body(SKILL)).toMatch(/fingerprint --after <ticket>/);
   });
 });
 
