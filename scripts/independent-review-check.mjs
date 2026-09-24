@@ -14,11 +14,13 @@
 // contains must have a completed run of the review workflow itself whose
 // provenance GitHub alone sets: the file `.github/workflows/independent-review.yml`,
 // the event `pull_request_target`, the title that workflow gives its runs from
-// the pull request and head it reviewed, and a workflow commit the default
-// branch holds: `pull_request_target` runs the default branch's workflow (main
-// here, which only a person merges into), so the file that ran is main's and
-// not one an author controls. The latest such run must have succeeded, which it
-// does only when the review blocked nothing. This job never runs on `pull_request`: a job there
+// the pull request and head it reviewed. GitHub runs every `pull_request_target`
+// workflow from the default branch (main here, which only a person merges into),
+// so a run of that file on that event is main's file and not one an author
+// controls, and the title is the one main's file gives. The run's `head_sha` is
+// the pull request head on this event and proves nothing about the file, so it
+// is not read. The latest such run must have succeeded, which it does only when
+// the review blocked nothing. This job never runs on `pull_request`: a job there
 // that skipped would report success under the required name.
 //
 // Every doubt fails: an unknown event, a malformed ref, an API error, an entry
@@ -245,31 +247,13 @@ async function latestReviewRun(rest, coordinates, pull) {
   return matching.at(-1);
 }
 
-/** The repository's default branch, whose workflow `pull_request_target` runs. */
-async function defaultBranch(rest, coordinates) {
-  const name = field(await restCall(rest, `repos/${coordinates.owner}/${coordinates.name}`), 'default_branch');
-  if (typeof name !== 'string' || name === '') fail('the default branch is unreadable');
-  return name;
-}
-
-/** Whether `sha` is on `branch`: the workflow file that ran is then the branch's. */
-async function onBranch(rest, coordinates, branch, sha) {
-  const path = `repos/${coordinates.owner}/${coordinates.name}/compare/${branch}...${sha}`;
-  const status = field(await restCall(rest, path), 'status');
-  return status === 'behind' || status === 'identical';
-}
-
-async function requireReview(rest, coordinates, pull, trusted) {
+async function requireReview(rest, coordinates, pull) {
   const label = `#${pull.number} head ${pull.sha}`;
   const why = pull.refused === undefined ? '' : ` (not exempt as the back-merge: ${pull.refused})`;
   const run = await latestReviewRun(rest, coordinates, pull);
   if (run === undefined) fail(`${label} has no completed run of ${REVIEW_WORKFLOW}${why}`);
   const conclusion = field(run, 'conclusion');
   if (conclusion !== 'success') fail(`${label}: its latest review run concluded ${String(conclusion)}`);
-  const workflowSha = requireSha(field(run, 'head_sha'), `${label} review run commit`);
-  if (!(await onBranch(rest, coordinates, trusted, workflowSha))) {
-    fail(`${label}: its review run ran a workflow from ${workflowSha}, which ${trusted}, the default branch, does not hold`);
-  }
 }
 
 /** The back-merge, from the queue's GraphQL view of a pull request. */
@@ -423,9 +407,9 @@ export async function checkIndependentReview({ eventName, event, repository, gra
     const refused = git === undefined ? 'no git to read its commits' : backMergeRefusal(git, pull.sha);
     if (refused !== undefined) Object.assign(pull, { exempt: false, refused });
   }
-  const reviewed = pulls.filter((pull) => !pull.exempt);
-  const trusted = reviewed.length === 0 ? undefined : await defaultBranch(rest, coordinates);
-  for (const pull of reviewed) await requireReview(rest, coordinates, pull, trusted);
+  for (const pull of pulls) {
+    if (!pull.exempt) await requireReview(rest, coordinates, pull);
+  }
   return pulls.map(({ number, sha, exempt }) =>
     exempt ? { number, sha, exempt: 'back-merge' } : { number, sha });
 }

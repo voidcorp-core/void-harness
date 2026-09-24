@@ -57,8 +57,6 @@ interface Fixture {
   readonly entries?: readonly QueueEntry[];
   /** The head of the base branch as GitHub reports it; `develop` is at sha('0'). */
   readonly baseHead?: string;
-  /** Whether the commit the review runs ran their workflow from is on the default branch; it is unless false. */
-  readonly workflowOnBase?: boolean;
   /** Runs to serve as they are, instead of the ones derived from `verdicts`. */
   readonly runs?: readonly Record<string, unknown>[];
 }
@@ -71,7 +69,8 @@ function reviewRun(number: number, head: string, run: ReviewRun, over: Record<st
     display_title: reviewRunTitle(number, head),
     event: 'pull_request_target',
     path: REVIEW_WORKFLOW,
-    head_sha: sha('d'),
+    // On `pull_request_target` GitHub reports the pull request head here.
+    head_sha: head,
     status: run.status.toLowerCase(),
     conclusion: run.conclusion?.toLowerCase() ?? null,
     created_at: run.completedAt ?? '2026-09-24T09:00:00Z',
@@ -124,8 +123,6 @@ function fakeGithub(fixture: Fixture): { graphql: Graphql; rest: Rest; asked: Va
   const paths: string[] = [];
   const rest: Rest = async (path) => {
     paths.push(path);
-    if (path === 'repos/voidcorp-core/void-harness') return { default_branch: 'main' };
-    if (path.includes('/compare/')) return { status: fixture.workflowOnBase === false ? 'diverged' : 'behind' };
     const all = runsOf(fixture).filter((run) => run.status === 'completed');
     return { total_count: all.length, workflow_runs: all };
   };
@@ -306,8 +303,9 @@ describe('independent review verdict check', () => {
     const { graphql, rest, paths } = fakeGithub({ verdicts, entries: twoEntries });
     await checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql, rest });
     expect(paths.some((path) => path.includes('actions/workflows/independent-review.yml/runs?event=pull_request_target&status=completed'))).toBe(true);
-    // `pull_request_target` runs the default branch's workflow, main here, not the base's.
-    expect(paths).toContain(`repos/voidcorp-core/void-harness/compare/main...${sha('d')}`);
+    // A run's `head_sha` is the pull request head on `pull_request_target`, observed
+    // on the first real run: it says nothing about where the workflow came from.
+    expect(paths.some((path) => path.includes('/compare/'))).toBe(false);
     const success = { status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: '2026-09-24T10:00:00Z' };
     const forged = [
       reviewRun(9, sha('2'), success),
@@ -319,12 +317,6 @@ describe('independent review verdict check', () => {
     await expect(
       checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql: g2, rest: r2 }),
     ).rejects.toThrow(/#7 head .* has no completed run of/);
-    // A run of the same path from a workflow commit the default branch does not
-    // hold: a file an author controls, never the one a person merged into main.
-    const { graphql: g3, rest: r3 } = fakeGithub({ verdicts, entries: twoEntries, workflowOnBase: false });
-    await expect(
-      checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql: g3, rest: r3 }),
-    ).rejects.toThrow(/which main, the default branch, does not hold/);
   });
 
   it('refuses a group whose review is still running, or whose latest review failed', async () => {
