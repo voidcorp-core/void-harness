@@ -71,11 +71,14 @@ next believes the latest signed verdict on the head only when the status agrees
 and the key on the base is this checkout's own. review-key and verdict run only
 in the orchestration checkout, never in a linked worktree. arm answers
 enable-auto-merge: it records the head in .void/machine/autopilot/armed/<id>.json,
-arms on exactly that head, and reads GitHub back. disarm answers
+arms on exactly that head, and reads GitHub back: armed is an auto-merge request
+or, once the checks pass on a base with a merge queue, a queue entry; a head
+already merged counts. disarm answers
 disable-auto-merge, which next returns before any outcome that stops watching
 an armed pull request: its head moved since arm recorded it, no signed verdict
 proves it, no arm recorded it, a worker or a person takes the ticket, or an
-immediate stop; it reads GitHub back and fails while still armed. judgment admits a conflict class, bound to its
+immediate stop; it turns the auto-merge off, dequeues, reads GitHub back and
+fails while still armed. judgment admits a conflict class, bound to its
 headSha, and prints the comment block to post; next reads the latest one back
 from GitHub, so no session has to remember it.
 

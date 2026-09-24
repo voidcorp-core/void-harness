@@ -14,6 +14,9 @@ variants from them by overriding fields; no shape here was written by hand.
 | `run-view-attempt.json` | `gh run view 35748516084 -R zed-industries/zed --json attempt,databaseId,headSha,status,conclusion`: a run re-run once |
 | `check-run-queued.json` | one `statusCheckRollup` entry of zed-industries/zed PR 64608: a check run not yet completed |
 | `status-contexts.json` | two `statusCheckRollup` entries of kubernetes/kubernetes PR 142315: commit statuses, the shape `void/independent-review` takes |
+| `pr-view-queued.json` | `gh pr view 192072 -R flutter/flutter --json autoMergeRequest,state`: a pull request sitting in a merge queue, with no auto-merge request |
+| `pr-queue-membership-queued.json` | `gh api graphql` `pullRequest(number) { id isInMergeQueue }` of that same flutter/flutter pull request |
+| `pr-queue-membership-absent.json` | the same query on PR 381 (this repository), outside the queue |
 | `queue-absent.json` | `gh api graphql` `repository.mergeQueue(branch: "develop")` on this repository |
 | `queue-present.json` | the same query on zed-industries/zed `main` |
 | `pr-commits-review-status.json` | `gh api graphql` `pullRequest.commits(last: 100) { commit { oid status { context(name: "EasyCLA") { state } } } }` of kubernetes/kubernetes PR 142273: statuses per commit, null where a commit has none |
@@ -21,5 +24,6 @@ variants from them by overriding fields; no shape here was written by hand.
 | `rules-branch-required-checks.json` | `gh api repos/zed-industries/zed/rules/branches/main`: rulesets, one `required_status_checks` rule with `strict_required_status_checks_policy: false` |
 | `timeline-*.json` | `gh api graphql` `pullRequest.timelineItems` (merge queue events and commits) of zed PRs 64552 and 64434 |
 
-No pull request of this repository carries a commit status, and this repository
-has no merge queue yet, hence the two public sources.
+No pull request of this repository carries a commit status, hence the public
+sources. The queued captures (2026-09-24) come from flutter/flutter because no
+pull request of this repository sat in its merge queue at capture time.

@@ -55,6 +55,7 @@ import {
   observeGithub,
   PULL_REQUEST_FIELDS,
   parsePullRequestView,
+  readQueueMembership,
   pullRequestComments,
   REVIEW_STATUS_CONTEXT,
   readSharedState,
@@ -456,7 +457,8 @@ function trustedReviewKey(
 
 /**
  * An immediate stop reads only what GitHub would still merge on its own: each
- * pull request in flight, for its auto-merge, and nothing else. No pull
+ * pull request in flight, for its auto-merge and its place in the merge queue,
+ * and nothing else. No pull
  * request, no call. One it cannot read refuses the freeze and names the
  * pull requests to disarm by hand, rather than report a stop that GitHub
  * could still overrun.
@@ -470,18 +472,21 @@ function freezeCommand(
   const numbers = pullRequestsToObserve(program, tracker);
   const pullRequests = new Map<number, PullRequestObservation>();
   try {
+    const gh = runner(context.gh, 'gh');
     for (const number of numbers) {
-      const view = viewOf(runner(context.gh, 'gh'), number);
-      const unread = { queue: 'none', ejections: 0, reviewFailures: 0, files: [] } as const;
-      pullRequests.set(number, { ...view, ...unread });
+      const view = viewOf(gh, number);
+      const queue = readQueueMembership(gh, number).queued ? 'queued' : 'none';
+      const unread = { ejections: 0, reviewFailures: 0, files: [] } as const;
+      pullRequests.set(number, { ...view, queue, ...unread });
     }
   } catch (error) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       'the loop cannot freeze without knowing what GitHub would still merge',
       error instanceof Error ? error.message : String(error),
-      `disarm by hand, ${numbers.map((number) => `\`gh pr merge ${number} --disable-auto\``)
-        .join(', ')}, then stop acting`,
+      `disarm by hand in GitHub, ${numbers
+        .map((number) => `#${number}: turn off its auto-merge and take it out of the merge queue`)
+        .join('; ')}, then stop acting`,
     );
   }
   const github = { base: program.autopilot.base, mergeQueue: false, pullRequests };
@@ -643,12 +648,46 @@ function viewOf(gh: (args: readonly string[]) => string, number: number) {
 }
 
 /**
+ * GitHub arms a pull request one of two ways, and `gh pr view` shows only the
+ * first: an auto-merge request while the checks run, or, once they pass on a
+ * base with a merge queue, an entry in that queue and no request at all.
+ */
+function armedStateOf(gh: (args: readonly string[]) => string, number: number) {
+  const view = viewOf(gh, number);
+  const membership = readQueueMembership(gh, number);
+  return { ...view, ...membership, armed: view.autoMerge || membership.queued };
+}
+
+// gh 2.100 has no dequeue command, and `gh pr merge --disable-auto` on a queued
+// pull request warns that it is already queued and exits 0 having done nothing.
+// https://docs.github.com/en/graphql/reference/mutations#dequeuepullrequest
+const DEQUEUE_MUTATION =
+  'mutation($id: ID!) { dequeuePullRequest(input: { id: $id }) { clientMutationId } }';
+
+interface ArmedState {
+  readonly number: number;
+  readonly nodeId: string;
+  readonly queued: boolean;
+  readonly autoMerge: boolean;
+}
+
+/**
+ * Stops whatever would merge `pr` on its own. The auto-merge request goes
+ * first: while it stands, GitHub may queue the pull request again the moment
+ * it leaves the queue.
+ */
+function stopMerge(gh: (args: readonly string[]) => string, pr: ArmedState): void {
+  if (pr.autoMerge) gh(['pr', 'merge', String(pr.number), '--disable-auto']);
+  if (pr.queued) gh(['api', 'graphql', '-f', `id=${pr.nodeId}`, '-f', `query=${DEQUEUE_MUTATION}`]);
+}
+
+/**
  * `autopilot arm --ticket <id> --pr <n> --head <sha>`: the kernel's
  * `enable-auto-merge`. GitHub keeps no armed head, so it is recorded first,
- * then the merge is armed on exactly that head, then GitHub is read back: an
- * auto-merge it does not show is a failure, and one whose head moved while
- * arming is disarmed at once. The kernel disarms later whatever this record
- * no longer vouches for.
+ * then the merge is armed on exactly that head, then GitHub is read back: a
+ * pull request neither holding an auto-merge nor sitting in the merge queue is
+ * a failure, and one whose head moved while arming is disarmed at once. The
+ * kernel disarms later whatever this record no longer vouches for.
  */
 export function armCommand(argv: readonly string[], context: LoopRunners): LoopCommandOutput {
   const ticket = flagValue(argv, '--ticket');
@@ -677,48 +716,56 @@ export function armCommand(argv: readonly string[], context: LoopRunners): LoopC
   }
   writeAtomically(path, `${JSON.stringify({ pullRequest: number, headSha: head })}\n`);
   gh(['pr', 'merge', String(number), '--auto', '--match-head-commit', head]);
-  const after = viewOf(gh, number);
-  if (after.autoMerge && after.headSha !== head) {
-    gh(['pr', 'merge', String(number), '--disable-auto']);
+  const after = armedStateOf(gh, number);
+  // The queue can merge the head between the arming and this read.
+  if (after.state === 'merged' && after.headSha === head) {
+    return {
+      value: { ticketId: ticket, pullRequest: number, headSha: head, merged: true },
+      human: `#${number} merged on ${head}\n`,
+    };
   }
-  if (!after.autoMerge || after.headSha !== head) {
+  if (after.armed && after.headSha !== head) stopMerge(gh, after);
+  if (!after.armed || after.headSha !== head) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       `#${number} is not armed on ${head}`,
-      after.autoMerge
+      after.armed
         ? `its head moved to ${after.headSha} while arming; it was disarmed`
-        : 'GitHub shows no auto-merge',
+        : 'GitHub shows neither an auto-merge nor a merge queue entry',
       'ask `autopilot next` again before arming anything',
     );
   }
   return {
-    value: { ticketId: ticket, pullRequest: number, headSha: head },
+    value: { ticketId: ticket, pullRequest: number, headSha: head, merged: false },
     human: `#${number} armed on ${head}\n`,
   };
 }
 
 /**
- * `autopilot disarm --pr <n>`: the kernel's `disable-auto-merge`. It disarms,
- * then reads GitHub back and fails while the auto-merge is still there. A pull
- * request already disarmed is left alone.
+ * `autopilot disarm --pr <n>`: the kernel's `disable-auto-merge`. It takes the
+ * pull request out of the merge queue and turns its auto-merge off, then reads
+ * GitHub back and fails while either still holds. A pull request already
+ * disarmed is left alone.
  */
 export function disarmCommand(argv: readonly string[], context: LoopRunners): LoopCommandOutput {
   const number = pullRequestNumber(argv, 'autopilot disarm');
   const gh = runner(context.gh, 'gh');
-  const before = viewOf(gh, number);
-  if (!before.autoMerge) {
+  const before = armedStateOf(gh, number);
+  if (!before.armed) {
     return {
       value: { pullRequest: number, headSha: before.headSha, disarmed: false },
-      human: `#${number} holds no auto-merge\n`,
+      human: `#${number} holds no auto-merge and sits in no merge queue\n`,
     };
   }
-  gh(['pr', 'merge', String(number), '--disable-auto']);
-  const after = viewOf(gh, number);
-  if (after.autoMerge) {
+  stopMerge(gh, before);
+  const after = armedStateOf(gh, number);
+  if (after.armed) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       `#${number} is still armed`,
-      'GitHub still shows an auto-merge request after --disable-auto',
+      after.queued
+        ? 'GitHub still shows it in the merge queue after the dequeue'
+        : 'GitHub still shows an auto-merge request after --disable-auto',
       'disarm it by hand in GitHub, then ask `autopilot next` again',
     );
   }

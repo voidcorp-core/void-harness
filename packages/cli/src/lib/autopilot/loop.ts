@@ -121,6 +121,7 @@ export interface PullRequestObservation {
   readonly conflicted: boolean;
   /** GitHub reports the base moved on (`mergeStateStatus: BEHIND`). */
   readonly behind: boolean;
+  /** An auto-merge request is pending. A queued pull request holds none: see `queue`. */
   readonly autoMerge: boolean;
   /** Every check but the independent review, which `review` carries. */
   readonly checks: 'pending' | 'passing' | 'failing';
@@ -623,7 +624,7 @@ function mergeOutcome(
   pr: PullRequestObservation,
   context: SlotContext,
 ): SlotOutcome {
-  if (pr.autoMerge || pr.queue === 'queued') return wait(ticket.id, 'merging');
+  if (isArmed(pr)) return wait(ticket.id, 'merging');
   const { autopilot } = context.input.program;
   const guarded = protectedPathReason(pr, autopilot);
   if (guarded !== undefined) return toHuman(ticket.id, 'protected-path', guarded);
@@ -653,6 +654,15 @@ function mergeOutcome(
   return held({ kind: 'requeue', ...target, ejections: pr.ejections });
 }
 
+/**
+ * Whether GitHub merges `pr` without anyone acting again. It arms a pull request
+ * one of two ways: an auto-merge request while the checks run, or, once they
+ * pass on a base with a merge queue, an entry in that queue and no request.
+ */
+function isArmed(pr: PullRequestObservation): boolean {
+  return pr.autoMerge || pr.queue === 'queued';
+}
+
 /** The pull request a ticket carries, when GitHub reports it open and armed. */
 function armedPullOf(
   ticket: TrackerTicket,
@@ -660,7 +670,7 @@ function armedPullOf(
 ): PullRequestObservation | undefined {
   const number = ticket.pullRequest;
   const pr = number === undefined ? undefined : github.pullRequests.get(number);
-  return pr?.state === 'open' && pr.autoMerge ? pr : undefined;
+  return pr?.state === 'open' && isArmed(pr) ? pr : undefined;
 }
 
 /** Stop the merge of `pr`, naming the head `autopilot arm` recorded for it, if any. */
@@ -700,7 +710,7 @@ function armedOutcome(
   pr: PullRequestObservation,
   context: SlotContext,
 ): SlotOutcome | undefined {
-  if (!pr.autoMerge) return undefined;
+  if (!isArmed(pr)) return undefined;
   const { input } = context;
   const disarm = disarmOf(ticket, pr, input);
   const record = input.armed.get(ticket.id);
@@ -822,7 +832,7 @@ function serialTurnOf(
       return pr !== undefined && pr.state === 'open' && !pr.draft ? [pr] : [];
     })
     .sort((left, right) => left.number - right.number);
-  return (open.find((pr) => pr.autoMerge) ?? open[0])?.number;
+  return (open.find(isArmed) ?? open[0])?.number;
 }
 
 interface Claim {

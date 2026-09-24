@@ -145,7 +145,7 @@ Act on each returned action, then ask again:
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request; a respawned worker resumes its mission (see Respawning) |
 | `mark-human-wait` | record it in `recent` with its `reason`, which `recent` requires and the recap repeats, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
 | `enable-auto-merge` | `void-harness autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head and reads GitHub back; never `gh pr merge --auto` by hand, never `--admin` |
-| `disable-auto-merge` | `void-harness autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it fails while GitHub still shows the auto-merge |
+| `disable-auto-merge` | `void-harness autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it turns its auto-merge off, then takes it out of the merge queue, and fails while GitHub still shows either; never `gh pr merge --disable-auto` alone, which leaves a queued pull request in the queue |
 | `rerun-review-check` | `gh run rerun <run> --failed`: the `independent-review` job failed before the verdict landed on this head; twice at most per run, then `review-check-reruns-exhausted` |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
@@ -187,7 +187,9 @@ pushes, with `autopilot fingerprint --after <ticket>`, and again by the kernel b
 merge. A changed or missing baseline sends the ticket to a human, unpublished; only that person
 deletes the record.
 
-**Disarming.** GitHub keeps an auto-merge armed across a push by anyone with write access, shows
+**Disarming.** Armed means GitHub merges without anyone acting again: an auto-merge request, or,
+once the checks pass on a base with a merge queue, an entry in that queue and no request at all.
+GitHub keeps an auto-merge armed across a push by anyone with write access, shows
 no armed head, and its required check trusts the status alone. So `arm` records the head it armed,
 and `next` returns `disable-auto-merge` when it can no longer vouch for an armed pull request: its
 head moved since `arm` recorded it (then `hand-back-to-worker`, `head-moved-after-arming`: the new

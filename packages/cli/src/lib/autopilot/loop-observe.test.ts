@@ -7,6 +7,7 @@ import {
   gitIn,
   observeGithub,
   parseMergeQueuePresence,
+  parseQueueMembership,
   parsePullRequestFiles,
   parsePullRequestView,
   PULL_REQUEST_FILE_PAGES_MAX,
@@ -329,6 +330,24 @@ describe('parseMergeQueuePresence', () => {
   });
 });
 
+describe('parseQueueMembership', () => {
+  it('tells a queued pull request from one outside the queue, with the id that dequeues it', () => {
+    expect(parseQueueMembership(fixture('pr-queue-membership-queued.json'))).toEqual({
+      nodeId: 'PR_kwDOAeUeuM8AAAABBpI4rA',
+      queued: true,
+    });
+    expect(parseQueueMembership(fixture('pr-queue-membership-absent.json'))).toMatchObject({ queued: false });
+  });
+
+  it('refuses an answer carrying errors or missing the membership', () => {
+    const pullRequest = { id: 'PR_x', isInMergeQueue: false };
+    const failed = JSON.stringify({ data: { repository: { pullRequest } }, errors: [{ message: 'x' }] });
+    expect(() => parseQueueMembership(failed)).toThrow(/merge queue membership/);
+    const partial = JSON.stringify({ data: { repository: { pullRequest: { id: 'PR_x' } } } });
+    expect(() => parseQueueMembership(partial)).toThrow(/merge queue membership/);
+  });
+});
+
 describe('parseQueueTimeline', () => {
   type Timeline = { data: { repository: { pullRequest: { timelineItems: { nodes: Raw[] } } } } };
   const requeued = (): Timeline => JSON.parse(fixture('timeline-requeued-after-ejections.json')) as Timeline;
@@ -410,6 +429,7 @@ describe('observeGithub', () => {
       'mergeQueue(branch': fixture('queue-present.json'),
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
+      'isInMergeQueue': fixture('pr-queue-membership-absent.json'),
       'commits(last': fixture('pr-commits-review-status.json'),
       'pulls/381/files': fixture('pulls-files-rest.json'),
     });
@@ -428,6 +448,31 @@ describe('observeGithub', () => {
     ]);
   });
 
+  it('takes whether a pull request sits in the queue from GitHub now, not from its timeline', () => {
+    // A timeline window can miss the removal that followed an entry, and a
+    // stale `queued` would have the loop disarm, every tick, a pull request
+    // that `autopilot disarm` finds already out of the queue.
+    const entered = JSON.stringify({
+      data: { repository: { pullRequest: { timelineItems: { nodes: [{ __typename: 'AddedToMergeQueueEvent' }] } } } },
+    });
+    const observe = (timeline: string, membership: string) =>
+      observeGithub(
+        runner({
+          'mergeQueue(branch': fixture('queue-present.json'),
+          'pr view 381': viewText('pr-view-open.json'),
+          'timelineItems': timeline,
+          'isInMergeQueue': fixture(membership),
+          'commits(last': fixture('pr-commits-review-status.json'),
+          'pulls/381/files': fixture('pulls-files-rest.json'),
+        }).run,
+        { base: 'develop', pullRequests: [381] },
+      ).pullRequests.get(381)?.queue;
+    expect(observe(entered, 'pr-queue-membership-absent.json')).toBe('none');
+    expect(observe(entered, 'pr-queue-membership-queued.json')).toBe('queued');
+    const ejected = fixture('timeline-requeued-after-ejections.json');
+    expect(observe(ejected, 'pr-queue-membership-queued.json')).toBe('queued');
+  });
+
   it('reads the attempt of the run whose review job failed, and only then', () => {
     const view = openView();
     const [run] = view.statusCheckRollup as Raw[];
@@ -436,6 +481,7 @@ describe('observeGithub', () => {
       'mergeQueue(branch': fixture('queue-present.json'),
       'pr view 381': withRollup(view, [...(view.statusCheckRollup as Raw[]), failed]),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
+      'isInMergeQueue': fixture('pr-queue-membership-absent.json'),
       'commits(last': fixture('pr-commits-review-status.json'),
       'run view 35694132291': fixture('run-view-attempt.json'),
       'pulls/381/files': fixture('pulls-files-rest.json'),
@@ -449,6 +495,7 @@ describe('observeGithub', () => {
       'mergeQueue(branch': fixture('queue-present.json'),
       'pr view 381': viewText('pr-view-open.json'),
       'timelineItems': fixture('timeline-requeued-after-ejections.json'),
+      'isInMergeQueue': fixture('pr-queue-membership-absent.json'),
       'commits(last': fixture('pr-commits-review-status.json'),
       'pulls/381/files': fixture('pulls-files-rest.json'),
     });
@@ -475,6 +522,7 @@ describe('observeGithub', () => {
         if (line.includes('mergeQueue(branch')) return fixture('queue-present.json');
         if (line.includes('pr view 381')) return JSON.stringify({ ...openView(), changedFiles });
         if (line.includes('timelineItems')) return fixture('timeline-requeued-after-ejections.json');
+        if (line.includes('isInMergeQueue')) return fixture('pr-queue-membership-absent.json');
         if (line.includes('commits(last')) return fixture('pr-commits-review-status.json');
         if (line.includes('pulls/381/files')) return page();
         throw new Error(`unexpected gh call: ${line}`);
