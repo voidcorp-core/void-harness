@@ -55,7 +55,12 @@ export const PACKAGE_LIMITS = Object.freeze({
   // The official TypeScript 6 worker measures 1954.7 kB in the real pnpm pack
   // on 2026-09-16. Both runtime assets and upstream licenses are included.
   // Own the supported compiler API offline with about 45 kB of headroom.
-  voidharness: 2_000_000,
+  // The native autopilot loop measures 2016.5 kB on 2026-09-24 (develop:
+  // 1996.1 kB): about 20 kB of new loop code in dist/main.js, no fixture or
+  // test code packed. It ships beside the cluster engine it replaces until
+  // step 7 of the native loop plan removes that engine; the ceiling comes back
+  // down in that same commit.
+  voidharness: 2_050_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

@@ -153,6 +153,8 @@ Folpe juge le lot réel. Sans son accord, l'ancien moteur n'est pas supprimé.
 - **Travail** : supprimer les modules de `lib/autopilot/` non repris et les sous-commandes
   associées ; mettre à jour `CLAUDE.md` et `AGENTS.md` (section Autonomous mode, en miroir),
   `docs/ARCHITECTURE.md`, et superséder l'ADR Autopilot de 2026-07-25.
+  Redescendre le plafond `voidharness` de `PACKAGE_LIMITS` (relevé à 2050 kB pendant la
+  cohabitation des deux moteurs) au poids mesuré après suppression, avec sa marge.
 - **Verification gate** : `pnpm lint && pnpm typecheck && pnpm test`, `pnpm sync:docs`,
   `pnpm decisions:check`, `pnpm derive:check`, `pnpm check:size`.
 - **Expected commits** : `refactor(autopilot)!: remove the cluster reconciliation engine`,
