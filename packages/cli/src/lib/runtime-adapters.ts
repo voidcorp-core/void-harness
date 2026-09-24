@@ -260,11 +260,7 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
     const content = agentsRoot === undefined
       ? undefined
       : await regularFileText(join(agentsRoot, `${name}.md`));
-    const required = [
-      `name: ${name}`,
-      `Canonical contract: \`${contract.id}\` v${contract.version}.`,
-    ];
-    const drift = specialistDrift(contract, content, required);
+    const drift = specialistDrift(contract, content, [`name: ${name}`]);
     if (drift !== undefined) drifts.set(name, drift);
   }
   if (drifts.size > 0) {

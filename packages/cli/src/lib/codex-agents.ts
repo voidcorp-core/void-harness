@@ -99,12 +99,14 @@ export type SpecialistDrift =
   | { readonly kind: 'invalid' }
   | { readonly kind: 'version'; readonly installed: number; readonly expected: number };
 
-const CONTRACT_LINE = /Canonical contract: `([^`]+)` v([1-9][0-9]{0,5})\./;
+const CONTRACT_LINES = /Canonical contract: `([^`]+)` v([1-9][0-9]{0,5})\./g;
 
 /**
- * Judges one installed specialist. A contract line naming another version is
- * told apart from a broken file, because the two are repaired differently: a
- * version drift means the CLI and the install come from different releases.
+ * Judges one installed specialist: `required` are the fragments besides its
+ * contract line. A file sound but for its contract version is told apart from
+ * a broken one, because the two are repaired differently: a version drift
+ * means the CLI and the install come from different releases, and upgrading
+ * the CLI repairs no broken file.
  */
 export function specialistDrift(
   contract: SpecialistContract,
@@ -112,12 +114,15 @@ export function specialistDrift(
   required: readonly string[],
 ): SpecialistDrift | undefined {
   if (content === undefined) return { kind: 'missing' };
-  const line = CONTRACT_LINE.exec(content);
-  const installed = line?.[1] === contract.id ? Number(line[2]) : undefined;
-  if (installed !== undefined && installed !== contract.version) {
-    return { kind: 'version', installed, expected: contract.version };
-  }
-  return required.every((fragment) => content.includes(fragment)) ? undefined : { kind: 'invalid' };
+  const lines = [...content.matchAll(CONTRACT_LINES)];
+  const [line] = lines;
+  const sound = lines.length === 1 && line?.[1] === contract.id
+    && required.every((fragment) => content.includes(fragment));
+  if (!sound) return { kind: 'invalid' };
+  const installed = Number(line[2]);
+  return installed === contract.version
+    ? undefined
+    : { kind: 'version', installed, expected: contract.version };
 }
 
 /**
@@ -179,7 +184,6 @@ export async function codexSpecialistsHealth(
       'sandbox_mode = "read-only"',
       'web_search = "disabled"',
       'mcp_servers = {}',
-      `Canonical contract: \`${contract.id}\` v${contract.version}.`,
     ];
     const path = join(projectRoot, CODEX_AGENTS_DIR, `${name}.toml`);
     const drift = specialistDrift(contract, await regularFileText(path), required);

@@ -181,6 +181,27 @@ describe('wireCodexAgents', () => {
     });
   });
 
+  it('calls a file broken beyond its contract line invalid, not merely on another version', async () => {
+    const project = tmp('void-codex-agenthealth-');
+    await wireCodexAgents(project, CORE_ROOT);
+    const security = join(project, CODEX_AGENTS_DIR, 'security-engineer.toml');
+    const original = readFileSync(security, 'utf8');
+    const line = 'Canonical contract: `core:security-engineer` v2.';
+    writeFileSync(
+      security,
+      original.replace(line, 'Canonical contract: `core:security-engineer` v3.')
+        .replace('sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"'),
+    );
+    await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
+      detail: expect.stringContaining('security-engineer (invalid)'),
+    });
+    writeFileSync(security, original.replace(line, `${line}\nCanonical contract: \`core:security-engineer\` v3.`));
+    await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
+      ok: false,
+      detail: expect.stringContaining('security-engineer (invalid)'),
+    });
+  });
+
   it('says the CLI is the stale side when the install carries a newer contract', async () => {
     // A project installed by a newer voidharness, then read by an older CLI:
     // reinstalling with the older CLI is one repair, upgrading the CLI the other.
