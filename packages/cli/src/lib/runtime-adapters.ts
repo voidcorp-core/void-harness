@@ -36,6 +36,10 @@ import {
   CODEX_AGENTS_DIR,
   canonicalSpecialistContracts,
   codexSpecialistsHealth,
+  describeSpecialistDrift,
+  regularFileText,
+  type SpecialistDrift,
+  specialistDrift,
   wireCodexAgents,
 } from './codex-agents.js';
 import {
@@ -250,31 +254,24 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
       fix: 'reinstall voidharness',
     };
   }
-  const missing: string[] = [];
+  const drifts = new Map<string, SpecialistDrift>();
   for (const contract of contracts) {
     const name = contract.name;
-    if (agentsRoot === undefined) {
-      missing.push(name);
-      continue;
-    }
-    const path = join(agentsRoot, `${name}.md`);
-    if (!await safeRegularFile(path)) {
-      missing.push(name);
-      continue;
-    }
-    const content = await readFile(path, 'utf8');
-    if (
-      !content.includes(`name: ${name}`)
-      || !content.includes(`Canonical contract: \`${contract.id}\` v${contract.version}.`)
-    ) {
-      missing.push(name);
-    }
+    const content = agentsRoot === undefined
+      ? undefined
+      : await regularFileText(join(agentsRoot, `${name}.md`));
+    const required = [
+      `name: ${name}`,
+      `Canonical contract: \`${contract.id}\` v${contract.version}.`,
+    ];
+    const drift = specialistDrift(contract, content, required);
+    if (drift !== undefined) drifts.set(name, drift);
   }
-  if (missing.length > 0) {
+  if (drifts.size > 0) {
     return {
       name: 'claude agents',
       ok: false,
-      message: `missing or invalid native specialists: ${missing.join(', ')}`,
+      message: describeSpecialistDrift(drifts, 'void-harness runtime add claude'),
       fix: 'void-harness runtime add claude',
     };
   }

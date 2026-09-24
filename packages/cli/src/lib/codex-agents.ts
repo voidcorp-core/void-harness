@@ -93,6 +93,70 @@ export async function canonicalSpecialistContracts(
   return contracts;
 }
 
+/** What is wrong with one installed specialist, judged against the contract this CLI carries. */
+export type SpecialistDrift =
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'invalid' }
+  | { readonly kind: 'version'; readonly installed: number; readonly expected: number };
+
+const CONTRACT_LINE = /Canonical contract: `([^`]+)` v([1-9][0-9]{0,5})\./;
+
+/**
+ * Judges one installed specialist. A contract line naming another version is
+ * told apart from a broken file, because the two are repaired differently: a
+ * version drift means the CLI and the install come from different releases.
+ */
+export function specialistDrift(
+  contract: SpecialistContract,
+  content: string | undefined,
+  required: readonly string[],
+): SpecialistDrift | undefined {
+  if (content === undefined) return { kind: 'missing' };
+  const line = CONTRACT_LINE.exec(content);
+  const installed = line?.[1] === contract.id ? Number(line[2]) : undefined;
+  if (installed !== undefined && installed !== contract.version) {
+    return { kind: 'version', installed, expected: contract.version };
+  }
+  return required.every((fragment) => content.includes(fragment)) ? undefined : { kind: 'invalid' };
+}
+
+/**
+ * One sentence naming each drifted specialist and the repair. An install newer
+ * than the CLI is the one case where reinstalling is not the only answer: the
+ * CLI that reads it is the stale side, and upgrading it keeps the newer install.
+ */
+export function describeSpecialistDrift(
+  drifts: ReadonlyMap<string, SpecialistDrift>,
+  reinstall: string,
+): string {
+  const named = [...drifts].map(([name, drift]) =>
+    drift.kind === 'version'
+      ? `${name} (installed v${drift.installed}, this CLI carries v${drift.expected})`
+      : `${name} (${drift.kind})`,
+  );
+  const newer = [...drifts.values()].some(
+    (drift) => drift.kind === 'version' && drift.installed > drift.expected,
+  );
+  const reinstallWithThis = `reinstall them with this CLI: \`${reinstall}\``;
+  const repair = newer
+    ? 'this CLI is older than the install: upgrade voidharness to the release that installed'
+      + ` them, or ${reinstallWithThis}`
+    : reinstallWithThis;
+  return `native specialists do not match this CLI: ${named.join(', ')}; ${repair}`;
+}
+
+/** A regular file's text; undefined when it is absent, a link, or unreadable. */
+export async function regularFileText(path: string): Promise<string | undefined> {
+  try {
+    const metadata = await lstat(path);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) return undefined;
+    return await readFile(path, 'utf8');
+  } catch {
+    // Absent or unreadable: the caller reports the specialist as missing.
+    return undefined;
+  }
+}
+
 /** Native specialist discovery health. Runtime sandbox strength is reported separately. */
 export async function codexSpecialistsHealth(
   projectRoot: string,
@@ -107,32 +171,21 @@ export async function codexSpecialistsHealth(
       detail: `canonical specialist catalog unavailable: ${(error as Error).message}`,
     };
   }
-  const missing: string[] = [];
+  const drifts = new Map<string, SpecialistDrift>();
   for (const contract of contracts) {
     const name = contract.name;
+    const required = [
+      `name = "${name}"`,
+      'sandbox_mode = "read-only"',
+      'web_search = "disabled"',
+      'mcp_servers = {}',
+      `Canonical contract: \`${contract.id}\` v${contract.version}.`,
+    ];
     const path = join(projectRoot, CODEX_AGENTS_DIR, `${name}.toml`);
-    try {
-      const metadata = await lstat(path);
-      if (!metadata.isFile() || metadata.isSymbolicLink()) {
-        missing.push(name);
-        continue;
-      }
-      const content = await readFile(path, 'utf8');
-      const required = [
-        `name = "${name}"`,
-        'sandbox_mode = "read-only"',
-        'web_search = "disabled"',
-        'mcp_servers = {}',
-        `Canonical contract: \`${contract.id}\` v${contract.version}.`,
-      ];
-      if (!required.every((fragment) => content.includes(fragment))) {
-        missing.push(name);
-      }
-    } catch {
-      missing.push(name);
-    }
+    const drift = specialistDrift(contract, await regularFileText(path), required);
+    if (drift !== undefined) drifts.set(name, drift);
   }
-  return missing.length === 0
+  return drifts.size === 0
     ? { ok: true, detail: `${contracts.length} version-matched native specialist TOML files discovered` }
-    : { ok: false, detail: `missing or invalid native specialists: ${missing.join(', ')}` };
+    : { ok: false, detail: describeSpecialistDrift(drifts, 'void-harness runtime add codex') };
 }

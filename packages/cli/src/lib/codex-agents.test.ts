@@ -161,8 +161,10 @@ describe('wireCodexAgents', () => {
     );
     await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
       ok: false,
-      detail: expect.stringContaining('security-engineer'),
+      detail: expect.stringContaining('security-engineer (installed v1, this CLI carries v2)'),
     });
+    const older = await codexSpecialistsHealth(project, CORE_ROOT);
+    expect(older.detail).toContain('reinstall them with this CLI: `void-harness runtime add codex`');
 
     writeFileSync(
       security,
@@ -170,8 +172,33 @@ describe('wireCodexAgents', () => {
     );
     await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
       ok: false,
-      detail: expect.stringContaining('security-engineer'),
+      detail: expect.stringContaining('security-engineer (invalid)'),
     });
+    rmSync(security);
+    await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
+      ok: false,
+      detail: expect.stringContaining('security-engineer (missing)'),
+    });
+  });
+
+  it('says the CLI is the stale side when the install carries a newer contract', async () => {
+    // A project installed by a newer voidharness, then read by an older CLI:
+    // reinstalling with the older CLI is one repair, upgrading the CLI the other.
+    const project = tmp('void-codex-agenthealth-');
+    await wireCodexAgents(project, CORE_ROOT);
+    const security = join(project, CODEX_AGENTS_DIR, 'security-engineer.toml');
+    writeFileSync(
+      security,
+      readFileSync(security, 'utf8').replace(
+        'Canonical contract: `core:security-engineer` v2.',
+        'Canonical contract: `core:security-engineer` v3.',
+      ),
+    );
+    const health = await codexSpecialistsHealth(project, CORE_ROOT);
+    expect(health.ok).toBe(false);
+    expect(health.detail).toContain('security-engineer (installed v3, this CLI carries v2)');
+    expect(health.detail).toContain('this CLI is older than the install');
+    expect(health.detail).toContain('`void-harness runtime add codex`');
   });
 
   it('fails health when the canonical catalog is empty', async () => {
