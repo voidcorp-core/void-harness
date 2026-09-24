@@ -360,7 +360,8 @@ describe("this repository's program", () => {
   it('satisfies the same canonical contract it ships', () => {
     const descriptor = readProgramDescriptor(new URL('../../../../..', import.meta.url).pathname);
 
-    expect(descriptor?.status).toBe('executing');
+    // Closed on 2026-09-24 once the native loop plan ran to its last step.
+    expect(descriptor?.status).toBe('completed');
     expect(descriptor?.progress?.provider).toBe('linear');
     // This repository integrates into develop and ships from main, so it takes
     // the granted gate. The pair is asserted rather than the value alone: a

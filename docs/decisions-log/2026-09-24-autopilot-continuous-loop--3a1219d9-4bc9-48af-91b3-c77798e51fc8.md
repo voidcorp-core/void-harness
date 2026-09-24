@@ -3,7 +3,7 @@ schemaVersion: 1
 id: "adr:3a1219d9-4bc9-48af-91b3-c77798e51fc8"
 createdAt: "2026-09-24T18:09:59.983Z"
 title: "Autopilot is a continuous loop that GitHub's merge queue merges for"
-status: proposed
+status: accepted
 deciders: ["folpe"]
 supersedes: ["adr:077c5419-ffe2-454f-a50e-9c147cf15ce9"]
 ---

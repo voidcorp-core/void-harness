@@ -170,7 +170,7 @@ seulement) avant sa PR.
 
 ## Resume point
 
-**Next step** : aucun. Le plan est exécuté ; la clôture du programme reste une décision humaine.
+**Next step** : aucun. Le plan est exécuté et le programme clos (`status: completed`), décidé par Folpe le 2026-09-24.
 
 **Completed** :
 - Spec approuvée (`docs/specs/2026-09-22-autopilot-native-loop.md`).

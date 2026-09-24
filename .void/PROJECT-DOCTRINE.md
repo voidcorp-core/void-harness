@@ -32,7 +32,8 @@ https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FO
   Il couvre emplacement durable, réutilisation, migration conservatrice et cycle
   de vie lié au ticket, indépendamment des outils d'affichage.
   - **Why** : une seule règle autoritaire partagée par les consommateurs et les skills.
-  - **Enforced by** : doctrine universelle et planification des worktrees du harnais.
+  - **Enforced by** : doctrine universelle, skill `void-autopilot` (worktree créée ou réutilisée
+    avant chaque worker, retirée seulement après un merge observé) et `docs/WORKTREES.md`.
 
 - **Linear outbound reports**: publish only an operational summary and links to the PR or CI; keep implementation details, internal paths, and detailed test results in review artefacts. If the outbound control rejects a detailed payload, reduce the content without attempting a workaround.
   - **Why**: detailed Linear comments are repeatedly refused when they publish internal repository context; a short status plus linked evidence keeps the tracker useful and safe.

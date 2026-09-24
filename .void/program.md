@@ -1,6 +1,6 @@
 ---
 schemaVersion: 1
-status: executing
+status: completed
 program: autonomous-until-develop
 plan: docs/plans/2026-09-22-autopilot-native-loop-plan.md
 spec: docs/specs/2026-09-22-autopilot-native-loop.md
