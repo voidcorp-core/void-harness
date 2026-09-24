@@ -2,12 +2,15 @@
 schemaVersion: 1
 status: executing
 program: autonomous-until-develop
-plan: docs/plans/2026-09-16-seven-ticket-delivery.md
-spec: docs/specs/2026-09-16-seven-ticket-delivery.md
+plan: docs/plans/2026-09-22-autopilot-native-loop-plan.md
+spec: docs/specs/2026-09-22-autopilot-native-loop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-844, DEV-531, DEV-611, DEV-630, DEV-682, DEV-662, DEV-635]
+  # Tie-break only, between units the curator ranks equally. Selection
+  # belongs to the curator, which reads the project and the tracker; a
+  # frozen list here would take back what that role was given.
+  order: [DEV-858, DEV-877, DEV-859]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -29,12 +32,16 @@ autopilot:
       - packages/cli/core-assets/**
       - packages/harness-graph/model.json
       - packages/harness-graph/catalog.v3.json
-      # DEV-677 and DEV-673 both rewrite the merge grant, so the router must
-      # sequence them rather than fan them out. Declared here rather than left to
-      # footprint inference, because a semantic conflict in the guard that
-      # authorizes a merge is the one no tooling resolves after the fact.
-      - packages/cli/src/lib/autopilot/union-review.ts
     reconcileOnly: []
+  # The floor is compiled in and cannot be narrowed here. Written out so the
+  # ground the loop never merges on its own is readable, and so this list can
+  # only ever grow.
+  protectedPaths:
+    - .github/**
+    - .void/program.md
+    - packages/core/hooks/**
+    - scripts/independent-review-check.mjs
+    - scripts/promotion-authority.mjs
 ---
 
 # Program: autonomous until develop
