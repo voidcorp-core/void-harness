@@ -7,9 +7,10 @@ spec: docs/specs/2026-09-22-autopilot-native-loop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  # Tie-break only, between units the curator ranks equally. Selection
-  # belongs to the curator, which reads the project and the tracker; a
-  # frozen list here would take back what that role was given.
+  # Selection belongs to the curator, which reads the project and the tracker;
+  # the continuous loop never reads this list. It still bounds two older
+  # readers: the cluster engine's `plan` pool, and a resume that names no unit.
+  # Keep it to what a person would accept being picked without being asked.
   order: [DEV-858, DEV-877, DEV-859]
   states:
     ready: [Backlog, Todo]
@@ -33,36 +34,39 @@ autopilot:
       - packages/harness-graph/model.json
       - packages/harness-graph/catalog.v3.json
     reconcileOnly: []
-  # The floor is compiled in and cannot be narrowed here. Written out so the
-  # ground the loop never merges on its own is readable, and so this list can
-  # only ever grow.
+  # Additions only. The floor lives in PROTECTED_PATHS_FLOOR and already covers
+  # `.github/**`, the installed hooks, the loop's own sources and the scripts
+  # that judge a merge or a publication; this list can widen that ground, never
+  # narrow it. `union-review.ts` is named here because `sameBranch` decides the
+  # refusal to merge into the branch that deploys, and the floor does not carry
+  # it yet.
   protectedPaths:
-    - .github/**
-    - .void/program.md
-    - packages/core/hooks/**
-    - scripts/independent-review-check.mjs
-    - scripts/promotion-authority.mjs
+    - packages/cli/src/lib/autopilot/union-review.ts
 ---
 
 # Program: autonomous until develop
 
-## Scope explicitly expanded on 16 September 2026
+## Scope, since 24 September 2026
 
-Folpe explicitly requested DEV-844 first from the test-cost audit and the six
-proposed units DEV-531/611/630/682/662/635, each with its own implementing agent.
-The linked spec and plan record this authorized scope change. Prior motion,
-update-proposal and doctrine-routing choices remain approved. DEV-610/645 are
-already delivered and are not reopened. Mutable state belongs only to Linear.
+The programme runs the continuous delivery loop named in frontmatter. A curator
+selects and ranks the work from the project and the tracker, reading Todo, then
+Backlog, then Triage; it enriches a unit before declaring it ready and never
+closes or deletes one. Four slots at most run at a time, one worker per unit in
+its own worktree, each running the complete `void-implement` cycle. One pull
+request per unit targets `develop`, auto-merge is the default there, and the
+GitHub merge queue replays the checks on the combined result. An independent
+reviewer's verdict, signed and verified by a required check, is what authorizes
+a merge; no human reads the code for it.
 
-The programme retains its existing non-production merge grant and protection
-requirements. At most two writers run concurrently; declarations containing
-shared generated assets are sequenced by the orchestration plan. No
-reconcileOnly exception is introduced here. Unit plans must remain compatible
-with the complete provider-native ticket and its current blocker relations.
+The earlier scope of 16 September (DEV-844 first, then DEV-531/611/630/682/662/635)
+is delivered or lapsed, and is not reopened here. The non-production merge grant
+and the protection requirements are unchanged: the loop merges into `develop`
+only, never into `main`, and promotion to production stays a person's.
 
 Corrections stay in the artefact being worked on. A change contradicting an
-accepted decision requires supersession, never an in-place rewrite. This scope
-was selected by Folpe; completion never selects or repoints a successor pool.
+accepted decision requires supersession, never an in-place rewrite. Completion
+never selects or repoints a successor pool: the curator does, each time the
+project moves.
 
 ## Sources of truth
 
