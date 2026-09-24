@@ -38,7 +38,11 @@ env:
   EXPECTED_BASE: main
   EXPECTED_HUMAN: folpe
   MAX_PROMOTION_COMMITS: 500
-  PROMOTION_BATCH_SIZE: 40
+  # GitHub refuses a query whose worst case exceeds 500,000 nodes; each commit
+  # of the batch asks for 100 pull requests, each with its head's review checks
+  # (5 suites of 3 runs, 2 and 1 observed) and 100 timeline events.
+  # test/workflows/release-authority.test.ts recomputes the bound.
+  PROMOTION_BATCH_SIZE: 30
   PROMOTION_API_RETRIES: 3
   PROMOTION_RETRY_DELAY_SECONDS: 1
 
@@ -129,7 +133,7 @@ jobs:
             local query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ '
             local index=0
             for integration_oid in "$@"; do
-              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid checkSuites(first:50,filterBy:{appId:15368}){totalCount nodes{checkRuns(first:20,filterBy:{checkName:\"independent-review\"}){totalCount nodes{status conclusion completedAt}}}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
+              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid checkSuites(first:5,filterBy:{appId:15368}){totalCount nodes{checkRuns(first:3,filterBy:{checkName:\"independent-review\"}){totalCount nodes{status conclusion completedAt}}}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
               index=$((index + 1))
             done
             query+='} }'
