@@ -1,0 +1,104 @@
+# The independent review of every pull request into develop, run by GitHub.
+#
+# `pull_request_target` on purpose: the workflow, the scripts and the review
+# instructions come from the base branch, so a pull request can rewrite none of
+# them for its own review, and the model credential is never handed to code the
+# pull request controls. The head is checked out beside them as data, in
+# `pr-head/`, and read with read-only tools; nothing from it is installed or
+# run. This is the pattern GitHub and Anthropic document for untrusted heads.
+#
+# The verdict is the check run `independent-review` on the head SHA, created by
+# scripts/independent-review-run.mjs with this job's GITHUB_TOKEN, hence by the
+# GitHub Actions app, the only source branch protection accepts for it. This
+# job is named `review`, never `independent-review`: a job skipped under the
+# required name would report success.
+# https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target
+# https://code.claude.com/docs/en/github-actions
+name: independent-review
+
+on:
+  pull_request_target:
+    branches: [develop]
+    # A draft gets no review and no check, so it stays unmergeable until it is
+    # marked ready, which triggers this.
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+# One review per head: a push while a review runs replaces it.
+concurrency:
+  group: independent-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          sparse-checkout: |
+            scripts/independent-review-check.mjs
+            scripts/independent-review-run.mjs
+            .github/review
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Decide whether this head is reviewed, and open its check
+        id: start
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/independent-review-run.mjs start
+      - name: Check out the head, as data
+        if: steps.start.outputs.review == 'true'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr-head
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Prepare the diff and the instructions
+        id: inputs
+        if: steps.start.outputs.review == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git -C pr-head diff "$BASE_SHA...$HEAD_SHA" > review/diff.patch
+          printf 'schema=%s\n' "$(node -e 'process.stdout.write(JSON.stringify(require("./.github/review/verdict.schema.json")))')" >> "$GITHUB_OUTPUT"
+      - name: Review
+        id: claude
+        if: steps.start.outputs.review == 'true'
+        # A failed or empty review is judged by the next step, which fails the check.
+        continue-on-error: true
+        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # v1.0.233
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # This job's token, not the Claude GitHub App's: nothing to install,
+          # and Claude's read-only tools cannot use it anyway.
+          github_token: ${{ github.token }}
+          prompt: |
+            Follow .github/review/prompt.md to review pull request #${{ github.event.pull_request.number }}
+            at head ${{ github.event.pull_request.head.sha }}.
+          claude_args: >-
+            --allowedTools Read,Grep,Glob
+            --add-dir pr-head
+            --max-turns 40
+            --json-schema '${{ steps.inputs.outputs.schema }}'
+      - name: Publish the verdict and conclude the check
+        if: always() && steps.start.outputs.review == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHECK_RUN_ID: ${{ steps.start.outputs.check_run_id }}
+          REVIEW_OUTPUT: ${{ steps.claude.outputs.structured_output }}
+        run: node scripts/independent-review-run.mjs finish

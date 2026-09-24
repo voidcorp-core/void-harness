@@ -35,9 +35,9 @@ const MERGE_GROUP =
   /^ {2}merge_group:\n {4}types: \[checks_requested\]\n {4}branches: \[develop\]$/m;
 
 describe('merge queue readiness on develop', () => {
-  // `validate` and the three `install conformance` jobs live in ci.yml;
-  // `enforce` and `independent-review` live in void-enforce.yml.
-  it.each(['ci.yml', 'void-enforce.yml'])('%s answers merge groups on develop', (name) => {
+  // `validate` and the three `install conformance` jobs live in ci.yml,
+  // `enforce` in void-enforce.yml, the queue's `independent-review` in its own.
+  it.each(['ci.yml', 'void-enforce.yml', 'independent-review-queue.yml'])('%s answers merge groups on develop', (name) => {
     expect(triggers(read(`.github/workflows/${name}`))).toMatch(MERGE_GROUP);
   });
 
@@ -59,38 +59,49 @@ describe('merge queue readiness on develop', () => {
   });
 });
 
-describe('independent-review job', () => {
-  const review = job(read('.github/workflows/void-enforce.yml'), 'independent-review');
+describe('independent review', () => {
+  const reviewSource = read('.github/workflows/independent-review.yml');
+  const queueSource = read('.github/workflows/independent-review-queue.yml');
+  const review = job(reviewSource, 'review');
+  const queued = job(queueSource, 'independent-review');
 
-  it('runs on develop pull requests and on merge groups only', () => {
-    expect(review).toContain(
-      `if: ${expression(
-        "github.event_name == 'merge_group' || "
-          + "(github.event_name == 'pull_request' && github.base_ref == 'develop')",
-      )}`,
-    );
+  // A job skipped under a required name reports success, so the required name
+  // exists only where it always runs: the queue workflow, on merge groups alone.
+  it('runs the required name only on merge groups, and reviews under another name', () => {
+    expect(triggers(queueSource)).toMatch(MERGE_GROUP);
+    expect(triggers(queueSource)).not.toMatch(/pull_request/);
+    expect(queued).not.toMatch(/^ {4}if:/m);
+    expect(job(reviewSource, 'independent-review')).toBe('');
+    for (const name of ['ci.yml', 'void-enforce.yml']) {
+      expect(read(`.github/workflows/${name}`)).not.toMatch(/\n {2}independent-review:\n/);
+    }
   });
 
-  it('holds read-only permissions on contents, pull requests and statuses', () => {
-    expect(review).toMatch(
-      /permissions:\n {6}contents: read\n {6}pull-requests: read\n {6}statuses: read\n/,
-    );
-    expect(review).not.toMatch(/: write/);
+  // The workflow, the scripts and the instructions come from the base, and the
+  // head is data in a subdirectory: nothing the pull request controls runs with
+  // the model credential.
+  it('reviews from the base branch, with the head checked out as data only', () => {
+    expect(triggers(reviewSource)).toMatch(/^ {2}pull_request_target:\n {4}branches: \[develop\]$/m);
+    expect(review).toContain(`ref: ${expression('github.event.pull_request.head.sha')}`);
+    expect(review).toContain('path: pr-head');
+    expect(review).not.toMatch(/pnpm|npm (?:ci|install)|node pr-head/);
+    expect(review).toContain('--allowedTools Read,Grep,Glob');
+    expect(review).toContain('--add-dir pr-head');
+    expect(review).toMatch(/uses: anthropics\/claude-code-action@[0-9a-f]{40} /);
   });
 
-  it('runs the verifier from the trusted base branch, not from the change under review', () => {
-    expect(review).toContain(
-      `ref: ${expression(
-        'github.event.pull_request.base.ref || github.event.merge_group.base_ref',
-      )}`,
-    );
-    expect(review).toContain('persist-credentials: false');
-    expect(review).toMatch(/^ {10}node scripts\/independent-review-check\.mjs$/m);
+  it('holds only what publishing a check and a comment needs', () => {
+    expect(review).toMatch(/permissions:\n {6}contents: read\n {6}checks: write\n {6}pull-requests: write\n/);
+    expect(queued).toMatch(/permissions:\n {6}contents: read\n {6}checks: read\n {6}pull-requests: read\n/);
+    expect(queued).not.toMatch(/: write/);
+    expect(reviewSource).toMatch(/^permissions: \{\}$/m);
+    expect(queueSource).toMatch(/^permissions: \{\}$/m);
   });
 
-  it('checks out the history the back-merge commits are verified against', () => {
-    // The script proves the back-merge's commits in git: ancestry against main
-    // and develop, and its tree against a recomputed merge.
-    expect(review).toContain('fetch-depth: 0');
+  it('verifies the queue from the trusted base, with the history the back-merge needs', () => {
+    expect(queued).toContain(`ref: ${expression('github.event.merge_group.base_ref')}`);
+    expect(queued).toContain('persist-credentials: false');
+    expect(queued).toContain('fetch-depth: 0');
+    expect(queued).toMatch(/^ {8}run: node scripts\/independent-review-check\.mjs$/m);
   });
 });

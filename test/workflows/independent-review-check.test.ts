@@ -4,21 +4,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  generateReviewKey,
-  renderSignature,
-  type SignedVerdict,
-  signVerdict,
-} from '../../packages/cli/src/lib/autopilot/review-signature.js';
-import {
   checkIndependentReview,
+  GITHUB_ACTIONS_APP_ID,
   parseQueueRef,
-  REVIEW_PUBLIC_KEY_PATH,
-  VERDICT_CONTEXT,
+  REVIEW_CHECK_NAME,
 } from '../../scripts/independent-review-check.mjs';
+import { decideStart } from '../../scripts/independent-review-run.mjs';
 
-// Response shapes mirror the GitHub GraphQL API: `status` is null on a commit
-// with no status at all, `context` is null when the named context is absent,
-// and `mergeQueue` is null when the branch has no queue (all observed live).
+// Response shapes mirror the GitHub GraphQL API: a commit lists its check
+// suites, each its check runs, filtered by app and name in the query; and
+// `mergeQueue` is null when the branch has no queue (observed live).
 const repository = 'voidcorp-core/void-harness';
 const sha = (digit: string): string => digit.repeat(40);
 
@@ -51,45 +46,31 @@ const workPull = {
   author: { __typename: 'User', login: 'folpe' },
 };
 
-// The review key, drawn once per run. Every verdict below is signed with it by
-// the CLI's own signer, and verified by the script: the two share a format and
-// this is what proves they agree.
-const KEY = generateReviewKey();
-const publicKey = KEY.publicKey;
-
-/** A verdict comment as `autopilot verdict` posts it: the signature line. */
-function signedComment(
-  fields: Partial<SignedVerdict> & Pick<SignedVerdict, 'pullRequest' | 'headSha'>,
-  privateKey = KEY.privateKey,
-): string {
-  const signature = signVerdict(privateKey, {
-    repository,
-    ticketId: 'DEV-42',
-    state: 'success',
-    verdictDigest: 'd'.repeat(64),
-    signedAt: '2026-09-23T10:00:00.000Z',
-    ...fields,
-  });
-  return `<!-- void-autopilot:review-verdict -->\n${renderSignature(signature)}\n`;
-}
-
 interface Fixture {
-  readonly verdicts?: Readonly<Record<string, string>>;
   /**
-   * The comments of each pull request, by number. Unless given, every head in
-   * `verdicts` carries a verdict signed for that pull request with the outcome
-   * of its status, as the reviewer posts both.
+   * The conclusion of the review check GitHub Actions left on each head, or a
+   * list of runs oldest first; a head absent here carries none.
    */
-  readonly comments?: Readonly<Record<number, readonly string[]>>;
+  readonly verdicts?: Readonly<Record<string, string | readonly ReviewRun[]>>;
   readonly entries?: readonly QueueEntry[];
   /** The head of the base branch as GitHub reports it; `develop` is at sha('0'). */
   readonly baseHead?: string;
 }
 
-function commitStatus(oid: string, state: string | undefined): unknown {
-  if (state === undefined) return { data: { repository: { object: { oid, status: null } } } };
-  const context = { state, description: 'reviewed' };
-  return { data: { repository: { object: { oid, status: { context } } } } };
+interface ReviewRun {
+  readonly status: string;
+  readonly conclusion: string | null;
+  readonly completedAt: string | null;
+}
+
+function reviewChecks(oid: string, verdict: string | readonly ReviewRun[] | undefined): unknown {
+  const runs: readonly ReviewRun[] = verdict === undefined ? []
+    : typeof verdict === 'string'
+      ? [{ status: 'COMPLETED', conclusion: verdict, completedAt: '2026-09-24T10:00:00Z' }]
+      : verdict;
+  const suites = runs.length === 0 ? [] : [{ checkRuns: { totalCount: runs.length, nodes: runs } }];
+  const checkSuites = { totalCount: suites.length, nodes: suites };
+  return { data: { repository: { object: { oid, checkSuites } } } };
 }
 
 function queue(entries: readonly QueueEntry[], baseHead: string): unknown {
@@ -110,25 +91,10 @@ function fakeGithub(fixture: Fixture): { graphql: Graphql; asked: Variables[] } 
     if (query.includes('mergeQueue')) {
       return queue(fixture.entries ?? [], fixture.baseHead ?? sha('0'));
     }
-    if (query.includes('comments(')) {
-      const number = Number(variables.number);
-      const signed = Object.entries(fixture.verdicts ?? {}).flatMap(([headSha, state]) =>
-        state === 'SUCCESS' || state === 'FAILURE'
-          ? [signedComment({ pullRequest: number, headSha, state: state === 'SUCCESS' ? 'success' : 'failure' })]
-          : [],
-      );
-      const bodies = fixture.comments?.[number] ?? signed;
-      const nodes = bodies.map((body) => ({ body }));
-      return { data: { repository: { pullRequest: { comments: { totalCount: nodes.length, nodes } } } } };
-    }
     const oid = variables.oid ?? '';
-    return commitStatus(oid, fixture.verdicts?.[oid]);
+    return reviewChecks(oid, fixture.verdicts?.[oid]);
   };
   return { graphql, asked };
-}
-
-function pullRequestEvent(head: string): Record<string, unknown> {
-  return { pull_request: { number: 12, head: { sha: head } } };
 }
 
 function mergeGroupEvent(number: number, head: string): Record<string, unknown> {
@@ -149,29 +115,10 @@ const twoEntries: readonly QueueEntry[] = [
 ];
 
 describe('independent review verdict check', () => {
-  it('names the commit status context the reviewer posts', () => {
-    expect(VERDICT_CONTEXT).toBe('void/independent-review');
-  });
-
-  it('accepts a pull request whose head SHA carries a success verdict', async () => {
-    const { graphql, asked } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' } });
-    const verified = await checkIndependentReview({
-      publicKey,
-      eventName: 'pull_request',
-      event: pullRequestEvent(sha('1')),
-      repository,
-      graphql,
-    });
-    expect(verified).toEqual([{ number: 12, sha: sha('1') }]);
-    expect(asked[0]).toMatchObject({ owner: 'voidcorp-core', name: 'void-harness' });
-    expect(asked[0]).toMatchObject({ oid: sha('1'), context: VERDICT_CONTEXT });
-  });
-
   it('accepts a merge group only when every grouped pull request is approved', async () => {
     const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
     const { graphql } = fakeGithub({ verdicts, entries: twoEntries });
     const verified = await checkIndependentReview({
-      publicKey,
       eventName: 'merge_group',
       event: mergeGroupEvent(9, sha('b')),
       repository,
@@ -187,55 +134,12 @@ describe('independent review verdict check', () => {
     const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries: twoEntries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
         graphql,
       }),
-    ).rejects.toThrow(/#7 .*no void\/independent-review verdict/);
-  });
-
-  it('refuses a pull request without any verdict', async () => {
-    const { graphql } = fakeGithub({});
-    await expect(
-      checkIndependentReview({
-        publicKey,
-        eventName: 'pull_request',
-        event: pullRequestEvent(sha('1')),
-        repository,
-        graphql,
-      }),
-    ).rejects.toThrow(/no void\/independent-review verdict/);
-  });
-
-  it.each(['FAILURE', 'PENDING', 'ERROR', 'EXPECTED'])(
-    'refuses a %s verdict',
-    async (state) => {
-      const { graphql } = fakeGithub({ verdicts: { [sha('1')]: state } });
-      await expect(
-        checkIndependentReview({
-          publicKey,
-          eventName: 'pull_request',
-          event: pullRequestEvent(sha('1')),
-          repository,
-          graphql,
-        }),
-      ).rejects.toThrow(new RegExp(`verdict is ${state}`));
-    },
-  );
-
-  it('refuses a verdict left on an older SHA of the pull request', async () => {
-    const { graphql } = fakeGithub({ verdicts: { [sha('9')]: 'SUCCESS' } });
-    await expect(
-      checkIndependentReview({
-        publicKey,
-        eventName: 'pull_request',
-        event: pullRequestEvent(sha('1')),
-        repository,
-        graphql,
-      }),
-    ).rejects.toThrow(new RegExp(`${sha('1')} carries no`));
+    ).rejects.toThrow(/#7 .*carries no independent-review check/);
   });
 
   it('refuses a merge group whose pull request was reviewed on an older SHA', async () => {
@@ -243,20 +147,18 @@ describe('independent review verdict check', () => {
     const { graphql } = fakeGithub({ verdicts: { [sha('9')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(7, sha('a')),
         repository,
         graphql,
       }),
-    ).rejects.toThrow(/#7 .*no void\/independent-review verdict/);
+    ).rejects.toThrow(/#7 .*carries no independent-review check/);
   });
 
   it('refuses a merge group whose entry is absent from the queue', async () => {
     const { graphql } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' }, entries: [] });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(7, sha('a')),
         repository,
@@ -272,7 +174,6 @@ describe('independent review verdict check', () => {
     const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
@@ -286,7 +187,6 @@ describe('independent review verdict check', () => {
     const { graphql } = fakeGithub({ verdicts, entries: twoEntries, baseHead: sha('e') });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
@@ -304,7 +204,6 @@ describe('independent review verdict check', () => {
     const { graphql } = fakeGithub({ verdicts, entries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
@@ -318,7 +217,6 @@ describe('independent review verdict check', () => {
     const { graphql } = fakeGithub({ verdicts, entries: twoEntries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(7, sha('b')),
         repository,
@@ -335,9 +233,8 @@ describe('independent review verdict check', () => {
     for (const graphql of [failing, empty]) {
       await expect(
         checkIndependentReview({
-          publicKey,
-          eventName: 'pull_request',
-          event: pullRequestEvent(sha('1')),
+          eventName: 'merge_group',
+          event: mergeGroupEvent(9, sha('b')),
           repository,
           graphql,
         }),
@@ -345,115 +242,44 @@ describe('independent review verdict check', () => {
     }
   });
 
+  it('names the check GitHub Actions publishes and branch protection requires', () => {
+    expect(REVIEW_CHECK_NAME).toBe('independent-review');
+    expect(GITHUB_ACTIONS_APP_ID).toBe(15368);
+  });
+
+  it('asks GitHub only for the review check runs of the GitHub Actions app', async () => {
+    const { graphql, asked } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' }, entries: twoEntries });
+    await checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql });
+    expect(asked.at(-1)).toMatchObject({ oid: sha('1'), app: 15368, check: 'independent-review' });
+  });
+
+  it('refuses a group whose review is still running, or whose latest review failed', async () => {
+    const running = [{ status: 'IN_PROGRESS', conclusion: null, completedAt: null }];
+    const reversed = [
+      { status: 'COMPLETED', conclusion: 'FAILURE', completedAt: '2026-09-24T11:00:00Z' },
+      { status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: '2026-09-24T10:00:00Z' },
+    ];
+    for (const [verdict, message] of [[running, /is PENDING/], [reversed, /is FAILURE/]] as const) {
+      const { graphql } = fakeGithub({ verdicts: { [sha('1')]: verdict, [sha('2')]: 'SUCCESS' }, entries: twoEntries });
+      await expect(
+        checkIndependentReview({ eventName: 'merge_group', event: mergeGroupEvent(9, sha('b')), repository, graphql }),
+      ).rejects.toThrow(message);
+    }
+  });
+
   it('refuses any other event rather than passing on it', async () => {
+    for (const eventName of ['pull_request', 'pull_request_target']) {
+      const { graphql } = fakeGithub({});
+      await expect(checkIndependentReview({ eventName, event: {}, repository, graphql }))
+        .rejects.toThrow(/unsupported event/);
+    }
     const { graphql } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' } });
     await expect(
-      checkIndependentReview({ publicKey, eventName: 'push', event: {}, repository, graphql }),
+      checkIndependentReview({ eventName: 'push', event: {}, repository, graphql }),
     ).rejects.toThrow(/unsupported event push/);
   });
 
-  it('refuses a malformed pull request head SHA', async () => {
-    const { graphql } = fakeGithub({});
-    await expect(
-      checkIndependentReview({
-        publicKey,
-        eventName: 'pull_request',
-        event: pullRequestEvent('main'),
-        repository,
-        graphql,
-      }),
-    ).rejects.toThrow(/head SHA/);
-  });
-});
 
-describe('the signature behind a verdict', () => {
-  // The status is text anyone with write access can post; the signature is
-  // what only the orchestration checkout's key produces. The job reads the
-  // public key from the base branch, where only a merge changes it.
-  const check = (comments: readonly string[], options: { key?: string | undefined } = {}) => {
-    const { graphql } = fakeGithub({ verdicts: { [sha('1')]: 'SUCCESS' }, comments: { 12: comments } });
-    const key = 'key' in options ? options.key : publicKey;
-    return checkIndependentReview({
-      publicKey: key,
-      eventName: 'pull_request',
-      event: pullRequestEvent(sha('1')),
-      repository,
-      graphql,
-    });
-  };
-  const genuine = signedComment({ pullRequest: 12, headSha: sha('1') });
-
-  it('reads the public key from the versioned path the reviewer key command writes', () => {
-    expect(REVIEW_PUBLIC_KEY_PATH).toBe('.github/void-review.pub');
-  });
-
-  it('accepts a success status backed by a success verdict signed for this head', async () => {
-    await expect(check([genuine])).resolves.toEqual([{ number: 12, sha: sha('1') }]);
-  });
-
-  it('refuses a success status no signature backs, as a worker would post it', async () => {
-    await expect(check([])).rejects.toThrow(/#12 .*no verdict signed by the review key/);
-    await expect(check(['<!-- void-autopilot:review-verdict -->\n{}'])).rejects.toThrow(/no verdict signed/);
-  });
-
-  it('refuses a signature replayed from another head, pull request or outcome', async () => {
-    for (const replay of [
-      signedComment({ pullRequest: 12, headSha: sha('9') }),
-      signedComment({ pullRequest: 13, headSha: sha('1') }),
-      signedComment({ pullRequest: 12, headSha: sha('1'), repository: 'someone/else' }),
-    ]) {
-      await expect(check([replay])).rejects.toThrow(/no verdict signed/);
-    }
-    const failure = signedComment({ pullRequest: 12, headSha: sha('1'), state: 'failure' });
-    await expect(check([failure])).rejects.toThrow(/signed verdict is failure/);
-  });
-
-  it('refuses a verdict signed by a key it does not know', async () => {
-    const stranger = signedComment({ pullRequest: 12, headSha: sha('1') }, generateReviewKey().privateKey);
-    await expect(check([stranger])).rejects.toThrow(/no verdict signed/);
-  });
-
-  it('refuses a genuine verdict once the public key it reads was replaced', async () => {
-    await expect(check([genuine], { key: generateReviewKey().publicKey })).rejects.toThrow(/no verdict signed/);
-  });
-
-  it('refuses everything when the base branch carries no public key', async () => {
-    await expect(check([genuine], { key: undefined })).rejects.toThrow(/review public key/);
-    await expect(check([genuine], { key: 'not a key' })).rejects.toThrow(/review public key/);
-  });
-
-  it('follows the latest signed verdict on the head, whatever order the comments came in', async () => {
-    // A later failure outranks an earlier success, and a copy of that earlier
-    // success posted again afterwards keeps the time it was signed at.
-    const later = signedComment({
-      pullRequest: 12,
-      headSha: sha('1'),
-      state: 'failure',
-      signedAt: '2026-09-23T11:00:00.000Z',
-    });
-    await expect(check([genuine, later])).rejects.toThrow(/signed verdict is failure/);
-    await expect(check([genuine, later, genuine])).rejects.toThrow(/signed verdict is failure/);
-    const reversed = signedComment({
-      pullRequest: 12,
-      headSha: sha('1'),
-      signedAt: '2026-09-23T12:00:00.000Z',
-    });
-    await expect(check([later, reversed])).resolves.toHaveLength(1);
-  });
-
-  it('refuses a group when one grouped pull request carries only a status', async () => {
-    const verdicts = { [sha('1')]: 'SUCCESS', [sha('2')]: 'SUCCESS' };
-    const { graphql } = fakeGithub({ verdicts, entries: twoEntries, comments: { 7: [] } });
-    await expect(
-      checkIndependentReview({
-        publicKey,
-        eventName: 'merge_group',
-        event: mergeGroupEvent(9, sha('b')),
-        repository,
-        graphql,
-      }),
-    ).rejects.toThrow(/#7 .*no verdict signed/);
-  });
 });
 
 describe('the release back-merge', () => {
@@ -539,38 +365,27 @@ describe('the release back-merge', () => {
     };
   }
 
-  async function check(head: string, git: (args: readonly string[]) => string) {
-    const { graphql, asked } = fakeGithub({});
-    const verified = checkIndependentReview({
-      publicKey,
-      eventName: 'pull_request',
-      event: backMergeEvent(head),
-      repository,
-      graphql,
-      git,
-    });
-    return { verified, asked };
-  }
+  // Out of the queue, the review job decides: an exempt back-merge gets a
+  // passing check with no review, anything else is reviewed.
+  const decide = (head: string, git: (args: readonly string[]) => string) =>
+    decideStart({ event: backMergeEvent(head), repository, git }).kind;
 
   it.each([
     ['the fast-forward to main of #379', false],
     ['a real merge of main into develop', true],
-  ])('passes %s without a verdict, asking GitHub nothing', async (_name, unreleased) => {
+  ])('exempts %s from review', (_name, unreleased) => {
     const { git, head } = releasedRepository(unreleased);
-    const { verified, asked } = await check(head, git);
-    await expect(verified).resolves.toEqual([{ number: 379, sha: head, exempt: 'back-merge' }]);
-    expect(asked).toEqual([]);
+    expect(decide(head, git)).toBe('exempt');
   });
 
-  it('demands a verdict once a commit is pushed on top of the back-merge', async () => {
+  it('reviews the back-merge once a commit is pushed on top of it', () => {
     const { work, git } = releasedRepository(true);
     const extra = commitFile(work, 'src.txt', 'smuggled\n', 'fix: nothing to see');
     run(work, 'push', '-q', 'origin', 'chore/back-merge-main');
-    const { verified } = await check(extra, git);
-    await expect(verified).rejects.toThrow(/#379 head .* carries no void\/independent-review verdict/);
+    expect(decide(extra, git)).toBe('review');
   });
 
-  it('demands a verdict from a merge whose tree is not the merge of its parents', async () => {
+  it('reviews a merge whose tree is not the merge of its parents', () => {
     const { work, git } = releasedRepository(true);
     run(work, 'checkout', '-qB', 'chore/back-merge-main', 'develop');
     run(work, 'merge', '-q', '--no-commit', 'main');
@@ -578,27 +393,24 @@ describe('the release back-merge', () => {
     run(work, 'add', 'src.txt');
     run(work, 'commit', '-q', '--no-edit');
     run(work, 'push', '-q', '--force', 'origin', 'chore/back-merge-main');
-    const { verified } = await check(run(work, 'rev-parse', 'HEAD'), git);
-    await expect(verified).rejects.toThrow(/tree/);
+    expect(decide(run(work, 'rev-parse', 'HEAD'), git)).toBe('review');
   });
 
-  it('demands a verdict from a merge whose first parent is not develop', async () => {
+  it('reviews a merge whose first parent is not develop', () => {
     const { work, git } = releasedRepository(true);
     run(work, 'checkout', '-qB', 'side', 'develop');
     commitFile(work, 'side.txt', 'unreviewed\n', 'feat: never on develop');
     run(work, 'checkout', '-qB', 'chore/back-merge-main', 'side');
     run(work, 'merge', '-q', '--no-edit', 'main');
     run(work, 'push', '-q', '--force', 'origin', 'chore/back-merge-main');
-    const { verified } = await check(run(work, 'rev-parse', 'HEAD'), git);
-    await expect(verified).rejects.toThrow(/first parent/);
+    expect(decide(run(work, 'rev-parse', 'HEAD'), git)).toBe('review');
   });
 
-  it('demands a verdict when the commits cannot be read at all', async () => {
+  it('reviews the back-merge when its commits cannot be read at all', () => {
     const git = (): string => {
       throw new Error('fatal: could not read from remote repository');
     };
-    const { verified } = await check(sha('5'), git);
-    await expect(verified).rejects.toThrow(/carries no void\/independent-review verdict/);
+    expect(decide(sha('5'), git)).toBe('review');
   });
 
   it.each([
@@ -607,21 +419,12 @@ describe('the release back-merge', () => {
     ['another branch', { ref: 'chore/back-merge-main-2' }],
     ['another base', { base: 'main' }],
     ['a fork', { repo: 'attacker/void-harness' }],
-  ])('still demands a verdict from %s', async (_name, overrides) => {
-    const { graphql } = fakeGithub({});
+  ])('still reviews %s', (_name, overrides) => {
     const git = (): string => {
       throw new Error('git must not be asked about a pull request that is not the back-merge');
     };
-    await expect(
-      checkIndependentReview({
-        publicKey,
-        eventName: 'pull_request',
-        event: backMergeEvent(sha('5'), overrides),
-        repository,
-        graphql,
-        git,
-      }),
-    ).rejects.toThrow(/carries no void\/independent-review verdict/);
+    const kind = decideStart({ event: backMergeEvent(sha('5'), overrides), repository, git }).kind;
+    expect(kind === 'review' || kind === 'fork', kind).toBe(true);
   });
 
   it('exempts the back-merge inside a merge group and checks every other entry', async () => {
@@ -632,7 +435,6 @@ describe('the release back-merge', () => {
     ];
     const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     const verified = await checkIndependentReview({
-      publicKey,
       eventName: 'merge_group',
       event: mergeGroupEvent(9, sha('b')),
       repository,
@@ -656,7 +458,6 @@ describe('the release back-merge', () => {
     const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
@@ -675,7 +476,6 @@ describe('the release back-merge', () => {
     const { graphql } = fakeGithub({ verdicts: { [sha('2')]: 'SUCCESS' }, entries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: mergeGroupEvent(9, sha('b')),
         repository,
@@ -714,7 +514,6 @@ describe('merge queue ref', () => {
     const { graphql } = fakeGithub({ entries: twoEntries });
     await expect(
       checkIndependentReview({
-        publicKey,
         eventName: 'merge_group',
         event: { merge_group: group },
         repository,

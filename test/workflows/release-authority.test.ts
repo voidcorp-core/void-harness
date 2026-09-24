@@ -65,7 +65,8 @@ describe('release automation authority', () => {
     expect(promotion).toContain('EXPECTED_HUMAN: folpe');
     expect(promotion).toContain('ADDED_TO_MERGE_QUEUE_EVENT');
     expect(promotion).toContain('headRefOid');
-    expect(promotion).toContain('context(name:\\"void/independent-review\\")');
+    expect(promotion).toContain('checkSuites(first:50,filterBy:{appId:15368})');
+    expect(promotion).toContain('checkRuns(first:20,filterBy:{checkName:\\"independent-review\\"})');
     expect(promotion).toContain('scripts/promotion-authority.mjs');
     expect(promotion).toContain('unexplained commit');
     expect(promotion).toContain('PROMOTION_BATCH_SIZE: 40');

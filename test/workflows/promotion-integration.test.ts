@@ -186,7 +186,19 @@ describe('promotion integration authority', () => {
     const event = (typename: string) =>
       ({ __typename: typename, actor: { login: 'folpe' }, createdAt: '2026-09-23T10:00:00Z' });
     const verdict = (oid: string, state: string | null) =>
-      ({ nodes: [{ commit: { oid, status: state === null ? null : { context: { state } } } }] });
+      ({
+        nodes: [{
+          commit: {
+            oid,
+            checkSuites: state === null
+              ? { totalCount: 0, nodes: [] }
+              : {
+                totalCount: 1,
+                nodes: [{ checkRuns: { totalCount: 1, nodes: [{ status: 'COMPLETED', conclusion: state, completedAt: '2026-09-24T10:00:00Z' }] } }],
+              },
+          },
+        }],
+      });
 
     function merged(typename: string, state: string | null, head = 'e'.repeat(40)) {
       return {

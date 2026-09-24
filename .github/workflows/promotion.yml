@@ -129,7 +129,7 @@ jobs:
             local query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ '
             local index=0
             for integration_oid in "$@"; do
-              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid status{context(name:\"void/independent-review\"){state}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
+              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid checkSuites(first:50,filterBy:{appId:15368}){totalCount nodes{checkRuns(first:20,filterBy:{checkName:\"independent-review\"}){totalCount nodes{status conclusion completedAt}}}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
               index=$((index + 1))
             done
             query+='} }'

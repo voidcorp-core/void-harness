@@ -4,8 +4,10 @@
 // merged pull request, and that pull request must have had the right to merge.
 //
 // Three ways hold, and nothing else:
-// - its head SHA carries a `success` `void/independent-review` status, the
-//   verdict the required check demanded before it could merge, whoever merged
+// - its head SHA carries a successful `independent-review` check run from the
+//   GitHub Actions app, the review the required check demanded before it
+//   could merge (the review job's own on a head since DEV-877, the job that
+//   verified a signed verdict before it), whoever merged
 //   it and whatever its timeline says: `gh pr merge --auto` on a pull request
 //   already mergeable merges at once and records no AutoMergeEnabledEvent;
 // - the named human merged it by hand, with no automatic merge ever armed;
@@ -15,7 +17,7 @@
 //   One that does not hold falls back to the verdict, since it was merged
 //   automatically too.
 //
-// Every doubt refuses: a missing field, an unreadable status, a timeline the
+// Every doubt refuses: a missing field, an unreadable check, a timeline the
 // query could not read in full, a git error. A missing verdict is never read
 // as approval.
 // Refs: https://docs.github.com/en/graphql/reference/objects#pullrequest
@@ -24,7 +26,12 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { BACK_MERGE, backMergeRefusal, VERDICT_CONTEXT } from './independent-review-check.mjs';
+import {
+  BACK_MERGE,
+  backMergeRefusal,
+  latestReviewConclusion,
+  REVIEW_CHECK_NAME,
+} from './independent-review-check.mjs';
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 // Arming either one hands the merge to GitHub rather than to a person.
@@ -75,22 +82,21 @@ function backMergeProof(pull, integrationOid, git) {
   return backMergeRefusal(git, head, { develop, fetch: false });
 }
 
-/** Why the head SHA carries no success verdict, or undefined when it does. */
+/** Why the head SHA carries no successful review check, or undefined when it does. */
 function verdictRefusal(pull) {
   const head = field(pull, 'headRefOid');
   if (!isSha(head)) return 'its head SHA is unreadable';
   const nodes = field(field(pull, 'commits'), 'nodes');
   const commit = Array.isArray(nodes) && nodes.length === 1 ? field(nodes[0], 'commit') : undefined;
-  if (field(commit, 'oid') !== head) return `the status of its head ${head} was not read`;
-  const status = field(commit, 'status');
-  if (status !== null && !isObject(status)) return `the status of its head ${head} is unreadable`;
-  const state = field(field(status, 'context'), 'state');
-  if (state === undefined || state === null) {
-    return `its head ${head} carries no ${VERDICT_CONTEXT} verdict`;
+  if (field(commit, 'oid') !== head) return `the checks of its head ${head} were not read`;
+  let conclusion;
+  try {
+    conclusion = latestReviewConclusion(commit, head);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
-  if (state !== 'SUCCESS') {
-    return `the ${VERDICT_CONTEXT} verdict on its head ${head} is ${String(state)}`;
-  }
+  if (conclusion === undefined) return `its head ${head} carries no ${REVIEW_CHECK_NAME} check`;
+  if (conclusion !== 'SUCCESS') return `the ${REVIEW_CHECK_NAME} check on its head ${head} is ${conclusion}`;
   return undefined;
 }
 

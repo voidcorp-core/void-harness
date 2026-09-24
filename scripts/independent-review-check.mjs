@@ -1,29 +1,25 @@
 #!/usr/bin/env node
-// Required check `independent-review`: prove that the independent reviewer
-// approved the exact head SHA of every pull request about to merge.
+// Required check `independent-review` in the merge queue: prove that the
+// independent review passed on the exact head SHA of every pull request the
+// group about to merge contains.
 //
-// The reviewer posts a commit status named `void/independent-review` on the
-// head SHA it read. On `pull_request` that SHA is the pull request head. On
-// `merge_group` the checks run on a synthetic group commit nobody reviewed, so
-// the group is walked back through the merge queue, entry by entry, and every
-// pull request it contains must carry the verdict on its own head SHA.
-//
-// The status is text anyone with write access to statuses can post, so it is
-// not enough: the verdict comment must also carry an Ed25519 signature over
-// the repository, the pull request, the head and the outcome, verified with
-// the public key versioned at `.github/void-review.pub` on the base branch,
-// which only a merge changes. The private key lives in the orchestration
-// checkout; a worker without it cannot sign. The latest signature on the head,
-// by the time it was signed at, decides, and it must say success. The format
-// is `packages/cli/src/lib/autopilot/review-signature.ts`'s, verified here on
-// its own because this script runs from the base branch alone; a contract test
-// signs with the CLI and verifies here.
+// The review is a GitHub Actions job (.github/workflows/independent-review.yml,
+// on `pull_request_target`): it reads the pull request head without executing
+// it and publishes its verdict as a check run named `independent-review` on
+// that head. Branch protection requires that check from the GitHub Actions app
+// alone, so nothing on a developer's or a worker's machine can produce it: a
+// token with write access can post a commit status or a comment, never a check
+// run as that app. On `merge_group` the checks run on a synthetic group commit
+// nobody reviewed, so the group is walked back through the merge queue, entry
+// by entry, and every pull request it contains must carry a successful review
+// check on its own head SHA. This job never runs on `pull_request`: a job there
+// that skipped would report success under the required name.
 //
 // Every doubt fails: an unknown event, a malformed ref, an API error, an entry
-// missing from the queue, a missing public key. A missing verdict is never read
-// as approval.
+// missing from the queue, a review check still running or absent. A missing
+// review is never read as approval.
 //
-// One pull request needs no verdict: the release back-merge (back-merge.yml),
+// One pull request needs no review: the release back-merge (back-merge.yml),
 // which carries only the release output a person approved by merging the
 // release pull request. It is recognised by what GitHub reports and a pull
 // request cannot choose: opened by the release App's bot account, matched by
@@ -34,18 +30,23 @@
 // fast-forwarded), or it is a merge whose first parent is on develop, whose
 // second is on main, whose tree is the merge of the two, and it is the only
 // commit of the pull request that main does not hold. Any doubt, a git error
-// included, demands a verdict like any other pull request.
+// included, demands a review like any other pull request.
 // Refs: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
 // https://docs.github.com/en/graphql/reference/objects#mergequeueentry
-// https://docs.github.com/en/graphql/reference/objects#status
+// https://docs.github.com/en/graphql/reference/objects#checksuite
 
 import { execFileSync } from 'node:child_process';
-import { createPublicKey, verify } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-export const VERDICT_CONTEXT = 'void/independent-review';
-export const REVIEW_PUBLIC_KEY_PATH = '.github/void-review.pub';
+/** The check the review job publishes on a pull request head, and the one protection requires. */
+export const REVIEW_CHECK_NAME = 'independent-review';
+/**
+ * The GitHub Actions app, the only source branch protection accepts for the
+ * review check (`app_id` 15368 on the required check). A check run is created
+ * by an app; the `GITHUB_TOKEN` of a workflow creates it as this one.
+ */
+export const GITHUB_ACTIONS_APP_ID = 15368;
 
 // Observed on every back-merge so far (#287 to #379). The login carries the
 // `[bot]` suffix only in REST, which a user account cannot register.
@@ -66,33 +67,30 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const QUEUE_REF_PATTERN =
   /^(?:refs\/heads\/)?gh-readonly-queue\/(.+)\/pr-([1-9]\d*)-([0-9a-f]{40})$/;
 
-const STATUS_QUERY = `query(
-  $owner: String!, $name: String!, $oid: GitObjectID!, $context: String!
-) {
+// Every review check run the GitHub Actions app left on a commit. Paged by
+// bounds rather than by cursor: a head carries one suite per workflow run of
+// the app and one review run per push, far below them; a count above the page
+// is refused rather than read short.
+const SUITES_MAX = 50;
+const RUNS_MAX = 20;
+const REVIEW_QUERY = `query($owner: String!, $name: String!, $oid: GitObjectID!, $app: Int!, $check: String!) {
   repository(owner: $owner, name: $name) {
-    object(oid: $oid) { ... on Commit { oid status { context(name: $context) { state } } } }
+    object(oid: $oid) {
+      ... on Commit {
+        oid
+        checkSuites(first: ${SUITES_MAX}, filterBy: { appId: $app }) {
+          totalCount
+          nodes {
+            checkRuns(first: ${RUNS_MAX}, filterBy: { checkName: $check }) {
+              totalCount
+              nodes { status conclusion completedAt }
+            }
+          }
+        }
+      }
+    }
   }
 }`;
-
-// The last hundred comments: a verdict is posted after the review, so it is
-// among the latest; one older than that is not found, and the check fails.
-const COMMENTS_QUERY = `query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) { comments(last: 100) { totalCount nodes { body } } }
-  }
-}`;
-
-const SIGNATURE_PATTERN = /<!-- void-autopilot:review-signature (\{[^\n]*?\}) -->/g;
-const SIGNED_FIELDS = {
-  repository: /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/,
-  ticketId: /^[A-Z][A-Z0-9]*-[1-9][0-9]*$/,
-  headSha: SHA_PATTERN,
-  state: /^(?:success|failure)$/,
-  verdictDigest: /^[0-9a-f]{64}$/,
-  signedAt: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/,
-  key: /^[0-9a-f]{64}$/,
-  signature: /^[A-Za-z0-9+/]{86}==$/,
-};
 
 // The queue and the head of its branch are read in one request, so the walk is
 // checked against the branch as it stood when the queue was read.
@@ -165,99 +163,48 @@ async function query(graphql, text, variables) {
   return repository;
 }
 
-async function verdictState(graphql, coordinates, sha) {
-  const variables = { ...coordinates, oid: sha, context: VERDICT_CONTEXT };
-  const repository = await query(graphql, STATUS_QUERY, variables);
+/**
+ * The conclusion of the latest completed review check on a commit as GraphQL
+ * returns it with the suites filtered to the GitHub Actions app: `SUCCESS`,
+ * another conclusion, `PENDING` while every run is still going, undefined when
+ * there is none. Pure, so the promotion audit reads a commit the same way.
+ */
+export function latestReviewConclusion(commit, sha) {
+  const suites = field(commit, 'checkSuites');
+  const nodes = field(suites, 'nodes');
+  if (!Array.isArray(nodes)) fail(`the check suites of ${sha} are unreadable`);
+  if (field(suites, 'totalCount') !== nodes.length) fail(`${sha} carries more than ${SUITES_MAX} check suites`);
+  const runs = nodes.flatMap((suite) => {
+    const checkRuns = field(suite, 'checkRuns');
+    const list = field(checkRuns, 'nodes');
+    if (!Array.isArray(list) || field(checkRuns, 'totalCount') !== list.length) {
+      fail(`the review check runs of ${sha} are unreadable or exceed ${RUNS_MAX}`);
+    }
+    return list;
+  });
+  const completed = runs
+    .filter((run) => field(run, 'status') === 'COMPLETED' && typeof field(run, 'completedAt') === 'string')
+    .sort((left, right) => Date.parse(field(left, 'completedAt')) - Date.parse(field(right, 'completedAt')));
+  if (completed.length === 0) return runs.length === 0 ? undefined : 'PENDING';
+  const conclusion = field(completed.at(-1), 'conclusion');
+  return typeof conclusion === 'string' ? conclusion : undefined;
+}
+
+/** The latest review check conclusion on a commit, read from GitHub. */
+export async function reviewCheckState(graphql, coordinates, sha) {
+  const variables = { ...coordinates, oid: sha, app: GITHUB_ACTIONS_APP_ID, check: REVIEW_CHECK_NAME };
+  const repository = await query(graphql, REVIEW_QUERY, variables);
   const commit = field(repository, 'object');
   if (field(commit, 'oid') !== sha) fail(`commit ${sha} is unknown to GitHub`);
-  const state = field(field(field(commit, 'status'), 'context'), 'state');
-  return typeof state === 'string' ? state : undefined;
+  return latestReviewConclusion(commit, sha);
 }
 
-/** The public key, or a failure: without it no verdict can be believed. */
-export function reviewPublicKey(pem) {
-  let key;
-  try {
-    key = typeof pem === 'string' ? createPublicKey(pem) : undefined;
-  } catch {
-    key = undefined;
-  }
-  if (key?.asymmetricKeyType !== 'ed25519') {
-    fail(`the base branch carries no Ed25519 review public key at ${REVIEW_PUBLIC_KEY_PATH}`);
-  }
-  return key;
-}
-
-/** What `review-signature.ts` signs: one field per line, fixed order, versioned header. */
-function signatureMessage(fields) {
-  return [
-    'void-autopilot:review-verdict:v1',
-    `repository=${fields.repository}`,
-    `ticket=${fields.ticketId}`,
-    `pullRequest=${fields.pullRequest}`,
-    `headSha=${fields.headSha}`,
-    `state=${fields.state}`,
-    `verdict=${fields.verdictDigest}`,
-    `signedAt=${fields.signedAt}`,
-  ].join('\n');
-}
-
-function signedFields(text) {
-  let value;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return undefined;
-  }
-  if (!isObject(value)) return undefined;
-  const keys = [...Object.keys(SIGNED_FIELDS), 'pullRequest'];
-  if (Object.keys(value).length !== keys.length) return undefined;
-  if (!Number.isInteger(value.pullRequest) || value.pullRequest < 1) return undefined;
-  const wellFormed = Object.entries(SIGNED_FIELDS)
-    .every(([name, pattern]) => typeof value[name] === 'string' && pattern.test(value[name]));
-  return wellFormed ? value : undefined;
-}
-
-/** Every verdict across the bodies whose signature `key` verifies, oldest first. */
-export function signedVerdicts(key, bodies) {
-  return bodies.flatMap((body) => [...String(body).matchAll(SIGNATURE_PATTERN)].flatMap((match) => {
-    const fields = signedFields(match[1]);
-    if (fields === undefined) return [];
-    const message = Buffer.from(signatureMessage(fields), 'utf8');
-    const valid = verify(null, message, key, Buffer.from(fields.signature, 'base64'));
-    return valid ? [fields] : [];
-  }));
-}
-
-async function commentBodies(graphql, coordinates, number) {
-  const repository = await query(graphql, COMMENTS_QUERY, { ...coordinates, number });
-  const nodes = field(field(field(repository, 'pullRequest'), 'comments'), 'nodes');
-  if (!Array.isArray(nodes)) fail(`#${number} has no readable comments`);
-  return nodes.map((node) => field(node, 'body')).filter((body) => typeof body === 'string');
-}
-
-/** The state of the latest verdict signed for this pull request and head, or undefined. */
-async function signedState(graphql, coordinates, pull, key) {
-  const repository = `${coordinates.owner}/${coordinates.name}`;
-  const bodies = await commentBodies(graphql, coordinates, pull.number);
-  const own = signedVerdicts(key, bodies).filter((fields) =>
-    fields.repository === repository
-      && fields.pullRequest === pull.number
-      && fields.headSha === pull.sha);
-  // Stable: two verdicts signed at the same instant keep their comment order.
-  own.sort((left, right) => Date.parse(left.signedAt) - Date.parse(right.signedAt));
-  return own.at(-1)?.state;
-}
-
-async function requireVerdict(graphql, coordinates, pull, key) {
-  const state = await verdictState(graphql, coordinates, pull.sha);
+async function requireReview(graphql, coordinates, pull) {
+  const state = await reviewCheckState(graphql, coordinates, pull.sha);
   const label = `#${pull.number} head ${pull.sha}`;
   const why = pull.refused === undefined ? '' : ` (not exempt as the back-merge: ${pull.refused})`;
-  if (state === undefined) fail(`${label} carries no ${VERDICT_CONTEXT} verdict${why}`);
-  if (state !== 'SUCCESS') fail(`${label}: ${VERDICT_CONTEXT} verdict is ${state}`);
-  const signed = await signedState(graphql, coordinates, pull, key);
-  if (signed === undefined) fail(`${label} carries no verdict signed by the review key${why}`);
-  if (signed !== 'success') fail(`${label}: the latest signed verdict is ${signed}`);
+  if (state === undefined) fail(`${label} carries no ${REVIEW_CHECK_NAME} check from GitHub Actions${why}`);
+  if (state !== 'SUCCESS') fail(`${label}: the ${REVIEW_CHECK_NAME} check is ${state}`);
 }
 
 /** The back-merge, from the queue's GraphQL view of a pull request. */
@@ -273,7 +220,7 @@ function queuedBackMerge(pull, repository) {
 }
 
 /** The back-merge, from the REST view a `pull_request` event carries. */
-function eventBackMerge(pull, repository) {
+export function eventBackMerge(pull, repository) {
   const user = field(pull, 'user');
   return repository === BACK_MERGE.repository
     && field(field(pull, 'head'), 'ref') === BACK_MERGE.head
@@ -350,14 +297,6 @@ async function mergeGroupPulls(event, graphql, coordinates) {
   return pulls.map(({ number, sha, exempt }) => ({ number, sha, exempt }));
 }
 
-function pullRequestPulls(event, repository) {
-  const pull = field(event, 'pull_request');
-  const number = field(pull, 'number');
-  if (!Number.isInteger(number)) fail('pull request event has no number');
-  const sha = requireSha(field(field(pull, 'head'), 'sha'), 'pull request head SHA');
-  return [{ number, sha, exempt: eventBackMerge(pull, repository) }];
-}
-
 const remoteRef = (branch) => `refs/remotes/origin/${branch}`;
 
 /** Runs git; a failure is a reason, never an exception that could skip the check. */
@@ -410,22 +349,17 @@ export function backMergeRefusal(git, sha, options = {}) {
   return undefined;
 }
 
-export async function checkIndependentReview(
-  { eventName, event, repository, graphql, git, publicKey },
-) {
+export async function checkIndependentReview({ eventName, event, repository, graphql, git }) {
   const coordinates = splitRepository(repository);
-  const key = reviewPublicKey(publicKey);
-  let pulls = [];
-  if (eventName === 'pull_request') pulls = pullRequestPulls(event, repository);
-  else if (eventName === 'merge_group') pulls = await mergeGroupPulls(event, graphql, coordinates);
-  else fail(`unsupported event ${String(eventName)}`);
+  if (eventName !== 'merge_group') fail(`unsupported event ${String(eventName)}; the review itself runs on pull_request_target`);
+  const pulls = await mergeGroupPulls(event, graphql, coordinates);
   for (const pull of pulls) {
     if (!pull.exempt) continue;
     const refused = git === undefined ? 'no git to read its commits' : backMergeRefusal(git, pull.sha);
     if (refused !== undefined) Object.assign(pull, { exempt: false, refused });
   }
   for (const pull of pulls) {
-    if (!pull.exempt) await requireVerdict(graphql, coordinates, pull, key);
+    if (!pull.exempt) await requireReview(graphql, coordinates, pull);
   }
   return pulls.map(({ number, sha, exempt }) =>
     exempt ? { number, sha, exempt: 'back-merge' } : { number, sha });
@@ -449,9 +383,6 @@ async function main() {
     repository: process.env.GITHUB_REPOSITORY,
     graphql: async (text, variables) => ghGraphql(text, variables),
     git: (args) => execFileSync('git', args, { encoding: 'utf8', timeout: 120_000 }),
-    publicKey: existsSync(REVIEW_PUBLIC_KEY_PATH)
-      ? readFileSync(REVIEW_PUBLIC_KEY_PATH, 'utf8')
-      : undefined,
   });
   for (const pull of pulls) {
     const outcome = pull.exempt === undefined ? 'approved' : `exempt (${pull.exempt})`;
