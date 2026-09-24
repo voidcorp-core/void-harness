@@ -59,9 +59,20 @@ it('ships a bounded dependency-audit job independently from quality, preserving 
 it('distributes the exact workflow and wrapper through the existing core-assets copier', () => {
   expect(existsSync(SCRIPT)).toBe(true);
   // Run the actual copier; no consumer install, build, network or lifecycle scripts.
-  execFileSync(process.execPath, ['packages/cli/scripts/copy-core-assets.mjs'], { cwd: ROOT });
-  for (const name of ['dependency-audit.mjs', 'void-dependency-audit.yml']) {
-    expect(readFileSync(join(ROOT, 'packages/cli/core-assets/templates/github', name)))
-      .toEqual(readFileSync(join(CORE, name)));
+  // It copies into a private directory, never into packages/cli/core-assets: the
+  // copier empties its target before refilling it, and findCoreSource() reads that
+  // directory first, so a copy there made concurrent mission tests read a
+  // half-built core (ENOENT on policies/, profiles/, specialists/).
+  const target = join(mkdtempSync(join(tmpdir(), 'void-core-assets-')), 'core-assets');
+  try {
+    execFileSync(process.execPath, ['packages/cli/scripts/copy-core-assets.mjs', target], {
+      cwd: ROOT,
+    });
+    for (const name of ['dependency-audit.mjs', 'void-dependency-audit.yml']) {
+      expect(readFileSync(join(target, 'templates/github', name)))
+        .toEqual(readFileSync(join(CORE, name)));
+    }
+  } finally {
+    rmSync(dirname(target), { recursive: true, force: true });
   }
 });

@@ -71,6 +71,17 @@ export interface AutopilotConfig {
    * and nothing would report it.
    */
   readonly deployBranch?: string;
+  /**
+   * The tracker label the continuous loop puts on a ticket it hands to a
+   * person, and reads back after a restart. Absent means the loop's default.
+   */
+  readonly humanWaitLabel?: string;
+  /**
+   * Paths the continuous loop never merges itself, on top of the harness floor
+   * in `loop.ts`. Only an addition: the floor is not read from here, so no list
+   * written here can shrink it.
+   */
+  readonly protectedPaths: readonly string[];
   /** argv arrays, executed with shell:false. */
   readonly verifyCommands: readonly (readonly string[])[];
   readonly ownership: AutopilotOwnership;
@@ -370,6 +381,23 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
 
   const ownership = block.ownership === undefined ? {} : record(block.ownership, 'autopilot.ownership');
 
+  // A label both Linear and GitHub accept: at most 50 characters, and no edge
+  // whitespace, which trackers trim and a comparison would not.
+  const humanWaitLabel = block.humanWaitLabel;
+  if (
+    humanWaitLabel !== undefined
+    && (typeof humanWaitLabel !== 'string'
+      || humanWaitLabel.length === 0
+      || humanWaitLabel.length > 50
+      || humanWaitLabel.trim() !== humanWaitLabel)
+  ) {
+    invalid(
+      'the program descriptor declares an unusable human-wait label',
+      `\`autopilot.humanWaitLabel\` is ${JSON.stringify(humanWaitLabel)}`,
+      'name a label of 1 to 50 characters with no surrounding space, or remove it for the default',
+    );
+  }
+
   // Withheld last, after everything above has been judged. A block that is
   // present but wrong is an error whether or not it is switched off; letting a
   // disabled one rot unread would move the failure to the day someone turns it
@@ -383,6 +411,8 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
     base,
     mergeGate,
     ...(deployBranch === undefined ? {} : { deployBranch }),
+    ...(humanWaitLabel === undefined ? {} : { humanWaitLabel: humanWaitLabel as string }),
+    protectedPaths: pathList(block.protectedPaths, 'autopilot.protectedPaths'),
     verifyCommands: verifyCommands(block.verifyCommands),
     ownership: {
       sequential: pathList(ownership.sequential, 'autopilot.ownership.sequential'),

@@ -1,0 +1,1 @@
+{"__typename":"CheckRun","completedAt":"0001-01-01T00:00:00Z","conclusion":"","detailsUrl":"https://github.com/zed-industries/zed/actions/runs/35741637234/job/106792847831","name":"clippy_windows","startedAt":"2026-09-22T14:38:24Z","status":"QUEUED","workflowName":"run_tests"}

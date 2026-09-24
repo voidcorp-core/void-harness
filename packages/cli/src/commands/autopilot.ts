@@ -1,9 +1,23 @@
 import { renderPlan, renderRun } from './autopilot-render.js';
-import { type AutopilotSubcommand, readsStdin, SUBCOMMANDS, subcommandWord, USAGE } from './autopilot-usage.js';
+import {
+  type AutopilotSubcommand,
+  flagValue,
+  readsStdin,
+  SUBCOMMANDS,
+  subcommandWord,
+  USAGE,
+} from './autopilot-usage.js';
+import {
+  isLoopSubcommand,
+  judgmentCommand,
+  type LoopCommandOutput,
+  loopCommand,
+} from './autopilot-loop.js';
 
 export { type AutopilotSubcommand, readsStdin, SUBCOMMANDS } from './autopilot-usage.js';
 
 import { join } from 'node:path';
+import { execGh, type GhRunner, type GitRunner, gitIn } from '../lib/autopilot/loop-observe.js';
 import { type BaseObservation, type BaseSelection, selectBase } from '../lib/autopilot/base-selection.js';
 import {
   decideBranchProtection,
@@ -126,6 +140,10 @@ export interface AutopilotCommandContext {
   readonly root: string;
   /** ISO instant used to age leases; injected so the surface stays testable. */
   readonly now: string;
+  /** How the loop commands reach GitHub; the shell passes the real `gh`. */
+  readonly gh?: GhRunner;
+  /** How the loop commands read the shared Git state of the checkout. */
+  readonly git?: GitRunner;
 }
 
 function ok(stdout: string): AutopilotCommandResult {
@@ -134,21 +152,6 @@ function ok(stdout: string): AutopilotCommandResult {
 
 function fail(stderr: string): AutopilotCommandResult {
   return { stdout: '', stderr, exitCode: 2 };
-}
-
-function flagValue(argv: readonly string[], flag: string): string | undefined {
-  const index = argv.indexOf(flag);
-  if (index === -1) return undefined;
-  const value = argv[index + 1];
-  if (value === undefined || value.startsWith('-')) {
-    throw autopilotFailure(
-      'AUTOPILOT_USAGE',
-      `\`${flag}\` was given without a value`,
-      'the flag consumed the next argument, which is another flag or missing',
-      `pass a value after \`${flag}\`, or drop the flag entirely`,
-    );
-  }
-  return value;
 }
 
 function parseStdin<T>(stdin: string, what: string, step?: AutopilotInputStep): T {
@@ -371,6 +374,10 @@ function situationFrom(state: RunState, stdin: string): Resolved {
 
 function emit(json: boolean, value: unknown, human: string): AutopilotCommandResult {
   return ok(json ? `${JSON.stringify(value, null, 2)}\n` : human);
+}
+
+function emitLoop(json: boolean, output: LoopCommandOutput): AutopilotCommandResult {
+  return emit(json, output.value, output.human);
 }
 
 function scaffoldCommand(argv: readonly string[], json: boolean): AutopilotCommandResult {
@@ -1465,6 +1472,7 @@ export function runAutopilotCommand(
     if (subcommand === 'base') return baseCommand(stdin, json);
     if (subcommand === 'observe') return observeCommand(stdin, json);
     if (subcommand === 'lifecycle') return lifecycleCommand(stdin, json);
+    if (subcommand === 'judgment') return emitLoop(json, judgmentCommand(argv, stdin));
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
@@ -1491,6 +1499,9 @@ export function runAutopilotCommand(
       );
     }
 
+    if (isLoopSubcommand(subcommand)) {
+      return emitLoop(json, loopCommand(subcommand, argv, stdin, context));
+    }
     switch (subcommand) {
       case 'start':
         return startCommand(stdin, json, context);
@@ -1524,9 +1535,12 @@ export function runAutopilotCommand(
 export async function autopilot(argv: readonly string[]): Promise<void> {
   const stdin = readsStdin(argv) && !process.stdin.isTTY ? await readAllStdin() : '';
 
+  const root = process.cwd();
   const result = runAutopilotCommand(argv, stdin, {
-    root: process.cwd(),
+    root,
     now: new Date().toISOString(),
+    gh: execGh,
+    git: gitIn(root),
   });
 
   if (result.stdout !== '') process.stdout.write(result.stdout);
