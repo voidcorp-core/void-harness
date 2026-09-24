@@ -2225,7 +2225,7 @@
         }
       ],
       "id": "skill:void-learn",
-      "lines": 215,
+      "lines": 226,
       "name": "void-learn",
       "owner": "folpe",
       "pack": null,
@@ -2234,7 +2234,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-learn/SKILL.md",
-      "staticTokens": 3025,
+      "staticTokens": 3311,
       "type": "skill"
     },
     {

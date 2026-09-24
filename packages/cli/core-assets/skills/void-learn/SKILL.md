@@ -60,8 +60,7 @@ Wait for the answer. A universal rule must never land in a project doctrine, and
 ```
 Proposed rule capture:
   Target file: .void/PROJECT-DOCTRINE.md
-  Section:     <Quality bar | Hard rules | Forbidden patterns | Project context |
-                Trade-offs already decided | Project-specific skill routing>
+  Section:     <the heading it goes under, verbatim; "new: <table name>" if created>
   Wording:     <verbatim rule, imperative present>
   Why:         <the user's reason, quoted; skip if none given>
   Enforced by: <skill / hook that materializes it, or "manual review / code-review">
@@ -82,7 +81,7 @@ Append to the correct section of `.void/PROJECT-DOCTRINE.md`:
   - **Enforced by**: <skill / hook / manual review>.
 ```
 
-Create the level-2 section header when it is absent, which it usually is: the installed file is a stub and its sections appear as they are used. The routing table below is the list of names.
+Choose the section by meaning, then place it by what the file already holds (see *Section routing*).
 
 ### 4. Confirm in chat
 
@@ -90,16 +89,28 @@ State the file path and section, and note it is active from the next message via
 
 ### Section routing
 
+This table is the only list of section kinds a project doctrine has. `docs/PROJECT-DOCTRINE-FORMAT.md` illustrates the shape of each one and uses the same names; it does not own a list of its own.
+
 | Section | Use for |
 |---|---|
+| **Project context** | Domain facts (users are TPE/PME French dirigeants; prod on Vercel + Neon). |
+| **Domain language** | A term this team uses with one precise meaning, so the agent uses the same word. |
 | **Quality bar** | What "done"/"shipped" means (anti-rustine, ASCII-only, no half-built features). |
 | **Hard rules** | Concrete, enforceable rules (@repo/core/logger not console.log, Zod at every boundary). |
 | **Forbidden patterns** | What this codebase paid for and will not reintroduce; reference the incident/ADR. |
-| **Project context** | Domain facts (users are TPE/PME French dirigeants; prod on Vercel + Neon). |
 | **Trade-offs already decided** | Pointers to the project's decision records the agent must not re-litigate. |
+| **Open questions** | What the team has not decided yet, so the agent asks instead of guessing. |
 | **Project-specific skill routing** | "On THIS project, skill X triggers under Y" (apps/checkout/ → tdd strict). |
 
-If a rule fits several sections, ask rather than guess.
+Pick the kind from the rule's meaning first. If it fits several kinds, ask rather than guess.
+
+Then place it by the file's own level-2 headings, which the project owns and may word differently: the installed file is a stub, so its sections appear as they are used, and a hand-written one may predate this table.
+
+- **One heading names that kind**, whatever its wording (`Project-specific hard rules` is Hard rules, `Trade-offs already decided (link to ADRs)` is Trade-offs), so append under it. Never create a second heading for a kind the file already has.
+- **No heading names it**: create the table's name as a new level-2 heading.
+- **Two headings could hold it, or a heading matches no row plainly**: ask. Never pick the closest string.
+
+The mapping is explicit, never inferred silently: the proposal names the target heading verbatim, so the human confirms where the rule lands along with its wording.
 
 ### Conflict handling
 
@@ -196,7 +207,7 @@ A clean doctrine is the asset. Every entry earns its place by changing what happ
 
 - [ ] The signal was recognized and the lesson stated as a generalization, not an instance.
 - [ ] Scope decided explicitly (project rule / harness gap / disposable); ambiguity surfaced to the user.
-- [ ] Branch A: explicit confirmation, right section, `Why` present, no unhandled conflict, only `PROJECT-DOCTRINE.md` edited.
+- [ ] Branch A: explicit confirmation, right section under the heading the file already has for that kind, `Why` present, no unhandled conflict, only `PROJECT-DOCTRINE.md` edited.
 - [ ] Branch B: cleared the agnostic + harness-worthy bar, issue confirmed before `gh issue create`, source context included.
 - [ ] Nothing auto-written to doctrine; nothing merged without review.
 
