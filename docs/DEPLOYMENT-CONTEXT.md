@@ -53,9 +53,7 @@ tiers, all optional, none built in:
   **Outside such an instance**, the operator supplies their own credential, and Machine
   must accept that shape too.
 
-So the model port takes **either** a credential the operator owns **or** an identity file
-the host renews, and neither is special-cased in the core. Any model choice is made with
-Folpe, on a sourced comparison.
+Any model choice is made with Folpe, on a sourced comparison.
 
 ## In the third shape, Cortex is the model
 
@@ -74,12 +72,12 @@ specified and maintained by two teams.
 Two concerns stay separate:
 
 - **Inference** goes through that endpoint.
-- **Identity and permissions** stay the signature contract (JWKS): who the client is, what
-  it may do, for how long.
+- **Identity and permissions** would go through the proposed signature contract (JWKS):
+  who the client is, what it may do, for how long.
 
 If Cortex later offers more than that format can express — its memory, task routing, a
-typed judgment — a second, native Cortex adapter is added beside the first, and the core
-is untouched.
+typed judgment — a native Cortex adapter is added behind a port, and the core is
+untouched.
 
 **This is a default, not a settled decision.** It is the cheapest shape that keeps the
 three promises, and it is to be challenged when Machine is actually containerized, with
@@ -88,8 +86,8 @@ the Cortex side, on what its API can hold.
 ## What the instance imposes
 
 - One client is one compose project, `cortex-<client>`; the project name comes from the
-  file and a missing client fails the command. Machine enters it as one or more services
-  of that same project.
+  file and a missing client fails the command. If Machine ships inside the instance, it
+  enters as one or more services of that same project.
 - **Migrations as a one-shot service**, like Cortex's `migrate`: a container that applies
   and exits, with the main service gated on `service_completed_successfully`. A failed
   migration leaves the service stopped.
