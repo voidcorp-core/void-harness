@@ -1,9 +1,11 @@
 # Deployment context: one instance, three shapes
 
-Void Machine will ship inside the same Docker instance as Void Cortex, one instance per
-client. Nothing here is built yet. It is written down because these constraints decide
-architecture, and a constraint nobody wrote down is one that surfaces the day it is
-expensive.
+Void Cortex has chosen its deployment target: one Docker instance per client, on a
+European VPS. Machine is expected to ship inside that same instance. **That is Cortex's
+settled target and Machine's open one**: the approved foundation plan still records that no
+topology is chosen and no hosted guarantee is acquired, and this note does not overturn it.
+Nothing here is built. It is written down because these constraints decide architecture,
+and a constraint nobody wrote down is one that surfaces the day it is expensive.
 
 Source of truth for the instance itself is the `voidcorp-core/void-cortex` repository:
 `Dockerfile`, `deploy/instance/compose.yml`, `deploy/edge/`, `deploy/instance/new.sh`, and
@@ -20,9 +22,10 @@ A deployment is one of three shapes, and **each one must work on its own**:
 2. **Machine alone.** Cortex is absent, and the operator brings their own model. This is
    the shape that decides our design: Machine must deliver work with nothing but a
    repository, a runtime and a model endpoint the operator supplies. No Cortex API, no
-   Cortex database, no Declik account, no shared inference server, no GPU.
+   Cortex database, no Déclic account, no shared inference server, no GPU.
 3. **Both.** The coupling adds value and is never required. It goes through Cortex's API
-   and signature verification (JWKS), never through its tables.
+   and a proposed signature verification (JWKS), never through its tables. The pairing
+   mechanism itself is still to be designed with the Cortex side.
 
 The rule that follows, and that governs every later choice: **a capability that only
 exists when Cortex is present is an adapter, never a dependency of the core.** If Machine
@@ -30,13 +33,20 @@ cannot start, run a unit and report without Cortex, the boundary has been crosse
 
 ## Bring your own model
 
-Machine reads a model endpoint from configuration; it never contains a model and never
-assumes who serves it. Three tiers, all optional, none built in:
+Two axes, deliberately not conflated (`docs/ARCHITECTURE.md`): the **agent runtime** that
+executes a step, and the **model provider** behind it. Today Machine composes one runtime
+adapter, the Claude CLI (`packages/void-machine/src/adapters/runtime/claude.ts`, behind the
+`Execute` port), and that runtime reaches its provider itself. Machine has no model port of
+its own yet.
+
+So "bring your own model" means: the model endpoint and credential are configuration of
+the chosen runtime, and Machine never contains a model nor assumes who serves it. Three
+tiers, all optional, none built in:
 
 - **Device.** A local runtime on the operator's machine.
 - **Shared server.** An OpenAI-compatible API, named by URL and model name from the
   environment, hosted outside the instance.
-- **Frontier.** Inside a Declik instance, there is **no API key**: the host signs a short
+- **Frontier.** Inside a Déclic instance, there is **no API key**: the host signs a short
   JWT per client and per service, written to a read-only mounted file and read through
   `ANTHROPIC_IDENTITY_TOKEN_FILE`, with a federation rule and an Anthropic workspace per
   client. Machine takes its own `sub` (`machine:<client>`), distinct from Cortex's.
@@ -53,11 +63,13 @@ Folpe's intent for shape 3: Cortex becomes Machine's way to a model. Machine sto
 to a provider and talks to Cortex, which decides behind it and brings its memory and
 context.
 
-**Proposed form, to confirm with the Cortex side: Cortex exposes an OpenAI-compatible
-API.** That is already the shape of the shared-server tier, so Machine keeps **one** model
-adapter and the three cases differ only by URL and credential. Nothing about Cortex enters
-the core, shape 2 keeps working by pointing the same adapter elsewhere, and no inference
-protocol has to be invented, specified or maintained by two teams.
+**Proposed form, to settle with the Cortex side: Cortex exposes a model endpoint the
+chosen runtime can already consume**, rather than a protocol of its own. Which shape that
+is — OpenAI-compatible, Anthropic Messages, or both — follows from the runtime Machine
+composes, and is not decided here. What matters is the property: an endpoint an existing
+runtime speaks to means nothing about Cortex enters the core, shape 2 keeps working by
+pointing the same configuration elsewhere, and no inference protocol is invented,
+specified and maintained by two teams.
 
 Two concerns stay separate:
 
@@ -96,10 +108,17 @@ the Cortex side, on what its API can hold.
 
 ## Open decisions, to settle with Folpe before the Dockerfile
 
+- **Topology.** Whether Machine ships as services of the per-client Cortex instance, or on
+  its own terms. Cortex has settled its side; Machine has not, and the foundation plan
+  still says so. Settling it means an accepted decision record here, and the plan updated
+  in the same commit.
+
 - **Storage.** Machine's durable mission journal is files today. If it needs a database:
   its own role and database inside the instance's Postgres, or its own container. Cortex's
-  Postgres stays Cortex's alone either way. Note that the Node floor is now 24, so
-  `node:sqlite` exists; that reopens the journal decision on its own merits.
+  Postgres stays Cortex's alone either way. The Node 24 floor makes `node:sqlite` reachable
+  but the decision that raised the floor records it as a release candidate there, and
+  nothing yet shows how it behaves on a mounted volume; reopening the file-journal decision
+  needs that evidence, not the mere availability.
 - **Exposure shape.** Subdomain (`machine.<client>.declik.ai`) or path, and whether
   Machine is exposed at all in the first client instance.
 - **Coupling contract with Cortex.** Issuer, audience, permissions, lifetime, rotation and
@@ -109,8 +128,12 @@ the Cortex side, on what its API can hold.
 
 ## What this changes in current work
 
-- The model port designed for task routing takes its credential **or** an identity file
-  from a path; it never reads an API key from the environment directly.
+- A model port, if one is created for task routing, must accept a credential the operator
+  owns **or** an identity file at a path; it must never require an API key read straight
+  from the environment.
+- The child environment is an allowlist today (`packages/void-machine/src/application/cli.ts`),
+  and it passes no `ANTHROPIC_*` variable. A frontier tier inside a container, with no login
+  in `HOME`, means widening that list deliberately, by name, not by accident.
 - The mission journal and any future store must survive a container that is replaced
   rather than repaired: state belongs to a mounted volume or a database, never to the
   container's own filesystem.

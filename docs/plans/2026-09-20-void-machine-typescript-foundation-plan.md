@@ -1355,6 +1355,12 @@ destinations autorisées, isolées et explicitement sélectionnées.
 
 ## 17. Ce qui reste volontairement après le gel
 
+Le contexte de déploiement que Cortex a retenu de son côté, et les trois formes
+d'installation attendues, sont consignés dans
+[`docs/DEPLOYMENT-CONTEXT.md`](../DEPLOYMENT-CONTEXT.md). Il ne choisit aucune
+topologie pour Machine : la phrase ci-dessous reste la règle tant qu'une décision
+acceptée ne la remplace pas.
+
 R04 conserve ces ambitions, sans les faire peser sur A/B : appairage Cortex,
 authentification/révocation multi-client, Google/CRM, planification proactive,
 hébergement ordinateur éteint, notifications, apprentissage du routage, facturation
