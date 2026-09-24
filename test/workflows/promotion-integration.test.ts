@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,7 @@ count_file="$FIXTURES/query-count"
 count=0
 if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi
 printf '%s\n' "$((count + 1))" > "$count_file"
+printf '%s\n' "$query" > "$FIXTURES/last-query"
 if [ "\${FAIL_ALWAYS:-0}" = 1 ] ||
   { [ "\${FAIL_ONCE:-0}" = 1 ] && [ "$count" = 0 ]; }; then
   printf '{"errors":[{"message":"transient GraphQL failure"}]}\n'
@@ -109,6 +110,8 @@ function runAudit(options: {
   paginated?: boolean;
   failOnce?: boolean;
   failAlways?: boolean;
+  /** The review App id promotion.yml reads, `4242` unless given. */
+  reviewAppId?: string;
   /** Merge facts of the integration PR, over a hand merge by folpe. */
   pull?: (fixture: ReturnType<typeof copyHistory>) => Record<string, unknown>;
 } = {}) {
@@ -139,6 +142,7 @@ function runAudit(options: {
       GITHUB_WORKSPACE: ROOT,
       EXPECTED_OWNER: 'voidcorp-core', EXPECTED_NAME: 'void-harness',
       EXPECTED_REPOSITORY: 'voidcorp-core/void-harness', EXPECTED_HUMAN: 'folpe',
+      REVIEW_APP_ID: options.reviewAppId ?? '4242',
       MAX_PROMOTION_COMMITS: '500', PROMOTION_BATCH_SIZE: '40',
       PROMOTION_API_RETRIES: '3', PROMOTION_RETRY_DELAY_SECONDS: '0' },
   });
@@ -172,6 +176,21 @@ describe('promotion integration authority', () => {
     const result = runAudit({ failOnce: true });
     expect(result.status, result.stderr).toBe(0);
     expect(readFileSync(join(result.root, 'query-count'), 'utf8').trim()).toBe('2');
+  });
+
+  // Any job can post a check named independent-review; only the review App's
+  // counts, so the query filters the head's suites by its id.
+  it('reads the review check from the review App alone', () => {
+    const result = runAudit();
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(result.root, 'last-query'), 'utf8')).toContain('checkSuites(first:5,filterBy:{appId:4242})');
+  });
+
+  it.each(['', '0', '15368 ', 'abc'])('refuses to audit without a review App id (%j)', (reviewAppId) => {
+    const result = runAudit({ reviewAppId });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('no review App id to hold the independent-review check to.');
+    expect(existsSync(join(result.root, 'query-count'))).toBe(false);
   });
 
   it('reports a persistent API failure separately from an unexplained commit', () => {

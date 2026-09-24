@@ -35,9 +35,9 @@ const MERGE_GROUP =
   /^ {2}merge_group:\n {4}types: \[checks_requested\]\n {4}branches: \[develop\]$/m;
 
 describe('merge queue readiness on develop', () => {
-  // `validate` and the three `install conformance` jobs live in ci.yml,
-  // `enforce` in void-enforce.yml, the queue's `independent-review` in its own.
-  it.each(['ci.yml', 'void-enforce.yml', 'independent-review-queue.yml'])('%s answers merge groups on develop', (name) => {
+  // `validate` and the three `install conformance` jobs live in ci.yml and
+  // `enforce` in void-enforce.yml; `independent-review` follows ci, below.
+  it.each(['ci.yml', 'void-enforce.yml'])('%s answers merge groups on develop', (name) => {
     expect(triggers(read(`.github/workflows/${name}`))).toMatch(MERGE_GROUP);
   });
 
@@ -63,24 +63,22 @@ describe('independent review', () => {
   const reviewSource = read('.github/workflows/independent-review.yml');
   const queueSource = read('.github/workflows/independent-review-queue.yml');
   const review = job(reviewSource, 'review');
-  const queued = job(queueSource, 'independent-review');
+  const verify = job(queueSource, 'verify');
+  const APP_TOKEN =
+    /uses: actions\/create-github-app-token@[0-9a-f]{40} # v3\.2\.0\n {8}with:\n {10}client-id: \$\{\{ vars\.REVIEW_APP_CLIENT_ID \}\}\n {10}private-key: \$\{\{ secrets\.REVIEW_APP_PRIVATE_KEY \}\}\n {10}permission-checks: write\n/;
 
-  // A job skipped under a required name reports success, so the required name
-  // exists only where it always runs: the queue workflow, on merge groups alone.
-  it('runs the required name only on merge groups, and reviews under another name', () => {
-    expect(triggers(queueSource)).toMatch(MERGE_GROUP);
-    expect(triggers(queueSource)).not.toMatch(/pull_request/);
-    expect(queued).not.toMatch(/^ {4}if:/m);
-    expect(job(reviewSource, 'independent-review')).toBe('');
-    for (const name of ['ci.yml', 'void-enforce.yml']) {
+  // The required check is posted by the review App, never reported by a job:
+  // a job skipped under a required name reports success, so no job bears it.
+  it('lets no job bear the required name', () => {
+    for (const name of ['ci.yml', 'void-enforce.yml', 'independent-review.yml', 'independent-review-queue.yml']) {
       expect(read(`.github/workflows/${name}`)).not.toMatch(/\n {2}independent-review:\n/);
     }
   });
 
-  // The workflow, the scripts and the instructions come from the base, and the
-  // head is data in a subdirectory: nothing the pull request controls runs with
-  // the model credential.
-  it('reviews from the base branch, with the head checked out as data only', () => {
+  // The workflow, the scripts and the instructions come from the default
+  // branch, and the head is data in a subdirectory: nothing the pull request
+  // controls runs with the model credential or the App key.
+  it('reviews from the default branch, with the head checked out as data only', () => {
     expect(triggers(reviewSource)).toMatch(/^ {2}pull_request_target:\n {4}branches: \[develop\]$/m);
     expect(review).toContain(`ref: ${expression('github.event.pull_request.head.sha')}`);
     expect(review).toContain('path: pr-head');
@@ -90,36 +88,47 @@ describe('independent review', () => {
     expect(review).toMatch(/uses: anthropics\/claude-code-action@[0-9a-f]{40} /);
   });
 
-  // The queue believes a run of this workflow by its title; a draft or fork
-  // head must never end as a successful run under that title.
-  it('titles each run with the pull request and head, and skips drafts outright', () => {
-    // A draft's run is titled apart, so the queue can never read it as the
-    // review of that head, whatever GitHub concludes a run with no job.
-    expect(reviewSource).toContain(
-      `run-name: independent-review #${expression('github.event.pull_request.number')} ${expression('github.event.pull_request.head.sha')}${expression("github.event.pull_request.draft && ' (draft)' || ''")}`,
-    );
+  it('skips drafts, which a later ready event reviews', () => {
     expect(review).toContain(`if: ${expression('github.event.pull_request.draft == false')}`);
   });
 
   // A repository secret is readable by any workflow pushed to any branch; one in
-  // an environment limited to develop is readable by jobs running on develop.
-  it('reads the model credential from an environment, never from the repository secrets', () => {
+  // an environment limited to main is readable by jobs running from main.
+  it('reads the model credential and the App key from an environment alone', () => {
     expect(review).toMatch(/^ {4}environment: independent-review$/m);
+    expect(verify).toMatch(/^ {4}environment: independent-review$/m);
     expect(review).toContain(`claude_code_oauth_token: ${expression('secrets.CLAUDE_CODE_OAUTH_TOKEN')}`);
   });
 
-  it('holds only what publishing a check and a comment needs', () => {
-    expect(review).toMatch(/permissions:\n {6}contents: read\n {6}checks: write\n {6}pull-requests: write\n/);
-    expect(queued).toMatch(/permissions:\n {6}actions: read\n {6}contents: read\n {6}pull-requests: read\n/);
-    expect(queued).not.toMatch(/: write/);
+  // The job token only comments: the check is written with the App's token,
+  // itself narrowed to checks, so branch protection can pin the App.
+  it('writes the check as the review App, and nothing else as it', () => {
+    expect(review).toMatch(APP_TOKEN);
+    expect(verify).toMatch(APP_TOKEN);
+    const checksToken = `CHECKS_TOKEN: ${expression('steps.app.outputs.token')}`;
+    expect(review.split(checksToken)).toHaveLength(3);
+    expect(verify).toContain(checksToken);
+    expect(verify).toContain(`REVIEW_APP_ID: ${expression('vars.REVIEW_APP_ID')}`);
+  });
+
+  it('holds only what publishing a comment and reading the queue need', () => {
+    expect(review).toMatch(/permissions:\n {6}contents: read\n {6}pull-requests: write\n/);
+    expect(verify).toMatch(/permissions:\n {6}contents: read\n {6}checks: read\n {6}pull-requests: read\n/);
+    expect(`${review}${verify}`).not.toMatch(/^ {6}checks: write/m);
+    expect(verify).not.toMatch(/^ {6}[a-z-]+: write/m);
     expect(reviewSource).toMatch(/^permissions: \{\}$/m);
     expect(queueSource).toMatch(/^permissions: \{\}$/m);
   });
 
-  it('verifies the queue from the trusted base, with the history the back-merge needs', () => {
-    expect(queued).toContain(`ref: ${expression('github.event.merge_group.base_ref')}`);
-    expect(queued).toContain('persist-credentials: false');
-    expect(queued).toContain('fetch-depth: 0');
-    expect(queued).toMatch(/^ {8}run: node scripts\/independent-review-check\.mjs$/m);
+  // A merge_group workflow runs from the group commit, which the pull request
+  // edits; workflow_run of ci runs from the default branch.
+  it('verifies the queue from the default branch, on each merge group ci starts', () => {
+    expect(triggers(queueSource)).toMatch(/^ {2}workflow_run:\n {4}workflows: \[ci\]\n {4}types: \[requested\]$/m);
+    expect(triggers(queueSource)).not.toMatch(/merge_group:|pull_request/);
+    expect(verify).toContain(`if: ${expression("github.event.workflow_run.event == 'merge_group'")}`);
+    expect(verify).not.toMatch(/\n {10}ref:/);
+    expect(verify).toContain('persist-credentials: false');
+    expect(verify).toContain('fetch-depth: 0');
+    expect(verify).toMatch(/^ {8}run: node scripts\/independent-review-check\.mjs$/m);
   });
 });

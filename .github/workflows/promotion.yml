@@ -86,6 +86,9 @@ jobs:
       - name: Audit and maintain the promotion pull request
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # The review App, the only identity whose independent-review check
+          # counts as a review; anyone's job can post one under that name.
+          REVIEW_APP_ID: ${{ vars.REVIEW_APP_ID }}
         run: |
           set -euo pipefail
 
@@ -101,6 +104,11 @@ jobs:
           if [ "$commit_count" -gt "$MAX_PROMOTION_COMMITS" ]; then
             printf 'promotion contains %s commits; the audited maximum is %s.\n' \
               "$commit_count" "$MAX_PROMOTION_COMMITS" >&2
+            exit 1
+          fi
+
+          if ! [[ "$REVIEW_APP_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "no review App id to hold the independent-review check to." >&2
             exit 1
           fi
 
@@ -133,7 +141,7 @@ jobs:
             local query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ '
             local index=0
             for integration_oid in "$@"; do
-              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid checkSuites(first:5,filterBy:{appId:15368}){totalCount nodes{checkRuns(first:3,filterBy:{checkName:\"independent-review\"}){totalCount nodes{status conclusion completedAt}}}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
+              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRefOid commits(last:1){nodes{commit{oid checkSuites(first:5,filterBy:{appId:${REVIEW_APP_ID}}){totalCount nodes{checkRuns(first:3,filterBy:{checkName:\"independent-review\"}){totalCount nodes{status conclusion completedAt}}}}}}} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT,ADDED_TO_MERGE_QUEUE_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt} ... on AddedToMergeQueueEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
               index=$((index + 1))
             done
             query+='} }'
