@@ -12,10 +12,12 @@ function scratch(prefix: string): string {
 }
 
 // Self-host compiles into an artifact that is not where the harness will live,
-// so this module is the one place where the two roots are guaranteed to differ:
-// bytes go to the artifact, absolute references name the final root. Swapping
-// them produces a manifest that points at a staging directory deleted minutes
-// later, and nothing downstream would notice until a hook failed to launch.
+// so this module is the one place where the two roots are guaranteed to differ.
+// The bytes go to the artifact, and the Codex manifest must name neither root:
+// its commands find the runner from the session directory (DEV-918). A root
+// leaking into it would point every hook at a staging directory deleted minutes
+// later, or at one machine's checkout, and nothing downstream would notice until
+// a hook failed to launch.
 describe('wireSelfHostRuntimeSurfaces', () => {
   it('writes into the artifact a Codex manifest that names neither root', async () => {
     const artifactRoot = scratch('void-selfhost-artifact-');
