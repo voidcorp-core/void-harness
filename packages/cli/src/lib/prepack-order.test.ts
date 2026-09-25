@@ -26,15 +26,15 @@ describe('CLI clean-checkout build order', () => {
     expect(commands).toContain('pnpm --filter @voidcorp/mission-engine build');
     expect(commands).toContain('pnpm --filter @voidcorp/harness-graph build');
     expect(commands).toContain('pnpm --filter @voidcorp/hook-runner build');
-    expect(commands).toContain('pnpm --filter voidharness build');
+    expect(commands).toContain('pnpm --filter ./packages/cli build');
     expect(commands.indexOf('pnpm --filter @voidcorp/mission-engine build'))
       .toBeLessThan(commands.indexOf('pnpm --filter @voidcorp/harness-graph build'));
     expect(commands.indexOf('pnpm --filter @voidcorp/mission-engine build'))
       .toBeLessThan(commands.indexOf('pnpm --filter @voidcorp/hook-runner build'));
     expect(commands.indexOf('pnpm --filter @voidcorp/harness-graph build'))
-      .toBeLessThan(commands.indexOf('pnpm --filter voidharness build'));
+      .toBeLessThan(commands.indexOf('pnpm --filter ./packages/cli build'));
     expect(commands.indexOf('pnpm --filter @voidcorp/hook-runner build'))
-      .toBeLessThan(commands.indexOf('pnpm --filter voidharness build'));
+      .toBeLessThan(commands.indexOf('pnpm --filter ./packages/cli build'));
   });
 
   it('reuses the canonical build for prepack and decision commands', () => {

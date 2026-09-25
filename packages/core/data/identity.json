@@ -1,0 +1,6 @@
+{
+  "repository": { "owner": "voidcorp-core", "name": "void-machine", "formerNames": ["void-harness"] },
+  "packageName": "voidmachine",
+  "formerPackages": [{ "name": "voidharness", "lastMajor": 3 }],
+  "commands": { "primary": "void-machine", "aliases": ["vm"], "deprecated": ["void-harness"] }
+}

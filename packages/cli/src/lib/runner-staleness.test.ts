@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { judgeRunnerStaleness, runnerStalenessCheck, suspendsStructureChecks } from './runner-staleness.js';
 
 // A CLI older than the layout it inspects reads the previous layout and reports
@@ -60,7 +61,7 @@ describe('runnerStalenessCheck', () => {
     expect(check?.ok).toBe(false);
     expect(check?.message).toContain('2.5.1');
     expect(check?.message).toContain('2.7.0');
-    expect(check?.fix).toContain('voidharness@latest');
+    expect(check?.fix).toContain(`${PRODUCT_IDENTITY.packageName}@latest`);
   });
 
   // Silence is the point: a healthy pair must not add a line to a list people

@@ -1,8 +1,9 @@
 import type { CostRow, GraphModel, GraphNode } from '@voidcorp/harness-graph';
 import { formatCostLines } from '../data/cost.js';
 import type { Overlays } from '../scene/overlays.js';
+import identity from '../../../../packages/core/data/identity.json' with { type: 'json' };
 
-const GITHUB_BASE = 'https://github.com/voidcorp-core/void-harness/blob/main/';
+const GITHUB_BASE = `https://github.com/${identity.repository.owner}/${identity.repository.name}/blob/main/`;
 
 function edgesFor(model: GraphModel, id: string): string[] {
   return model.edges

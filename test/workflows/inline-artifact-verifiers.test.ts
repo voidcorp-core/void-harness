@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RELEASE = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
@@ -41,7 +42,7 @@ function metadataFixture(mutation: Record<string, unknown> = {}) {
   const metadataPath = join(root, 'metadata.json');
   const artifact = {
     id: 4242,
-    name: 'voidharness-release-3.4.0-987-2',
+    name: 'npm-release-3.4.0-987-2',
     digest: `sha256:${'b'.repeat(64)}`,
     expired: false,
     workflow_run: { id: 987, head_sha: WORKFLOW_HEAD_SHA },
@@ -52,7 +53,7 @@ function metadataFixture(mutation: Record<string, unknown> = {}) {
     source: inlineProgram('artifact-metadata-verifier'),
     env: {
       ARTIFACT_ID: '4242',
-      ARTIFACT_NAME: 'voidharness-release-3.4.0-987-2',
+      ARTIFACT_NAME: 'npm-release-3.4.0-987-2',
       ARTIFACT_DIGEST: 'b'.repeat(64),
       RELEASE_RUN_ID: '987',
       WORKFLOW_HEAD_SHA,
@@ -61,7 +62,7 @@ function metadataFixture(mutation: Record<string, unknown> = {}) {
   };
 }
 
-function artifactFixture(packageName = 'voidharness') {
+function artifactFixture(packageName = PRODUCT_IDENTITY.packageName) {
   const root = mkdtempSync(join(tmpdir(), 'void-release-artifact-'));
   const artifactDirectory = join(root, 'artifact');
   const sourceDirectory = join(root, 'source');
@@ -72,7 +73,7 @@ function artifactFixture(packageName = 'voidharness') {
     join(packageDirectory, 'package.json'),
     JSON.stringify({ name: packageName, version: '3.4.0' }),
   );
-  const tarballName = 'voidharness-3.4.0.tgz';
+  const tarballName = `${PRODUCT_IDENTITY.packageName}-3.4.0.tgz`;
   const tarballPath = join(artifactDirectory, tarballName);
   const archive = spawnSync('tar', ['-czf', tarballPath, '-C', sourceDirectory, 'package'], {
     encoding: 'utf8',
@@ -84,7 +85,7 @@ function artifactFixture(packageName = 'voidharness') {
     releaseTag: 'v3.4.0',
     version: '3.4.0',
     releaseCommit: RELEASE_COMMIT,
-    packageName: 'voidharness',
+    packageName: PRODUCT_IDENTITY.packageName,
     tarballName,
     bytes: bytes.length,
     sha256: createHash('sha256').update(bytes).digest('hex'),
@@ -105,6 +106,7 @@ function artifactFixture(packageName = 'voidharness') {
       RELEASE_COMMIT,
       EXPECTED_SHA256: manifest.sha256,
       EXPECTED_INTEGRITY: manifest.integrity,
+      EXPECTED_PACKAGE: PRODUCT_IDENTITY.packageName,
       GITHUB_OUTPUT: join(root, 'github-output.txt'),
     },
   };

@@ -23,7 +23,7 @@ function input(overrides: Partial<DeterministicPreflightInput> = {}): Determinis
   return {
     sourceCheckout: '/tmp/source',
     expectedStartCommit: SHA,
-    artifactTarballPath: '/tmp/voidharness.tgz',
+    artifactTarballPath: '/tmp/package.tgz',
     expectedArtifactDigest: DIGEST,
     fixture: FIXTURE,
     fixtureDigest,

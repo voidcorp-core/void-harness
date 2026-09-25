@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EXPECTED_REPOSITORY: voidcorp-core/void-harness
+  EXPECTED_REPOSITORY: voidcorp-core/void-machine
   EXPECTED_OWNER: voidcorp-core
   EXPECTED_REF: refs/heads/main
   EXPECTED_HEAD: chore/back-merge-main

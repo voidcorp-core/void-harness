@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import {
   chmodSync,
   existsSync,
@@ -288,7 +289,7 @@ describe('update on a marketplace install that predates the receipt', () => {
     writeFileSync(
       join(root, '.claude', 'settings.json'),
       JSON.stringify({
-        extraKnownMarketplaces: { voidcorp: { source: { source: 'github', repo: 'voidcorp-core/void-harness' } } },
+        extraKnownMarketplaces: { voidcorp: { source: { source: 'github', repo: PRODUCT_IDENTITY.repositorySlug } } },
         enabledPlugins: { 'harness@voidcorp': true },
       }),
     );

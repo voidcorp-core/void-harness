@@ -53,7 +53,7 @@ From the consumer worktree, select that executable explicitly:
 
 ```sh
 export BOUNDED_CANDIDATE=/absolute/path/to/verified/void-harness
-export BOUNDED_CLI="$BOUNDED_CANDIDATE/packages/cli/bin/void-harness.mjs"
+export BOUNDED_CLI="$BOUNDED_CANDIDATE/packages/cli/bin/void-machine.mjs"
 node "$BOUNDED_CLI" mission start --title "Implement the approved task" --ticket task.md --mode team --json
 ```
 

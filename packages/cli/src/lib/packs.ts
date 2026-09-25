@@ -8,6 +8,7 @@
 // are still discovered.
 
 import { existsSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { join } from 'node:path';
 import { workspaceHasDependency, workspaceHasFile } from './workspace.js';
 
@@ -30,7 +31,7 @@ export const MARKETPLACE_NAME = 'voidcorp';
 
 /** Self-hosted marketplace: this repo IS the catalog. `.claude-plugin/marketplace.json`
  *  at the root lists every plugin as a local subdirectory (`./packages/core`, ...). */
-export const MARKETPLACE_REPO = 'voidcorp-core/void-harness';
+export const MARKETPLACE_REPO = PRODUCT_IDENTITY.repositorySlug;
 
 /** Core plugin name (always activated). */
 export const CORE_PLUGIN_NAME = 'harness';

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -125,7 +126,7 @@ describe('marketplace identity', () => {
     // Name stays `voidcorp` so existing `harness@voidcorp` enabledPlugins keep resolving;
     // only the repo moved (dedicated void-plugins catalog -> self-hosted in void-harness).
     expect(MARKETPLACE_NAME).toBe('voidcorp');
-    expect(MARKETPLACE_REPO).toBe('voidcorp-core/void-harness');
+    expect(MARKETPLACE_REPO).toBe(PRODUCT_IDENTITY.repositorySlug);
   });
 });
 

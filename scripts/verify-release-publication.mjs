@@ -7,6 +7,7 @@ import {
   resolveNpmPublicationProvenance,
   verifyPublicationProvenance,
 } from './release-provenance-contract.mjs';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 function requiredEnv(name) {
   const value = process.env[name];
@@ -20,7 +21,7 @@ function readJson(path) {
 
 function publicationContext() {
   return {
-    packageName: 'voidharness',
+    packageName: PRODUCT_IDENTITY.packageName,
     version: requiredEnv('RELEASE_VERSION'),
     sha512: integrityToSha512Hex(requiredEnv('EXPECTED_INTEGRITY')),
     releaseCommit: requiredEnv('RELEASE_COMMIT'),

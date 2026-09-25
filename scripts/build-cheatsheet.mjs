@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = resolve(ROOT, 'packages/core/data/model.json');
@@ -113,7 +114,7 @@ export function renderCheatsheet(model, taxonomy) {
 
   out.push('### Stack packs');
   out.push('');
-  out.push('Activated per project with `npx voidharness add <pack>`.');
+  out.push(`Activated per project with \`npx ${PRODUCT_IDENTITY.packageName} add <pack>\`.`);
   out.push('');
   for (const pack of packs) {
     const owned = packSkills.filter((skill) => skill.pack === pack.name);

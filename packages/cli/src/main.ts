@@ -27,6 +27,7 @@ import { security } from './commands/security.js';
 import { selfHost } from './commands/self-host.js';
 import { printHelp } from './commands/help.js';
 import { version } from '../package.json';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 
 /**
  * Commands that print their own, more specific help.
@@ -41,6 +42,24 @@ const SELF_DOCUMENTING = new Set(['autopilot', 'decisions', 'mission', 'security
 export function asksForHelp(cmd: string | undefined, rest: readonly string[]): boolean {
   if (cmd === undefined || SELF_DOCUMENTING.has(cmd)) return false;
   return rest.includes('--help') || rest.includes('-h');
+}
+
+/**
+ * The one-line stderr notice for a command name that still works but is on its way out, or
+ * nothing for a current one. Stderr only: a script reading stdout must see no difference.
+ */
+export function deprecationNotice(invokedAs: string): string | undefined {
+  const { primary, aliases, deprecated } = PRODUCT_IDENTITY.commands;
+  if (!deprecated.includes(invokedAs)) return undefined;
+  const shorter = aliases.length === 0 ? '' : ` (alias ${aliases.join(', ')})`;
+  return `${invokedAs} is deprecated and will be removed; run ${primary}${shorter} instead.\n`;
+}
+
+/** Entry for the installed bin files, each of which passes the command name it is installed as. */
+export async function run(invokedAs: string, argv: readonly string[]): Promise<void> {
+  const notice = deprecationNotice(invokedAs);
+  if (notice !== undefined) process.stderr.write(notice);
+  await main(argv);
 }
 
 export async function main(argv: readonly string[]): Promise<void> {

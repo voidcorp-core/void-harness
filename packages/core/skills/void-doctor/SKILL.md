@@ -30,8 +30,9 @@ project you have not touched in a while.
 void-harness doctor
 ```
 
-The CLI is public on npm as `voidharness`, whose binary is `void-harness`. If it is not on
-PATH, `npx voidharness doctor` is the same thing without an install.
+The CLI is public on npm as `voidmachine`, whose binary is `void-machine` (alias `vm`;
+`void-harness` still works, with a deprecation notice). If it is not on PATH,
+`npx voidmachine doctor` is the same thing without an install.
 
 In the void-harness repository itself, `doctor` delegates to the self-host doctor, which asks a
 different question: do the current sources still compile into a working harness. Both are valid;

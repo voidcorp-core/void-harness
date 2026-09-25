@@ -33,11 +33,11 @@ const STEPS = [
   { label: 'CI gates', argv: ['node', 'scripts/render-ci-gates.mjs'] },
   { label: 'graph kernel', argv: ['pnpm', '--filter', '@voidcorp/harness-graph', 'build'] },
   { label: 'cli', argv: ['pnpm', 'build:cli'] },
-  { label: 'catalogue', argv: ['node', 'packages/cli/bin/void-harness.mjs', 'graph'] },
-  { label: 'certification', argv: ['pnpm', '-F', 'voidharness', 'build:certification'] },
-  { label: 'consumer bundle', argv: ['pnpm', '-F', 'voidharness', 'build:void-graph'] },
+  { label: 'catalogue', argv: ['node', 'packages/cli/bin/void-machine.mjs', 'graph'] },
+  { label: 'certification', argv: ['pnpm', '-F', './packages/cli', 'build:certification'] },
+  { label: 'consumer bundle', argv: ['pnpm', '-F', './packages/cli', 'build:void-graph'] },
   { label: 'cheat sheet', argv: ['node', 'scripts/build-cheatsheet.mjs'] },
-  { label: 'npm mirror', argv: ['pnpm', '--filter', 'voidharness', 'build:assets'] },
+  { label: 'npm mirror', argv: ['pnpm', '--filter', './packages/cli', 'build:assets'] },
   { label: 'skill references', argv: ['node', 'scripts/build-skill-references.mjs'] },
 ];
 

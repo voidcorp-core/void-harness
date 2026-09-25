@@ -33,7 +33,7 @@ You are working inside the **void-harness** repo itself — the meta-repo that p
 
 ## What this repo is
 
-A **public, MIT** harness installed free and account-free via `npx voidharness` (the npm package is the primary channel; the voidcorp marketplace is self-hosted in this repo — `.claude-plugin/marketplace.json` lists every plugin as a local subdirectory — as an optional secondary channel; see `docs/DECISIONS.md`). It injects opinionated agent configuration into any project:
+A **public, MIT** harness installed free and account-free via `npx voidmachine` (the npm package is the primary channel; the voidcorp marketplace is self-hosted in this repo — `.claude-plugin/marketplace.json` lists every plugin as a local subdirectory — as an optional secondary channel; see `docs/DECISIONS.md`). It injects opinionated agent configuration into any project:
 
 - **Core** (`packages/core/`) — universal craftsman skills, agents, hooks, AGENTS.md / CLAUDE.md modules
 - **Packs** (`packages/packs/*`) — stack-specific add-ons activated per project
@@ -114,7 +114,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 
 ## This repo consumes its own output
 
-void-harness is installed **in void-harness**, through the same `npx voidharness init` a consumer runs. The enforcement floor that guards a customer project guards this one: write a secret, a `console.log`, an `any` or a `null` here and the write is refused, exactly as it would be in their repo.
+void-harness is installed **in void-harness**, through the same `npx voidmachine init` a consumer runs. The enforcement floor that guards a customer project guards this one: write a secret, a `console.log`, an `any` or a `null` here and the write is refused, exactly as it would be in their repo.
 
 What is active here is the **published** harness, not the working tree. That distinction is the whole safety of the arrangement: a rule broken while being developed cannot lock the repo it is being developed in. `.void/hooks/` therefore carries a released bundle, deliberately different from `packages/core/hooks/`, and is committed so a fresh clone — or an autopilot worktree — inherits the floor rather than silently losing it. `.codex/hooks.json` is committed for the same reason.
 

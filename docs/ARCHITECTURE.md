@@ -5,7 +5,7 @@
 ```
 void-harness/
 ├── packages/
-│   ├── cli/                       # voidharness
+│   ├── cli/                       # voidmachine
 │   │   ├── src/commands/          # install, add, update, doctor, init
 │   │   └── package.json
 │   ├── core/                      # harness plugin (static assets, not an npm package)
@@ -355,7 +355,7 @@ ticket or resume-point flow and does not need a programme descriptor.
 For a local installation behind the cached published version, `freshnessRelay` supplies
 SessionStart model context asking the agent to offer `void-harness update` once near its
 first reply. The offer explains that update writes project files and links the public
-[release notes](https://github.com/voidcorp-core/void-harness/releases) for possible breaking
+[release notes](https://github.com/voidcorp-core/void-machine/releases) for possible breaking
 changes. Execution requires explicit human permission, including during autonomous work.
 Refusal or silence leaves the task proceeding without updating or repeating the offer in
 that session. This is agent guidance, not a technical authorization barrier. Current,
@@ -577,6 +577,28 @@ The CLI is the only entry point. It:
 5. Runs `init` to create `.void/config.json` in a new project
 
 The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md imports harness modules — the harness never writes business code.
+
+### Product identity: one source
+
+Which repository hosts the product, which npm package ships it and which commands start it are
+written once, in `packages/core/data/identity.json`, with the names it carried before (a former
+repository slug, a former package and its last major). Nothing else spells them in code:
+
+- TypeScript reads `PRODUCT_IDENTITY` from `@voidcorp/hook-runner` (`src/identity.ts`, which
+  validates the document). The import is bundled, so the CLI and the hook runtime carry the
+  identity of the release that built them and read no file at run time.
+- Plain-ESM scripts read `scripts/product-identity.mjs`, which resolves the JSON relative to its
+  own file: a guard running from a trusted checkout reads that checkout's identity, never one a
+  pull request brought. A job that sparse-checks-out a script must list both files;
+  `test/workflows/sparse-checkout-closure.test.ts` proves it does.
+- Files that cannot import (package and plugin manifests, workflows) repeat the values, and
+  `test/identity/product-identity.test.ts` fails when one disagrees, when code spells a slug or
+  package name, or when a former name survives outside the historical record.
+
+Workflow guards keep their literal (`EXPECTED_REPOSITORY`, `EXPECTED_PACKAGE`): the guard runs
+before any checkout, from the workflow file of the protected branch, and a fork that copies the
+file compares its own `github.repository` against a slug it does not have. Each installed command
+is a bin file named after it; a deprecated one runs the same CLI with one line on stderr.
 
 ## Inter-plugin contracts (the core-hub model)
 
@@ -815,7 +837,7 @@ Before runtime orchestration, `@voidcorp/mission-engine` compiles bounded ticket
 policy, profile, and specialist-catalog values into an explained risk classification, complete pass
 and specialist applicability matrices, and a canonical DAG. The package remains pure: YAML,
 filesystem confinement, Git inspection, stack detection, and native agent materialization stay in
-the `voidharness` CLI shell.
+the `voidmachine` CLI shell.
 
 Policy precedence is `core < profile < organization < project`. Overrides are monotonic by default;
 weakening requires a visible, approved, expiring waiver. The compiler rejects unresolved conflicts
@@ -1321,7 +1343,9 @@ into the same transaction as everything else, and is committed.
 `void-harness hydrate` restores from it under two rules:
 
 1. **It refuses to run unless the CLI is the version the manifest names**, and
-   prints `npx voidharness@<version> hydrate`. It does not fetch that version:
+   prints `npx <package>@<version> hydrate`, where `<package>` is the name that version
+   was published under (`packageFor` in `packages/core/data/identity.json`: a rename
+   does not move old releases). It does not fetch that version:
    `npx` already selects versions, and doing it inside the CLI would buy a network
    surface and a class of partial failures for nothing. Silently hydrating with
    whatever is installed is the exact drift the command exists to prevent.
@@ -1440,7 +1464,9 @@ requires.
   driver; resolves the base from the PR context and runs the bundled script.
 - `.github/workflows/enforce.yml` — reusable workflow (`workflow_call`) a
   consumer adopts in ≤5 lines (`uses:
-  voidcorp-core/void-harness/.github/workflows/enforce.yml@main`).
+  voidcorp-core/void-machine/.github/workflows/enforce.yml@main`). GitHub does not
+  redirect `uses:` after a repository rename, so `doctor` reports a call to a
+  former slug as broken rather than adopted.
 - `.github/workflows/void-enforce.yml` — void-harness's own dogfood, using the
   *local* composite so a check change is validated by the same PR that makes it.
 

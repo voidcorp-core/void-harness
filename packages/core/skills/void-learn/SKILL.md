@@ -35,7 +35,7 @@ Then decide the scope with one question: **"If I started a new unrelated project
 | Answer | Scope | Destination | Branch |
 |---|---|---|---|
 | No — only this codebase | Project rule | `.void/PROJECT-DOCTRINE.md` | **A** |
-| Yes — every voidcorp project | Harness gap | GitHub issue on `voidcorp-core/void-harness` | **B** |
+| Yes — every voidcorp project | Harness gap | GitHub issue on `voidcorp-core/void-machine` | **B** |
 | True but trivial / one-off | Disposable | nowhere | drop |
 
 **When the scope is genuinely ambiguous, ASK — never guess:**
@@ -126,7 +126,7 @@ the CLI or the docs. Infer the gap from the recent conversation, and ask one sho
 question only when it is genuinely unclear — the friction is fresh, and re-interviewing the user
 about something they just lived is how a capture becomes more expensive than the gap.
 
-The gap goes **straight to a `voidcorp-core/void-harness` issue** — there is no per-project `proposed/` queue; the pre-filter is your judgment before you open it. File ONLY when it clears BOTH tests:
+The gap goes **straight to a `voidcorp-core/void-machine` issue** — there is no per-project `proposed/` queue; the pre-filter is your judgment before you open it. File ONLY when it clears BOTH tests:
 
 - **Agnostic** — helps any consumer, not just this project. A project quirk belongs in `PROJECT-DOCTRINE.md` (Branch A), never on the tracker.
 - **Harness-worthy** — it would change a skill, hook, pack, CLI, or doctrine line; not a one-off preference, not already covered by an existing skill.
@@ -136,7 +136,7 @@ Calibrate against the ADR sweep behind issue #34 (a full audit that rejected eve
 Draft the issue, show it to the user, and on confirmation:
 
 ```bash
-gh issue create --repo voidcorp-core/void-harness \
+gh issue create --repo voidcorp-core/void-machine \
   --title "<area>: <concise gap>" \
   --label enhancement \
   --body "<what happened, evidence, source-project context (repo, SHA, path), shape of the fix>"

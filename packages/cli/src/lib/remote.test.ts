@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { pinnedCoordinates, selectCorePlugin } from './remote.js';
 
 describe('selectCorePlugin', () => {
@@ -6,7 +7,7 @@ describe('selectCorePlugin', () => {
     // Regression: the first catalog entry is an unrelated, version-less product.
     const plugins = [
       { name: 'forge', source: 'github' as const },
-      { name: 'harness', source: { source: 'github', repo: 'voidcorp-core/void-harness', sha: 'a'.repeat(40) } },
+      { name: 'harness', source: { source: 'github', repo: PRODUCT_IDENTITY.repositorySlug, sha: 'a'.repeat(40) } },
     ];
     expect(selectCorePlugin(plugins)?.name).toBe('harness');
   });
@@ -19,7 +20,7 @@ describe('selectCorePlugin', () => {
 // Coordinates map a catalog source entry to the gh fetch location. A self-hosted
 // local source resolves into the marketplace repo itself at HEAD; external git
 // sources pin via sha/ref. These freeze the mapping.
-const MKT = 'voidcorp-core/void-harness';
+const MKT = PRODUCT_IDENTITY.repositorySlug;
 describe('pinnedCoordinates', () => {
   it('local source: resolves into the marketplace repo at HEAD (self-hosted)', () => {
     expect(pinnedCoordinates('./packages/core', MKT)).toEqual({
@@ -46,13 +47,13 @@ describe('pinnedCoordinates', () => {
       pinnedCoordinates(
         {
           source: 'git-subdir',
-          url: 'https://github.com/voidcorp-core/void-harness.git',
+          url: `${PRODUCT_IDENTITY.repositoryUrl}.git`,
           path: 'packages/core',
           sha: 'b'.repeat(40),
         },
         MKT,
       ),
-    ).toEqual({ repo: 'voidcorp-core/void-harness', basePath: 'packages/core/', ref: 'b'.repeat(40) });
+    ).toEqual({ repo: MKT, basePath: 'packages/core/', ref: 'b'.repeat(40) });
   });
 
   it('falls back to ref when sha is absent, HEAD when both are', () => {

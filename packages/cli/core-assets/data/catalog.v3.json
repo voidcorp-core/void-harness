@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:6aefb84219ca5cb2c34b33fa839fb94c60ba9a3788b873dcc65fce63610be422"
+    "rootHash": "sha256:fa90eb491eee5da36fe6b5f51fd0c3b5534fdf989b4e0741bea2a75d3372833d"
   },
   "nodes": [
     {
@@ -4034,7 +4034,7 @@
             }
           ],
           "id": "skill:void-doctor",
-          "lines": 82,
+          "lines": 83,
           "name": "void-doctor",
           "owner": "folpe",
           "pack": null,
@@ -4043,7 +4043,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-doctor/SKILL.md",
-          "staticTokens": 765,
+          "staticTokens": 782,
           "type": "skill"
         }
       },

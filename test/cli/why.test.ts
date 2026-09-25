@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
-const CLI = resolve(__dirname, '../../packages/cli/bin/void-harness.mjs');
+const CLI = resolve(__dirname, '../../packages/cli/bin/void-machine.mjs');
 const roots: string[] = [];
 afterAll(() => {
 	for (const root of roots) rmSync(root, { recursive: true, force: true });

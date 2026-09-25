@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { CACHE_TTL_MS, writeFreshnessCache } from './cache.js';
+import { PRODUCT_IDENTITY } from '../identity.js';
 import { freshnessNotice, freshnessRelay, resolveFreshness } from './notice.js';
 
 const tempEnv = async (): Promise<{ XDG_CACHE_HOME: string }> => ({
@@ -158,7 +159,7 @@ describe('freshnessRelay', () => {
 
   it('links public release notes so breaking changes can be reviewed before approval', () => {
     const relay = freshnessRelay(behind, 'local') ?? '';
-    expect(relay).toContain('https://github.com/voidcorp-core/void-harness/releases');
+    expect(relay).toContain(`${PRODUCT_IDENTITY.repositoryUrl}/releases`);
     expect(relay).toMatch(/breaking changes/i);
   });
 

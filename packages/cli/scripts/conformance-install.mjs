@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRODUCT_IDENTITY } from '../../../scripts/product-identity.mjs';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   conformanceFixtureEnvironment,
@@ -40,7 +41,7 @@ async function installPackage(temporary, tarball) {
     fixture,
     environment,
   );
-  return join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
+  return join(fixture, 'node_modules', PRODUCT_IDENTITY.packageName, 'bin', `${PRODUCT_IDENTITY.commands.primary}.mjs`);
 }
 
 const CUSTOM_DOCTRINE = '# Project rules\r\n\r\n- Preserve accents: dépôt, and this custom rule.\r\n';

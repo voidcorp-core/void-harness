@@ -2,7 +2,7 @@ import { loadCatalog } from '../lib/cheatsheet/load.js';
 import { availability, readLocalEvidence } from '../lib/cheatsheet/availability.js';
 import { resolveProjectRoots } from '../lib/project-roots.js';
 import { renderDocument, type CheatSheet } from '../lib/cheatsheet/render.js';
-import { discoverProjectRoot } from '@voidcorp/hook-runner';
+import { discoverProjectRoot, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 
 export async function cheatsheet(args: readonly string[]): Promise<void> {
   const format = args.length === 0 ? 'html' : args.length === 2 && args[0] === '--format' ? args[1] : undefined;
@@ -21,7 +21,7 @@ export async function cheatsheet(args: readonly string[]): Promise<void> {
     };
     process.stdout.write(renderDocument(document, format));
   } catch {
-    process.stderr.write('CHEATSHEET_CATALOG_INVALID: bundled discovery data is unavailable or invalid. Reinstall voidharness.\n');
+    process.stderr.write(`CHEATSHEET_CATALOG_INVALID: bundled discovery data is unavailable or invalid. Reinstall ${PRODUCT_IDENTITY.packageName}.\n`);
     process.exitCode = 1;
   }
 }

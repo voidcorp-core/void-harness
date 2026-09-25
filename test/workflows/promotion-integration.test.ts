@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const workflow = readFileSync(new URL('../../.github/workflows/promotion.yml', import.meta.url), 'utf8');
@@ -121,7 +122,7 @@ function runAudit(options: {
       number: 331, baseRefName: 'develop', headRefName: 'outer', isCrossRepository: false,
       mergedAt: '2026-09-05T10:00:00Z', mergedBy: { login: 'folpe' },
       mergeCommit: { oid: options.mismatched ? fixture.inner : fixture.integration },
-      headRepository: { nameWithOwner: 'voidcorp-core/void-harness' },
+      headRepository: { nameWithOwner: PRODUCT_IDENTITY.repositorySlug },
       headRepositoryOwner: { login: 'voidcorp-core' },
       timelineItems: { nodes: [], pageInfo: { hasNextPage: false } },
       ...options.pull?.(fixture),
@@ -140,8 +141,8 @@ function runAudit(options: {
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, FIXTURES: fixture.root,
       FAIL_ONCE: options.failOnce ? '1' : '0', FAIL_ALWAYS: options.failAlways ? '1' : '0',
       GITHUB_WORKSPACE: ROOT,
-      EXPECTED_OWNER: 'voidcorp-core', EXPECTED_NAME: 'void-harness',
-      EXPECTED_REPOSITORY: 'voidcorp-core/void-harness', EXPECTED_HUMAN: 'folpe',
+      EXPECTED_OWNER: PRODUCT_IDENTITY.repository.owner, EXPECTED_NAME: PRODUCT_IDENTITY.repository.name,
+      EXPECTED_REPOSITORY: PRODUCT_IDENTITY.repositorySlug, EXPECTED_HUMAN: 'folpe',
       REVIEW_APP_ID: options.reviewAppId ?? '4242',
       MAX_PROMOTION_COMMITS: '500', PROMOTION_BATCH_SIZE: '40',
       PROMOTION_API_RETRIES: '3', PROMOTION_RETRY_DELAY_SECONDS: '0' },

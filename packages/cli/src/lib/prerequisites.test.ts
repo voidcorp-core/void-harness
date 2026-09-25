@@ -5,6 +5,7 @@
  */
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -42,12 +43,25 @@ describe('checkEnforceWorkflow', () => {
   // that has not adopted the server-side floor still passes, just with a hint.
   it('confirms adoption when a workflow references the reusable enforce workflow', () => {
     const dir = workspace({
-      '.github/workflows/floor.yml': 'jobs:\n  x:\n    uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main\n',
+      '.github/workflows/floor.yml': `jobs:\n  x:\n    uses: ${PRODUCT_IDENTITY.repositorySlug}/.github/workflows/enforce.yml@main\n`,
     });
     const r = checkEnforceWorkflow(dir);
     expect(r.ok).toBe(true);
     expect(r.message).toMatch(/adopted|enforc/i);
     expect(r.fix).toBeUndefined();
+  });
+
+  // GitHub redirects git and web traffic after a rename, never a workflow's `uses:`: the job fails
+  // with "repository not found", so calling that floor adopted would be the comfortable lie.
+  it.each(PRODUCT_IDENTITY.formerRepositorySlugs)('flags a reusable workflow still called from %s', (former) => {
+    const dir = workspace({
+      '.github/workflows/floor.yml': `jobs:\n  x:\n    uses: ${former}/.github/workflows/enforce.yml@main\n`,
+    });
+    const r = checkEnforceWorkflow(dir);
+    expect(r.ok).toBe(true);
+    expect(r.status).toBe('advisory');
+    expect(r.message).toContain(former);
+    expect(r.fix).toContain(`${PRODUCT_IDENTITY.repositorySlug}/.github/workflows/enforce.yml`);
   });
 
   it('confirms adoption when a workflow references the local composite action', () => {

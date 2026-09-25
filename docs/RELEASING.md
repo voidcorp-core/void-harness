@@ -11,15 +11,17 @@ Distinguish **versioned** (all manifests, in lockstep) from **published to npm**
 - Packs (`@voidcorp/pack-monorepo`, `@voidcorp/pack-nextjs`, …) and the `@voidcorp/harness-graph`
   kernel — versioned, but **not published to npm**: packs ship via the marketplace, and the kernel is
   bundled into the CLI (see DECISIONS.md 2026-07-22).
-- **CLI npm package (`voidharness`) — the only package published to npm.** Self-contained
-  (the kernel is bundled in), so `npx voidharness` needs nothing else from the registry.
+- **CLI npm package (`voidmachine`, named in `packages/core/data/identity.json`) — the only package
+  published to npm.** Self-contained (the kernel is bundled in), so `npx voidmachine` needs nothing
+  else from the registry. Releases up to 3.x were published under the former name the identity
+  keeps in `formerPackages`.
 
 A skill change, a CLI bugfix, and a runtime helper addition all ship under the same version bump.
 
 ### Why one number
 
 - **Coherence.** A skill that references a runtime helper ships in the same version as that helper.
-- **Trace.** `void-harness --version` matches `pnpm view voidharness version` matches the marketplace HEAD.
+- **Trace.** `void-machine --version` matches `pnpm view voidmachine version` matches the marketplace HEAD.
 - **No skew incidents.** Pre-1.0, every divergence is a support nightmare. Lockstep eliminates the question.
 
 ### When we might split (post-1.0)
@@ -207,7 +209,7 @@ Actions on the routine path.
    publication authorization.
 4. `validate-release`, with `contents: read` and no OIDC, resolves the immutable
    tag, proves its commit is on protected `main`, validates the exact tree, and
-   packs `voidharness-X.Y.Z.tgz` once. It uploads that tarball plus an integrity
+   packs `voidmachine-X.Y.Z.tgz` once. It uploads that tarball plus an integrity
    manifest containing the release identity, SHA-256 and npm SHA-512 integrity.
 5. `publish` is the only job with `id-token: write`. It checks the artifact's exact
    GitHub ID, service digest, workflow run and head SHA before download, then
@@ -250,36 +252,35 @@ overwrites a registry version. If npm already contains the exact bytes, the retr
 is idempotent only after the same cryptographic verifier passes. Otherwise fix the
 cause on `develop` and cut a new version.
 
-### First publish (one-time bootstrap)
+### First publish of a package name (one-time bootstrap)
 
-> **Note (2026-07-24):** this bootstrap is **done**. `voidharness` exists on npm
-> (1.2.0, then 2.0.0), both published by hand. Do not re-run it.
->
-> Beware of what this section used to claim: that a CI auth failure means the
-> bootstrap is missing. When 2.0.0 failed to publish from CI with `E404 PUT
-> /voidharness`, that note sent the investigation at the npm account settings,
-> and the trusted publisher was configured correctly all along. The real cause
-> was in `release.yml`: `setup-node`'s `registry-url` input writes an
-> `_authToken` line into a temp `.npmrc`, so npm believed it already had a
-> credential and never ran the OIDC exchange (actions/setup-node#1551). **An
-> `E404` on publish is a credential problem, and the credential to suspect first
-> is the one the workflow injected, not the one npm is missing.**
+npm Trusted Publishing configures a publisher on an **existing** package only: `npm trust`
+states that "the package you're configuring must already exist on the npm registry"
+(https://docs.npmjs.com/cli/v11/commands/npm-trust), and the web settings live on the package page.
+A new name therefore needs one publication before CI can publish it, and that publication
+must not be the release itself: `release.yml` classifies an already-present version as
+`existing` and then requires npm provenance on its bytes, which a hand publish never carries.
 
-npm Trusted Publishing configures a publisher on an **existing** package — it
-cannot create a brand-new one. So the very first version is bootstrapped by hand,
-with no token and no 2FA-bypass:
+The name is reserved with a placeholder, then the release goes through CI like any other:
 
-1. `voidharness` is **unscoped** — no org needed; just an npm account that can
-   publish the name (confirmed free as of the rename).
-2. From a clean `main` at the target version: `pnpm release` (or
-   `pnpm --filter voidharness publish`). Enter your **2FA OTP** when
-   prompted — an interactive publish, no stored credential.
-3. On npmjs.com → the `voidharness` package → **Settings → Trusted Publisher →
-   GitHub Actions**: organization `voidcorp-core`, repository `void-harness`,
-   workflow file `release.yml`, environment **`npm-publish`** (see the next
-   section — leaving it blank is what made any branch publishable).
-4. From the next release on, the CI `publish` job publishes tokenlessly. You never
-   run `publish` by hand again.
+1. From a scratch directory, publish a placeholder `voidmachine@0.0.0` interactively, as a
+   maintainer with account-level 2FA: a `package.json` with the name, version `0.0.0` and the
+   `repository.url` of this repository, a README saying the package is reserved. Enter the OTP
+   when prompted; no token is created or stored.
+2. Configure the trusted publisher on it, on npmjs.com (package **Settings → Trusted Publisher →
+   GitHub Actions**) or with npm 11.15 or newer:
+   `npm trust github voidmachine --file release.yml --repo voidcorp-core/void-machine --env npm-publish`.
+   The environment is not optional here: leaving it blank is what made any branch publishable.
+3. Merge the release pull request. `publish` finds the version absent, publishes it tokenlessly
+   with provenance, and `verify-publication` proves it. `latest` moves off the placeholder.
+4. Only then deprecate the former package towards the new one
+   (`npm deprecate <former>@"*" "renamed to voidmachine"`), so nobody is pointed at a name
+   that has nothing to install yet.
+
+An `E404` on publish is a credential problem, and the credential to suspect first is the one the
+workflow injected, not the one npm is missing: `setup-node`'s `registry-url` input once wrote an
+`_authToken` line into a temporary `.npmrc`, so npm believed it already had a credential and never
+ran the OIDC exchange (actions/setup-node#1551).
 
 ## External controls that make the workflow claims true
 
@@ -298,7 +299,7 @@ these controls, changes only a mismatching value, then reads it back:
   `googleapis/release-please-action@*`. Every effective workflow reference is a
   full commit SHA.
 - The Release App installation is selected-repository mode for exactly
-  `voidcorp-core/void-harness`. Its ceiling is repository `Contents: write` and
+  `voidcorp-core/void-machine`. Its ceiling is repository `Contents: write` and
   `Pull requests: write`, plus implicit metadata read. It has no Actions,
   Administration, Environments, Secrets or organization permission.
 - One active `v*` ruleset lets only that App create a tag. A second active `v*`
@@ -309,20 +310,20 @@ these controls, changes only a mismatching value, then reads it back:
   is the second human authorization, so an Actions approval would be a hidden
   third action.
 - npm Trusted Publisher is exactly organization `voidcorp-core`, repository
-  `void-harness`, workflow `release.yml`, environment `npm-publish`, publish-only.
+  `void-machine`, workflow `release.yml`, environment `npm-publish`, publish-only.
   Maintainer accounts and the organization use secure 2FA, and no legacy or
   granular token retains publish authority.
 
 Safe read-only audit examples, none of which print a token or App key:
 
 ```bash
-gh api repos/voidcorp-core/void-harness/branches/main/protection
-gh api repos/voidcorp-core/void-harness/actions/permissions
-gh api repos/voidcorp-core/void-harness/actions/permissions/selected-actions
-gh api --paginate repos/voidcorp-core/void-harness/rulesets
-gh api repos/voidcorp-core/void-harness/environments/npm-publish
-gh api repos/voidcorp-core/void-harness/immutable-releases
-npm trust list voidharness --json
+gh api repos/voidcorp-core/void-machine/branches/main/protection
+gh api repos/voidcorp-core/void-machine/actions/permissions
+gh api repos/voidcorp-core/void-machine/actions/permissions/selected-actions
+gh api --paginate repos/voidcorp-core/void-machine/rulesets
+gh api repos/voidcorp-core/void-machine/environments/npm-publish
+gh api repos/voidcorp-core/void-machine/immutable-releases
+npm trust list voidmachine --json
 ```
 
 The npm command requires an authenticated npm 11.15 or newer maintainer session;
@@ -421,12 +422,12 @@ void-harness update    # refresh marketplace cache + bump .void/config.json pins
 
 `pnpm check:size` (`scripts/check-package-size.mjs`, run in CI beside `check:publish`) packs every
 publishable package with `pnpm pack` and fails when a compressed tarball exceeds its declared
-ceiling. The compressed tarball is what a consumer downloads on `npx voidharness`; unpacked and
+ceiling. The compressed tarball is what a consumer downloads on `npx voidmachine`; unpacked and
 bundle sizes are diagnostics, not budgets. Every size prints on every run, breach or not, so growth
 reads as a trajectory rather than a one-day alarm.
 
 Ceilings live in `PACKAGE_LIMITS` in that script, set 2026-08-06 with roughly one sixth of headroom
-over the sizes measured then (voidharness 728.2 kB, harness-graph 85.7 kB, packs under 8 kB).
+over the sizes measured then (the CLI 728.2 kB, harness-graph 85.7 kB, packs under 8 kB).
 
 **Raising a ceiling is normal.** Do it in the same commit as the change that needs the room, with
 the reason in the commit message, so the growth is a decision on the record rather than a drift

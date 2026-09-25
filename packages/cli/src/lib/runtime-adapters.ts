@@ -28,7 +28,7 @@ import { existsSync } from 'node:fs';
 import { lstat, readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { voidReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import type { SpecialistRuntimeCapability } from '@voidcorp/mission-engine';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
@@ -251,7 +251,7 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
       name: 'claude agents',
       ok: false,
       message: `canonical specialist catalog unavailable: ${(error as Error).message}`,
-      fix: 'reinstall voidharness',
+      fix: `reinstall ${PRODUCT_IDENTITY.packageName}`,
     };
   }
   const drifts = new Map<string, SpecialistDrift>();

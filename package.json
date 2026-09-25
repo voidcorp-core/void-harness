@@ -5,20 +5,20 @@
   "description": "Production-grade Claude Code harness for VoidCorp. Core craftsman skills + pluggable stack packs.",
   "license": "MIT",
   "author": "Florent Pellegrin <florent.pellegrin@voidcorp.io>",
-  "homepage": "https://github.com/voidcorp-core/void-harness",
+  "homepage": "https://github.com/voidcorp-core/void-machine",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/voidcorp-core/void-harness.git"
+    "url": "git+https://github.com/voidcorp-core/void-machine.git"
   },
   "bugs": {
-    "url": "https://github.com/voidcorp-core/void-harness/issues"
+    "url": "https://github.com/voidcorp-core/void-machine/issues"
   },
   "scripts": {
     "backlog:index": "node scripts/backlog-index.mjs",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || exit 0",
     "build": "pnpm -r --filter '!void-harness' build",
-    "build:cli": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/hook-runner build && pnpm --filter voidharness build",
-    "cli": "pnpm build:cli >/dev/null && node packages/cli/bin/void-harness.mjs",
+    "build:cli": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/hook-runner build && pnpm --filter ./packages/cli build",
+    "cli": "pnpm build:cli >/dev/null && node packages/cli/bin/void-machine.mjs",
     "benchmark:project": "pnpm --filter @voidcorp/harness-graph build && node packages/harness-graph/benchmarks/project-graph/run.mjs",
     "benchmark:query": "pnpm --filter @voidcorp/harness-graph build && node packages/harness-graph/benchmarks/project-graph-query/run.mjs",
     "benchmark:hooks": "pnpm hooks:build && pnpm --filter @voidcorp/hook-runner benchmark",
@@ -47,11 +47,11 @@
     "check:publish": "node scripts/check-publish-safety.mjs",
     "check:size": "node scripts/check-package-size.mjs",
     "bump": "node scripts/bump-version.mjs",
-    "release": "node scripts/check-publish-safety.mjs && pnpm --filter voidharness publish",
-    "certification:build": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter voidharness build:certification",
-    "certification:check": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter voidharness build:certification -- --check",
-    "graph:check": "pnpm --filter @voidcorp/harness-graph build && node packages/cli/bin/void-harness.mjs graph check",
-    "graph:check-bundle": "node packages/cli/bin/void-harness.mjs graph check-bundle",
+    "release": "node scripts/check-publish-safety.mjs && pnpm --filter ./packages/cli publish",
+    "certification:build": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter ./packages/cli build:certification",
+    "certification:check": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter ./packages/cli build:certification -- --check",
+    "graph:check": "pnpm --filter @voidcorp/harness-graph build && node packages/cli/bin/void-machine.mjs graph check",
+    "graph:check-bundle": "node packages/cli/bin/void-machine.mjs graph check-bundle",
     "hooks:build": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/hook-runner build",
     "conformance:pack": "node packages/cli/scripts/conformance-artifact.mjs",
     "conformance:consumer": "node packages/cli/scripts/conformance-consumer.mjs",

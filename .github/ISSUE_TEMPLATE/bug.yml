@@ -36,7 +36,7 @@ body:
     id: versions
     attributes:
       label: Versions
-      description: "`voidharness --version`, Node, OS."
-      placeholder: "voidharness 2.0.2, Node 24.15, macOS 15"
+      description: "`void-machine --version`, Node, OS."
+      placeholder: "voidmachine 4.0.0, Node 24.15, macOS 15"
     validations:
       required: true

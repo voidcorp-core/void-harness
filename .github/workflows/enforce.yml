@@ -6,7 +6,7 @@
 #   on: pull_request
 #   jobs:
 #     enforce:
-#       uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@<full-sha>
+#       uses: voidcorp-core/void-machine/.github/workflows/enforce.yml@<full-sha>
 #
 # Pin the reusable workflow to a full commit SHA. This complements — it does not
 # replace — your own lint/test CI: it enforces the doctrine floor only.

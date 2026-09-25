@@ -21,13 +21,13 @@ These are not style preferences. A PR violating them fails `validate`:
 | `CLAUDE.md` and `AGENTS.md` stay in section parity | `pnpm sync:docs` |
 | Every version-carrying manifest at the same version | `pnpm version:check` |
 | Decision schemas, links, cycles and accepted-record immutability | `pnpm decisions:check` |
-| `packages/cli/core-assets` mirrors `packages/core` | rebuild with `pnpm --filter voidharness build:assets` |
+| `packages/cli/core-assets` mirrors `packages/core` | rebuild with `pnpm --filter ./packages/cli build:assets` |
 | `model.json` and the embedded consumer bundle current | `pnpm graph:check`, `pnpm graph:check-bundle` |
 
 If you edit anything under `packages/core/`, run:
 
 ```bash
-pnpm --filter voidharness build:assets
+pnpm --filter ./packages/cli build:assets
 ```
 
 and commit the result. Editing a hook also changes its line count, which the graph model records — rebuild it too.
@@ -68,4 +68,4 @@ The harness targets Claude Code **and** Codex through a runtime-adapter seam (`p
 
 ## Reporting
 
-Bugs and harness gaps go to [issues](https://github.com/voidcorp-core/void-harness/issues). Security findings go through a [private advisory](https://github.com/voidcorp-core/void-harness/security/advisories/new) instead — see `SECURITY.md`.
+Bugs and harness gaps go to [issues](https://github.com/voidcorp-core/void-machine/issues). Security findings go through a [private advisory](https://github.com/voidcorp-core/void-machine/security/advisories/new) instead — see `SECURITY.md`.

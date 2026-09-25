@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { asksForHelp } from './main.js';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { asksForHelp, deprecationNotice } from './main.js';
 
 describe('asksForHelp', () => {
   it('treats --help as a request to explain, not to act', () => {
@@ -25,5 +26,23 @@ describe('asksForHelp', () => {
 
   it('says no when there is no command at all', () => {
     expect(asksForHelp(undefined, ['--help'])).toBe(false);
+  });
+});
+
+describe('deprecationNotice', () => {
+  const { primary, aliases, deprecated } = PRODUCT_IDENTITY.commands;
+
+  it('names the replacement in one line when a deprecated command is typed', () => {
+    for (const command of deprecated) {
+      const notice = deprecationNotice(command) ?? '';
+      expect(notice).toContain(command);
+      expect(notice).toContain(primary);
+      expect(notice.trimEnd().split('\n')).toHaveLength(1);
+    }
+    expect(deprecated.length).toBeGreaterThan(0);
+  });
+
+  it('stays silent for the current command and its aliases', () => {
+    for (const command of [primary, ...aliases]) expect(deprecationNotice(command)).toBeUndefined();
   });
 });

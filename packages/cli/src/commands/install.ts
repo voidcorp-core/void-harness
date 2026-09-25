@@ -5,6 +5,7 @@
 // which installs the same plugin locally inside <cwd>/.claude/plugins/.
 
 import { existsSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -116,7 +117,7 @@ async function writeManifest(pluginRoot: string, core: CoreManifest): Promise<vo
     version: core.version,
     description: 'VoidCorp craftsman harness — opinionated skills, agents, and hooks for Claude Code projects.',
     author: { name: 'VoidCorp', email: 'florent.pellegrin@voidcorp.io' },
-    homepage: 'https://github.com/voidcorp-core/void-harness',
+    homepage: PRODUCT_IDENTITY.repositoryUrl,
     license: 'MIT',
     keywords: ['voidcorp', 'craftsman', 'tdd', 'tigerstyle', 'harness'],
     ...(core.hooks !== undefined ? { hooks: core.hooks } : {}),

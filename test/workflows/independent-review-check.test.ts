@@ -10,11 +10,12 @@ import {
   REVIEW_CHECK_NAME,
 } from '../../scripts/independent-review-check.mjs';
 import { decideStart } from '../../scripts/independent-review-run.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 // Response shapes mirror the GitHub GraphQL API: a commit lists its check
 // suites, each its check runs, filtered by app and name in the query; and
 // `mergeQueue` is null when the branch has no queue (observed live).
-const repository = 'voidcorp-core/void-harness';
+const repository = PRODUCT_IDENTITY.repositorySlug;
 /** The review App's id, the one source whose check counts as a head's review. */
 const APP = 4242;
 const sha = (digit: string): string => digit.repeat(40);

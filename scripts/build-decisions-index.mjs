@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const CLI = fileURLToPath(
-  new URL('../packages/cli/bin/void-harness.mjs', import.meta.url),
+  new URL('../packages/cli/bin/void-machine.mjs', import.meta.url),
 );
 
 export function commandFor(args) {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import {
   githubReleasesUrl,
   githubRepoUrl,
@@ -10,15 +11,16 @@ import {
 
 describe('adoption URLs', () => {
   it('builds the public npm + GitHub endpoints for the harness package/repo', () => {
-    expect(npmDownloadsUrl()).toBe('https://api.npmjs.org/downloads/point/last-month/voidharness');
-    expect(githubRepoUrl()).toBe('https://api.github.com/repos/voidcorp-core/void-harness');
-    expect(githubReleasesUrl()).toBe('https://api.github.com/repos/voidcorp-core/void-harness/releases');
+    const { packageName, repositorySlug } = PRODUCT_IDENTITY;
+    expect(npmDownloadsUrl()).toBe(`https://api.npmjs.org/downloads/point/last-month/${packageName}`);
+    expect(githubRepoUrl()).toBe(`https://api.github.com/repos/${repositorySlug}`);
+    expect(githubReleasesUrl()).toBe(`https://api.github.com/repos/${repositorySlug}/releases`);
   });
 });
 
 describe('parseNpmDownloads', () => {
   it('reads the download count', () => {
-    expect(parseNpmDownloads({ downloads: 1234, package: 'voidharness' })).toBe(1234);
+    expect(parseNpmDownloads({ downloads: 1234, package: 'examplepkg' })).toBe(1234);
   });
   it('returns undefined on a 404-shaped / malformed response (no false 0)', () => {
     expect(parseNpmDownloads({ error: 'not found' })).toBeUndefined();

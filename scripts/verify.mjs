@@ -76,13 +76,13 @@ export const GATES = Object.freeze([
   gate(
     'core-assets',
     'Core assets mirror',
-    ['pnpm', '--filter', 'voidharness', 'build:assets'],
+    ['pnpm', '--filter', './packages/cli', 'build:assets'],
     'consumer',
     'filesystem',
     ['source'],
     {
       artifact: true,
-      fix: ['pnpm', '--filter', 'voidharness', 'build:assets'],
+      fix: ['pnpm', '--filter', './packages/cli', 'build:assets'],
       drift: ['packages/cli/core-assets'],
     },
   ),
@@ -93,7 +93,7 @@ export const GATES = Object.freeze([
   gate(
     'self-host-sync',
     'Self-host compile',
-    ['node', 'packages/cli/bin/void-harness.mjs', 'self-host', 'sync', '--mode', 'release-gate'],
+    ['node', 'packages/cli/bin/void-machine.mjs', 'self-host', 'sync', '--mode', 'release-gate'],
     'consumer',
     'subprocess',
     ['source'],
@@ -101,7 +101,7 @@ export const GATES = Object.freeze([
   gate(
     'self-host-doctor',
     'Self-host doctor',
-    ['node', 'packages/cli/bin/void-harness.mjs', 'self-host', 'doctor', '--mode', 'release-gate'],
+    ['node', 'packages/cli/bin/void-machine.mjs', 'self-host', 'doctor', '--mode', 'release-gate'],
     'consumer',
     'subprocess',
     ['source'],
@@ -115,7 +115,7 @@ export const GATES = Object.freeze([
     ['source'],
     {
       artifact: true,
-      fix: ['node', 'packages/cli/bin/void-harness.mjs', 'graph', 'build'],
+      fix: ['node', 'packages/cli/bin/void-machine.mjs', 'graph', 'build'],
     },
   ),
   gate(
@@ -136,7 +136,7 @@ export const GATES = Object.freeze([
     ['source'],
     {
       artifact: true,
-      fix: ['pnpm', '--filter', 'voidharness', 'build:void-graph'],
+      fix: ['pnpm', '--filter', './packages/cli', 'build:void-graph'],
     },
   ),
   gate('asset-paths', 'Asset paths', ['pnpm', 'skills:check-paths'], 'contract', 'filesystem', ['docs', 'source']),

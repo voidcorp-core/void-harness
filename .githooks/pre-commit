@@ -60,14 +60,14 @@ fi
 # it drifted (same rule as CI, caught locally before the push). Porcelain also
 # catches a newly added core file whose mirror is untracked.
 if git diff --cached --name-only | grep -q '^packages/core/'; then
-  # The filter must name the CLI package as package.json declares it
-  # ("voidharness"). It previously read "@voidcorp/harness", which pnpm resolves
+  # The filter names the CLI package by its directory, which no rename can
+  # break. It once read "@voidcorp/harness", a name pnpm resolves
   # to nothing and reports as "No projects matched the filters" while still
   # exiting 0 -- so build:assets never ran, the mirror was never regenerated,
   # and the porcelain check below passed on a clean tree no matter how far
   # core-assets had drifted. The guard existed and enforced nothing.
   if command -v pnpm >/dev/null 2>&1; then
-    ( cd "$ROOT" && pnpm --filter voidharness build:assets >/dev/null 2>&1 )
+    ( cd "$ROOT" && pnpm --filter ./packages/cli build:assets >/dev/null 2>&1 )
     # Unstaged changes only. `git status --porcelain` also reports what is
     # already staged, so this refused the very commit that carried a correctly
     # regenerated mirror. The check could not be seen doing that while its pnpm
@@ -85,7 +85,7 @@ if git diff --cached --name-only | grep -q '^packages/core/'; then
     # than skipping silently, since a silent skip is the exact failure this
     # hook was just fixed for. CI re-runs the same check unconditionally.
     echo "pre-commit: pnpm not on PATH; skipped the core-assets mirror check." >&2
-    echo "  CI still enforces it. Run 'pnpm --filter voidharness build:assets' before pushing." >&2
+    echo "  CI still enforces it. Run 'pnpm --filter ./packages/cli build:assets' before pushing." >&2
   fi
 fi
 

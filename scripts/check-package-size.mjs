@@ -13,7 +13,7 @@
 // faithful one (see check-publish-safety.mjs, which packs the same way).
 //
 // The compressed tarball is the only figure a ceiling belongs on: it is what
-// crosses the network on `npx voidharness`. Unpacked size and bundle size are
+// crosses the network on `npx`. Unpacked size and bundle size are
 // interesting, but nobody waits on them.
 //
 // Raising a ceiling is a normal thing to do. Do it in the same commit as the
@@ -25,6 +25,7 @@ import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -34,7 +35,7 @@ const ROOT = resolve(HERE, '..');
  *
  * Set 2026-08-06 from measured sizes with roughly one sixth of headroom: enough
  * that an honest addition does not trip the gate, tight enough that a doubling
- * cannot pass unseen. Measured then: voidharness 728,218 · harness-graph 85,748 ·
+ * cannot pass unseen. Measured then: the CLI 728,218 · harness-graph 85,748 ·
  * pack-monorepo 7,934 · pack-nextjs 6,176.
  *
  * The packs get a proportionally looser ceiling on purpose: on a 7 kB package a
@@ -61,7 +62,7 @@ export const PACKAGE_LIMITS = Object.freeze({
   // step 7 of the native loop plan removed that engine: 1942.1 kB on
   // 2026-09-24 (develop: 2018.6 kB). The ceiling comes back down with it, to
   // the same 45 kB of headroom the compiler worker was given.
-  voidharness: 1_985_000,
+  [PRODUCT_IDENTITY.packageName]: 1_985_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,
@@ -137,7 +138,7 @@ export function measure(packages) {
 
 // Mirrors PACKAGES in check-publish-safety.mjs; the test asserts they agree.
 const PACKAGES = [
-  { directory: 'packages/cli', name: 'voidharness' },
+  { directory: 'packages/cli', name: PRODUCT_IDENTITY.packageName },
   { directory: 'packages/harness-graph', name: '@voidcorp/harness-graph' },
   { directory: 'packages/packs/pack-monorepo', name: '@voidcorp/pack-monorepo' },
   { directory: 'packages/packs/pack-nextjs', name: '@voidcorp/pack-nextjs' },

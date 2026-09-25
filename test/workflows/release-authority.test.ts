@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WORKFLOWS = join(ROOT, '.github', 'workflows');
@@ -50,7 +51,7 @@ describe('release automation authority', () => {
     expect(voidEnforce).toContain('pull-requests: read');
     expect(voidEnforce).toContain('gh pr view "$PR_NUMBER"');
     expect(voidEnforce).toContain('autoMergeRequest');
-    expect(voidEnforce).toContain("EXPECTED_REPOSITORY: voidcorp-core/void-harness");
+    expect(voidEnforce).toContain(`EXPECTED_REPOSITORY: ${PRODUCT_IDENTITY.repositorySlug}`);
     expect(voidEnforce).toContain('FORBIDDEN_BASE: main');
     expect(voidEnforce).toContain('assertAutoMergeAllowed');
   });
@@ -96,7 +97,7 @@ describe('release automation authority', () => {
     ['promotion.yml', promotion, "EXPECTED_REF: refs/heads/develop"],
     ['back-merge.yml', backMerge, "EXPECTED_REF: refs/heads/main"],
   ])('%s rejects the wrong repository, ref, head, base or fork', (_name, source, expectedRef) => {
-    expect(source).toContain("EXPECTED_REPOSITORY: voidcorp-core/void-harness");
+    expect(source).toContain(`EXPECTED_REPOSITORY: ${PRODUCT_IDENTITY.repositorySlug}`);
     expect(source).toContain(expectedRef);
     expect(source).toContain('headRepository');
     expect(source).toContain('headRepositoryOwner');
@@ -130,7 +131,7 @@ describe('release operator contract', () => {
       'selected-repository mode',
       'Immutable releases',
       'npm-publish',
-      'npm trust list voidharness --json',
+      `npm trust list ${PRODUCT_IDENTITY.packageName} --json`,
     ]) {
       expect(RELEASING).toContain(control);
     }
