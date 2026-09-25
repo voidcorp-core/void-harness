@@ -3,7 +3,7 @@ schemaVersion: 1
 id: "adr:ecc84977-68f4-4c97-9fa8-f6f9046329a7"
 createdAt: "2026-09-25T16:13:14.467Z"
 title: "Codex hook commands find the runner from the session directory with a shell-neutral Node bootstrap"
-status: proposed
+status: accepted
 deciders: ["folpe"]
 supersedes: []
 ---
