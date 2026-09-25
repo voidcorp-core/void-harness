@@ -56,7 +56,7 @@ The promotion audit in `promotion.yml` follows the same rule: every commit it
 promotes entered `develop` through a merged pull request, and
 `scripts/promotion-authority.mjs` accepts that pull request in exactly three
 cases. Its head SHA carries a successful `independent-review` check run from
-GitHub Actions, the review the required check demanded before it could merge, whoever merged it and
+the review App, the review the required check demanded before it could merge, whoever merged it and
 whatever its timeline records: `gh pr merge --auto` on a pull request already
 mergeable merges at once and leaves no auto-merge event. Or it was merged
 by hand by the named human, with no auto-merge or merge queue event in its
@@ -74,16 +74,19 @@ required check of `develop` also answers `merge_group`, the only event a queue
 waits on, and falls back to the group's `base_sha` wherever it read the pull
 request base. The review itself is a job, `independent-review.yml`, on
 `pull_request_target`: it reads the head as data with read-only tools and
-publishes the `independent-review` check on it. In the queue,
-`independent-review-queue.yml` does not believe that check, which any workflow
-of the repository could create: it passes only when every pull request of the
-group has a successful run of the review workflow for its own head, run from
-`main`: `pull_request_target` takes the workflow from the default branch, so a
-change to the review applies once promoted. The job reviews with the
-`CLAUDE_CODE_OAUTH_TOKEN` secret of the `independent-review` environment,
-whose deployment branch policy admits `main` alone, so a workflow pushed to
-another branch cannot read it; see [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
-and [the review-in-GitHub decision](decisions-log/2026-09-24-review-runs-from-default-branch--c3c5eada-4c1d-4570-b707-526df55198b4.md).
+publishes the `independent-review` check on it as the review App, a GitHub App
+of its own holding the Checks permission alone. Branch protection requires the
+check from that App, so a check under the same name from any workflow's
+`GITHUB_TOKEN` does not count. In the queue, `independent-review-queue.yml`
+runs on `workflow_run` of `ci` for each merge group, requires every pull
+request of the group to carry the App's successful check on its own head, and
+posts the App's check on the group commit. Both run from `main`, the default
+branch, so a change to the review applies once promoted, and both read the
+App's key (`REVIEW_APP_PRIVATE_KEY`) and the `CLAUDE_CODE_OAUTH_TOKEN` from the
+`independent-review` environment, whose deployment branch policy admits `main`
+alone; the App's ids are the repository variables `REVIEW_APP_CLIENT_ID` and
+`REVIEW_APP_ID`. See [the merge queue decision](decisions-log/2026-09-22-develop-merge-queue-review-verdict--413ec9cd-c186-4933-916f-215ae8dd54bb.md)
+and [the review App decision](decisions-log/2026-09-24-review-check-from-its-own-app--03e82acc-0f4b-4718-9b88-3d1b2acd4903.md).
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is
 triggered by `push: branches: [main]` and nothing about the two-branch flow touches

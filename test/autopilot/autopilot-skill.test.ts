@@ -153,11 +153,11 @@ describe('the curator ranks, and never disposes', () => {
 describe('the review runs in GitHub, out of the reach of every worker', () => {
   // A verdict the orchestration checkout signed could be signed by anything
   // running there; a check only GitHub Actions can create cannot.
-  it('names the job, its trigger and the check only GitHub Actions creates', () => {
+  it('names the job, its trigger and the check only the review App creates', () => {
     expect(flat(body(SKILL))).toMatch(/`\.github\/workflows\/independent-review\.yml` reviews every ready pull request/);
     expect(flat(body(SKILL))).toMatch(/on `pull_request_target`/);
-    expect(flat(body(SKILL))).toMatch(/The merge queue does not believe that check/);
-    expect(flat(body(SKILL))).toMatch(/only on a successful run of that workflow, run from the default branch, for that exact head/);
+    expect(flat(body(SKILL))).toMatch(/Branch protection requires the check from that App/);
+    expect(flat(body(SKILL))).toMatch(/`independent-review-queue\.yml`, on `workflow_run` of `ci`/);
     expect(flat(body(SKILL))).toMatch(/No key or secret for it lives on this machine/);
   });
 
