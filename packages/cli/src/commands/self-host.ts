@@ -12,6 +12,7 @@ import {
   type SelfHostMode,
 } from '../lib/self-host/receipt.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 type SelfHostArgs =
   | { readonly action: 'sync'; readonly mode: SelfHostMode }
@@ -90,7 +91,7 @@ export async function runSelfHostDoctor(
 export async function selfHost(args: readonly string[]): Promise<void> {
   const root = process.cwd();
   if (!isHarnessSourceRepo(root)) {
-    process.stderr.write('self-host is only available inside the void-harness source repository\n');
+    process.stderr.write(`self-host is only available inside the ${PRODUCT_COMMAND} source repository\n`);
     process.exitCode = 2;
     return;
   }

@@ -1,7 +1,7 @@
 Sources:
 - Puppeteer PDFOptions: https://pptr.dev/api/puppeteer.pdfoptions
 - W3C PDF accessibility techniques: https://www.w3.org/TR/WCAG20-TECHS/pdf.html
-- void-harness make-pdf doctrine: packages/core/skills/make-pdf/SKILL.md
+- void-machine make-pdf doctrine: packages/core/skills/make-pdf/SKILL.md
 
 Adapted:
 - Kept safe untrusted-content handling, faithful rendering, pagination, metadata, links, accessibility, and current-artifact inspection.

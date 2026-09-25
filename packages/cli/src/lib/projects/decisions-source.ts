@@ -8,7 +8,7 @@
 //
 // Pure. Callers read the files; this interprets their content.
 //
-// Detection keys on the FROZEN MARKER, never on a count. void-harness carries
+// Detection keys on the FROZEN MARKER, never on a count. void-machine carries
 // 96 monolith entries against 132 per-file records: counting says nothing,
 // while a header declaring the snapshot frozen and pointing at the directory
 // settles it. A frozen monolith is conformant; a live one is drift.

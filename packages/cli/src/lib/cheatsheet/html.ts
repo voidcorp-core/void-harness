@@ -2,6 +2,7 @@
 import { compare } from './catalog.js';
 import { installationText, type CheatSheet } from './document.js';
 import { enhancement, styles } from './presentation.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -22,9 +23,9 @@ ${entry.relatedIds.length === 0 ? '' : `<p class="meta">Same capability: ${entry
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
-<title>void-harness · Cheat sheet</title><style>${styles}</style></head><body>
+<title>${PRODUCT_COMMAND} · Cheat sheet</title><style>${styles}</style></head><body>
 <a class="skip" href="#catalogue">Skip to catalogue</a>
-<header><p class="eyebrow">void-harness / Field reference</p><h1>Find the capability you need.</h1>
+<header><p class="eyebrow">${PRODUCT_COMMAND} / Field reference</p><h1>Find the capability you need.</h1>
 <p>Explore the catalogue, check availability here, or search by what you want to do.</p>
 <p class="installation">${installationText[document.installation]}</p></header>
 <main><form id="filters" hidden><div class="filter-grid">
@@ -38,6 +39,6 @@ ${entry.relatedIds.length === 0 ? '' : `<p class="meta">Same capability: ${entry
 <p id="empty" hidden>No matches. Try a shorter phrase or reset the filters.</p>
 <p id="copy-status" role="status" aria-live="polite"></p>
 <section id="catalogue" tabindex="-1" aria-label="Capability catalogue">${entries}</section>
-</main><footer>Offline reference. This snapshot does not update itself. Regenerate it with void-harness cheatsheet.</footer>
+</main><footer>Offline reference. This snapshot does not update itself. Regenerate it with ${PRODUCT_COMMAND} cheatsheet.</footer>
 <script>${enhancement}</script></body></html>\n`;
 }

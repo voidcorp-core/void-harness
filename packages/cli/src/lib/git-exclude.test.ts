@@ -117,7 +117,19 @@ describe('writing the harness rules where no checkout can revert them', () => {
 
     expect(content).toContain('.void/machine/');
     expect(content).not.toContain('.void/OLD/');
-    expect(content.match(/void-harness:begin/g)).toHaveLength(1);
+    expect(content.match(/void-machine:begin/g)).toHaveLength(1);
+  });
+
+  it('takes over the block a 3.x install left in the exclude file, in place', () => {
+    const root = repo();
+    writeExcludeBlock(root);
+    const path = join(root, '.git', 'info', 'exclude');
+    writeFileSync(path, readFileSync(path, 'utf8').replaceAll('void-machine:', 'void-harness:'));
+    writeExcludeBlock(root);
+    const content = readFileSync(path, 'utf8');
+
+    expect(content).not.toContain('void-harness:');
+    expect(content.match(/void-machine:begin/g)).toHaveLength(1);
   });
 
   it('never touches a rule the developer put there themselves', () => {

@@ -1,6 +1,6 @@
 # `@voidcorp/pack-monorepo`
 
-Turborepo monorepo conventions for the [void-harness](https://github.com/voidcorp-core/void-machine).
+Turborepo monorepo conventions for the [void-machine](https://github.com/voidcorp-core/void-machine).
 
 ## What this pack provides
 
@@ -24,7 +24,7 @@ Turborepo monorepo conventions for the [void-harness](https://github.com/voidcor
 ## Install
 
 ```bash
-# Via the void-harness CLI
+# Via the void-machine CLI
 npx voidmachine init --pack pack-monorepo
 ```
 

@@ -26,7 +26,7 @@ describe('cheatsheet CLI', () => {
     expect(html.stderr).toBe('');
     const markdown = run(['--format', 'markdown']);
     expect(markdown.status).toBe(0);
-    expect(markdown.stdout).toMatch(/^# void-harness cheat sheet/);
+    expect(markdown.stdout).toMatch(/^# void-machine cheat sheet/);
     expect(markdown.stderr).toBe('');
   });
   it('exports the full catalogue without installing or writing anything', () => {

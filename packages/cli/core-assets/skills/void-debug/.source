@@ -6,6 +6,6 @@ Sources for `void-debug` skill (see `docs/plans/skill-audits/void-debug.md` for 
 - Brian Kernighan "The Practice of Programming" debugging chapter — mental model: rubber duck, narrow search space.
 - Julia Evans "Debugging" zine + blog — https://jvns.ca — tactical tips for system debugging.
 
-Strategy: distill (gstack /investigate now fully vendored, DEV-388, not composed). void-harness composition added (TDD failing test before fix, root-cause section in PR body, observability-first when visibility is gap, refactor composition for structural roots).
+Strategy: distill (gstack /investigate now fully vendored, DEV-388, not composed). void-machine composition added (TDD failing test before fix, root-cause section in PR body, observability-first when visibility is gap, refactor composition for structural roots).
 
 No new companion hooks (composed with existing tdd-guard + code-review).

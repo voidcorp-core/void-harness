@@ -5,4 +5,15 @@ describe('checkpoint public boundary', () => {
   it('exposes the shared tolerant parser', () => {
     expect(parseCheckpoint('## Objective\n\nResume once.\n').objective).toBe('Resume once.');
   });
+
+  it('finds a mechanical block written by a 3.x install, under the former name', () => {
+    const raw = [
+      '## Objective', '', 'Resume once.', '',
+      '<!-- void-harness:context-continuity:begin -->', 'schema_version: 9',
+      '<!-- void-harness:context-continuity:end -->', '',
+    ].join('\n');
+    const checkpoint = parseCheckpoint(raw);
+    expect(checkpoint.objective).toBe('Resume once.');
+    expect(checkpoint.mechanicalBlockStatus).toBe('invalid');
+  });
 });

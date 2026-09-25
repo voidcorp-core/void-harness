@@ -44,7 +44,7 @@ export interface StudioBoot {
 }
 
 /**
- * Pick the data source. When the studio is served by `void-harness graph live` (same-origin
+ * Pick the data source. When the studio is served by `void-machine graph live` (same-origin
  * /studio-data.json responds), it is consumer server-fed and the live stream is same-origin.
  * Otherwise (dev / static build) it falls back to the build-time snapshot.
  */

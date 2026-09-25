@@ -9,12 +9,12 @@ const tempHome = (): Promise<string> => mkdtemp(join(tmpdir(), 'void-freshness-'
 describe('cacheFilePath', () => {
   it('honours XDG_CACHE_HOME', async () => {
     const dir = await tempHome();
-    expect(cacheFilePath({ XDG_CACHE_HOME: dir })).toBe(join(dir, 'void-harness', 'freshness.json'));
+    expect(cacheFilePath({ XDG_CACHE_HOME: dir })).toBe(join(dir, 'void-machine', 'freshness.json'));
   });
 
   it('falls back to ~/.cache when XDG_CACHE_HOME is unset', async () => {
     const home = await tempHome();
-    expect(cacheFilePath({ HOME: home })).toBe(join(home, '.cache', 'void-harness', 'freshness.json'));
+    expect(cacheFilePath({ HOME: home })).toBe(join(home, '.cache', 'void-machine', 'freshness.json'));
   });
 
   it('returns undefined when no home directory can be resolved', () => {
@@ -25,7 +25,7 @@ describe('cacheFilePath', () => {
     const home = await tempHome();
     const path = cacheFilePath({ HOME: home });
     expect(path).not.toContain('/.void/');
-    expect(path).toContain('void-harness');
+    expect(path).toContain('void-machine');
   });
 });
 
@@ -61,7 +61,7 @@ describe('writeFreshnessCache / readFreshnessCache', () => {
       const dir = await tempHome();
       const env = { XDG_CACHE_HOME: dir };
       const path = cacheFilePath(env) ?? '';
-      await mkdir(join(dir, 'void-harness'), { recursive: true });
+      await mkdir(join(dir, 'void-machine'), { recursive: true });
       await writeFile(path, payload, 'utf8');
       expect(readFreshnessCache(env, 1_000)).toBeUndefined();
     },
@@ -91,7 +91,7 @@ describe('writeFreshnessCache / readFreshnessCache', () => {
     const env = { XDG_CACHE_HOME: dir };
     await writeFreshnessCache(env, { latest: '2.1.0', checkedAt: 1_000 });
     const { readdir } = await import('node:fs/promises');
-    const entries = await readdir(join(dir, 'void-harness'));
+    const entries = await readdir(join(dir, 'void-machine'));
     expect(entries).toEqual(['freshness.json']);
   });
 });

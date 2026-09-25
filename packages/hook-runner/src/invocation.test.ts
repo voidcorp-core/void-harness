@@ -228,7 +228,7 @@ describe('invocationAlert', () => {
     const lines = alert.split('\n');
     expect(lines[0]).toContain('invocation surface');
     expect(lines).toHaveLength(3);
-    expect(lines[2]).toContain('void-harness doctor');
+    expect(lines[2]).toContain('void-machine doctor');
   });
 
   it('names the successor, because that is what ends the search', () => {

@@ -8,7 +8,7 @@ Expect an acknowledgement within 72 hours. If a fix is warranted you will be cre
 
 ## What is in scope
 
-void-harness writes files into a project and installs hooks that a coding agent executes. That makes a few things security-relevant in a way they would not be for an ordinary CLI:
+void-machine writes files into a project and installs hooks that a coding agent executes. That makes a few things security-relevant in a way they would not be for an ordinary CLI:
 
 - **Hook execution.** Hooks staged into `.void/hooks/` run as shell on the developer's machine on every tool call. A path that lets attacker-controlled content reach a hook's execution, rather than only its input, is in scope.
 - **Enforcement bypass.** The guardrails (`block-dangerous-bash`, `protect-sensitive-files`, `secret-in-content`) are a **best-effort tripwire, not a sandbox** — this is stated in each hook's header. A novel destructive-shell form they miss is a gap worth reporting, but it is not a vulnerability by itself. What *is* in scope: a payload shape that makes a hook fail **open** when it should block, since that turns a visible guardrail into a silent one.

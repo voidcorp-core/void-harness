@@ -19,6 +19,7 @@
 
 import { observeDecisions } from '../projects/decisions-source.js';
 import type { ConformanceFinding, Mutation } from './rule.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export interface DecisionsInput {
   /** Raw `docs/DECISIONS.md`, or undefined when absent. */
@@ -127,8 +128,8 @@ function freeze(monolith: string): string {
   return `# Decisions log
 
 Each current decision is an immutable file under \`${RECORDS_DIR}/\`. Create one with
-\`void-harness decisions new\`, and render the current projection with
-\`void-harness decisions render\`.
+\`${PRODUCT_COMMAND} decisions new\`, and render the current projection with
+\`${PRODUCT_COMMAND} decisions render\`.
 
 > **Frozen legacy snapshot.** The entries below are preserved as written. They were migrated
 > into ${RECORDS_DIR}/ and are no longer the source; edit the records, not this file.

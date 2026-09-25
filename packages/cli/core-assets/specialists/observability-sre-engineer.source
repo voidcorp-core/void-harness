@@ -1,7 +1,7 @@
 Sources:
 - OpenTelemetry observability primer: https://opentelemetry.io/docs/concepts/observability-primer/
 - Google Site Reliability Engineering: https://sre.google/sre-book/table-of-contents/
-- void-harness observability doctrine: packages/core/skills/observability/SKILL.md
+- void-machine observability doctrine: packages/core/skills/observability/SKILL.md
 
 Adapted:
 - Combined telemetry quality with SLOs, resource bounds, failure containment, operational actionability, and recovery evidence.

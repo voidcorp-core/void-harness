@@ -2,7 +2,7 @@
  * A skill must not prescribe a format the harness itself abandoned.
  *
  * Decisions moved from one monolithic `docs/DECISIONS.md` to one immutable file
- * per record, with a collision-free identity, written by `void-harness decisions
+ * per record, with a collision-free identity, written by `void-machine decisions
  * new`. Verified against the shipped CLI: in a consumer project the command
  * creates `docs/decisions/<date>-<slug>--<uuid>.md`. Seven skills still told
  * their reader to append to the monolith, so a project following the doctrine
@@ -44,7 +44,7 @@ describe('the decision format a skill prescribes', () => {
   it('is owned by one skill, which names the command and the location', () => {
     const decide = readFileSync(join(root, 'packages/core/skills/void-decide/SKILL.md'), 'utf8');
     expect(decide).toContain('docs/decisions/');
-    expect(decide).toContain('void-harness decisions new');
+    expect(decide).toContain('void-machine decisions new');
   });
 
   it('reaches every skill that sends its reader to record a decision', () => {

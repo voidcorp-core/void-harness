@@ -45,7 +45,7 @@ Thumbs.db
 # published bundle carries that change, these two paths stay uncovered by the
 # managed block and a plain `git add .` would commit session telemetry.
 #
-# Kept OUTSIDE the markers because `void-harness init` rewrites everything
+# Kept OUTSIDE the markers because `void-machine init` rewrites everything
 # between them. Every consumer project has the same uncovered paths today.
 # Removing these lines is safe only once the shipped bundle writes to machine/.
 .void/runs/

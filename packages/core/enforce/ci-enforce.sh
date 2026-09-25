@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci-enforce — replay the void-harness enforcement floor over a PR diff.
+# ci-enforce — replay the void-machine enforcement floor over a PR diff.
 #
 # Critical path, secret-content, TDD and boundary rules execute through the SAME
 # portable Node bundle as local PreToolUse hooks.
@@ -45,7 +45,7 @@ FAIL=0
 
 # Committed, reviewable exemptions: `.github/void-enforce-allow` lists path globs
 # (one per line, # comments) skipped entirely. This is the Action equivalent of
-# the local VOID_HARNESS_ALLOW_SECRET_EDIT override — e.g. a file legitimately
+# the local VOID_MACHINE_ALLOW_SECRET_EDIT override — e.g. a file legitimately
 # NAMED for secrets (the harness's own secret-in-content.sh) that sensitive-path
 # would otherwise flag. A skip is LOGGED, never silent. Loaded once.
 ALLOW_GLOBS=()

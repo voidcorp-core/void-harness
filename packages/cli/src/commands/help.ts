@@ -1,6 +1,6 @@
 import { COMMAND_CATALOG } from '../lib/command-catalog.js';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
-// `void-harness help` / no-args — the command reference, rendered through the
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+// `void-machine help` / no-args — the command reference, rendered through the
 // shared render layer so the front door wears the same "void" identity as every
 // other command (a plain template string used to read as an afterthought).
 
@@ -50,7 +50,7 @@ function example(command: string, note: string): void {
 
 export function printHelp(): void {
   blank();
-  write(`  ${c.accent(glyph.arrow)} ${brand('void-harness')}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
+  write(`  ${c.accent(glyph.arrow)} ${brand(PRODUCT_COMMAND)}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
   write(`  ${c.muted(glyph.dash.repeat(Math.min(termWidth(), 88) - 2))}\n`);
   write(`  ${c.muted('Public & MIT. Install free, account-free — no account, no key:')}\n`);
   const npx = `npx ${PRODUCT_IDENTITY.packageName}`;
@@ -74,19 +74,19 @@ export function printHelp(): void {
   write(`  ${c.muted('--pack accepts the bare stack too: nextjs, monorepo, react, …')}\n`);
 
   heading('Examples');
-  example('void-harness init', 'interactive, auto-detects runtimes + packs');
-  example('void-harness init --pack nextjs --pack monorepo', 'script-friendly');
-  example('void-harness init --runtime codex', 'Codex-only: wire its safety floor');
-  example('void-harness init --marketplace', 'explicit opt-in to the secondary Claude marketplace');
-  example('void-harness runtime add codex', 'add Codex to a Claude project, later');
-  example('void-harness status', 'offline project health');
-  example('void-harness autopilot status', 'where the cluster in flight stands');
-  example('void-harness autopilot abort', 'give the cluster back, losing no commit');
-  example('void-harness update --dry-run', 'preview version + floor drift');
-  example('void-harness decisions new --title "Use X" --slug use-x', 'create one conflict-free ADR');
-  example('void-harness mission start --title "Ship feature"', 'start a local team-mode evidence ledger');
-  example('void-harness mission resume --id mis_<id>', 'resume from receipts without replaying proven effects');
-  example('void-harness mission plan --ticket ticket.md --json', 'compile risk, applicability, and DAG');
+  example(`${PRODUCT_COMMAND} init`, 'interactive, auto-detects runtimes + packs');
+  example(`${PRODUCT_COMMAND} init --pack nextjs --pack monorepo`, 'script-friendly');
+  example(`${PRODUCT_COMMAND} init --runtime codex`, 'Codex-only: wire its safety floor');
+  example(`${PRODUCT_COMMAND} init --marketplace`, 'explicit opt-in to the secondary Claude marketplace');
+  example(`${PRODUCT_COMMAND} runtime add codex`, 'add Codex to a Claude project, later');
+  example(`${PRODUCT_COMMAND} status`, 'offline project health');
+  example(`${PRODUCT_COMMAND} autopilot status`, 'where the cluster in flight stands');
+  example(`${PRODUCT_COMMAND} autopilot abort`, 'give the cluster back, losing no commit');
+  example(`${PRODUCT_COMMAND} update --dry-run`, 'preview version + floor drift');
+  example(`${PRODUCT_COMMAND} decisions new --title "Use X" --slug use-x`, 'create one conflict-free ADR');
+  example(`${PRODUCT_COMMAND} mission start --title "Ship feature"`, 'start a local team-mode evidence ledger');
+  example(`${PRODUCT_COMMAND} mission resume --id mis_<id>`, 'resume from receipts without replaying proven effects');
+  example(`${PRODUCT_COMMAND} mission plan --ticket ticket.md --json`, 'compile risk, applicability, and DAG');
 
   blank();
   write(`  ${c.muted('Skills load as')} ${c.accent('/harness:<name>')} ${c.muted('and')} ${c.accent('/harness-<stack>:<name>')}${c.muted('.')}\n`);

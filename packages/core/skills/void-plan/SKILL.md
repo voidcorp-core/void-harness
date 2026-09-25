@@ -7,7 +7,7 @@ description: Turn an approved spec into vertical slices with dependencies, TDD m
 
 The spec answers "what should we build." This skill answers "in what order, with what gates, and how later sessions recover the work." Plans live on disk. Every implementation step declares its TDD mode. Verification gates between steps prevent regressions.
 
-**Attribution**: see `.source`. Primary source: superpowers/plan, adapted for void-harness.
+**Attribution**: see `.source`. Primary source: superpowers/plan, adapted for void-machine.
 
 ---
 

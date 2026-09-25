@@ -7,9 +7,12 @@ import { describe, expect, it } from 'vitest';
 function fixture(files: Readonly<Record<string, string>>) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-plugin-references-')));
   mkdirSync(join(root, 'scripts'));
-  for (const name of ['check-skill-references.mjs', 'build-skill-references.mjs']) {
+  for (const name of ['check-skill-references.mjs', 'build-skill-references.mjs', 'product-identity.mjs']) {
     copyFileSync(new URL(`../../scripts/${name}`, import.meta.url), join(root, 'scripts', name));
   }
+  // The checker reads the product's own names from the identity, which is never a skill.
+  mkdirSync(join(root, 'packages/core/data'), { recursive: true });
+  copyFileSync(new URL('../../packages/core/data/identity.json', import.meta.url), join(root, 'packages/core/data/identity.json'));
   for (const [path, content] of Object.entries({
     'packages/core/data/model.json': JSON.stringify({ nodes: [{ name: 'void-tdd' }] }),
     ...files,
@@ -35,7 +38,7 @@ describe('plugin description CLI validation', () => {
   });
 
   it.each([
-    { description: 'Use void-tdd with void-harness and harness-react; plan context testing functional.' },
+    { description: 'Use void-tdd with void-machine, void-harness and harness-react; plan context testing functional.' },
     { description: '' },
     {},
   ])('accepts live references and ordinary prose: %j', (manifest) => {

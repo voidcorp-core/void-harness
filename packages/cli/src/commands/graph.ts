@@ -1,4 +1,4 @@
-// `void-harness graph` — build the model, gate on it (check), or report (audit).
+// `void-machine graph` — build the model, gate on it (check), or report (audit).
 // Thin shell over @voidcorp/harness-graph (functional core / imperative shell),
 // mirroring the existing `audit` command.
 //
@@ -36,7 +36,7 @@ import {
   serializeModel,
 } from '@voidcorp/harness-graph';
 import { buildProjectGraph, DEFAULT_PROJECT_QUERY_BUDGET } from '@voidcorp/harness-graph/project';
-import { voidReadPath } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, voidReadPath } from '@voidcorp/hook-runner';
 import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
 import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
 import {
@@ -341,7 +341,7 @@ export async function graph(
     blank();
     if (!result.ok) {
       line(`  ${c.red(result.reason ?? 'knowledge artifact is stale')}`);
-      line(`  ${c.dim('-> void-harness graph project-build')}`);
+      line(`  ${c.dim(`-> ${PRODUCT_COMMAND} graph project-build`)}`);
       footer(c.red('graph project-check failed.'));
       process.exit(1);
     }
@@ -438,7 +438,7 @@ export async function graph(
     banner('graph check');
     blank();
     if (drift) {
-      line(`  ${c.red('graph snapshot is stale')} -- run \`void-harness graph build\` and commit.`);
+      line(`  ${c.red('graph snapshot is stale')} -- run \`${PRODUCT_COMMAND} graph build\` and commit.`);
       if (catalogDrift) line(`    ${c.dim('catalog.v3.json differs from the validated source graph')}`);
       if (!legacyDrift) {
         line(`    ${c.dim('model.json compatibility projection is current')}`);

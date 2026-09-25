@@ -5,7 +5,7 @@ description: "Create or extend a packages/<name>/ service in a harness-monorepo 
 
 # service-package
 
-Use when adding a new `packages/<name>/` package to a Turborepo workspace that follows the void-harness `pack-monorepo` conventions, or when extending an existing one. The pack module document defines the topology (see `claude/modules/01-monorepo-layout.md`); this skill is the **execution checklist** for creating one.
+Use when adding a new `packages/<name>/` package to a Turborepo workspace that follows the void-machine `pack-monorepo` conventions, or when extending an existing one. The pack module document defines the topology (see `claude/modules/01-monorepo-layout.md`); this skill is the **execution checklist** for creating one.
 
 If you are working in `apps/<app>/` business code, this skill does not apply — that is internal application code, not a shared package.
 

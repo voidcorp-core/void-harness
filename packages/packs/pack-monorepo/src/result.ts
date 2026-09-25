@@ -1,7 +1,7 @@
 /**
  * `Result<T, E>` — errors as values for expected failures.
  *
- * Composes with the `functional` and `typescript-strict` void-harness skills.
+ * Composes with the `functional` and `typescript-strict` void-machine skills.
  * Use for expected failures (validation, business rules, expected external errors).
  * Throw exceptions for the unexpected (DB down, invariant violations, network outage).
  */

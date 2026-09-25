@@ -8,6 +8,7 @@ import {
   safeExistingFiles,
 } from './executor-shared.js';
 import { formatCandidates } from './format.js';
+import { productSetting } from '../identity.js';
 
 export function executeFormat(
   rawInput: unknown,
@@ -30,7 +31,7 @@ export function executeFormat(
     return { status: 'skipped', details: { reason: 'formatter-unavailable' } };
   }
   const timeout = boundedInteger(
-    env['VOID_HARNESS_FORMAT_TIMEOUT_MS'],
+    productSetting(env, 'FORMAT_TIMEOUT_MS'),
     10_000,
     100,
     30_000,

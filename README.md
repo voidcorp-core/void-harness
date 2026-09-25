@@ -1,4 +1,4 @@
-# void-harness
+# void-machine
 
 [![npm](https://img.shields.io/npm/v/voidmachine?color=0b7285&label=voidmachine)](https://www.npmjs.com/package/voidmachine)
 [![ci](https://github.com/voidcorp-core/void-machine/actions/workflows/ci.yml/badge.svg)](https://github.com/voidcorp-core/void-machine/actions/workflows/ci.yml)
@@ -9,7 +9,7 @@ Coding agents forget your standards between sessions. You explain the testing
 discipline, the architecture boundaries, the naming, and the next session starts
 from nothing. Repos drift one helpful suggestion at a time.
 
-void-harness installs those standards as files the agent reads, and as hooks
+void-machine installs those standards as files the agent reads, and as hooks
 that stop the work when they are broken. It runs on Claude Code and Codex from
 one source, and it tells you what is actually installed and active rather than
 what should be.
@@ -20,9 +20,10 @@ npx voidmachine init
 
 Free, no account, no API key, no network fetch on the default path.
 
-Already on 2.x? Thirteen skills changed name in 3.0 and the layout under `.void/`
-moved. `update` does the layout; the names are yours to search for. See
-[docs/MIGRATING-3.0.md](docs/MIGRATING-3.0.md).
+Already on 3.x? The product was renamed in 4.0; `update` takes over every block
+the old name wrote, and the old command and settings keep working. See
+[docs/MIGRATING-4.0.md](docs/MIGRATING-4.0.md). Coming from 2.x, read
+[docs/MIGRATING-3.0.md](docs/MIGRATING-3.0.md) first.
 
 ## What lands in your project
 
@@ -80,7 +81,7 @@ what it is for, with what each hook actually blocks. It is generated from the
 same catalogue these counts come from, so it cannot drift from what ships.
 
 To explore that catalogue alongside your project's installation evidence, run
-`void-harness cheatsheet > cheatsheet.html`. Open the resulting file offline:
+`void-machine cheatsheet > cheatsheet.html`. Open the resulting file offline:
 search by intention, filter by runtime, pack or type, and copy invocations.
 `--format markdown` and `--format json` export the same information. Inspection
 writes only to stdout; creating the file is your shell redirection.

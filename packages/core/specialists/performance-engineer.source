@@ -1,7 +1,7 @@
 Sources:
 - MDN web performance guidance: https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Performance
 - web.dev performance measurement: https://web.dev/learn/performance/measure-performance
-- void-harness performance discipline: packages/core/skills/code-review/SKILL.md
+- void-machine performance discipline: packages/core/skills/code-review/SKILL.md
 
 Adapted:
 - Kept budgets, representative workloads, baselines, variance, user-path measurement, and multiple resource dimensions.

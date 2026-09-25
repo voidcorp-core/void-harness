@@ -177,13 +177,15 @@ head: a1b2c3d
 Position is the section people skip and then miss: returning after days, *how far along is this*
 is a different question from *what was I doing*, and nothing else in the repo answers it.
 
-Write it with `void-harness resume` in mind — that command reads this file, and reading your own
+Write it with `void-machine resume` in mind — that command reads this file, and reading your own
 checkpoint back is the cheapest test of whether it was worth writing.
 
 Before every semantic rewrite, read the current file and preserve the single delimited mechanical
-block from `<!-- void-harness:context-continuity:begin -->` through its matching end marker
-byte-for-byte. Require exactly one mechanical block; refuse the rewrite when more than one block
-exists or either marker is ambiguous.
+block from `<!-- void-machine:context-continuity:begin -->` through its matching end marker
+byte-for-byte. A checkpoint written before the product was renamed carries the same block under
+its former name: preserve it just the same, since the hook rewrites it in place on its next write.
+Require exactly one mechanical block; refuse the rewrite when more than one block exists or either
+marker is ambiguous.
 The lifecycle hook owns that block; this skill owns every semantic section around it.
 
 ---

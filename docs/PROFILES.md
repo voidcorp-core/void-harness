@@ -1,6 +1,6 @@
 # Stack profiles
 
-`void-harness mission plan` compiles only the stack knowledge that applies to the current changed
+`void-machine mission plan` compiles only the stack knowledge that applies to the current changed
 files. The operation is deterministic, offline, and LLM-free. Profiles influence mission context;
 they do not install dependencies or mutate consumer code.
 

@@ -96,7 +96,7 @@ describe('freshnessNotice', () => {
     const notice = freshnessNotice({ verdict: 'behind', installed: '0.17.0', latest: '2.1.0' }, 'local');
     expect(notice).toContain('0.17.0');
     expect(notice).toContain('2.1.0');
-    expect(notice).toContain('void-harness update');
+    expect(notice).toContain('void-machine update');
   });
 
   it.each(['up-to-date', 'ahead', 'unknown'] as const)('stays silent on the %s verdict', (verdict) => {
@@ -123,8 +123,8 @@ describe('freshnessNotice', () => {
   // and the notice puts that in front of the command; without one it names nothing.
   it('puts the directory the caller names in front of the command', () => {
     const behind = { verdict: 'behind', installed: '0.17.0', latest: '2.1.0' } as const;
-    expect(freshnessNotice(behind, 'local', 'in /srv/main: ')).toContain('Run in /srv/main: `void-harness update`');
-    expect(freshnessNotice(behind, 'local')).toContain('Run `void-harness update`');
+    expect(freshnessNotice(behind, 'local', 'in /srv/main: ')).toContain('Run in /srv/main: `void-machine update`');
+    expect(freshnessNotice(behind, 'local')).toContain('Run `void-machine update`');
   });
 });
 
@@ -140,14 +140,14 @@ describe('freshnessRelay', () => {
     const relay = freshnessRelay(behind, 'local') ?? '';
     expect(relay).toContain('0.17.0');
     expect(relay).toContain('2.1.0');
-    expect(relay).toContain('void-harness update');
+    expect(relay).toContain('void-machine update');
   });
 
   it('asks the agent to offer the update near the first reply', () => {
     const relay = freshnessRelay(behind, 'local') ?? '';
     expect(relay).toMatch(/tell the user/i);
     expect(relay).toMatch(/first reply/i);
-    expect(relay).toMatch(/offer to run.*`void-harness update`/i);
+    expect(relay).toMatch(/offer to run.*`void-machine update`/i);
   });
 
   it('requires explicit human permission for project writes even in autonomous mode', () => {
@@ -183,7 +183,7 @@ describe('freshnessRelay', () => {
   });
 
   it.each(['marketplace', undefined] as const)('stays silent for the %s source', (source) => {
-    // Same rule as the notice: advising `void-harness update` to someone whose
+    // Same rule as the notice: advising `void-machine update` to someone whose
     // install this command cannot update is confidently wrong.
     expect(freshnessRelay(behind, source)).toBeUndefined();
   });

@@ -151,8 +151,35 @@ const MAX_INPUT = 500_000;
 const MAX_LINE = 200;
 const MAX_ITEMS = 20;
 const MAX_PATH = 500;
-const MECHANICAL_BEGIN = '<!-- void-harness:context-continuity:begin -->';
-const MECHANICAL_END = '<!-- void-harness:context-continuity:end -->';
+
+/** The delimiters of the mechanical block. */
+export interface CheckpointMarkerPair {
+  readonly begin: string;
+  readonly end: string;
+}
+
+/**
+ * The markers are the product's brand, which this pure package does not own: the caller passes
+ * them, from the product identity. Writes use `current`; reads accept every pair of `recognized`,
+ * so a block written under a former name is found and replaced in place, never duplicated.
+ */
+export interface CheckpointMarkers {
+  readonly current: CheckpointMarkerPair;
+  readonly recognized: readonly CheckpointMarkerPair[];
+}
+
+/** Every checkpoint operation that has to find, write or strip the mechanical block. */
+export interface CheckpointCodec {
+  readonly parseCheckpoint: (raw: string) => Checkpoint;
+  readonly parseMechanicalContextBlock: (raw: string) => MechanicalContextBlock;
+  readonly renderMechanicalContextBlock: (state: MechanicalContextState) => string;
+  readonly mergeMechanicalContextBlock: (
+    raw: string,
+    state: MechanicalContextState,
+  ) => MergeMechanicalContextResult;
+  /** True when `text` contains any recognized marker, begin or end. */
+  readonly mentionsMarker: (text: string) => boolean;
+}
 
 export function hashCheckpointObjective(objective: string | undefined): string {
   return `sha256:${createHash('sha256').update(objective?.trim() ?? '').digest('hex')}`;
@@ -170,24 +197,40 @@ function markerPositions(raw: string, marker: string): readonly number[] {
   return positions;
 }
 
-function mechanicalBounds(raw: string):
+type MechanicalBounds =
   | { readonly status: 'absent' }
   | { readonly status: 'invalid' }
-  | { readonly status: 'valid'; readonly begin: number; readonly end: number } {
-  const begins = markerPositions(raw, MECHANICAL_BEGIN);
-  const ends = markerPositions(raw, MECHANICAL_END);
+  | {
+    readonly status: 'valid';
+    readonly begin: number;
+    readonly end: number;
+    readonly body: string;
+  };
+
+// Exactly one begin and one end across every recognized pair, and of the same pair. Two blocks,
+// even under two names, are as ambiguous as two under one: which is the record is unknowable.
+function mechanicalBounds(raw: string, markers: CheckpointMarkers): MechanicalBounds {
+  const begins = markers.recognized.flatMap((pair) =>
+    markerPositions(raw, pair.begin).map((at) => ({ at, pair })));
+  const ends = markers.recognized.flatMap((pair) =>
+    markerPositions(raw, pair.end).map((at) => ({ at, pair })));
   if (begins.length === 0 && ends.length === 0) return { status: 'absent' };
   const begin = begins[0];
   const end = ends[0];
   if (begins.length !== 1 || ends.length !== 1 || begin === undefined || end === undefined) {
     return { status: 'invalid' };
   }
-  if (end <= begin) return { status: 'invalid' };
-  return { status: 'valid', begin, end: end + MECHANICAL_END.length };
+  if (begin.pair !== end.pair || end.at <= begin.at) return { status: 'invalid' };
+  return {
+    status: 'valid',
+    begin: begin.at,
+    end: end.at + end.pair.end.length,
+    body: raw.slice(begin.at + begin.pair.begin.length, end.at),
+  };
 }
 
-function semanticMarkdown(raw: string): string {
-  const bounds = mechanicalBounds(raw);
+function semanticMarkdown(raw: string, markers: CheckpointMarkers): string {
+  const bounds = mechanicalBounds(raw, markers);
   return bounds.status === 'valid'
     ? `${raw.slice(0, bounds.begin)}${raw.slice(bounds.end)}`
     : raw;
@@ -311,12 +354,11 @@ function isMechanicalResumeSource(value: string | undefined): value is Mechanica
     || value === 'compact' || value === 'fork';
 }
 
-export function parseMechanicalContextBlock(raw: string): MechanicalContextBlock {
-  const bounds = mechanicalBounds(raw);
+function parseMechanicalContextBlock(raw: string, markers: CheckpointMarkers): MechanicalContextBlock {
+  const bounds = mechanicalBounds(raw, markers);
   if (bounds.status === 'absent') return { status: 'absent' };
   if (bounds.status === 'invalid') return { status: 'invalid', reason: 'ambiguous' };
-  const body = raw.slice(bounds.begin + MECHANICAL_BEGIN.length, bounds.end - MECHANICAL_END.length);
-  const state = stateFromMechanicalBody(body);
+  const state = stateFromMechanicalBody(bounds.body);
   return state === undefined
     ? { status: 'invalid', reason: 'malformed' }
     : { status: 'valid', state };
@@ -326,9 +368,12 @@ function renderPaths(paths: readonly string[]): string {
   return paths.map((path) => `- ${path}`).join('\n');
 }
 
-export function renderMechanicalContextBlock(state: MechanicalContextState): string {
+function renderMechanicalContextBlock(
+  state: MechanicalContextState,
+  markers: CheckpointMarkers,
+): string {
   return [
-    MECHANICAL_BEGIN,
+    markers.current.begin,
     '## Mechanical context',
     '',
     '```yaml',
@@ -356,7 +401,7 @@ export function renderMechanicalContextBlock(state: MechanicalContextState): str
     '### Modified files',
     '',
     renderPaths(state.modifiedFiles),
-    MECHANICAL_END,
+    markers.current.end,
   ].join('\n');
 }
 
@@ -528,13 +573,14 @@ export function evaluateContextMeasurement(
   };
 }
 
-export function mergeMechanicalContextBlock(
+function mergeMechanicalContextBlock(
   raw: string,
   state: MechanicalContextState,
+  markers: CheckpointMarkers,
 ): MergeMechanicalContextResult {
-  const bounds = mechanicalBounds(raw);
+  const bounds = mechanicalBounds(raw, markers);
   if (bounds.status === 'invalid') return { ok: false, error: 'ambiguous-mechanical-block' };
-  const block = renderMechanicalContextBlock(state);
+  const block = renderMechanicalContextBlock(state, markers);
   if (bounds.status === 'absent') {
     const separator = raw === '' || raw.endsWith('\n\n') ? '' : raw.endsWith('\n') ? '\n' : '\n\n';
     return { ok: true, value: `${raw}${separator}${block}\n` };
@@ -631,10 +677,10 @@ function bullets(lines: readonly string[]): readonly string[] {
 }
 
 /** Interpret a checkpoint file. Never throws. */
-export function parseCheckpoint(raw: string): Checkpoint {
+function parseCheckpoint(raw: string, markers: CheckpointMarkers): Checkpoint {
   const bounded = raw.length > MAX_INPUT ? raw.slice(0, MAX_INPUT) : raw;
-  const mechanical = parseMechanicalContextBlock(bounded);
-  const semantic = semanticMarkdown(bounded);
+  const mechanical = parseMechanicalContextBlock(bounded, markers);
+  const semantic = semanticMarkdown(bounded, markers);
   const proseFields: Record<string, string | undefined> = {};
   const listFields: Record<string, readonly string[]> = {
     openLoops: [],
@@ -688,5 +734,17 @@ export function parseCheckpoint(raw: string): Checkpoint {
     ...(mechanical.status === 'valid' ? { mechanicalContext: mechanical.state } : {}),
     mechanicalBlockStatus: mechanical.status,
     isEmpty,
+  };
+}
+
+/** Bind every marker-dependent checkpoint operation to the markers of the running product. */
+export function checkpointCodec(markers: CheckpointMarkers): CheckpointCodec {
+  const all = markers.recognized.flatMap((pair) => [pair.begin, pair.end]);
+  return {
+    parseCheckpoint: (raw) => parseCheckpoint(raw, markers),
+    parseMechanicalContextBlock: (raw) => parseMechanicalContextBlock(raw, markers),
+    renderMechanicalContextBlock: (state) => renderMechanicalContextBlock(state, markers),
+    mergeMechanicalContextBlock: (raw, state) => mergeMechanicalContextBlock(raw, state, markers),
+    mentionsMarker: (text) => all.some((marker) => text.includes(marker)),
   };
 }

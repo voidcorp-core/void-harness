@@ -7,11 +7,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  type MechanicalContextState,
-  mergeMechanicalContextBlock,
-} from '@voidcorp/mission-engine/session';
+import type { MechanicalContextState } from '@voidcorp/mission-engine/session';
 import { afterEach, describe, expect, it } from 'vitest';
+import { mergeMechanicalContextBlock } from './checkpoint-codec.js';
 import { observeResume } from './resume-observer.js';
 
 const roots: string[] = [];
@@ -84,7 +82,7 @@ describe('observeResume', () => {
 
     const observed = observeResume(root, Date.parse('2026-08-26T12:00:00Z'));
 
-    expect(observed.context).toContain('[void-harness resume]');
+    expect(observed.context).toContain('[void-machine resume]');
     expect(observed.context).toContain('Program: portable-resume');
     expect(observed.context).toContain('Progress: github at voidcorp/repo');
     expect(observed.context).toContain('Objective: Wire portable resume hooks.');

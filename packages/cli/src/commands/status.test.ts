@@ -182,7 +182,7 @@ describe('statusLines', () => {
 });
 
 describe('status from a linked worktree', () => {
-  const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-harness.mjs');
+  const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-machine.mjs');
   const INSTALLED_VERSION = '1.0.0';
   const PUBLISHED_VERSION = '9.9.9';
 
@@ -197,9 +197,9 @@ describe('status from a linked worktree', () => {
    */
   function freshnessCache(): string {
     const cache = mkdtempSync(join(tmpdir(), 'status-cache-'));
-    mkdirSync(join(cache, 'void-harness'), { recursive: true });
+    mkdirSync(join(cache, 'void-machine'), { recursive: true });
     writeFileSync(
-      join(cache, 'void-harness', 'freshness.json'),
+      join(cache, 'void-machine', 'freshness.json'),
       JSON.stringify({ latest: PUBLISHED_VERSION, checkedAt: Date.now() }),
     );
     return cache;
@@ -244,7 +244,7 @@ describe('status from a linked worktree', () => {
 
   /** The lines that prescribe a command. */
   function remedies(out: string): readonly string[] {
-    return out.split('\n').filter((line) => /void-harness (update|init)/.test(line));
+    return out.split('\n').filter((line) => /void-machine (update|init)/.test(line));
   }
 
   /** Strip the directory each remedy and the footer name, so two reports of one install compare equal. */
@@ -271,7 +271,7 @@ describe('status from a linked worktree', () => {
     expect(report(fromWorktree.out)).toBe(report(fromMain.out));
   });
 
-  // The freshness notice prescribes `void-harness update`, which acts on the
+  // The freshness notice prescribes `void-machine update`, which acts on the
   // directory it is typed in: from the worktree it finds no receipt and, the
   // manifest being tracked, installs a second copy there, upgrading nothing of
   // the install `status` just described. So from a worktree the remedy names

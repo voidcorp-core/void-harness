@@ -13,7 +13,7 @@ describe('sessionStartOutput', () => {
     expect(sessionStartOutput('3.0.0')).toEqual({
       hookSpecificOutput: {
         hookEventName: 'SessionStart',
-        additionalContext: expect.stringContaining('void-harness 3.0.0 is active'),
+        additionalContext: expect.stringContaining('void-machine 3.0.0 is active'),
       },
     });
   });
@@ -21,15 +21,15 @@ describe('sessionStartOutput', () => {
   it('uses an explicit unknown version instead of throwing', () => {
     expect(
       sessionStartOutput('').hookSpecificOutput.additionalContext,
-    ).toContain('void-harness unknown');
+    ).toContain('void-machine unknown');
   });
 
   it('appends the upgrade notice when one is given', () => {
     const context = sessionStartOutput(
       '0.17.0',
-      'void-harness 0.17.0 is installed; 2.1.0 is published.',
+      'void-machine 0.17.0 is installed; 2.1.0 is published.',
     ).hookSpecificOutput.additionalContext;
-    expect(context).toContain('void-harness 0.17.0 is active');
+    expect(context).toContain('void-machine 0.17.0 is active');
     expect(context).toContain('2.1.0 is published');
   });
 
@@ -43,7 +43,7 @@ describe('sessionStartOutput', () => {
     const context = sessionStartOutput(
       '3.0.0',
       undefined,
-      'void-harness: 2 recorded skill(s) no longer resolve: brainstorming, ticket-writer.',
+      'void-machine: 2 recorded skill(s) no longer resolve: brainstorming, ticket-writer.',
     ).hookSpecificOutput.additionalContext;
     expect(context).toContain('no longer resolve');
     expect(context).toContain('ticket-writer');
@@ -70,12 +70,12 @@ describe('sessionStartOutput', () => {
       '3.4.0',
       undefined,
       undefined,
-      '[void-harness resume]\nProgram: portable-resume\n',
+      '[void-machine resume]\nProgram: portable-resume\n',
     ).hookSpecificOutput.additionalContext;
 
-    expect(context).toContain('[void-harness resume]');
+    expect(context).toContain('[void-machine resume]');
     expect(context.indexOf('Non-negotiable floor')).toBeLessThan(
-      context.indexOf('[void-harness resume]'),
+      context.indexOf('[void-machine resume]'),
     );
   });
 });

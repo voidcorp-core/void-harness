@@ -21,11 +21,14 @@ import {
   evaluateContextMeasurement,
   hashCheckpointObjective,
   type MechanicalContextState,
+} from '@voidcorp/mission-engine/session';
+import { normalizeToolCall } from '../enforcement/normalize.js';
+import {
+  mentionsCheckpointMarker,
   mergeMechanicalContextBlock,
   parseCheckpoint,
   parseMechanicalContextBlock,
-} from '@voidcorp/mission-engine/session';
-import { normalizeToolCall } from '../enforcement/normalize.js';
+} from './checkpoint-codec.js';
 import { type LifecycleExecution, record, within } from './executor-shared.js';
 
 const CHECKPOINT = join('.void', 'machine', 'checkpoint.md');
@@ -35,8 +38,6 @@ const POST_TOOL_MEASUREMENT_COOLDOWN_MS = 5_000;
 const MAX_TRANSCRIPT_BYTES = 1_048_576;
 const MAX_CONFIG_BYTES = 65_536;
 const EMPTY_TRANSCRIPT_HASH = `sha256:${createHash('sha256').update('').digest('hex')}`;
-const MECHANICAL_BEGIN = '<!-- void-harness:context-continuity:begin -->';
-const MECHANICAL_END = '<!-- void-harness:context-continuity:end -->';
 const MAX_RECOVERY_GENERATIONS = 16;
 
 export interface ContextContinuityExecution extends LifecycleExecution {
@@ -876,8 +877,7 @@ function boundedProjectPath(root: string, candidate: string): string | undefined
   if (
     candidate === ''
     || candidate.length > 500
-    || candidate.includes(MECHANICAL_BEGIN)
-    || candidate.includes(MECHANICAL_END)
+    || mentionsCheckpointMarker(candidate)
     || [...candidate].some((character) => character.charCodeAt(0) < 0x20)
   ) return undefined;
   const target = isAbsolute(candidate) ? resolve(candidate) : resolve(root, candidate);

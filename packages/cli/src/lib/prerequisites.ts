@@ -5,7 +5,7 @@
 // (audit 2026-07-09, issue #67).
 
 import { execSync } from 'node:child_process';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fetchRemoteMarketplace } from './remote.js';
@@ -64,7 +64,7 @@ export function checkMarketplaceAccess(repo: string): CheckResult {
     name: 'marketplace',
     ok: false,
     message: `cannot read ${repo}: ${remote.error}`,
-    fix: `verify access to ${repo} (gh auth login / request repo access), then void-harness update`,
+    fix: `verify access to ${repo} (gh auth login / request repo access), then ${PRODUCT_COMMAND} update`,
   };
 }
 

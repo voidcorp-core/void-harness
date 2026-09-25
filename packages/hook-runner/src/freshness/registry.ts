@@ -2,14 +2,14 @@
 //
 // Read-only and outbound-minimal by construction. It sends one GET to a public
 // dist-tags document with a bare user-agent — no token, no cookie, no credential,
-// nothing about the machine. `void-harness adoption` documents the same stance:
+// nothing about the machine. `void-machine adoption` documents the same stance:
 // pull public aggregates, never phone home.
 //
 // Every failure is a named reason rather than a throw, so a caller can degrade
 // honestly (a rate-limit must never read like an unpublished package, and neither
 // must ever read like "you are up to date").
 
-import { PRODUCT_IDENTITY } from '../identity.js';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '../identity.js';
 
 export const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 export const NPM_PACKAGE = PRODUCT_IDENTITY.packageName;
@@ -109,7 +109,7 @@ export async function fetchLatestVersion(options: FetchLatestOptions = {}): Prom
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(url, {
-      headers: { 'user-agent': 'void-harness' },
+      headers: { 'user-agent': PRODUCT_COMMAND },
       signal: controller.signal,
     });
     if (!res.ok) {

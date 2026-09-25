@@ -1,4 +1,4 @@
-// `void-harness hydrate` — restore this project's harness assets, and prove it.
+// `void-machine hydrate` — restore this project's harness assets, and prove it.
 //
 // `init` re-materializes; it does not promise the SAME bytes. `.void/config.json`
 // pins a caret range and `init` writes whatever assets the running CLI carries,
@@ -13,7 +13,7 @@
 //      non-zero on any drift. "Hydrated" is a proof, not a claim.
 
 import { existsSync } from 'node:fs';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -45,7 +45,7 @@ export function planHydrate(
     return {
       kind: 'no-manifest',
       message: `no ${INSTALL_MANIFEST_PATH} — this project has never recorded what it expects`,
-      fix: 'void-harness init (it writes the manifest), then commit it',
+      fix: `${PRODUCT_COMMAND} init (it writes the manifest), then commit it`,
     };
   }
   const manifest = parseInstallManifest(manifestBody);
@@ -53,7 +53,7 @@ export function planHydrate(
     return {
       kind: 'unreadable-manifest',
       message: `${INSTALL_MANIFEST_PATH} is not a readable manifest`,
-      fix: 'restore it from git, or re-run void-harness init to rewrite it',
+      fix: `restore it from git, or re-run ${PRODUCT_COMMAND} init to rewrite it`,
     };
   }
   if (manifest.version !== runningVersion) {
@@ -161,7 +161,7 @@ export async function hydrate(args: readonly string[]): Promise<void> {
     // refuses to overwrite a file it no longer owns, which is the right default.
     // Restoring it is a deliberate act, so it takes a deliberate flag.
     if (!args.includes('--force')) {
-      line(c.dim(`     ${glyph.to} a harness asset was edited by hand; \`void-harness hydrate --force\` overwrites it with the manifest's version`));
+      line(c.dim(`     ${glyph.to} a harness asset was edited by hand; \`${PRODUCT_COMMAND} hydrate --force\` overwrites it with the manifest's version`));
     }
     blank();
     footer(c.red('hydrate could not prove the restore — the working tree does not match the manifest'));

@@ -7,7 +7,7 @@ description: Surface the PWA install prompt at the right moment (engagement sign
 
 Use when adding "Install app" UX to a PWA, or when figuring out why the default browser prompt doesn't appear / appears at the wrong time. Default browser behavior is broken for most apps — too early, too generic, no recovery.
 
-This skill is the void-harness pattern: capture the event, defer it, surface a custom button at a meaningful moment.
+This skill is the void-machine pattern: capture the event, defer it, surface a custom button at a meaningful moment.
 
 ## The browser default is bad
 

@@ -32,7 +32,7 @@ describe('judgeLayout', () => {
 
     expect(check?.status).toBe('fail');
     expect(check?.message).toContain('runs');
-    expect(check?.fix).toContain('void-harness update');
+    expect(check?.fix).toContain('void-machine update');
   });
 
   it('does not confuse "no git" with "not ignored"', () => {

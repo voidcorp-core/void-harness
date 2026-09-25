@@ -3,7 +3,7 @@
  *
  * The main entry is intentionally thin. Submodule imports (./result, ./option,
  * ./pipe) are preferred for tree-shaking. The Claude/Codex SKILL.md modules
- * live under ./claude/ and are picked up by the void-harness CLI at init time.
+ * live under ./claude/ and are picked up by the void-machine CLI at init time.
  */
 
 export type { Result } from './result.js';

@@ -1,4 +1,4 @@
-# void-harness dogfoods its OWN enforcement floor on every PR. Uses the LOCAL
+# void-machine dogfoods its OWN enforcement floor on every PR. Uses the LOCAL
 # composite (./.github/actions/void-enforce) so the check runs THIS PR's code,
 # not the last released version — a change to a check is validated by the same
 # PR that makes it. Consumers use the reusable workflow (enforce.yml) instead.

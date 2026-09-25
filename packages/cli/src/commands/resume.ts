@@ -1,4 +1,4 @@
-// `void-harness resume` — pick a project back up without rebuilding the context
+// `void-machine resume` — pick a project back up without rebuilding the context
 // in your head.
 //
 // Reads the canonical checkpoint; it does NOT reconstruct one from git history
@@ -21,6 +21,7 @@ import {
   type ResumeBundleInput,
   renderResumeContext,
 } from '../lib/session/resume-bundle.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 /** Newest location first; the previous one is read until a project migrates. */
 const CHECKPOINT_PATHS = [
@@ -127,7 +128,7 @@ export async function resume(args: readonly string[]): Promise<void> {
   const root = enclosingProject(process.cwd());
   if (root === undefined) {
     process.stderr.write(
-      'not a Void project: no .void/config.json here or above. Run `void-harness init` first.\n',
+      `not a Void project: no .void/config.json here or above. Run \`${PRODUCT_COMMAND} init\` first.\n`,
     );
     process.exitCode = 2;
     return;

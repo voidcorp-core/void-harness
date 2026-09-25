@@ -284,7 +284,7 @@ describe('migrateVoidLayout', () => {
     expect(ignore).toContain('node_modules');
     expect(ignore).toContain('dist/');
     expect(ignore).not.toContain('.void/machine/');
-    expect(ignore).not.toContain('void-harness:begin');
+    expect(ignore).not.toMatch(/# [a-z-]+:begin/);
   });
 
   it('leaves the improvised rule the project wrote itself exactly where it is', async () => {
@@ -298,7 +298,18 @@ describe('migrateVoidLayout', () => {
 
     expect(ignore).toContain('.void/*');
     expect(ignore).toContain('!.void/PROJECT-DOCTRINE.md');
-    expect(ignore).not.toContain('void-harness:begin');
+    expect(ignore).not.toMatch(/# [a-z-]+:begin/);
+  });
+
+  it('removes the block a 3.x install wrote under the former name', async () => {
+    const root = project({ '.void/cache/x.json': 'a\n' });
+    const former = gitignoreBlock().replaceAll('void-machine:', 'void-harness:');
+    writeFileSync(join(root, '.gitignore'), `node_modules\n\n${former}\n`);
+
+    const result = await migrateVoidLayout(root);
+
+    expect(result.gitignoreBlockRemoved).toBe(true);
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe('node_modules\n');
   });
 
   it('never creates a .gitignore just to hold nothing of ours', async () => {
@@ -319,7 +330,7 @@ describe('migrateVoidLayout', () => {
     expect(result.moved).toEqual(['cache']);
     expect(result.gitignoreBlockRemoved).toBe(true);
     expect(existsSync(join(root, '.void/machine/activations.jsonl'))).toBe(false);
-    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('void-harness:begin');
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('void-machine:begin');
   });
 
   it('does nothing at all in a project the harness never touched', async () => {

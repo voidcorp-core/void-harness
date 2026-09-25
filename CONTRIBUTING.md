@@ -36,7 +36,7 @@ and commit the result. Editing a hook also changes its line count, which the gra
 
 - **Conventional Commits, and the PR title matters.** PRs are squash-merged, so the *PR title* becomes the commit release-please reads. A non-conventional title is silently ignored and your change vanishes from the changelog. This has happened twice; do not make it three.
 - **Every commit message ends with *why*, not just *what*.** The git log is documentation.
-- **Any non-obvious decision** gets its own collision-free file through `void-harness decisions new`. Never edit an accepted record or `docs/DECISIONS.md`; supersede the record instead.
+- **Any non-obvious decision** gets its own collision-free file through `void-machine decisions new`. Never edit an accepted record or `docs/DECISIONS.md`; supersede the record instead.
 - **Any new convention** must land in `docs/*.md` in the same commit.
 - **TDD is not optional** for logic. Write the failing test first; `tdd-guard` blocks production files without a sibling test.
 

@@ -1,7 +1,7 @@
 # PROJECT-DOCTRINE.md — the full format
 
 The reference for `.void/PROJECT-DOCTRINE.md`, the file that carries what is true of **your**
-project. `void-harness init` seeds that file with a stub of a dozen lines, because it is imported
+project. `void-machine init` seeds that file with a stub of a dozen lines, because it is imported
 into every session with `@` and a form nobody has filled in is context that says nothing while
 costing what a filled one would. This page is the long form, kept here where nothing loads it.
 

@@ -1,6 +1,6 @@
 # Codex parity
 
-void-harness targets two runtimes from one doctrine. This page states honestly
+void-machine targets two runtimes from one doctrine. This page states honestly
 what is parity-real today and what is opt-in or pending.
 
 ## One doctrine, per-runtime docs
@@ -23,9 +23,9 @@ controls still apply. Installed documents receive the rule through the normal
 harness installation/update path, not direct edits to protected installed assets.
 
 In a **consumer project** the doc is **per-runtime**: each runtime adapter writes
-only its own doc. `void-harness init --runtime claude` emits just `CLAUDE.md`,
+only its own doc. `void-machine init --runtime claude` emits just `CLAUDE.md`,
 `--runtime codex` just `AGENTS.md`, `--runtime both` (the default when neither is
-detected) emits both. A runtime added later with `void-harness runtime add
+detected) emits both. A runtime added later with `void-machine runtime add
 <runtime>` brings its doc with it. `doctor` only checks the doc of a *detected*
 runtime, so a Codex-only project is never flagged for a missing `CLAUDE.md`.
 
@@ -119,7 +119,7 @@ guessed windows. The handler does not invoke `/clear`, `/compact`, or a semantic
 
 ### Wiring the Codex hooks (auto-wired by `init`)
 
-`void-harness init` wires the hooks automatically whenever Codex is a selected
+`void-machine init` wires the hooks automatically whenever Codex is a selected
 runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
 `--runtime codex` / `--runtime both`). It:
 
@@ -132,9 +132,9 @@ runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
    spaces and sessions started in a subdirectory do not weaken the floor.
 
 The one remaining human step is to **trust the project-local `.codex/` layer**
-per Codex's config. `void-harness doctor` verifies the floor by executing the
+per Codex's config. `void-machine doctor` verifies the floor by executing the
 staged runner and requiring its canonical event. After
-a CLI upgrade, `void-harness update` re-stages the floor to the running CLI's
+a CLI upgrade, `void-machine update` re-stages the floor to the running CLI's
 version (only on real drift), so a Codex project catches floor-script updates the
 same way the Claude side catches marketplace bumps.
 
@@ -174,14 +174,14 @@ Claude gets `/void-graph`, `/void-doctor`, `/void-audit`, `/void-feedback` and
 
 - `void-autopilot` **is already a skill**, so it is staged like any other.
 - The `void-*` commands are thin wrappers around the CLI, which is
-  runtime-agnostic. Under Codex, invoke it directly: `void-harness doctor`,
-  `void-harness audit`, `void-graph`. Codex custom prompts are not an option
+  runtime-agnostic. Under Codex, invoke it directly: `void-machine doctor`,
+  `void-machine audit`, `void-graph`. Codex custom prompts are not an option
   regardless — they are deprecated and live only in `~/.codex`, never in a repo.
 
 ## Parallel fan-out
 
 Codex has no `Workflow` tool, and the autopilot loop does not need one. Its
-kernel, `void-harness autopilot next`, decides every slot from the tracker,
+kernel, `void-machine autopilot next`, decides every slot from the tracker,
 GitHub and git, and the skill acts on those actions with whatever the runtime
 offers: Codex spawns a worker per `assign` through its **native subagents**,
 Claude through its own delegation. Neither runtime decides anything the kernel

@@ -1,4 +1,4 @@
-// `void-harness update` — bring a project's harness materializations to the
+// `void-machine update` — bring a project's harness materializations to the
 // current version without the heavier `init --force` (which rewrites everything).
 //
 // Local receipts recompile every selected runtime from the running CLI's
@@ -38,6 +38,7 @@ import {
 } from '../lib/receipts.js';
 import type { Runtime } from '../lib/runtime.js';
 import { init } from './init.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 
 interface LocalConfig {
@@ -87,7 +88,7 @@ export async function update(args: readonly string[]): Promise<void> {
       banner('update');
       blank();
       line(c.red(`${INSTALL_MANIFEST_PATH} is not a readable manifest, so ownership cannot be reclaimed.`));
-      line(c.dim('Restore it from git, or re-run void-harness init to rewrite it.'));
+      line(c.dim(`Restore it from git, or re-run ${PRODUCT_COMMAND} init to rewrite it.`));
       blank();
       footer(c.red('nothing was changed'));
       process.exit(1);
@@ -459,7 +460,7 @@ async function reportUntrackDerived(projectRoot: string, dryRun: boolean): Promi
   const verb = dryRun ? 'would drop' : 'dropped';
   line(`${c.green(glyph.check)}  ${c.dim('untrack'.padEnd(12))}${verb} ${result.untracked.length} regenerated file(s) from the index (kept on disk)`);
   if (!dryRun) {
-    line(`${c.dim(' '.repeat(4))}${c.dim('review and commit the staged deletions; `void-harness install` regenerates them anywhere')}`);
+    line(`${c.dim(' '.repeat(4))}${c.dim(`review and commit the staged deletions; \`${PRODUCT_COMMAND} install\` regenerates them anywhere`)}`);
   }
 }
 
@@ -684,7 +685,7 @@ function refreshMarketplaceCache(dryRun: boolean): 'fresh' | 'pulled' | 'missing
 async function bumpPins(projectRoot: string, head: string, dryRun: boolean): Promise<number> {
   const configPath = join(projectRoot, '.void', 'config.json');
   if (!existsSync(configPath)) {
-    line(`${c.dim(glyph.dot)}  ${c.dim('pins'.padEnd(12))}no .void/config.json (run \`void-harness init\` first)`);
+    line(`${c.dim(glyph.dot)}  ${c.dim('pins'.padEnd(12))}no .void/config.json (run \`${PRODUCT_COMMAND} init\` first)`);
     return 0;
   }
 

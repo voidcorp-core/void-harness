@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# _checks.sh — pure detection functions for the void-harness enforcement floor.
+# _checks.sh — pure detection functions for Void Machine enforcement floor.
 # SOURCED, never executed (leading underscore = library; exempt from the hook
 # size cap, still syntax-checked — see scripts/anti-bloat-check.sh).
 #

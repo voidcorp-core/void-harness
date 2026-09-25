@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# void-harness pre-commit hook.
+# void-machine pre-commit hook.
 #
 # Wired automatically by the root `prepare` script, which runs on every
 # `pnpm install` and points core.hooksPath here. To wire it by hand, or to check

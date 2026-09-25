@@ -7,7 +7,7 @@ description: TDD in three modes (strict/souple/exploratory) chosen by path. Iron
 
 Curated aggregate of the best TDD practices for the TypeScript/web stack 2026. Ported from the DECLIK `void-tdd` skill (377 LOC, already top-5%), adapted to be stack-agnostic via `.void/config.json`.
 
-**Attribution**: see `.source` in this directory. Primary sources: DECLIK port (which itself distills superpowers/test-driven-development + citypaul/tdd + nizos/tdd-guard). This skill **does not reinvent**; it composes at the right level for void-harness consumers.
+**Attribution**: see `.source` in this directory. Primary sources: DECLIK port (which itself distills superpowers/test-driven-development + citypaul/tdd + nizos/tdd-guard). This skill **does not reinvent**; it composes at the right level for void-machine consumers.
 
 The companion hook `tdd-guard` (see `../../hooks/tdd-guard.sh`) materializes the structural floor at the Edit/Write level: a sibling test file or an explicitly declared E2E test file MUST exist before governed production code is edited. It does not run the suite, so the failing-first (RED) step stays the engineer's discipline.
 

@@ -29,6 +29,7 @@ import {
   recordRuntimeEventFromCli,
 } from './record.js';
 import type { AgentRuntime } from './runtime-input.js';
+import { PRODUCT_COMMAND } from './identity.js';
 
 // One inventory of the rules, shared with the table that names each rule's
 // doctrine. A second list here would drift from that one, silently, and a rule
@@ -241,7 +242,7 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
       ...(audit.reasons.length === 0
         ? {}
         : {
-            diagnostic: `void-harness SessionEnd audit: ${audit.reasons.join(', ')}\n`,
+            diagnostic: `${PRODUCT_COMMAND} SessionEnd audit: ${audit.reasons.join(', ')}\n`,
           }),
     };
     if (execution.diagnostic !== undefined) process.stderr.write(execution.diagnostic);

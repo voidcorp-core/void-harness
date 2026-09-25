@@ -46,6 +46,6 @@ states that [TypeScript 7.0 ships without that API](https://devblogs.microsoft.c
 The extractor must report lost capabilities; it must not substitute the harness's
 compiler or claim a complete graph. No native API adapter is added by this change.
 
-After publication, update the consumer through the normal `void-harness update`
+After publication, update the consumer through the normal `void-machine update`
 path and start a new mission. Frozen old mission hashes cannot be overwritten.
 A merge to develop alone neither publishes a release nor updates a consumer.

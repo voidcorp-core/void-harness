@@ -32,7 +32,7 @@ function ctxFor(projectRoot: string, pinVersion: string | undefined = '0.17.0'):
     // remove, check and update never silently re-pin someone's fork or private
     // mirror onto the default repo. Naming the retired catalog here described a
     // repository that no longer exists.
-    marketplaceRepo: 'acme/void-harness-fork',
+    marketplaceRepo: 'acme/void-machine-fork',
     pinVersion,
   };
 }
@@ -198,7 +198,7 @@ describe('claude adapter', () => {
     });
     // The capability is what `mission dispatch` stops on: the repair travels with it.
     const capability = await specialistCapabilityFor(dir, 'claude');
-    expect(capability.limitations.join(' ')).toContain('`void-harness runtime add claude`');
+    expect(capability.limitations.join(' ')).toContain('`void-machine runtime add claude`');
   });
 
   it('keeps the marketplace behind an explicit adapter mode', async () => {

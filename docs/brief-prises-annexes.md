@@ -1,6 +1,6 @@
 # Chantier : quatre prises indépendantes issues de l'audit prime-agent
 
-Tu travailles dans `void-harness`. Lis `CLAUDE.md` et `.void/PROJECT-DOCTRINE.md` d'abord.
+Tu travailles dans `void-machine`. Lis `CLAUDE.md` et `.void/PROJECT-DOCTRINE.md` d'abord.
 Quatre sujets indépendants, dans l'ordre. Chacun est une unité livrable seule — utilise
 `void-implement` par unité, pas un gros commit fourre-tout.
 
@@ -91,7 +91,7 @@ progression, à travers les tours) ; le mode autonome est une politique distinct
 d'injecter une continuation, selon des preuves, des portes et des limites. Chez nous
 `.void/active.md` et `void-autopilot` mélangent les deux.
 
-**Ce qui n'est probablement pas transposable :** le daemon. void-harness ne possède pas le
+**Ce qui n'est probablement pas transposable :** le daemon. void-machine ne possède pas le
 runtime, il s'y installe. Ne pars pas là-dessus sans avoir montré ce qu'un harnais peut en
 faire.
 
@@ -111,4 +111,4 @@ Folpe l'a explicitement classé en dernier. **Ne le commence pas.**
 Les points 1 à 3 sont assez cadrés pour aller directement en `void-implement`, une unité chacun.
 Le point 4 passe par `void-brainstorm` et une spec validée avant tout code.
 
-Toute décision non triviale s'écrit avec `void-harness decisions new`.
+Toute décision non triviale s'écrit avec `void-machine decisions new`.

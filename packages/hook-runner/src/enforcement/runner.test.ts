@@ -333,6 +333,19 @@ describe('evaluateRule', () => {
       env: { VOID_HARNESS_ALLOW_SECRET_EDIT: '1' },
     }).allow).toBe(true);
   });
+
+  it('reads the overrides under the current prefix, which wins over the deprecated one', () => {
+    const dangerous = { tool_name: 'Bash', tool_input: { command: 'rm -rf /' } };
+    const allowed = (env: Record<string, string>) =>
+      evaluateRule('dangerous-command', dangerous, { root: process.cwd(), env }).allow;
+    expect(allowed({ VOID_MACHINE_ALLOW_DANGEROUS: '1' })).toBe(true);
+    // A person who turned the override off under the new name is not overruled by a stale one.
+    expect(allowed({ VOID_MACHINE_ALLOW_DANGEROUS: '0', VOID_HARNESS_ALLOW_DANGEROUS: '1' })).toBe(false);
+    expect(evaluateRule('protected-file', {
+      tool_name: 'Write',
+      tool_input: { file_path: '.env', content: 'x' },
+    }, { root: process.cwd(), env: { VOID_MACHINE_ALLOW_SECRET_EDIT: '1' } }).allow).toBe(true);
+  });
 });
 
 // `paths.business` was read as a single string while the rule below it already

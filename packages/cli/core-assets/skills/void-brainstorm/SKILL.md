@@ -7,7 +7,7 @@ description: "Engage on a raw idea, or the moment an exchange settles a behaviou
 
 Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `void-plan`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
 
-**Attribution**: see `.source`. Primary source: superpowers/brainstorm; the upstream idea-pressure-test mode is the distilled `gstack:/office-hours` diagnostic, vendored for void-harness.
+**Attribution**: see `.source`. Primary source: superpowers/brainstorm; the upstream idea-pressure-test mode is the distilled `gstack:/office-hours` diagnostic, vendored for void-machine.
 
 ---
 

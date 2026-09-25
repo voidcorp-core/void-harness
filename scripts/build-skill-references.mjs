@@ -40,6 +40,7 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOGUE = resolve(ROOT, 'packages/core/data/model.json');
@@ -262,7 +263,9 @@ function main() {
     ...catalogueNames(),
     ...retiredNames(),
     ...DECLARED.map((entry) => entry.name),
-    'void-harness',
+    // The product's own command names, current and deprecated, are not skills.
+    PRODUCT_IDENTITY.commands.primary,
+    ...PRODUCT_IDENTITY.commands.deprecated,
   ]);
   const skills = catalogueNames();
   const foreign = new Set(FOREIGN_SKILLS.map((entry) => entry.name));

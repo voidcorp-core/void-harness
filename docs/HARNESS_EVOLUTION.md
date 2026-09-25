@@ -40,7 +40,7 @@ Periodically the harness should audit the synergy of its parts:
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
 - Repeated matrix conflicts in `docs/plans/skill-decision-matrix.md` → boundaries need reshaping
 
-`void-harness audit` reports this from canonical `.void/runs/*/events.jsonl` journals; legacy
+`void-machine audit` reports this from canonical `.void/runs/*/events.jsonl` journals; legacy
 activation and usage logs are merged as read-only history. It joins declared graph relations,
 human-session activations, outcomes and cost across hooks, skills and agents. Self-host and smoke
 missions are excluded. Three human sessions and twenty events permit repair/wiring/tuning proposals;
@@ -53,12 +53,12 @@ decision-matrix-conflict detection are planned extensions.
 A single repo's telemetry is too thin to trust a "never fired" verdict (a skill fires a handful
 of times in one project). `projects`, `audit` and `graph` therefore share one bounded discovery:
 configured roots are scanned for the versioned `.void/config.json` marker. A project appears
-without a hook having run and disappears without mutable registry bookkeeping. `void-harness
+without a hook having run and disappears without mutable registry bookkeeping. `void-machine
 update` retires at most 10,000 obsolete `~/.void/projects/*.path` files per invocation and never
 recursively removes that directory.
 
-- `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every discovered project before classifying, so the gates actually clear.
-- `void-harness audit --push` files only evidence-eligible proposals as GitHub issues on `voidcorp-core/void-machine`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
+- `void-machine audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every discovered project before classifying, so the gates actually clear.
+- `void-machine audit --push` files only evidence-eligible proposals as GitHub issues on `voidcorp-core/void-machine`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
 
 ## HITL is absolute
 
@@ -68,5 +68,5 @@ recursively removes that directory.
 
 ## See also
 
-- `void-learn` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session (and for capturing project rules).
+- `void-learn` skill — the in-Claude workflow for filing a friction as a void-machine issue during a coding session (and for capturing project rules).
 - `docs/plans/frictions/` — historical frictions before the consumer-side convention shipped.

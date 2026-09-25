@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  type MechanicalContextState,
-  mergeMechanicalContextBlock,
-  parseCheckpoint,
-} from './checkpoint.js';
+import { mergeMechanicalContextBlock, parseCheckpoint } from '../test/checkpoint-markers.js';
+import type { MechanicalContextState } from './checkpoint.js';
 import {
   composeResumeBundle,
   type ResumeBundleInput,

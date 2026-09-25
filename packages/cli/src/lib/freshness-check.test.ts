@@ -7,7 +7,7 @@ describe('publishedVersionCheck', () => {
     expect(check).toMatchObject({ name: 'published version', ok: true });
     expect(check.message).toContain('0.17.0');
     expect(check.message).toContain('2.1.0');
-    expect(check.fix).toContain('void-harness update');
+    expect(check.fix).toContain('void-machine update');
   });
 
   it('never blocks: being behind is advisory, not a failed check', () => {
@@ -41,8 +41,8 @@ describe('publishedVersionCheck', () => {
 
   it('points a marketplace install at its own channel rather than at npm', () => {
     const check = publishedVersionCheck({ verdict: 'behind', installed: '0.17.0', latest: '2.1.0' }, 'marketplace');
-    expect(check.fix).not.toContain('void-harness update');
-    expect(check.fix ?? check.message).toMatch(/marketplace|void-harness check/i);
+    expect(check.fix).not.toContain('void-machine update');
+    expect(check.fix ?? check.message).toMatch(/marketplace|void-machine check/i);
   });
 
   it('never advises an update path when the install source is undetermined', () => {

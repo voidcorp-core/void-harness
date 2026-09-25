@@ -12,7 +12,7 @@ import {
 } from 'node:fs/promises';
 import { createRequire as createSourceRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
-import { voidMachinePath } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, voidMachinePath } from '@voidcorp/hook-runner';
 import { pathToFileURL } from 'node:url';
 import { isHarnessSourceRepo } from '../self-repo.js';
 import {
@@ -343,7 +343,7 @@ export async function syncSelfHost(
 ): Promise<SelfHostSyncResult> {
   const canonicalRoot = resolve(root);
   if (!isHarnessSourceRepo(canonicalRoot)) {
-    throw new Error('self-host sync is only valid in the void-harness source repository');
+    throw new Error(`self-host sync is only valid in the ${PRODUCT_COMMAND} source repository`);
   }
   const generatedRoot = resolve(
     options.generatedRoot ?? voidMachinePath(canonicalRoot, 'generated'),

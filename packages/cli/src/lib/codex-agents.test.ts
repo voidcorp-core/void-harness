@@ -164,7 +164,7 @@ describe('wireCodexAgents', () => {
       detail: expect.stringContaining('security-engineer (installed v1, this CLI carries v2)'),
     });
     const older = await codexSpecialistsHealth(project, CORE_ROOT);
-    expect(older.detail).toContain('reinstall them with this CLI: `void-harness runtime add codex`');
+    expect(older.detail).toContain('reinstall them with this CLI: `void-machine runtime add codex`');
 
     writeFileSync(
       security,
@@ -219,7 +219,7 @@ describe('wireCodexAgents', () => {
     expect(health.ok).toBe(false);
     expect(health.detail).toContain('security-engineer (installed v3, this CLI carries v2)');
     expect(health.detail).toContain('this CLI is older than the install');
-    expect(health.detail).toContain('`void-harness runtime add codex`');
+    expect(health.detail).toContain('`void-machine runtime add codex`');
   });
 
   it('fails health when the canonical catalog is empty', async () => {

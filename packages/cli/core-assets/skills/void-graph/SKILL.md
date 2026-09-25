@@ -1,7 +1,7 @@
 ---
 name: void-graph
 description: Read the installed harness as a graph and report what is dead, underused or expensive. No argument opens the local live studio; audit, cost and behavior print a terminal report.
-allowed-tools: Bash(void-harness:*) Bash(npx:*)
+allowed-tools: Bash(void-machine:*) Bash(npx:*)
 ---
 
 # void-graph
@@ -25,10 +25,10 @@ progress, and it costs a terminal for as long as someone reads it.
 Everything goes through the CLI, which every install has:
 
 ```
-void-harness graph audit      # dead, dead-hook, underused, low-yield components
-void-harness graph cost       # token weight per component
-void-harness graph behavior   # what actually fired, against what was declared
-void-harness graph live       # local studio, served on localhost, offline
+void-machine graph audit      # dead, dead-hook, underused, low-yield components
+void-machine graph cost       # token weight per component
+void-machine graph behavior   # what actually fired, against what was declared
+void-machine graph live       # local studio, served on localhost, offline
 ```
 
 `npx voidmachine graph <sub>` when the binary is not on PATH.

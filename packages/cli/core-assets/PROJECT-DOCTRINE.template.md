@@ -4,7 +4,7 @@ What is true of **this** project and could not be inferred from the code: its do
 the trade-offs already settled, the rules it has paid for. Loaded into every session, so write
 only what you want read every time.
 
-This file is yours. `void-harness init` creates it, and never overwrites one you have written in.
+This file is yours. `void-machine init` creates it, and never overwrites one you have written in.
 Universal rules live in `.void/installed/PHILOSOPHY.md` and belong to the harness.
 
 Say a rule out loud — "ajoute la règle…", "always X here", "never Y" — and `void-learn` proposes

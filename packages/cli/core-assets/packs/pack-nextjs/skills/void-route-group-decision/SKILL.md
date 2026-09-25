@@ -1,13 +1,13 @@
 ---
 name: void-route-group-decision
-description: Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.
+description: Decide when to use a (route-group), what to name it, and how to share layouts. The void-machine convention groups by trust boundary, not by visual section.
 ---
 
 # route-group-decision
 
 Use when adding any new route in `app/`, or when refactor an existing flat `app/` into groups. Route groups (folders named `(name)`) don't affect URL but DO affect layout and convention scope.
 
-## The void-harness convention
+## The void-machine convention
 
 ```
 app/

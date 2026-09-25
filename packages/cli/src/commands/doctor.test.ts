@@ -12,7 +12,7 @@ import { cliVersion } from '../lib/paths.js';
 // told a healthy 2.7.0 project that its doctrine was missing, its hooks never
 // fired and five packs were unwired. Four failures, none real, each with a
 // remedy that would have damaged a correct install.
-const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-harness.mjs');
+const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-machine.mjs');
 
 function projectRecording(version: string): string {
   const root = mkdtempSync(join(tmpdir(), 'doctor-cmd-'));
@@ -103,7 +103,7 @@ describe('doctor from a linked worktree', () => {
   });
 
   // Every remedy doctor prints is a command that acts on the directory it is
-  // typed in. Followed from the worktree, `void-harness init` would install a
+  // typed in. Followed from the worktree, `void-machine init` would install a
   // second copy exactly where git was told not to look: the defect this
   // command exists to prevent. So from a worktree each remedy names the
   // directory it must run in, and in the main checkout it names nothing.
@@ -124,9 +124,9 @@ describe('doctor from a linked worktree', () => {
     const fromWorktree = runDoctor(linked);
 
     // The fixture wires no runtime, so at least one remedy is printed.
-    expect(fromMain.out).toMatch(/void-harness init/);
+    expect(fromMain.out).toMatch(/void-machine init/);
     expect(fromMain.out).not.toMatch(/ in \/\S+: /);
-    const remedies = fromWorktree.out.split('\n').filter((line) => /^\s+\S+\s+.*void-harness (init|runtime add)/.test(line));
+    const remedies = fromWorktree.out.split('\n').filter((line) => /^\s+\S+\s+.*void-machine (init|runtime add)/.test(line));
     expect(remedies.length).toBeGreaterThan(0);
     for (const remedy of remedies) expect(remedy).toContain(`in ${realpathSync(main)}: `);
   });

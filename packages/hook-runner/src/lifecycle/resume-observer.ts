@@ -8,12 +8,12 @@ import {
 import { basename, join } from 'node:path';
 import {
   composeResumeBundle,
-  parseCheckpoint,
   type ResumeBundle,
   type ResumeBundleInput,
   type ResumeProgramInput,
   renderResumeContext,
 } from '@voidcorp/mission-engine/session';
+import { parseCheckpoint } from './checkpoint-codec.js';
 
 const PROGRAM_PATHS = [
   join('.void', 'program.md'),
