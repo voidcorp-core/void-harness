@@ -1,4 +1,5 @@
-// `void-harness remove <pack-name>` — deactivate a pack. Updates:
+// tdd-cover: e2e test/cli/add-remove-parity.test.ts
+// `void-machine remove <pack-name>` — deactivate a pack. Updates:
 //   1. .claude/settings.json (enabledPlugins — delete the key)
 //   2. .void/config.json (packs section — delete the pin)
 //   3. whichever doctrine docs exist (CLAUDE.md / AGENTS.md), refreshed per-runtime
@@ -22,11 +23,12 @@ import {
 } from '../lib/settings.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { init } from './init.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 
 export async function remove(args: readonly string[]): Promise<void> {
   if (args.length === 0) {
-    p.log.error(`Usage: void-harness remove <pack-name>`);
+    p.log.error(`Usage: ${PRODUCT_COMMAND} remove <pack-name>`);
     process.exit(2);
   }
 

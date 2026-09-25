@@ -127,7 +127,7 @@ describe('add / remove refresh existing docs per-runtime', () => {
   it('writes no namespaced skill name into a locally installed doctrine doc', async () => {
     await init(['--runtime', 'claude', '--no-interactive']);
     const doc = readFileSync(join(dir, 'CLAUDE.md'), 'utf8');
-    expect(doc).toMatch(/void-harness:begin/);
+    expect(doc).toMatch(/void-machine:begin/);
     expect(doc).not.toMatch(/(?<!void-)\bharness:[a-z]/);
     expect(doc).toContain('invoked by its name');
   });

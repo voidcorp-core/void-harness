@@ -49,11 +49,13 @@ for f in "$CLAUDE" "$AGENTS"; do
   [[ -f "$f" ]] || { echo "sync-agent-docs: missing $f" >&2; exit 1; }
 done
 
-# Everything `void-harness init` writes lives between these markers, worded per
+# Everything `init` writes lives between its begin and end markers, worded per
 # runtime by the installer itself. This gate holds AUTHORS to parity; judging
-# generated headings makes it fire on a correct install instead.
+# generated headings makes it fire on a correct install instead. The namespace is
+# matched, not spelled: a block written before the product was renamed is the
+# installer's just the same.
 strip_managed_block() {
-  awk '/<!-- void-harness:begin -->/{skip=1} !skip; /<!-- void-harness:end -->/{skip=0}' "$1"
+  awk '/<!-- [a-z0-9._-]+:begin -->/{skip=1} !skip; /<!-- [a-z0-9._-]+:end -->/{skip=0}' "$1"
 }
 
 # Drop the known terminology-variant tokens word-by-word (awk, not sed \b, which

@@ -19,7 +19,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: "`void-harness doctor` output"
+      label: "`void-machine doctor` output"
       description: Run it in the affected project. It reports what is wired and what drifted, which is usually the fastest route to the cause.
       render: shell
   - type: dropdown

@@ -10,6 +10,7 @@ import {
   hasLargeChangeJustification,
   parseAddedLines,
 } from './large-change.js';
+import { productSetting } from '../identity.js';
 
 interface GitResult {
   readonly ok: boolean;
@@ -61,7 +62,7 @@ function baseRef(
   root: string,
   env: Environment,
 ): string | undefined {
-  const configured = env['VOID_HARNESS_BASE_REF']?.trim();
+  const configured = productSetting(env, 'BASE_REF')?.trim();
   if (configured !== undefined && configured !== '') {
     return verifiedRef(git, root, configured, env) ? configured : undefined;
   }
@@ -91,7 +92,7 @@ export function executeLargeChange(
   }
   const base = baseRef(git, root, env);
   if (base === undefined) {
-    const configuredBase = env['VOID_HARNESS_BASE_REF']?.trim();
+    const configuredBase = productSetting(env, 'BASE_REF')?.trim();
     return {
       status: 'skipped',
       details: {
@@ -117,7 +118,7 @@ export function executeLargeChange(
     return { status: 'degraded', details: { reason: 'change-query-failed' } };
   }
   const threshold = boundedInteger(
-    env['VOID_HARNESS_LARGE_CHANGE_THRESHOLD']
+    productSetting(env, 'LARGE_CHANGE_THRESHOLD')
       ?? env['VOIDCORP_LARGE_CL_THRESHOLD'],
     400,
     1,

@@ -1,4 +1,4 @@
-// `void-harness security` — the local security baseline, and the gate that
+// `void-machine security` — the local security baseline, and the gate that
 // stands in front of anything aimed at a host.
 //
 // Everything is an argument. A security command that stops to ask a question
@@ -26,6 +26,7 @@ import { findCoreSource } from '../lib/paths.js';
 import { loadSecurityManifest, type SecurityAdapter } from '../lib/security/manifest.js';
 import { normalizeScannerOutput, type NormalizedFinding } from '../lib/security/findings.js';
 import { planSecurityScan, type ScanPlan } from '../lib/security/plan.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 const execFile = promisify(nodeExecFile);
 const MAX_AUTHORIZATION_BYTES = 16 * 1024;
@@ -94,7 +95,7 @@ export function parseSecurityArgs(args: readonly string[]): SecurityArgs {
     return invalid(`unknown subcommand '${subcommand}'`, 'use adapters or scan');
   }
   const unknown = unknownOption(options);
-  if (unknown !== undefined) return invalid(`unknown option '${unknown}'`, 'void-harness security --help');
+  if (unknown !== undefined) return invalid(`unknown option '${unknown}'`, `${PRODUCT_COMMAND} security --help`);
 
   const json = options.includes('--json');
   if (subcommand === 'adapters') return { kind: 'adapters', json };
@@ -133,7 +134,7 @@ export function parseSecurityArgs(args: readonly string[]): SecurityArgs {
 
 function usage(): string {
   return [
-    'void-harness security <subcommand>',
+    `${PRODUCT_COMMAND} security <subcommand>`,
     '',
     '  adapters                 list the declared scanners and whether each is installed',
     '  scan                     run the baseline over what is installed and judge the result',

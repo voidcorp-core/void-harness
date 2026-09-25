@@ -1,6 +1,6 @@
 # Mission policies
 
-`void-harness mission plan` compiles a ticket, the current diff, the detected stack, and layered
+`void-machine mission plan` compiles a ticket, the current diff, the detected stack, and layered
 policy into one deterministic mission DAG before any specialist runs. Planning is local, offline,
 and LLM-free.
 
@@ -75,7 +75,7 @@ plan. Unresolved conflicts fail planning closed.
 ## Plan a ticket
 
 ```bash
-void-harness mission plan --ticket tickets/DEV-435.md --json
+void-machine mission plan --ticket tickets/DEV-435.md --json
 ```
 
 The command reads a Markdown ticket inside the project root, inspects tracked and untracked diff

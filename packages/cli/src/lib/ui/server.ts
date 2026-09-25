@@ -1,4 +1,4 @@
-// The local server behind `void-harness ui`.
+// The local server behind `void-machine ui`.
 //
 // It carries NO business logic. It receives a reader, calls it, and serialises
 // the result. That constraint is the whole design: without it the server

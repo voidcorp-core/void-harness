@@ -1,4 +1,4 @@
-// `void-harness projects` — the park, and where attention is owed.
+// `void-machine projects` — the park, and where attention is owed.
 //
 // A projection and nothing else: it reads what already exists in each project
 // and never writes, never regenerates, never caches. The moment a view keeps its

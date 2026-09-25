@@ -1,7 +1,7 @@
 ---
 name: void-doctor
 description: Run the harness health checks and report what is healthy, missing or stale, with the exact command that repairs each finding. Reports; never repairs on its own.
-allowed-tools: Bash(void-harness:*) Bash(npx:*)
+allowed-tools: Bash(void-machine:*) Bash(npx:*)
 ---
 
 # void-doctor
@@ -27,14 +27,14 @@ project you have not touched in a while.
 ## Run it
 
 ```
-void-harness doctor
+void-machine doctor
 ```
 
 The CLI is public on npm as `voidmachine`, whose binary is `void-machine` (alias `vm`;
-`void-harness` still works, with a deprecation notice). If it is not on PATH,
+the former command still works, with a deprecation notice). If it is not on PATH,
 `npx voidmachine doctor` is the same thing without an install.
 
-In the void-harness repository itself, `doctor` delegates to the self-host doctor, which asks a
+In the void-machine repository itself, `doctor` delegates to the self-host doctor, which asks a
 different question: do the current sources still compile into a working harness. Both are valid;
 say which one ran, because "healthy" means different things.
 

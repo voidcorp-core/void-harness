@@ -1,4 +1,4 @@
-// The page shell served by `void-harness ui`.
+// The page shell served by `void-machine ui`.
 //
 // Inlined as a string rather than copied as an asset: the command must work
 // from an installed npm package with no build step and no network, and a page

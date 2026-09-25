@@ -11,6 +11,7 @@ export { type AutopilotSubcommand, readsStdin, SUBCOMMANDS } from './autopilot-u
 
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
 import { execGh, type GhRunner, type GitRunner, gitIn } from '../lib/autopilot/loop-observe.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export interface AutopilotCommandResult {
   readonly stdout: string;
@@ -80,7 +81,7 @@ export function runAutopilotCommand(
         'AUTOPILOT_USAGE',
         'autopilot was invoked without a subcommand',
         'the command cannot infer what you meant to do',
-        'run `void-harness autopilot next` with the tracker on stdin, or --help',
+        `run \`${PRODUCT_COMMAND} autopilot next\` with the tracker on stdin, or --help`,
       );
     }
     if (!Object.hasOwn(SUBCOMMANDS, word)) {
@@ -88,7 +89,7 @@ export function runAutopilotCommand(
         'AUTOPILOT_USAGE',
         `autopilot has no '${word}' subcommand`,
         `known subcommands are ${Object.keys(SUBCOMMANDS).join(', ')}`,
-        'run `void-harness autopilot --help` for the full contract',
+        `run \`${PRODUCT_COMMAND} autopilot --help\` for the full contract`,
       );
     }
     const subcommand = word as AutopilotSubcommand;

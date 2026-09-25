@@ -15,7 +15,7 @@ function inputFile(path) {
 function main(args) {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   requireValue(pkg.name === 'void-harness' && pkg.private === true
-    && realpathSync(process.cwd()) === realpathSync(root), 'Run from the private void-harness source workspace');
+    && realpathSync(process.cwd()) === realpathSync(root), 'Run from the private void-machine source workspace');
   if (args.length === 1 && args[0] === '--help') {
     process.stdout.write('pnpm backlog:index --input <export.json> [--check]\n'
       + 'Offline render only. Collect through the connected runtime: docs/LINEAR-INDEX.md.\n');

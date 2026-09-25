@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { journalFingerprint, readMissionJournals } from './journal.js';
 import { RETIRED_SKILLS, wasEverOurs } from './retired-skills.js';
 import { voidMachinePath } from './void-layout.js';
+import { PRODUCT_COMMAND } from './identity.js';
 
 /**
  * Whether the invocation surface is still reachable, judged from what the
@@ -217,7 +218,7 @@ export function invocationAlert(
   liveness: LivenessVerdict,
 ): string | undefined {
   if (resolution.ok && liveness.ok) return undefined;
-  const lines = ['void-harness, invocation surface:'];
+  const lines = [`${PRODUCT_COMMAND}, invocation surface:`];
   if (!resolution.ok) {
     const named = resolution.unresolved.slice(0, MAX_NAMED).map(withSuccessor).join(', ');
     const rest = resolution.unresolved.length - MAX_NAMED;
@@ -231,7 +232,7 @@ export function invocationAlert(
       `  no skill fired in the last ${liveness.missions} working missions (${liveness.toolCalls} tool calls)`,
     );
   }
-  lines.push('  run `void-harness doctor` for the detail');
+  lines.push(`  run \`${PRODUCT_COMMAND} doctor\` for the detail`);
   return lines.join('\n');
 }
 

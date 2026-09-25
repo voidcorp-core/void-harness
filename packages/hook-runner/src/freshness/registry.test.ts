@@ -98,7 +98,7 @@ describe('fetchLatestVersion', () => {
     const init = spy.mock.calls[0]?.[1];
     const headers = new Headers(init?.headers);
     expect([...headers.keys()]).toEqual(['user-agent']);
-    expect(headers.get('user-agent')).toBe('void-harness');
+    expect(headers.get('user-agent')).toBe('void-machine');
     expect(init?.credentials).not.toBe('include');
   });
 

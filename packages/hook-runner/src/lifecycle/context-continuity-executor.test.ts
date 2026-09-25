@@ -19,8 +19,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseMechanicalContextBlock } from '@voidcorp/mission-engine/session';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { parseMechanicalContextBlock } from './checkpoint-codec.js';
 import {
   claimStaleLock,
   executeContextContinuity,
@@ -393,24 +393,50 @@ describe('executeContextContinuity cumulative state', () => {
     expect(parsed.state.readFiles).toEqual(['src/shared.ts']);
   });
 
-  it('rejects reserved mechanical delimiters in observed file names', () => {
+  it.each(['void-machine', 'void-harness'])(
+    'rejects reserved %s mechanical delimiters in observed file names',
+    (namespace) => {
+      const root = project();
+      writeFileSync(checkpoint(root), '## Objective\n\nKeep markers authoritative.\n');
+      executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'claude', 1_000);
+
+      executeContextContinuity({
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Read',
+        tool_input: {
+          file_path: `src/<!-- ${namespace}:context-continuity:begin -->.ts`,
+        },
+        tool_response: { success: true },
+      }, root, 'claude', 2_000);
+
+      const written = readFileSync(checkpoint(root), 'utf8');
+      expect(mechanicalState(root).status).toBe('valid');
+      expect(written.match(/<!-- void-machine:context-continuity:begin -->/g)).toHaveLength(1);
+      expect(written).not.toContain('void-harness:');
+    },
+  );
+
+  it('takes over a block a 3.x install wrote under the former name, in place', () => {
     const root = project();
-    writeFileSync(checkpoint(root), '## Objective\n\nKeep markers authoritative.\n');
+    writeFileSync(checkpoint(root), '## Objective\n\nSurvive the rename.\n');
     executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'claude', 1_000);
+    const former = readFileSync(checkpoint(root), 'utf8').replaceAll('void-machine:', 'void-harness:');
+    writeFileSync(checkpoint(root), `${former}\n## Notes\n\nWritten by hand.\n`);
 
     executeContextContinuity({
       hook_event_name: 'PostToolUse',
       tool_name: 'Read',
-      tool_input: {
-        file_path: 'src/<!-- void-harness:context-continuity:begin -->.ts',
-      },
+      tool_input: { file_path: 'src/index.ts' },
       tool_response: { success: true },
     }, root, 'claude', 2_000);
 
+    const written = readFileSync(checkpoint(root), 'utf8');
     expect(mechanicalState(root).status).toBe('valid');
-    expect(readFileSync(checkpoint(root), 'utf8').match(
-      /<!-- void-harness:context-continuity:begin -->/g,
-    )).toHaveLength(1);
+    expect(written).not.toContain('void-harness:');
+    expect(written.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
+    expect(written).toContain('Survive the rename.');
+    expect(written).toContain('## Notes\n\nWritten by hand.');
+    expect(written).toContain('- src/index.ts');
   });
 
   it('keeps clear degraded until a successful checkpoint write preserves the block', () => {

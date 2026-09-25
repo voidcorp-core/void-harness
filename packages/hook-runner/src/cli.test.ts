@@ -308,7 +308,7 @@ describe('lifecycle context', () => {
       );
       expect(compact.status).toBe(0);
       expect(readFileSync(join(root, '.void', 'machine', 'checkpoint.md'), 'utf8')).toContain(
-        'void-harness:context-continuity:begin',
+        'void-machine:context-continuity:begin',
       );
 
       const resume = spawnSync(
@@ -369,7 +369,7 @@ describe('lifecycle context', () => {
       const concurrent = readFileSync(checkpoint, 'utf8');
       const admitted = paths.filter((path) => concurrent.includes(path));
       expect(admitted.length).toBeGreaterThanOrEqual(1);
-      expect(concurrent.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+      expect(concurrent.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
       expect(concurrent).toContain('Serialize stale recovery.');
       expect(concurrent.match(/bounded context /g)).toHaveLength(25_000);
       expect(existsSync(orphanClaim)).toBe(false);
@@ -408,7 +408,7 @@ describe('lifecycle context', () => {
       expect(recovered).toContain('src/first.ts');
       expect(recovered).toContain('src/second.ts');
       expect(recovered).toContain('src/third.ts');
-      expect(recovered.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+      expect(recovered.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -514,9 +514,9 @@ describe('the upgrade prompt the session banner carries', () => {
       join(root, '.void', 'machine', 'receipts', 'install-v1.json'),
       JSON.stringify({ schemaVersion: 1, version: '0.17.0', source: 'local', runtimes: ['claude'], files: [] }),
     );
-    mkdirSync(join(cache, 'void-harness'), { recursive: true });
+    mkdirSync(join(cache, 'void-machine'), { recursive: true });
     writeFileSync(
-      join(cache, 'void-harness', 'freshness.json'),
+      join(cache, 'void-machine', 'freshness.json'),
       JSON.stringify({ latest: '2.1.0', checkedAt: Date.now() }),
     );
     return { root, cache };
@@ -535,14 +535,14 @@ describe('the upgrade prompt the session banner carries', () => {
 
     expect(out).toContain('0.17.0');
     expect(out).toContain('2.1.0');
-    expect(out).toContain('void-harness update');
+    expect(out).toContain('void-machine update');
     expect(out.toLowerCase()).toContain('tell the user');
   });
 
   it('says nothing at all when the install is current', () => {
     const { root, cache } = staleProject();
     writeFileSync(
-      join(cache, 'void-harness', 'freshness.json'),
+      join(cache, 'void-machine', 'freshness.json'),
       JSON.stringify({ latest: '0.17.0', checkedAt: Date.now() }),
     );
 

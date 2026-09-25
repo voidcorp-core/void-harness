@@ -16,7 +16,7 @@ vit dans le tracker.
 
 ## La promesse
 
-Un projet qui installe void-harness est entre de bonnes mains sans que son mainteneur ait à
+Un projet qui installe void-machine est entre de bonnes mains sans que son mainteneur ait à
 le surveiller. Concrètement : il décrit ce qu'il veut, et il retrouve la fonctionnalité sur
 `develop`, testée, vérifiée, passée à la sécurité, prête à être promue.
 

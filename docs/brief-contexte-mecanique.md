@@ -1,8 +1,8 @@
 # Chantier : rendre la gestion du contexte mécanique
 
-Tu travailles dans `void-harness`. Lis `CLAUDE.md` et `.void/PROJECT-DOCTRINE.md` avant tout.
+Tu travailles dans `void-machine`. Lis `CLAUDE.md` et `.void/PROJECT-DOCTRINE.md` avant tout.
 Ce brief vient d'un audit de `PrimeIntellect-ai/prime-agent` (MIT) ; tout ce qu'il affirme sur
-void-harness a été vérifié dans le code aux références données.
+void-machine a été vérifié dans le code aux références données.
 
 Commence par `void-brainstorm`. Il y a un vrai arbitrage à rendre avant d'écrire une ligne, et
 il est décrit plus bas sous « Le piège ».
@@ -61,7 +61,7 @@ inférence. Le refus ne s'étend donc pas mécaniquement au nouveau déclencheur
 
 Mais tu ne passes pas outre en silence. Soit tu montres que le nouveau déclencheur échappe au
 motif du refus, soit tu renonces. Dans le premier cas, la décision est écrite avec
-`void-harness decisions new` et **supersede** explicitement la position de la note d'audit, qui
+`void-machine decisions new` et **supersede** explicitement la position de la note d'audit, qui
 doit être mise à jour dans le même commit.
 
 ---

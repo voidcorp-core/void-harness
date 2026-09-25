@@ -5,7 +5,7 @@ description: Configure eas.json profiles (development, preview, production) with
 
 # eas-build-profile
 
-Use when configuring EAS Build for an Expo app. The default `eas.json` Expo scaffolds is fine to start; this skill ships the void-harness convention for the 3 standard profiles + the why behind each option.
+Use when configuring EAS Build for an Expo app. The default `eas.json` Expo scaffolds is fine to start; this skill ships the void-machine convention for the 3 standard profiles + the why behind each option.
 
 ## The 3-profile structure
 

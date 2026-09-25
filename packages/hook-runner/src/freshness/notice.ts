@@ -4,14 +4,14 @@
 // Two rules shape this file. A lookup that failed is never cached, so a tunnel or
 // a rate-limit costs one retry rather than a day of silence. And the notice is
 // only ever emitted for an install this command can actually update: advising
-// `void-harness update` to someone who installed through the marketplace would be
+// `void-machine update` to someone who installed through the marketplace would be
 // a confidently wrong instruction.
 
 import { compareFreshness, type Freshness } from './compare.js';
 import { readFreshnessCache, writeFreshnessCache, type CacheEnvironment } from './cache.js';
 import { fetchLatestVersion, resolveRegistry } from './registry.js';
 import { readNpmrc } from './npmrc.js';
-import { PRODUCT_IDENTITY } from '../identity.js';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '../identity.js';
 
 /** Where the harness in this project came from, as recorded in the install receipt. */
 export type InstallSource = 'local' | 'marketplace';
@@ -81,7 +81,7 @@ export function freshnessNotice(
 ): string | undefined {
   if (freshness.verdict !== 'behind' || source !== 'local') return undefined;
   const { installed, latest } = freshness;
-  return `void-harness ${installed} is installed; ${latest ?? 'a newer version'} is published. Run ${where}\`void-harness update\` to upgrade.`;
+  return `${PRODUCT_COMMAND} ${installed} is installed; ${latest ?? 'a newer version'} is published. Run ${where}\`${PRODUCT_COMMAND} update\` to upgrade.`;
 }
 
 /**
@@ -104,7 +104,7 @@ export function freshnessRelay(freshness: Freshness, source: InstallSource | und
   if (freshness.verdict !== 'behind' || source !== 'local') return undefined;
   const { installed, latest } = freshness;
   return `A newer harness is published: ${installed} is installed, ${latest ?? 'a newer version'} is available. `
-    + 'Tell the user this once, near the start of your first reply, and offer to run `void-harness update`. '
+    + `Tell the user this once, near the start of your first reply, and offer to run \`${PRODUCT_COMMAND} update\`. `
     + 'Explain that update writes project files and link the release notes for possible breaking changes: '
     + `${PRODUCT_IDENTITY.repositoryUrl}/releases. `
     + 'Wait for explicit human permission before running it, even in autonomous mode. '

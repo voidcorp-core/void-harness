@@ -1,6 +1,6 @@
 # `voidmachine`
 
-CLI for the [void-harness](https://github.com/voidcorp-core/void-machine): register the marketplace, enable the `harness` core plugin plus the stack packs a project needs, and health-check the setup.
+CLI for the [void-machine](https://github.com/voidcorp-core/void-machine): register the marketplace, enable the `harness` core plugin plus the stack packs a project needs, and health-check the setup.
 
 ## Quick start
 
@@ -25,9 +25,9 @@ Discover shipped skills, hooks, agents, specialist contracts and CLI commands,
 with local installation evidence and invocation details.
 
 ```bash
-void-harness cheatsheet > cheatsheet.html
-void-harness cheatsheet --format markdown > cheatsheet.md
-void-harness cheatsheet --format json
+void-machine cheatsheet > cheatsheet.html
+void-machine cheatsheet --format markdown > cheatsheet.md
+void-machine cheatsheet --format json
 ```
 
 HTML is a self-contained offline document with catalogue, availability and intent

@@ -1,6 +1,6 @@
-name: void-harness enforce
+name: void-machine enforce
 description: >-
-  Replay the void-harness enforcement floor (protected files, leaked secrets,
+  Replay the void-machine enforcement floor (protected files, leaked secrets,
   TDD order, @repo/* import direction) over a pull-request diff. Critical rules
   run through the same Node bundle as local hooks, so no author
   (human, local agent, cloud agent) can bypass it.
@@ -17,11 +17,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Enforce the void-harness floor over the diff
+    - name: Enforce the void-machine floor over the diff
       shell: bash
       env:
         # github.action_path resolves to this action's dir inside the checked-out
-        # void-harness repo; the shared script + _checks.sh live three levels up.
+        # void-machine repo; the shared script + _checks.sh live three levels up.
         INPUT_BASE_REF: ${{ inputs.base-ref }}
         PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         # A merge queue runs on `merge_group`, which carries no pull_request

@@ -19,6 +19,7 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, readdir, readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 // Directory Codex scans for project-local skills. Relative to the project root;
 // Codex resolves it from the cwd up to the repo root.
@@ -196,7 +197,7 @@ export interface CodexSkillsHealth {
 export async function codexSkillsHealth(projectRoot: string): Promise<CodexSkillsHealth> {
   const dir = join(projectRoot, CODEX_SKILLS_DIR);
   if (!existsSync(dir)) {
-    return { ok: false, detail: `${CODEX_SKILLS_DIR} missing — no Codex skills wired (run void-harness init)` };
+    return { ok: false, detail: `${CODEX_SKILLS_DIR} missing — no Codex skills wired (run ${PRODUCT_COMMAND} init)` };
   }
   const entries = await readdir(dir, { withFileTypes: true });
   let discoverable = 0;

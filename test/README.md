@@ -1,6 +1,6 @@
 # Skill tests
 
-Tests for void-harness skills and hooks. Each skill / hook has its own directory under this root.
+Tests for void-machine skills and hooks. Each skill / hook has its own directory under this root.
 
 ## Pattern
 

@@ -1,4 +1,4 @@
-// Terminal render layer for the void-harness CLI.
+// Terminal render layer for the void-machine CLI.
 //
 // Goals:
 //   - A distinctive "void" signature (violet→cyan wordmark) without noise.
@@ -12,6 +12,8 @@
 // Interactive prompts (multiselect, confirm) still use @clack/prompts — this
 // module owns only the *output* side. The `c.*` API is stable; commands render
 // through it, so palette/banner changes here propagate everywhere.
+
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -92,7 +94,7 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 /**
- * The `void-harness` signature: a per-character violet→cyan gradient in
+ * The `void-machine` signature: a per-character violet→cyan gradient in
  * truecolor, a solid accent in 16-color, plain text otherwise. Applied to the
  * wordmark in the banner — the one place the brand gets to shine.
  */
@@ -146,10 +148,10 @@ function pad(s: string, n: number): string {
   return diff > 0 ? s + ' '.repeat(diff) : s;
 }
 
-/** Asymmetric banner: `  ◆ void-harness  <cmd>          v<version>` with a
+/** Asymmetric banner: `  ◆ void-machine  <cmd>          v<version>` with a
  *  gradient wordmark and a faint accent tick. */
 export function banner(cmd: string, version?: string): void {
-  const left = `  ${c.accent(glyph.arrow)} ${brand('void-harness')}  ${c.muted(cmd)}`;
+  const left = `  ${c.accent(glyph.arrow)} ${brand(PRODUCT_COMMAND)}  ${c.muted(cmd)}`;
   if (version) {
     const w = termWidth();
     const right = c.muted(`v${version}`);

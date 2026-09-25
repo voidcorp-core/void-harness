@@ -1,3 +1,4 @@
+// tdd-cover: e2e apps/graph-studio/src/data/load.test.ts
 import { indexCost } from './data/cost.js';
 import { resolveStudioBoot } from './data/load.js';
 import { createGraph } from './render/graph.js';
@@ -39,7 +40,7 @@ let state = defaultViewState();
 const handle = createGraph(scene, data.model, overlays, data.usage, costIndex);
 handle.setView(state);
 
-// Live layer: the `void-harness graph live` server streams activations. Same-origin when
+// Live layer: the `void-machine graph live` server streams activations. Same-origin when
 // server-fed (consumer), else the configured/dev URL — resolved in resolveStudioBoot.
 const live = startLive(handle, data.model, liveUrl);
 const scrubber = document.createElement('div');

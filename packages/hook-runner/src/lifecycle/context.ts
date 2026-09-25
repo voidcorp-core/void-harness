@@ -1,3 +1,4 @@
+import { PRODUCT_COMMAND } from '../identity.js';
 export interface SessionStartOutput {
   readonly hookSpecificOutput: {
     readonly hookEventName: 'SessionStart';
@@ -22,10 +23,10 @@ export function sessionStartOutput(
 ): SessionStartOutput {
   const installed = version.trim() === '' ? 'unknown' : version.trim();
   const base =
-    `void-harness ${installed} is active. Non-negotiable floor: never edit secrets or keys; ` +
+    `${PRODUCT_COMMAND} ${installed} is active. Non-negotiable floor: never edit secrets or keys; ` +
     'never hand-edit lockfiles; regenerate them via the package manager for requested dependency changes; ' +
     'never run destructive shell commands; tests and fresh evidence gate "done". ' +
-    'Capture durable project rules explicitly. Run `void-harness doctor` if runtime health is uncertain.';
+    `Capture durable project rules explicitly. Run \`${PRODUCT_COMMAND} doctor\` if runtime health is uncertain.`;
   const suffix = notice === undefined || notice.trim() === '' ? '' : ` ${notice.trim()}`;
   // On its own line: the floor already runs long, and an alert trailing off its
   // end is read as more of the same sentence rather than as a separate warning.

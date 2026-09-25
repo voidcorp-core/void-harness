@@ -1,4 +1,4 @@
-// `void-harness audit` — the outbound self-evolution audit (issue #17 cluster C).
+// `void-machine audit` — the outbound self-evolution audit (issue #17 cluster C).
 //
 // Read canonical mission events plus legacy history and report which harness
 // skills are active, stale or never observed. Graph relations, human-session
@@ -8,7 +8,7 @@
 // follow-up (they need data sources beyond the usage log).
 
 import * as p from '@clack/prompts';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -173,7 +173,7 @@ export async function audit(args: readonly string[]): Promise<void> {
   } else {
     footer(
       c.dim(
-        'observations become HITL proposals only after their evidence gate. `void-harness audit --push` files eligible proposals as issues (dry-run by default).',
+        `observations become HITL proposals only after their evidence gate. \`${PRODUCT_COMMAND} audit --push\` files eligible proposals as issues (dry-run by default).`,
       ),
     );
   }

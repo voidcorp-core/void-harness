@@ -5,7 +5,7 @@ description: "Run async work outside the request lifecycle: when to use a queue 
 
 # background-job-pattern
 
-Use when work needs to happen **outside the user's request lifecycle** — too slow for the 10s HTTP timeout, or scheduled, or needing retry. Default in void-harness: a managed queue (Inngest, Trigger.dev, Cloudflare Queues) for event-driven jobs; route handlers + cron config for time-based.
+Use when work needs to happen **outside the user's request lifecycle** — too slow for the 10s HTTP timeout, or scheduled, or needing retry. Default in void-machine: a managed queue (Inngest, Trigger.dev, Cloudflare Queues) for event-driven jobs; route handlers + cron config for time-based.
 
 If the work completes in < 200ms AND happens during the request anyway, do it inline. Background jobs add latency to the UX (work happens later) and infrastructure cost. Not the default.
 

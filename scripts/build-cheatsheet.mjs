@@ -75,7 +75,7 @@ export function renderCheatsheet(model, taxonomy) {
   const packs = ofType(model, 'pack');
 
   const out = [];
-  out.push('# void-harness cheat sheet');
+  out.push('# void-machine cheat sheet');
   out.push('');
   out.push('Everything the harness installs, and how each piece fires.');
   out.push('');

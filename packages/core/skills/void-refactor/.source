@@ -6,4 +6,4 @@ Sources for `void-refactor` skill (see `docs/plans/skill-audits/void-refactor.md
 - citypaul/.dotfiles refactor notes — Tidy-First commit cadence
 - Joshua Kerievsky "Refactoring to Patterns" — referenced, used sparingly (not daily practice)
 
-Strategy: distill. Author for void-harness with two modes mirroring tdd. Reject monolithic-rewrite framing. Companion hooks: tidying-commit-prefix, refactor-named-grep. Allowed Fowler names in ../../hooks/fowler-refactors.txt.
+Strategy: distill. Author for void-machine with two modes mirroring tdd. Reject monolithic-rewrite framing. Companion hooks: tidying-commit-prefix, refactor-named-grep. Allowed Fowler names in ../../hooks/fowler-refactors.txt.

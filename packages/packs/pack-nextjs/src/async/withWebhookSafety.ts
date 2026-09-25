@@ -1,6 +1,6 @@
 /**
  * `withWebhookSafety` — wrap a webhook handler with the canonical
- * void-harness async-safety pattern: verify → dedup → handle → mark.
+ * void-machine async-safety pattern: verify → dedup → handle → mark.
  *
  * Composes with the `async-safety` and `security-guidance` skills.
  *

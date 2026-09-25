@@ -26,6 +26,37 @@ export interface ProductIdentity {
     /** Still installed and still working, with a one-line notice on stderr. */
     readonly deprecated: readonly string[];
   };
+  /** The delimiters of the blocks the product writes into a consumer's files. */
+  readonly markers: {
+    /** CLAUDE.md and AGENTS.md. */
+    readonly agentDoc: ManagedMarkers;
+    /** The mechanical block of `.void/machine/checkpoint.md`. */
+    readonly contextContinuity: ManagedMarkers;
+    /** `.gitignore` and `.git/info/exclude`. */
+    readonly gitignore: ManagedMarkers;
+  };
+  /** Settings a person sets in the environment: `<prefix><NAME>`, read by `productSetting`. */
+  readonly environment: {
+    readonly prefix: string;
+    /** Prefixes still read after a rename; the current one wins when both are set. */
+    readonly deprecated: readonly string[];
+  };
+}
+
+export interface MarkerPair {
+  readonly begin: string;
+  readonly end: string;
+}
+
+/**
+ * A block written before a rename carries the old namespace, and a consumer keeps it until the
+ * next write. Every write therefore uses `current`, and every read accepts any pair of
+ * `recognized`, so the old block is found and replaced in place instead of duplicated.
+ */
+export interface ManagedMarkers {
+  readonly current: MarkerPair;
+  /** `current` first, then each deprecated namespace in declaration order. */
+  readonly recognized: readonly MarkerPair[];
 }
 
 export interface FormerPackage {
@@ -66,6 +97,57 @@ function formerPackages(value: unknown): readonly FormerPackage[] {
   });
 }
 
+// A namespace sits inside an HTML comment and a shell comment: no space, no `>`, no `-->`.
+const NAMESPACE = SEGMENT;
+const PREFIX = /^[A-Z][A-Z0-9_]*_$/;
+
+function exclusive(current: string, deprecated: readonly string[], field: string): void {
+  if (deprecated.includes(current)) throw new Error(`product identity: ${current} is both current and deprecated (${field})`);
+}
+
+function pattern(value: unknown, shape: RegExp, field: string, rule: string): string {
+  if (typeof value !== 'string' || !shape.test(value)) throw new Error(`product identity: ${field} must be ${rule}`);
+  return value;
+}
+
+function patterns(value: unknown, shape: RegExp, field: string, rule: string): readonly string[] {
+  if (!Array.isArray(value)) throw new Error(`product identity: ${field} must be a list`);
+  return value.map((entry, index) => pattern(entry, shape, `${field}[${index}]`, rule));
+}
+
+function managed(namespaces: readonly string[], pair: (namespace: string) => MarkerPair): ManagedMarkers {
+  const recognized = namespaces.map(pair);
+  const [current] = recognized;
+  if (current === undefined) throw new Error('product identity: markers.namespace is required');
+  return { current, recognized };
+}
+
+function markers(value: unknown): ProductIdentity['markers'] {
+  const record = isRecord(value) ? value : {};
+  const rule = 'a lowercase name without separators';
+  const namespace = pattern(record['namespace'], NAMESPACE, 'markers.namespace', rule);
+  const deprecated = patterns(record['deprecated'], NAMESPACE, 'markers.deprecated', rule);
+  exclusive(namespace, deprecated, 'markers');
+  const namespaces = [namespace, ...deprecated];
+  return {
+    agentDoc: managed(namespaces, (name) => ({ begin: `<!-- ${name}:begin -->`, end: `<!-- ${name}:end -->` })),
+    contextContinuity: managed(namespaces, (name) => ({
+      begin: `<!-- ${name}:context-continuity:begin -->`,
+      end: `<!-- ${name}:context-continuity:end -->`,
+    })),
+    gitignore: managed(namespaces, (name) => ({ begin: `# ${name}:begin`, end: `# ${name}:end` })),
+  };
+}
+
+function environment(value: unknown): ProductIdentity['environment'] {
+  const record = isRecord(value) ? value : {};
+  const rule = 'an upper-case prefix ending in _';
+  const prefix = pattern(record['prefix'], PREFIX, 'environment.prefix', rule);
+  const deprecated = patterns(record['deprecated'], PREFIX, 'environment.deprecated', rule);
+  exclusive(prefix, deprecated, 'environment');
+  return { prefix, deprecated };
+}
+
 const MAJOR = /^(0|[1-9]\d*)\.\d+\.\d+/;
 
 /** Validate an identity document and derive the forms every consumer needs. Throws on any doubt. */
@@ -102,7 +184,31 @@ export function parseProductIdentity(value: unknown): ProductIdentity {
     formerPackages: former,
     packageFor,
     commands: { primary, aliases, deprecated },
+    markers: markers(value['markers']),
+    environment: environment(value['environment']),
   };
 }
 
 export const PRODUCT_IDENTITY: ProductIdentity = parseProductIdentity(document);
+
+/** The command every message tells a person to run: never a deprecated one, which would answer
+ * the advice with a deprecation notice. */
+export const PRODUCT_COMMAND: string = PRODUCT_IDENTITY.commands.primary;
+
+/**
+ * The one place a product setting is read from the environment. `name` is the part after the
+ * prefix (`NO_TRIM` for `VOID_MACHINE_NO_TRIM`). The current prefix wins whenever it is set, even
+ * to an empty string; a deprecated prefix is consulted only when the current one is absent, so an
+ * override written before the rename keeps working until the person renames it.
+ */
+export function productSetting(
+  env: Readonly<Record<string, string | undefined>>,
+  name: string,
+  identity: ProductIdentity = PRODUCT_IDENTITY,
+): string | undefined {
+  for (const prefix of [identity.environment.prefix, ...identity.environment.deprecated]) {
+    const value = env[`${prefix}${name}`];
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}

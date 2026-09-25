@@ -1,11 +1,11 @@
 {
   "schemaVersion": 3,
-  "graphId": "catalog:void-harness",
+  "graphId": "catalog:void-machine",
   "graphType": "catalog",
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:fa90eb491eee5da36fe6b5f51fd0c3b5534fdf989b4e0741bea2a75d3372833d"
+    "rootHash": "sha256:607962ba58706b1ab0eb4af417d2ba7e5cd0698cf7a4871f91d98d540aa98ece"
   },
   "nodes": [
     {
@@ -2550,7 +2550,7 @@
       "label": "void-route-group-decision",
       "data": {
         "legacy": {
-          "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
+          "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-machine convention groups by trust boundary, not by visual section.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -2886,7 +2886,7 @@
       "label": "void-form-pattern",
       "data": {
         "legacy": {
-          "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
+          "description": "Build forms with react-hook-form + Zod resolver (void-machine default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -3647,7 +3647,7 @@
             }
           ],
           "id": "skill:void-checkpoint",
-          "lines": 225,
+          "lines": 227,
           "name": "void-checkpoint",
           "owner": "folpe",
           "pack": null,
@@ -3656,7 +3656,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-checkpoint/SKILL.md",
-          "staticTokens": 2813,
+          "staticTokens": 2858,
           "type": "skill"
         }
       },
@@ -4043,7 +4043,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-doctor/SKILL.md",
-          "staticTokens": 782,
+          "staticTokens": 783,
           "type": "skill"
         }
       },

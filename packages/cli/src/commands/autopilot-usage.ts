@@ -1,13 +1,14 @@
-// `void-harness autopilot` -- the operator surface of the continuous delivery
+// `void-machine autopilot` -- the operator surface of the continuous delivery
 // loop. `runAutopilotCommand` is a function of (argv, stdin, context) and returns
 // what to print and with which exit code. The loop reads GitHub and git through
 // runners the context injects, so every command stays testable on captured
 // outputs; it never contacts the tracker and spawns no agent.
 
 import { autopilotFailure } from '../lib/autopilot/errors.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export const USAGE = `
-void-harness autopilot -- the deterministic kernel of the continuous delivery loop.
+${PRODUCT_COMMAND} autopilot -- the deterministic kernel of the continuous delivery loop.
 
 Invoked by the /void-autopilot skill, which reads the tracker and pipes it in.
 The CLI decides; it never contacts Linear and spawns no agent. It reaches GitHub
@@ -15,12 +16,12 @@ through gh and the shared Git state itself, because GitHub is the authority on a
 merge and the shared state is what a unit must not have touched.
 
 Usage:
-  echo '<LoopTracker>'           | void-harness autopilot next [--json]
-  void-harness autopilot stop --drain | --now [--json]
-  void-harness autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
-  void-harness autopilot arm --ticket <id> --pr <number> --head <sha> [--json]
-  void-harness autopilot disarm --pr <number> [--json]
-  echo '<ConflictClass>'         | void-harness autopilot judgment conflict-class
+  echo '<LoopTracker>'           | ${PRODUCT_COMMAND} autopilot next [--json]
+  ${PRODUCT_COMMAND} autopilot stop --drain | --now [--json]
+  ${PRODUCT_COMMAND} autopilot fingerprint [--before <ticket> | --after <ticket>] [--json]
+  ${PRODUCT_COMMAND} autopilot arm --ticket <id> --pr <number> --head <sha> [--json]
+  ${PRODUCT_COMMAND} autopilot disarm --pr <number> [--json]
+  echo '<ConflictClass>'         | ${PRODUCT_COMMAND} autopilot judgment conflict-class
 
 next reads .void/program.md, the Linear state on stdin, GitHub (gh) and the stop
 signal, and prints the actions for each slot: assign, wait, hand-back-to-worker,

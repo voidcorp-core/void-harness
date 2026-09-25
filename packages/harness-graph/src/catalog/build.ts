@@ -65,7 +65,7 @@ export function buildCatalogGraph(rawModel: GraphModel): GraphSnapshotV3 {
   });
   return sealGraphSnapshot({
     schemaVersion: 3,
-    graphId: 'catalog:void-harness',
+    graphId: 'catalog:void-machine',
     graphType: 'catalog',
     source: { kind: 'adapter', version: GRAPH_CONTRACT_VERSION },
     nodes,

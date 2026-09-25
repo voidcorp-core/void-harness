@@ -78,7 +78,7 @@ export function aggregateSessionCosts(text: string): AggregateResult {
   return { costs, skipped };
 }
 
-/** `/Users/x/void-harness` -> `-Users-x-void-harness` (Claude Code dir scheme). */
+/** `/Users/x/void-machine` -> `-Users-x-void-machine` (Claude Code dir scheme). */
 function encodeCwd(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-');
 }

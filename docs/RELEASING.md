@@ -1,4 +1,4 @@
-# Releasing void-harness
+# Releasing void-machine
 
 How to ship a new version. One model, one number — everything moves together.
 
@@ -414,7 +414,7 @@ with the immutable tag retry above or with a new fix and version.
 Consumers on a project pull the new version with:
 
 ```bash
-void-harness update    # refresh marketplace cache + bump .void/config.json pins
+void-machine update    # refresh marketplace cache + bump .void/config.json pins
 # then restart Claude Code
 ```
 

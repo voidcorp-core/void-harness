@@ -11,6 +11,7 @@ import {
 	type ProjectGraphBuildResult,
 	type ProjectQueryBudget,
 } from '@voidcorp/harness-graph/project';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 type WhyBuild = Pick<ProjectGraphBuildResult, 'graph' | 'state' | 'issues'>;
 export type WhyTarget =
@@ -46,7 +47,7 @@ export function projectWhyTarget(
 		return {
 			ok: false,
 			problem: 'why expects exactly one file path and no options',
-			fix: 'void-harness why <file>',
+			fix: `${PRODUCT_COMMAND} why <file>`,
 		};
 	try {
 		const path = normalizeProjectPath(

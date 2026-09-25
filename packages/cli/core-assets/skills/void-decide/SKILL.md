@@ -48,7 +48,7 @@ The filename contains:
 Prefer the project command when present:
 
 ```sh
-void-harness decisions new \
+void-machine decisions new \
   --title "Adopt Server Actions for UI mutations" \
   --slug adopt-server-actions \
   --decider folpe
@@ -118,7 +118,7 @@ from rewriting the same history.
 One mechanical exception keeps references usable without diluting the journal:
 an accepted file may replace a bounded repository-local path when frontmatter,
 headings, Markdown structure and surrounding prose stay byte-for-byte stable and
-the new target exists inside the repository. `void-harness decisions check`
+the new target exists inside the repository. `void-machine decisions check`
 proves that narrow shape and fails closed on a missing target, path escape or
 symlink escape. A change to wording, reasoning, scope, consequences or identity
 is not a reference migration; it requires supersession. Do not create a new ADR
@@ -131,12 +131,12 @@ merely to record a proven file move or rename.
 3. Name at least two credible alternatives and reject them with evidence.
 4. State negative consequences and concrete reversal cost.
 5. Let the accountable decider accept it through normal review.
-6. Run `void-harness decisions check` when available.
+6. Run `void-machine decisions check` when available.
 7. Link foundational ADRs from project doctrine by their source file or stable
    `adr:<uuid>` identity.
 
 Do not commit a rendered Markdown or JSON projection. Generate it on demand with
-`void-harness decisions render`; source files alone participate in merges.
+`void-machine decisions render`; source files alone participate in merges.
 
 ## Composition
 

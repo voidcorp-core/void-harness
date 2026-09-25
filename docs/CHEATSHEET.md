@@ -1,4 +1,4 @@
-# void-harness cheat sheet
+# void-machine cheat sheet
 
 Everything the harness installs, and how each piece fires.
 
@@ -142,7 +142,7 @@ Activated per project with `npx voidmachine add <pack>`.
 |---|---|
 | `void-accessibility-check` | Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. |
 | `void-client-vs-server-component` | Decide which components run on server vs client in a React 19 / Next. |
-| `void-form-pattern` | Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. |
+| `void-form-pattern` | Build forms with react-hook-form + Zod resolver (void-machine default): validation, error UX, submit flow with Server Actions. |
 | `void-state-architecture` | Decide where state lives — local, lifted, URL, server, client global. |
 
 **pack-server** — 7 skills

@@ -8,7 +8,7 @@
 //   2. Lockfile presence (pnpm-lock.yaml, bun.lock(b), yarn.lock,
 //      package-lock.json)
 //   3. Workspace marker (pnpm-workspace.yaml ⇒ pnpm)
-//   4. Fallback: bun (the void-harness opinionated default)
+//   4. Fallback: bun (the void-machine opinionated default)
 
 import { existsSync, readFileSync } from 'node:fs';
 import { posix, join } from 'node:path';

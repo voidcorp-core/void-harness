@@ -1,4 +1,4 @@
-// `void-harness status` — the deterministic, offline, LLM-free project health surface.
+// `void-machine status` — the deterministic, offline, LLM-free project health surface.
 // Gathers local signals, joins them with the frozen certification into a ProjectState + score,
 // renders the terminal view, and persists .void/machine/status.json (+ a history snapshot).
 

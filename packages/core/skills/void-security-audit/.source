@@ -9,4 +9,4 @@ Sources for `void-security-audit` skill (see `docs/plans/skill-audits/void-secur
 - gitleaks — https://github.com/gitleaks/gitleaks — `--redact` and the `dir` vs `git` distinction (DEV-445).
 - OSV-Scanner — https://google.github.io/osv-scanner/usage/ — queries a vulnerability database, which motivated the `advisory-service` reach (DEV-445).
 
-Strategy: distill the methodology, reject the runtime. The prose judges reachability; running tools and refusing unauthorized targets belong to the deterministic `void-harness security` command (DEV-445), never to the skill.
+Strategy: distill the methodology, reject the runtime. The prose judges reachability; running tools and refusing unauthorized targets belong to the deterministic `void-machine security` command (DEV-445), never to the skill.

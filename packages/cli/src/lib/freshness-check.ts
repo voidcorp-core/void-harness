@@ -7,6 +7,7 @@
 
 import type { Freshness, InstallSource } from '@voidcorp/hook-runner';
 import type { CheckResult } from './prerequisites.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 const NAME = 'published version';
 
@@ -40,7 +41,7 @@ export function publishedVersionCheck(
 
   const message = `${installed} installed, ${latest ?? 'a newer version'} published`;
   if (source === 'local') {
-    return { name: NAME, ok: true, status: 'advisory', message, fix: 'run `void-harness update`' };
+    return { name: NAME, ok: true, status: 'advisory', message, fix: `run \`${PRODUCT_COMMAND} update\`` };
   }
   if (source === 'marketplace') {
     return {
@@ -48,7 +49,7 @@ export function publishedVersionCheck(
       ok: true,
       status: 'advisory',
       message,
-      fix: 'update through the marketplace channel; `void-harness check` compares it',
+      fix: `update through the marketplace channel; \`${PRODUCT_COMMAND} check\` compares it`,
     };
   }
   // Source undetermined: report the gap, but never name a command that might not apply.

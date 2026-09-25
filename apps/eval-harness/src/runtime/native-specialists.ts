@@ -53,11 +53,11 @@ export function provisionNativeSpecialists(
   runtime: EvalRuntime,
 ): Readonly<Record<string, string>> {
   const root = mkdtempSync(join(tmpdir(), 'void-eval-native-'));
-  const cli = join(repoRoot, 'packages', 'cli', 'bin', 'void-harness.mjs');
+  const cli = join(repoRoot, 'packages', 'cli', 'bin', 'void-machine.mjs');
   const builtCli = join(repoRoot, 'packages', 'cli', 'dist', 'main.js');
   try {
     if (!existsSync(builtCli)) {
-      throw new Error('void-harness CLI is not built; run pnpm build:cli before the eval');
+      throw new Error('void-machine CLI is not built; run pnpm build:cli before the eval');
     }
     execFileSync(
       process.execPath,

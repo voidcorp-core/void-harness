@@ -14,6 +14,7 @@ import {
   DECISION_STATUSES,
 } from '../lib/decisions/types.js';
 import { validateDecisions } from '../lib/decisions/validate.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 interface InvalidArgs {
   readonly kind: 'invalid';
@@ -75,7 +76,7 @@ function validateOptions(
         return invalid(
           `missing value for ${token}`,
           `${token} requires a value`,
-          `void-harness decisions ${subcommand} --help`,
+          `${PRODUCT_COMMAND} decisions ${subcommand} --help`,
         );
       }
       index += 1;
@@ -85,7 +86,7 @@ function validateOptions(
     return invalid(
       `unknown option '${token}'`,
       `decisions ${subcommand} does not support this option`,
-      `void-harness decisions ${subcommand} --help`,
+      `${PRODUCT_COMMAND} decisions ${subcommand} --help`,
     );
   }
   return undefined;
@@ -112,7 +113,7 @@ export function parseDecisionsArgs(args: readonly string[]): DecisionsArgs {
       return invalid(
         'missing required option --title',
         'decisions new needs a human-readable decision title',
-        'void-harness decisions new --title <title> --slug <slug>',
+        `${PRODUCT_COMMAND} decisions new --title <title> --slug <slug>`,
       );
     }
     const cleanTitle = title.trim();
@@ -127,7 +128,7 @@ export function parseDecisionsArgs(args: readonly string[]): DecisionsArgs {
       return invalid(
         'missing required option --slug',
         'decisions new requires a stable readable filename slug',
-        'void-harness decisions new --title <title> --slug <slug>',
+        `${PRODUCT_COMMAND} decisions new --title <title> --slug <slug>`,
       );
     }
     if (!isDecisionStatus(rawStatus)) {
@@ -175,7 +176,7 @@ export function parseDecisionsArgs(args: readonly string[]): DecisionsArgs {
       return invalid(
         `invalid render format '${format}'`,
         'render supports only markdown or json',
-        'void-harness decisions render --format markdown',
+        `${PRODUCT_COMMAND} decisions render --format markdown`,
       );
     }
     return { kind: 'render', format };
@@ -183,7 +184,7 @@ export function parseDecisionsArgs(args: readonly string[]): DecisionsArgs {
   return invalid(
     `unknown decisions subcommand '${subcommand}'`,
     'supported subcommands are new, check, and render',
-    'void-harness decisions --help',
+    `${PRODUCT_COMMAND} decisions --help`,
   );
 }
 
@@ -196,7 +197,7 @@ function writeError(value: string): void {
 }
 
 function renderUsage(): string {
-  return `void-harness decisions
+  return `${PRODUCT_COMMAND} decisions
 
   decisions new --title <title> --slug <slug> [--status proposed] [--decider <id>] [--supersedes <id>] [--json]
   decisions check [--base <git-ref>] [--json]

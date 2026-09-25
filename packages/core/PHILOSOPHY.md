@@ -4,7 +4,7 @@
 
 The harness assumes **TypeScript + web** as its baseline. The `core/` is *not* truly stack-agnostic: it imposes TS strict, Zod at boundaries, a React/Next mental model for UI concerns, `tsc`-style type checking, and TigerStyle naming adapted for typed languages.
 
-Pretending universal agnosticism would dilute the design. A future Rust/Go/Python flavor of the harness would live in a sibling repo (`void-harness-rust`, etc.), reusing the *mechanics* but not the TS-specific skills.
+Pretending universal agnosticism would dilute the design. A future Rust/Go/Python flavor of the harness would live in a sibling repo (`void-machine-rust`, etc.), reusing the *mechanics* but not the TS-specific skills.
 
 `packs/` specialize *within* the TypeScript/web universe (Next.js PWA, monorepo with Bun/Turbo, future mobile React Native, etc.).
 
@@ -180,14 +180,14 @@ While coding in any project consuming the harness, when the model (or the user) 
 
 1. The perception is filed **directly as a GitHub issue** on `voidcorp-core/void-machine` (not captured to a per-project queue). The body carries source-project context: repo, commit SHA, file path, and the motivation. The agent drafts it and confirms with the user before opening it.
 2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `void-learn`'s project-rule branch instead. When in doubt, do not file.
-3. The issue tracker is the triage zone: taking the issue promotes it, closing it declines it — no `proposed/` queue, no `feedback push` step. A promoted issue becomes a void-harness PR carrying the source-project context as motivation. Nothing is merged without human review.
+3. The issue tracker is the triage zone: taking the issue promotes it, closing it declines it — no `proposed/` queue, no `feedback push` step. A promoted issue becomes a void-machine PR carrying the source-project context as motivation. Nothing is merged without human review.
 
 ### Outbound — `void-learn` skill, audit branch
 
 A recurring auto-evaluation that questions the harness's current surface:
 
 1. Each invocation and outcome writes a redacted canonical event to `.void/machine/runs/<mission-id>/events.jsonl` (local, never shipped); legacy usage logs remain read-only history.
-2. `void-harness audit` joins declared relations, human activations, outcomes, and cost across hooks, skills, and agents. It repairs telemetry before judging behavior, excludes self-host/smoke missions, and requires twenty human sessions before a retirement review. Upstream-source deprecation and decision-matrix-conflict detection are planned extensions.
+2. `void-machine audit` joins declared relations, human activations, outcomes, and cost across hooks, skills, and agents. It repairs telemetry before judging behavior, excludes self-host/smoke missions, and requires twenty human sessions before a retirement review. Upstream-source deprecation and decision-matrix-conflict detection are planned extensions.
 3. The report **proposes** telemetry repair, failure repair, wiring, tuning/fusion, or retirement review. Nothing is auto-applied. `void-learn` owns the human decision and any resulting PR.
 
 ### Why HITL is absolute here

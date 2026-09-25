@@ -7,7 +7,7 @@ description: Validate environment variables at boot via Zod in @repo/core/env. S
 
 Use when adding any new environment variable, or when working in a project that doesn't yet have `@repo/core/env`. Env vars are an invisible trust boundary — they're inputs from outside the process, and "the database URL is undefined" should explode at boot, not at the first query.
 
-This skill is the void-harness operational form. Composes with `void-security-guidance` (env doctrine) and enforced by the `no-process-env-in-app` hook.
+This skill is the void-machine operational form. Composes with `void-security-guidance` (env doctrine) and enforced by the `no-process-env-in-app` hook.
 
 ## The principle
 

@@ -4,7 +4,7 @@
 // as a skill: skills teach the current context, agents provide fresh context.
 
 import { existsSync } from 'node:fs';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { lstat, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findCoreSource } from './paths.js';
@@ -36,7 +36,7 @@ export function compileAgentToToml(md: string): CompiledCodexAgent | undefined {
   const description = frontmatterScalar(block, 'description');
   const body = md.replace(/^---\n[\s\S]*?\n---\n?/, '').trimEnd();
   const instructions = [
-    `Compiled by void-harness from the core agent '${name}'. Do not hand-edit this generated file.`,
+    `Compiled by ${PRODUCT_COMMAND} from the core agent '${name}'. Do not hand-edit this generated file.`,
     body,
   ].join('\n\n');
   const content = [
@@ -192,5 +192,5 @@ export async function codexSpecialistsHealth(
   }
   return drifts.size === 0
     ? { ok: true, detail: `${contracts.length} version-matched native specialist TOML files discovered` }
-    : { ok: false, detail: describeSpecialistDrift(drifts, 'void-harness runtime add codex') };
+    : { ok: false, detail: describeSpecialistDrift(drifts, `${PRODUCT_COMMAND} runtime add codex`) };
 }
