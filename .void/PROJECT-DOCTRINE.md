@@ -11,7 +11,7 @@ Say a rule out loud — "ajoute la règle…", "always X here", "never Y" — an
 the wording, waits for your yes, then writes it here. Sections appear as you use them.
 
 Full format, with the shape of each section:
-https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FORMAT.md
+https://github.com/voidcorp-core/void-machine/blob/main/docs/PROJECT-DOCTRINE-FORMAT.md
 
 ## Quality bar
 
@@ -27,7 +27,7 @@ https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FO
 ## Hard rules
 
 - **Worktrees Git** : appliquer l'invariant universel
-  [Git worktree placement and lifetime](https://github.com/voidcorp-core/void-harness/blob/develop/packages/core/PHILOSOPHY.md#git-worktree-placement-and-lifetime),
+  [Git worktree placement and lifetime](https://github.com/voidcorp-core/void-machine/blob/develop/packages/core/PHILOSOPHY.md#git-worktree-placement-and-lifetime),
   porté dans `packages/core/PHILOSOPHY.md` et sa copie `docs/PHILOSOPHY.md`.
   Il couvre emplacement durable, réutilisation, migration conservatrice et cycle
   de vie lié au ticket, indépendamment des outils d'affichage.

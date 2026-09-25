@@ -1,8 +1,8 @@
 # void-harness
 
-[![npm](https://img.shields.io/npm/v/voidharness?color=0b7285&label=voidharness)](https://www.npmjs.com/package/voidharness)
-[![ci](https://github.com/voidcorp-core/void-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/voidcorp-core/void-harness/actions/workflows/ci.yml)
-[![provenance](https://img.shields.io/badge/npm-provenance%20signed-0b7285)](https://www.npmjs.com/package/voidharness)
+[![npm](https://img.shields.io/npm/v/voidmachine?color=0b7285&label=voidmachine)](https://www.npmjs.com/package/voidmachine)
+[![ci](https://github.com/voidcorp-core/void-machine/actions/workflows/ci.yml/badge.svg)](https://github.com/voidcorp-core/void-machine/actions/workflows/ci.yml)
+[![provenance](https://img.shields.io/badge/npm-provenance%20signed-0b7285)](https://www.npmjs.com/package/voidmachine)
 [![license](https://img.shields.io/badge/license-MIT-0b7285)](./LICENSE)
 
 Coding agents forget your standards between sessions. You explain the testing
@@ -15,7 +15,7 @@ one source, and it tells you what is actually installed and active rather than
 what should be.
 
 ```
-npx voidharness init
+npx voidmachine init
 ```
 
 Free, no account, no API key, no network fetch on the default path.
@@ -46,7 +46,7 @@ secrets or manual edits to lockfiles, no forbidden cross-package imports.
 Stack packs add conventions for what you actually use:
 
 ```
-npx voidharness init --pack nextjs --pack monorepo
+npx voidmachine init --pack nextjs --pack monorepo
 ```
 
 Available: `nextjs`, `monorepo`, `react`, `server`, `pwa`, `mobile`.
@@ -85,18 +85,18 @@ search by intention, filter by runtime, pack or type, and copy invocations.
 `--format markdown` and `--format json` export the same information. Inspection
 writes only to stdout; creating the file is your shell redirection.
 
-For your own project rather than the catalogue, `npx voidharness status` reports
+For your own project rather than the catalogue, `npx voidmachine status` reports
 what is installed, active and actually used.
 
 The commands worth knowing are the ones no sentence can trigger, because they
 report or change state rather than shape behaviour:
 
 ```
-npx voidharness status            # what is installed, active, and actually used
-npx voidharness doctor            # health-check the wiring
-npx voidharness add <pack>        # activate a stack pack
-npx voidharness runtime add codex # wire a second runtime
-npx voidharness update            # recompile owned assets from a newer CLI
+npx voidmachine status            # what is installed, active, and actually used
+npx voidmachine doctor            # health-check the wiring
+npx voidmachine add <pack>        # activate a stack pack
+npx voidmachine runtime add codex # wire a second runtime
+npx voidmachine update            # recompile owned assets from a newer CLI
 ```
 
 ## Context continuity, within the limits the runtimes expose
@@ -164,8 +164,8 @@ Some things are honestly incomplete:
 ## See what is actually there
 
 ```
-npx voidharness status     # per-capability lifecycle, offline, no model call
-npx voidharness doctor     # health check of the wiring itself
+npx voidmachine status     # per-capability lifecycle, offline, no model call
+npx voidmachine doctor     # health check of the wiring itself
 ```
 
 `status` reads a frozen capability certification plus local telemetry and shows
@@ -189,7 +189,7 @@ Rather than take that sentence's word for it:
 
 ```bash
 npm audit signatures     # in a project that installs it
-npm view voidharness dist.attestations
+npm view voidmachine dist.attestations
 ```
 
 The release flow is in [`docs/RELEASING.md`](docs/RELEASING.md).
@@ -202,8 +202,8 @@ project only `AGENTS.md`. Adding the other one later touches nothing you already
 have.
 
 ```
-npx voidharness runtime list
-npx voidharness runtime add codex
+npx voidmachine runtime list
+npx voidmachine runtime add codex
 ```
 
 ## Enforce the floor on every pull request
@@ -217,7 +217,7 @@ name: void-enforce
 on: pull_request
 jobs:
   enforce:
-    uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
+    uses: voidcorp-core/void-machine/.github/workflows/enforce.yml@main
 ```
 
 It runs protected-path, secret-content, TDD and boundary checks through the same
@@ -230,7 +230,7 @@ doctrine floor only; keep your own lint and test CI.
 
 - **Missions** turn a ticket into a risk classification, an applicability
   matrix, and an execution plan with append-only local evidence:
-  `npx voidharness mission plan --ticket <path> --json`. Verification runs argv
+  `npx voidmachine mission plan --ticket <path> --json`. Verification runs argv
   directly with `shell:false`; evidence stays under `.void/runs/`, redacted and
   bounded. See [`docs/POLICIES.md`](docs/POLICIES.md).
 - **Native specialists** (`solution-architect`, `security-engineer`,
@@ -238,7 +238,7 @@ doctrine floor only; keep your own lint and test CI.
   name, each returning the same versioned JSON contract. An orchestrator uses
   those same definitions rather than a parallel prompt of its own.
 - **Claude Code marketplace** is an optional secondary channel:
-  `/plugin marketplace add voidcorp-core/void-harness`. The bundled local
+  `/plugin marketplace add voidcorp-core/void-machine`. The bundled local
   assets remain the default.
 
 ## Contributing

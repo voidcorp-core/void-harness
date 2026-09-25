@@ -45,7 +45,7 @@ if ! diff -q "$DOCS" "$CORE" >/dev/null; then
   echo "  (< $DOCS   > $CORE)" >&2
   diff "$DOCS" "$CORE" >&2 || true
   echo "  Decide which side is current, apply it to BOTH, then regenerate the" >&2
-  echo "  npm mirror: pnpm --filter voidharness build:assets" >&2
+  echo "  npm mirror: pnpm --filter ./packages/cli build:assets" >&2
   exit 1
 fi
 

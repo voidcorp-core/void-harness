@@ -11,6 +11,7 @@ import { compareFreshness, type Freshness } from './compare.js';
 import { readFreshnessCache, writeFreshnessCache, type CacheEnvironment } from './cache.js';
 import { fetchLatestVersion, resolveRegistry } from './registry.js';
 import { readNpmrc } from './npmrc.js';
+import { PRODUCT_IDENTITY } from '../identity.js';
 
 /** Where the harness in this project came from, as recorded in the install receipt. */
 export type InstallSource = 'local' | 'marketplace';
@@ -105,7 +106,7 @@ export function freshnessRelay(freshness: Freshness, source: InstallSource | und
   return `A newer harness is published: ${installed} is installed, ${latest ?? 'a newer version'} is available. `
     + 'Tell the user this once, near the start of your first reply, and offer to run `void-harness update`. '
     + 'Explain that update writes project files and link the release notes for possible breaking changes: '
-    + 'https://github.com/voidcorp-core/void-harness/releases. '
+    + `${PRODUCT_IDENTITY.repositoryUrl}/releases. `
     + 'Wait for explicit human permission before running it, even in autonomous mode. '
     + 'If the user declines or does not reply, continue the task without updating. '
     + 'Do not repeat the offer later in this session.';

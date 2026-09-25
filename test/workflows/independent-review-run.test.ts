@@ -10,8 +10,9 @@ import {
   renderVerdictComment,
   roundOf,
 } from '../../scripts/independent-review-run.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
-const repository = 'voidcorp-core/void-harness';
+const repository = PRODUCT_IDENTITY.repositorySlug;
 const head = 'a'.repeat(40);
 
 function event(pull: Record<string, unknown> = {}): Record<string, unknown> {

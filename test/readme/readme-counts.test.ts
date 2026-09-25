@@ -16,6 +16,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { printHelp } from '../../packages/cli/src/commands/help.js';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const ROOT = resolve(__dirname, '..', '..');
 const README = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
@@ -80,7 +81,7 @@ describe('the commands the README advertises', () => {
   it.each([['status'], ['doctor'], ['add'], ['runtime'], ['update'], ['init']])(
     '`%s` exists in the CLI help',
     (command) => {
-      expect(README).toContain(`voidharness ${command}`);
+      expect(README).toContain(`${PRODUCT_IDENTITY.packageName} ${command}`);
       let help = '';
       const spy = vi.spyOn(process.stdout, 'write').mockImplementation(chunk => { help += String(chunk); return true; });
       try { printHelp(); } finally { spy.mockRestore(); }

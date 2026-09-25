@@ -1,9 +1,10 @@
 import { Buffer } from 'node:buffer';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
-const PACKAGE_NAME = 'voidharness';
+const PACKAGE_NAME = PRODUCT_IDENTITY.packageName;
 const REGISTRY = 'https://registry.npmjs.org/';
-const REPOSITORY = 'voidcorp-core/void-harness';
-const REPOSITORY_URL = `https://github.com/${REPOSITORY}`;
+const REPOSITORY = PRODUCT_IDENTITY.repositorySlug;
+const REPOSITORY_URL = PRODUCT_IDENTITY.repositoryUrl;
 const SOURCE_REF = 'refs/heads/main';
 const WORKFLOW_PATH = '.github/workflows/release.yml';
 const WORKFLOW_URI = `${REPOSITORY_URL}/${WORKFLOW_PATH}@${SOURCE_REF}`;

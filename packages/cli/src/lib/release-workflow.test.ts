@@ -169,7 +169,7 @@ describe('the release tree is validated and packed without OIDC', () => {
     expect(validateReleaseJob).toContain('pnpm typecheck');
     expect(validateReleaseJob).toContain('pnpm test');
     expect(validateReleaseJob).toContain('pnpm check:publish');
-    expect(validateReleaseJob.match(/pnpm --filter voidharness pack/g)).toHaveLength(1);
+    expect(validateReleaseJob.match(/pnpm --filter \.\/packages\/cli pack/g)).toHaveLength(1);
   });
 
   it('uploads one short-lived integrity-bound artifact and exposes its identity', () => {
@@ -195,7 +195,7 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(publishJob).toContain('contents: read');
     expect(publishJob).toContain('actions: read');
     expect(publishJob).toContain('id-token: write');
-    expect(publishJob).toContain('group: npm-voidharness-publish');
+    expect(publishJob).toContain('group: npm-release-publish');
     expect(publishJob).toContain('cancel-in-progress: false');
   });
 

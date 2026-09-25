@@ -12,6 +12,7 @@
 // find a file it does not know has moved.
 
 import { compareVersions, normalizeVersion } from './version.js';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import type { CheckResult } from './prerequisites.js';
 
 export type RunnerStaleness =
@@ -76,7 +77,7 @@ export function runnerStalenessCheck(verdict: RunnerStaleness): CheckResult | un
     message:
       `this CLI is ${verdict.running}, the installed harness is ${verdict.recorded}`
       + ' — it reads the previous layout, so the checks below it would be wrong',
-    fix: 'npx voidharness@latest doctor, or upgrade the global CLI',
+    fix: `npx ${PRODUCT_IDENTITY.packageName}@latest doctor, or upgrade the global CLI`,
   };
 }
 

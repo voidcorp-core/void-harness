@@ -43,10 +43,10 @@ jobs:
       - name: Upload the immutable tarball and its source manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: voidharness-consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          name: consumer-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/void-consumer-artifact/voidharness.tgz
-            ${{ runner.temp }}/void-consumer-artifact/voidharness.tgz.json
+            ${{ runner.temp }}/void-consumer-artifact/consumer.tgz
+            ${{ runner.temp }}/void-consumer-artifact/consumer.tgz.json
           if-no-files-found: error
           include-hidden-files: true
           compression-level: 0
@@ -72,11 +72,11 @@ jobs:
       - name: Download the exact packed consumer artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: voidharness-consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          name: consumer-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/void-consumer-artifact
       - name: Generate synthetic documents from the verified offline installation
         env:
-          VOID_CONFORMANCE_TARBALL: ${{ runner.temp }}/void-consumer-artifact/voidharness.tgz
+          VOID_CONFORMANCE_TARBALL: ${{ runner.temp }}/void-consumer-artifact/consumer.tgz
         run: node test/browser/prepare.mjs
       - name: Install source-only browser QA tooling in runner temporary storage
         # Sources: test/browser/README.md; no dependency or lockfile in the consumer package.
@@ -124,10 +124,10 @@ jobs:
       - name: Download the exact packed consumer artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: voidharness-consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          name: consumer-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/void-consumer-artifact
       - name: Exercise install, hooks and Autopilot from the same tarball
-        run: pnpm conformance:consumer --tarball "${{ runner.temp }}/void-consumer-artifact/voidharness.tgz"
+        run: pnpm conformance:consumer --tarball "${{ runner.temp }}/void-consumer-artifact/consumer.tgz"
 
   project-graph-conformance:
     name: project graph conformance (${{ matrix.os }})

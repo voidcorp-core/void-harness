@@ -3,7 +3,7 @@
  *
  * Every skill in this harness cites its neighbours with the plugin prefix
  * (`harness:tdd`). That prefix only exists when the harness is installed as a
- * marketplace plugin. In a project-local install, which is what `npx voidharness`
+ * marketplace plugin. In a project-local install, which is what the npm package
  * produces and what this repository runs, the invocable name is `void-tdd`, and the
  * prefixed call fails outright:
  *

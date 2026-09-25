@@ -129,4 +129,4 @@ Conventional Commits, and every message ends with **why**, not just what (see `v
 
 ## Filing a gap
 
-A perceived harness gap is filed **directly as a GitHub issue** on `voidcorp-core/void-harness` once it clears the agnostic + harness-worthy bar (see `docs/HARNESS_EVOLUTION.md`). There is no per-repo proposal queue.
+A perceived harness gap is filed **directly as a GitHub issue** on `voidcorp-core/void-machine` once it clears the agnostic + harness-worthy bar (see `docs/HARNESS_EVOLUTION.md`). There is no per-repo proposal queue.

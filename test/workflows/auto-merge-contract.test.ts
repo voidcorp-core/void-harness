@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assertAutoMergeAllowed } from '../../scripts/auto-merge-contract.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 // Auto-merge is the default way a pull request lands on develop: branch
 // protection and the required checks, `independent-review` included, decide
@@ -12,7 +13,7 @@ const armed = {
   headRefName: 'work/dev-42',
 };
 
-const expected = { repository: 'voidcorp-core/void-harness', forbiddenBase: 'main' };
+const expected = { repository: PRODUCT_IDENTITY.repositorySlug, forbiddenBase: 'main' };
 
 describe('auto-merge contract', () => {
   it('allows an armed auto-merge into develop, from any branch', () => {

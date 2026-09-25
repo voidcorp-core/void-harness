@@ -51,7 +51,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           OBSERVED_REPOSITORY: ${{ github.repository }}
-          EXPECTED_REPOSITORY: voidcorp-core/void-harness
+          EXPECTED_REPOSITORY: voidcorp-core/void-machine
           FORBIDDEN_BASE: main
         run: |
           set -euo pipefail

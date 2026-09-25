@@ -1,7 +1,7 @@
 /**
  * The published CLI must run from its tarball alone.
  *
- * `npx voidharness` is the primary install channel, and the offline install
+ * `npx` of the npm package is the primary install channel, and the offline install
  * conformance in CI proves the tarball extracts and runs with no registry. That
  * gate is slow and platform-matrixed; this one is instant and says why.
  *

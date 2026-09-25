@@ -1,23 +1,22 @@
 ---
 schemaVersion: 1
-status: completed
-program: autonomous-until-develop
-plan: docs/plans/2026-09-22-autopilot-native-loop-plan.md
+status: executing
+program: release-4-stabilization
+plan: docs/plans/2026-09-25-release-4-stabilization-plan.md
 spec: docs/specs/2026-09-22-autopilot-native-loop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
   # Selection belongs to the curator, which reads the project and the tracker;
-  # the continuous loop never reads this list. It still bounds one older
-  # reader: a resume that names no unit. Keep it to what a person would accept
-  # being picked without being asked; DEV-858 is done and DEV-859 canceled.
-  order: [DEV-877]
+  # the continuous loop never reads this list. It bounds a resume that names no
+  # unit: the plan's order, the release gate held by a person.
+  order: [DEV-905, DEV-908, DEV-909, DEV-902]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates: []
+humanGates: [DEV-909]
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -41,29 +40,24 @@ autopilot:
   protectedPaths: []
 ---
 
-# Program: autonomous until develop
+# Program: release 4.0.0 stabilization
 
-## Scope, since 24 September 2026
+## Scope, since 25 September 2026
 
-The programme runs the continuous delivery loop named in frontmatter. A curator
-selects and ranks the work from the project and the tracker, reading Todo, then
-Backlog, then Triage; it enriches a unit before declaring it ready and never
-closes or deletes one. Four slots at most run at a time, one worker per unit in
-its own worktree, each running the complete `void-implement` cycle. One pull
-request per unit targets `develop`, auto-merge is the default there, and the
-GitHub merge queue replays the checks on the combined result. An independent
-reviewer's verdict, signed and verified by a required check, is what authorizes
-a merge; no human reads the code for it.
+The programme that delivered the continuous loop closed on 24 September; its
+review chain was proved end to end on #409 the next day. This one stabilizes
+what lies between `develop`, `main` and npm, then publishes 4.0.0, in the order
+of the plan named in frontmatter: DEV-905 (back-merge on ancestry), DEV-908
+(the repository becomes `void-machine`), DEV-909 (the release, a human gate),
+then DEV-902 (delegated agents in a pane).
 
-The earlier scope of 16 September (DEV-844 first, then DEV-531/611/630/682/662/635)
-is delivered or lapsed, and is not reopened here. The non-production merge grant
-and the protection requirements are unchanged: the loop merges into `develop`
-only, never into `main`, and promotion to production stays a person's.
+The loop and its grant are unchanged: it merges into `develop` only, on a head
+the review App passed, never into `main`, and never a pull request touching the
+machinery that judges merges, which goes to a person. Promotion and release
+stay a person's.
 
 Corrections stay in the artefact being worked on. A change contradicting an
-accepted decision requires supersession, never an in-place rewrite. Completion
-never selects or repoints a successor pool: the curator does, each time the
-project moves.
+accepted decision requires supersession, never an in-place rewrite.
 
 ## Sources of truth
 
@@ -127,7 +121,7 @@ Checkpoint B was read on 2026-09-24 and is closed: the continuous loop merged DE
 DEV-860 (#402) into `develop` with nobody acting, then #404 and #405 went through the merge queue
 on signed verdicts. The cluster engine was removed after it, as the plan's step 7 required.
 
-The loop arms a merge into `develop` only on the head a signed review verdict proves, through the
+The loop arms a merge into `develop` only on a head carrying the review App's check, through the
 merge queue, and never on a pull request that touches the machinery that judges merges: those go
 to a person. Promotion to `main` remains human, and what a person judges there is the feature. The
 program descriptor does not create a headless backend and does not weaken single-writer rules for
@@ -135,8 +129,7 @@ lockfiles, migrations, generated assets, or shared contracts.
 
 ## Program completion
 
-When all seven scoped implementation units are verified and delivered into `develop`
-under the declared `union-reviewed` merge gate, the final program change sets this
-file's `status` to `completed`. Promotion to `main` is not a completion prerequisite
-and remains a separate human decision. This program never repoints itself to a
-different plan or progress scope.
+When DEV-905, DEV-908 and DEV-909 are delivered and 4.0.0 is published with
+verified provenance, and DEV-902 is delivered into `develop`, the final
+programme change sets `status` to `completed`. This programme never repoints
+itself to a different plan or progress scope.

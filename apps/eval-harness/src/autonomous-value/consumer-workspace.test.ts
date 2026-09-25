@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import identity from '../../../../packages/core/data/identity.json' with { type: 'json' };
 import { git, setupSandbox } from '../sandbox.js';
 import {
   buildConsumerArtifactInstallInvocation,
@@ -13,7 +14,7 @@ describe('consumer cell workspace', () => {
 
     expect(invocation.command).toBe('node');
     expect(invocation.args).toEqual([
-      '/tmp/pilot-package/package/bin/void-harness.mjs',
+      `/tmp/pilot-package/package/bin/${identity.commands.primary}.mjs`,
       'init',
       '--runtime',
       'codex',

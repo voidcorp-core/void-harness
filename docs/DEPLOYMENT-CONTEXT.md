@@ -1,9 +1,12 @@
 # Deployment context: one instance, three shapes
 
 Void Cortex has chosen its deployment target: one Docker instance per client, on a
-European VPS. Machine is expected to ship inside that same instance. **That is Cortex's
-settled target and Machine's open one**: the approved foundation plan still records that no
-topology is chosen and no hosted guarantee is acquired, and this note does not overturn it.
+European VPS. **Folpe set Machine's target on 25 September 2026: the same instance holds
+Cortex, its Postgres and Machine, and Machine runs sandboxed there, because it acts** (it
+writes code, runs commands, opens pull requests). The approved foundation plan still records
+that no topology is chosen; turning this target into an accepted decision record, with that
+plan updated in the same commit, is the first step of the unit that containerizes Machine;
+no hosted guarantee is acquired either.
 Nothing here is built. It is written down because these constraints decide architecture,
 and a constraint nobody wrote down is one that surfaces the day it is expensive.
 
@@ -86,8 +89,8 @@ the Cortex side, on what its API can hold.
 ## What the instance imposes
 
 - One client is one compose project, `cortex-<client>`; the project name comes from the
-  file and a missing client fails the command. If Machine ships inside the instance, it
-  enters as one or more services of that same project.
+  file and a missing client fails the command. Machine, as targeted above, enters as one
+  or more services of that same project.
 - **Migrations as a one-shot service**, like Cortex's `migrate`: a container that applies
   and exits, with the main service gated on `service_completed_successfully`. A failed
   migration leaves the service stopped.
@@ -104,12 +107,55 @@ the Cortex side, on what its API can hold.
   the Mac, Caddy terminates it on the VPS, and the client address arrives in
   `X-Forwarded-For`.
 
+## Machine acts, so it runs sandboxed
+
+Cortex answers; Machine executes. A process that runs code it did not write, from
+repositories and tools it does not control, must be contained so that a mistake or a
+hostile input (a prompt injection in an issue, a dependency's install script) stays inside
+the sandbox. A container is where that containment starts, not all of it: by default it
+shares the host kernel and gives root inside. What the containment is expected to hold,
+each item to be checked against the official documentation before it is written:
+
+- **No way out through the host.** Non-root user, no Docker socket mounted, no privileged
+  mode, capabilities dropped, a read-only root filesystem with the work area on a volume.
+- **A stronger boundary than the shared kernel** where the risk warrants it: a user-space
+  kernel (gVisor) or a micro-VM runtime (Kata Containers, Firecracker) under the same
+  compose file. To measure against its cost before choosing.
+- **Network out by allowlist.** The forge, the package registries and the model endpoint;
+  nothing else, and never Cortex's Postgres directly.
+- **Secrets as short-lived identities in mounted files**, as the frontier tier already
+  does, never long-lived keys in the environment; forge credentials scoped to the client's
+  repositories.
+- **Bounded resources**: memory, CPU, processes, disk, and a wall-clock limit per mission.
+- **The runtime's own sandbox inside it**: the agent runtime's command and file sandbox
+  still applies within the container; the container does not replace it.
+
+## Distribution: two products, two channels
+
+Machine has never shipped through npm: `packages/void-machine` is private and ships in
+no tarball (`docs/ARCHITECTURE.md`). **The image is a new channel for Machine**, not a
+replacement for an existing one: built in CI from the repository, pinned by digest,
+published to a registry with a provenance attestation.
+
+npm carries a different product, the harness (`npx voidmachine`), which wires an agent
+runtime into a developer's own project. The question to settle with Folpe is about that
+product alone: whether installing the harness into one's own project stays a promise of
+the open-source repository, or whether the harness only reaches people inside an instance.
+The code stays public either way.
+
+Recommendation, to confirm: keep publishing the harness to npm while that promise stands
+(it is built, and its provenance is verified), and decide how the harness enters the
+instance image (from npm, pinned, or from the same build) when Machine is containerized.
+
 ## Open decisions, to settle with Folpe before the Dockerfile
 
-- **Topology.** Whether Machine ships as services of the per-client Cortex instance, or on
-  its own terms. Cortex has settled its side; Machine has not, and the foundation plan
-  still says so. Settling it means an accepted decision record here, and the plan updated
-  in the same commit.
+- **Topology record.** The target above, as an accepted decision record, with the
+  foundation plan updated in the same commit. Cortex's repository stays the source of truth
+  for the instance itself.
+- **Sandbox depth.** Hardened container alone, or a user-space kernel or micro-VM under
+  it, chosen on measured cost and on what Machine is allowed to do.
+- **Distribution.** Whether the harness keeps its npm channel, and how it enters the
+  image, as above.
 
 - **Storage.** Machine's durable mission journal is files today. If it needs a database:
   its own role and database inside the instance's Postgres, or its own container. Cortex's

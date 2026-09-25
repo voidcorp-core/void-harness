@@ -5,6 +5,7 @@
 // (audit 2026-07-09, issue #67).
 
 import { execSync } from 'node:child_process';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fetchRemoteMarketplace } from './remote.js';
@@ -82,17 +83,17 @@ export function checkEnforceWorkflow(root: string): CheckResult {
   // Never throw out of an advisory check: an unreadable entry (a dir named *.yml,
   // a broken symlink, a TOCTOU removal) must degrade to a note, not crash doctor
   // and discard every other diagnostic already collected.
-  let adopted = false;
+  const reusable = (slug: string): string => `${slug}/.github/workflows/enforce.yml`;
+  const current = reusable(PRODUCT_IDENTITY.repositorySlug);
+  let texts: string[];
   try {
-    adopted = readdirSync(dir)
+    texts = readdirSync(dir)
       .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
-      .some((f) => {
+      .map((f) => {
         try {
-          const text = readFileSync(join(dir, f), 'utf8');
-          // Either the reusable workflow (consumers) or the composite action (local).
-          return text.includes('void-harness/.github/workflows/enforce.yml') || text.includes('actions/void-enforce');
+          return readFileSync(join(dir, f), 'utf8');
         } catch {
-          return false;
+          return '';
         }
       });
   } catch (err) {
@@ -103,13 +104,26 @@ export function checkEnforceWorkflow(root: string): CheckResult {
       message: `unknown: could not inspect .github/workflows (${(err as Error).message})`,
     };
   }
-  if (adopted) {
+  // Either the reusable workflow (consumers) or the composite action (local).
+  if (texts.some((text) => text.includes(current) || text.includes('actions/void-enforce'))) {
     return { name: 'enforce Action', ok: true, message: 'void-enforce workflow adopted (server-side floor)' };
+  }
+  // GitHub follows a renamed repository for git and the web, never for a workflow's `uses:`, so a
+  // reference to a former slug fails with "repository not found": the floor is gone, not old.
+  const stale = PRODUCT_IDENTITY.formerRepositorySlugs.find((slug) => texts.some((text) => text.includes(reusable(slug))));
+  if (stale !== undefined) {
+    return {
+      name: 'enforce Action',
+      ok: true,
+      status: 'advisory',
+      message: `void-enforce calls ${reusable(stale)}, which GitHub no longer resolves since the repository was renamed`,
+      fix: `replace it with ${current} in .github/workflows`,
+    };
   }
   return {
     name: 'enforce Action',
     ok: true,
     message: 'server-side floor not adopted — local hooks only',
-    fix: 'add .github/workflows/void-enforce.yml (uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main) — see README',
+    fix: `add .github/workflows/void-enforce.yml (uses: ${current}@main) — see README`,
   };
 }

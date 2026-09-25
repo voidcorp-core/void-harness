@@ -31,7 +31,7 @@ void-harness graph behavior   # what actually fired, against what was declared
 void-harness graph live       # local studio, served on localhost, offline
 ```
 
-`npx voidharness graph <sub>` when the binary is not on PATH.
+`npx voidmachine graph <sub>` when the binary is not on PATH.
 
 For `live`, run it in the background so the session is not blocked, read the
 `serving on http://localhost:<port>` line, and give the human that URL.

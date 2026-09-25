@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EXPECTED_REPOSITORY: voidcorp-core/void-harness
+  EXPECTED_REPOSITORY: voidcorp-core/void-machine
   EXPECTED_OWNER: voidcorp-core
   EXPECTED_REF: refs/heads/main
   EXPECTED_HEAD: chore/back-merge-main
@@ -77,12 +77,14 @@ jobs:
           git config user.name 'voidcorp-release[bot]'
           git config user.email 'voidcorp-release[bot]@users.noreply.github.com'
 
-          # Compare content, not commit counts. A promotion leaves a merge
-          # commit on main that develop does not have, so counting commits would
-          # open an empty pull request after every promotion, and a robot that
-          # cries wolf gets merged without being read.
-          if git diff --quiet origin/develop origin/main; then
-            echo "develop and main hold the same tree; nothing to back-merge."
+          # Ancestry, not content. main requires a promotion to be up to date
+          # with it, so every commit main holds must reach develop, the
+          # promotion's own merge commit included: skipped because it changed
+          # no file, it left the next promotion out of date with no way to
+          # merge. Nobody has to read the result, which merges on its own below.
+          # https://git-scm.com/docs/git-merge-base#Documentation/git-merge-base.txt---is-ancestor
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already holds main; nothing to back-merge."
             exit 0
           fi
 

@@ -6,7 +6,7 @@ import { resolve, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COMMAND_CATALOG } from '../lib/command-catalog.js';
 
-const cli = resolve(__dirname, '../../bin/void-harness.mjs');
+const cli = resolve(__dirname, '../../bin/void-machine.mjs');
 function run(args: string[]) {
   const cwd = mkdtempSync(join(tmpdir(), 'cheatsheet-'));
   const result = spawnSync(process.execPath, [cli, 'cheatsheet', ...args], {

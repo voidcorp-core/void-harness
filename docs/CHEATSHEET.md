@@ -97,7 +97,7 @@ How the doctrine stays true as the project moves.
 
 ### Stack packs
 
-Activated per project with `npx voidharness add <pack>`.
+Activated per project with `npx voidmachine add <pack>`.
 
 **pack-mobile** — 4 skills
 

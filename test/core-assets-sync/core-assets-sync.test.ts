@@ -66,7 +66,7 @@ describe('core-assets mirror', () => {
         drifted.push(`missing in mirror: ${rel}`);
       }
     }
-    expect(drifted, `run: pnpm --filter voidharness build:assets`).toEqual([]);
+    expect(drifted, `run: pnpm --filter ./packages/cli build:assets`).toEqual([]);
   });
 
   it('contains no orphan file absent from packages/core', () => {
@@ -78,7 +78,7 @@ describe('core-assets mirror', () => {
         orphans.push(rel);
       }
     }
-    expect(orphans, `stale mirror files; run: pnpm --filter voidharness build:assets`).toEqual([]);
+    expect(orphans, `stale mirror files; run: pnpm --filter ./packages/cli build:assets`).toEqual([]);
   });
 
   it('mirrors every pack skill file from packages/packs with identical content', () => {
@@ -95,6 +95,6 @@ describe('core-assets mirror', () => {
         drifted.push(`missing in source: ${rel}`);
       }
     }
-    expect(drifted, `run: pnpm --filter voidharness build:assets`).toEqual([]);
+    expect(drifted, `run: pnpm --filter ./packages/cli build:assets`).toEqual([]);
   });
 });

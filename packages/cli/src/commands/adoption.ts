@@ -2,10 +2,11 @@
 // phone-home (nothing on a user's machine reports anything; this maintainer command fetches public
 // aggregates). Answers "who downloads" without any opt-in or account. See DECISIONS.md (2026-07-21).
 
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
-export const NPM_PKG = 'voidharness';
-export const GH_REPO = 'voidcorp-core/void-harness';
+export const NPM_PKG = PRODUCT_IDENTITY.packageName;
+export const GH_REPO = PRODUCT_IDENTITY.repositorySlug;
 
 export const npmDownloadsUrl = (pkg: string = NPM_PKG): string => `https://api.npmjs.org/downloads/point/last-month/${pkg}`;
 export const githubRepoUrl = (repo: string = GH_REPO): string => `https://api.github.com/repos/${repo}`;

@@ -1,6 +1,6 @@
 # `@voidcorp/pack-monorepo`
 
-Turborepo monorepo conventions for the [void-harness](https://github.com/voidcorp-core/void-harness).
+Turborepo monorepo conventions for the [void-harness](https://github.com/voidcorp-core/void-machine).
 
 ## What this pack provides
 
@@ -25,7 +25,7 @@ Turborepo monorepo conventions for the [void-harness](https://github.com/voidcor
 
 ```bash
 # Via the void-harness CLI
-npx voidharness init --pack pack-monorepo
+npx voidmachine init --pack pack-monorepo
 ```
 
 The CLI installs the pack and wires its Claude / Codex modules into the consumer's CLAUDE.md / AGENTS.md.

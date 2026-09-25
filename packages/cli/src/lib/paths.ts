@@ -9,6 +9,7 @@
 //  3. Dev mode — running from packages/cli/{dist,src}
 
 import { existsSync, readFileSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,7 +29,7 @@ export function cliVersion(): string {
   for (const candidate of candidates) {
     try {
       const pkg = JSON.parse(readFileSync(candidate, 'utf8')) as { name?: string; version?: string };
-      if (pkg.name === 'voidharness' && typeof pkg.version === 'string') return pkg.version;
+      if (pkg.name === PRODUCT_IDENTITY.packageName && typeof pkg.version === 'string') return pkg.version;
     } catch {
       // try next candidate
     }

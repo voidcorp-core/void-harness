@@ -6,7 +6,7 @@ into every session with `@` and a form nobody has filled in is context that says
 costing what a filled one would. This page is the long form, kept here where nothing loads it.
 
 Universal rules — the ones that hold in any project — live in `.void/installed/PHILOSOPHY.md` and
-are managed by the harness; to change one, open an issue on `voidcorp-core/void-harness` through
+are managed by the harness; to change one, open an issue on `voidcorp-core/void-machine` through
 `void-learn`. Everything below is yours.
 
 **Sections appear as you use them.** There is no order to respect and no section you owe: write

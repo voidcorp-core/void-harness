@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
-export const RELEASE_PACKAGE = 'voidharness';
+export const RELEASE_PACKAGE = PRODUCT_IDENTITY.packageName;
 
 const RELEASE_TAG = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const RELEASE_COMMIT = /^[0-9a-f]{40}$/;

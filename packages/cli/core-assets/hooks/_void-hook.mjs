@@ -197,10 +197,10 @@ function unquote(command) {
   return command.replaceAll('"', "").replaceAll("'", "");
 }
 function shellSegments(command) {
-  return command.split(/&&|\|\||[;\n]/).map((segment) => segment.trim()).filter(Boolean);
+  return command.split(/&&|\|\||[;\n]/).map((segment2) => segment2.trim()).filter(Boolean);
 }
-function recursiveRootOperation(segment, operation) {
-  const tokens = unquote(segment).split(/\s+/);
+function recursiveRootOperation(segment2, operation) {
+  const tokens = unquote(segment2).split(/\s+/);
   const index = tokens.indexOf(operation);
   if (index < 0) return false;
   const args = tokens.slice(index + 1);
@@ -219,15 +219,15 @@ function violation(command) {
   if (/\b(?:drop\s+(?:database|table|schema)|truncate\s+table)\b/i.test(command)) {
     return "destructive SQL (DROP / TRUNCATE)";
   }
-  for (const segment of shellSegments(command)) {
-    if (recursiveRootOperation(segment, "rm")) return "recursive delete of a root path";
-    if (recursiveRootOperation(segment, "chmod") || recursiveRootOperation(segment, "chown")) {
+  for (const segment2 of shellSegments(command)) {
+    if (recursiveRootOperation(segment2, "rm")) return "recursive delete of a root path";
+    if (recursiveRootOperation(segment2, "chmod") || recursiveRootOperation(segment2, "chown")) {
       return "recursive permission/ownership change on a root path";
     }
-    if (/\bgit\s+push\b/.test(segment) && /(?:^|\s)(?:--force(?:\s|$)|-f(?:\s|$))/.test(segment) && !/--force-with-lease/.test(segment)) {
+    if (/\bgit\s+push\b/.test(segment2) && /(?:^|\s)(?:--force(?:\s|$)|-f(?:\s|$))/.test(segment2) && !/--force-with-lease/.test(segment2)) {
       return "git push --force (use --force-with-lease)";
     }
-    if (/\bgit(?:\s+-\S+)*\s+(?:rebase|am|apply|cherry-pick)\b/.test(segment) && /(?:--exec(?:\s|=|$)|--rebase-merges|--strategy-option|--unsafe-paths)/.test(segment)) {
+    if (/\bgit(?:\s+-\S+)*\s+(?:rebase|am|apply|cherry-pick)\b/.test(segment2) && /(?:--exec(?:\s|=|$)|--rebase-merges|--strategy-option|--unsafe-paths)/.test(segment2)) {
       return "git command-execution / unsafe-path flag";
     }
   }
@@ -1446,10 +1446,80 @@ function compareFreshness(installed, latest) {
   return { verdict: "up-to-date", installed, latest };
 }
 
+// packages/core/data/identity.json
+var identity_default = {
+  repository: { owner: "voidcorp-core", name: "void-machine", formerNames: ["void-harness"] },
+  packageName: "voidmachine",
+  formerPackages: [{ name: "voidharness", lastMajor: 3 }],
+  commands: { primary: "void-machine", aliases: ["vm"], deprecated: ["void-harness"] }
+};
+
+var SEGMENT = /^[a-z0-9][a-z0-9._-]*$/;
+function isRecord2(value) {
+  return typeof value === "object" && value !== void 0 && value !== null && !Array.isArray(value);
+}
+function segment(value, field) {
+  if (typeof value !== "string" || !SEGMENT.test(value)) {
+    throw new Error(`product identity: ${field} must be a lowercase name without separators`);
+  }
+  return value;
+}
+function segments(value, field) {
+  if (!Array.isArray(value)) throw new Error(`product identity: ${field} must be a list`);
+  return value.map((entry, index) => segment(entry, `${field}[${index}]`));
+}
+function formerPackages(value) {
+  if (value === void 0) return [];
+  if (!Array.isArray(value)) throw new Error("product identity: formerPackages must be a list");
+  return value.map((entry, index) => {
+    const record8 = isRecord2(entry) ? entry : {};
+    const lastMajor = record8["lastMajor"];
+    if (typeof lastMajor !== "number" || !Number.isInteger(lastMajor) || lastMajor < 0) {
+      throw new Error(`product identity: formerPackages[${index}].lastMajor must be a whole number`);
+    }
+    return { name: segment(record8["name"], `formerPackages[${index}].name`), lastMajor };
+  });
+}
+var MAJOR = /^(0|[1-9]\d*)\.\d+\.\d+/;
+function parseProductIdentity(value) {
+  if (!isRecord2(value)) throw new Error("product identity: document must be an object");
+  const repository = isRecord2(value["repository"]) ? value["repository"] : {};
+  const owner = segment(repository["owner"], "repository.owner");
+  const name = segment(repository["name"], "repository.name");
+  const formerNames = repository["formerNames"] === void 0 ? [] : segments(repository["formerNames"], "repository.formerNames");
+  const commands = isRecord2(value["commands"]) ? value["commands"] : {};
+  const primary = segment(commands["primary"], "commands.primary");
+  const aliases = segments(commands["aliases"], "commands.aliases");
+  const deprecated = segments(commands["deprecated"], "commands.deprecated");
+  const current = [primary, ...aliases];
+  const clash = deprecated.find((command) => current.includes(command));
+  if (clash !== void 0) throw new Error(`product identity: ${clash} is both current and deprecated`);
+  const packageName = segment(value["packageName"], "packageName");
+  const former = formerPackages(value["formerPackages"]);
+  const byLastMajor = [...former].sort((left, right) => left.lastMajor - right.lastMajor);
+  const packageFor = (version) => {
+    const match = MAJOR.exec(version);
+    if (match === null) return packageName;
+    const major = Number(match[1]);
+    return byLastMajor.find((entry) => major <= entry.lastMajor)?.name ?? packageName;
+  };
+  return {
+    repository: { owner, name },
+    repositorySlug: `${owner}/${name}`,
+    repositoryUrl: `https://github.com/${owner}/${name}`,
+    formerRepositorySlugs: formerNames.map((former2) => `${owner}/${former2}`),
+    packageName,
+    formerPackages: former,
+    packageFor,
+    commands: { primary, aliases, deprecated }
+  };
+}
+var PRODUCT_IDENTITY = parseProductIdentity(identity_default);
+
 var DEFAULT_REGISTRY = "https://registry.npmjs.org";
-var NPM_PACKAGE = "voidharness";
+var NPM_PACKAGE = PRODUCT_IDENTITY.packageName;
 var DEFAULT_TIMEOUT_MS = 1500;
-var isRecord2 = (v) => typeof v === "object" && v !== void 0 && v !== null && !Array.isArray(v);
+var isRecord3 = (v) => typeof v === "object" && v !== void 0 && v !== null && !Array.isArray(v);
 function safeRegistry(candidate) {
   if (candidate === void 0 || candidate.trim() === "") return void 0;
   let url;
@@ -1484,7 +1554,7 @@ function distTagsUrl(registry, pkg) {
   return `${registry}/-/package/${encodeURIComponent(name)}/dist-tags`;
 }
 function parseLatestTag(json) {
-  if (!isRecord2(json)) return void 0;
+  if (!isRecord3(json)) return void 0;
   const latest = json["latest"];
   return typeof latest === "string" && latest.trim() !== "" ? latest.trim() : void 0;
 }
@@ -1568,7 +1638,7 @@ async function resolveFreshness(options) {
 function freshnessRelay(freshness, source2) {
   if (freshness.verdict !== "behind" || source2 !== "local") return void 0;
   const { installed, latest } = freshness;
-  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and offer to run \`void-harness update\`. Explain that update writes project files and link the release notes for possible breaking changes: https://github.com/voidcorp-core/void-harness/releases. Wait for explicit human permission before running it, even in autonomous mode. If the user declines or does not reply, continue the task without updating. Do not repeat the offer later in this session.`;
+  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and offer to run \`void-harness update\`. Explain that update writes project files and link the release notes for possible breaking changes: ${PRODUCT_IDENTITY.repositoryUrl}/releases. Wait for explicit human permission before running it, even in autonomous mode. If the user declines or does not reply, continue the task without updating. Do not repeat the offer later in this session.`;
 }
 
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync9, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
@@ -1693,20 +1763,20 @@ function voidDir(root) {
 function voidMachineDir(root) {
   return join6(root, VOID_DIR, VOID_MACHINE_DIR);
 }
-function previousMachinePath(root, ...segments) {
-  return join6(root, VOID_DIR, VOID_PREVIOUS_MACHINE_DIR, ...segments);
+function previousMachinePath(root, ...segments2) {
+  return join6(root, VOID_DIR, VOID_PREVIOUS_MACHINE_DIR, ...segments2);
 }
-function voidMachinePath(root, ...segments) {
-  return join6(voidMachineDir(root), ...segments);
+function voidMachinePath(root, ...segments2) {
+  return join6(voidMachineDir(root), ...segments2);
 }
-function legacyVoidPath(root, ...segments) {
-  return join6(voidDir(root), ...segments);
+function legacyVoidPath(root, ...segments2) {
+  return join6(voidDir(root), ...segments2);
 }
-function voidReadPath(root, ...segments) {
+function voidReadPath(root, ...segments2) {
   const candidates = [
-    voidMachinePath(root, ...segments),
-    previousMachinePath(root, ...segments),
-    legacyVoidPath(root, ...segments)
+    voidMachinePath(root, ...segments2),
+    previousMachinePath(root, ...segments2),
+    legacyVoidPath(root, ...segments2)
   ];
   return candidates.find((candidate) => existsSync4(candidate)) ?? candidates[0];
 }
@@ -2946,8 +3016,8 @@ function safeMachineDirectory(root) {
   try {
     const canonicalRoot = realpathSync3(resolve5(root));
     let cursor = canonicalRoot;
-    for (const segment of [".void", "machine"]) {
-      cursor = join10(cursor, segment);
+    for (const segment2 of [".void", "machine"]) {
+      cursor = join10(cursor, segment2);
       try {
         const existing = lstatSync3(cursor);
         if (!existing.isDirectory() || existing.isSymbolicLink()) return void 0;

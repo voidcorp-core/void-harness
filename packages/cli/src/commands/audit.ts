@@ -8,6 +8,7 @@
 // follow-up (they need data sources beyond the usage log).
 
 import * as p from '@clack/prompts';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -37,7 +38,7 @@ import { resolveModel } from './graph.js';
 const DEFAULT_STALE_DAYS = 30;
 
 /** Where outbound harness feedback lands (doctrine tracker), per DECISIONS.md. */
-const FEEDBACK_REPO = 'voidcorp-core/void-harness';
+const FEEDBACK_REPO = PRODUCT_IDENTITY.repositorySlug;
 
 /** Harness skill names (`harness:<folder>`) discovered from the core tree. */
 function harnessSkills(coreSource: string): string[] {

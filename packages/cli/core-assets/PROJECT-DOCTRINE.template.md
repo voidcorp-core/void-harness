@@ -11,4 +11,4 @@ Say a rule out loud — "ajoute la règle…", "always X here", "never Y" — an
 the wording, waits for your yes, then writes it here. Sections appear as you use them.
 
 Full format, with the shape of each section:
-https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FORMAT.md
+https://github.com/voidcorp-core/void-machine/blob/main/docs/PROJECT-DOCTRINE-FORMAT.md

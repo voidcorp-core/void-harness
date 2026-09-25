@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { packageManagerCommand } from '../../packages/cli/scripts/conformance-process.mjs';
 
 const ROOT = resolve(__dirname, '../..');
-const CLI = join(ROOT, 'packages/cli/bin/void-harness.mjs');
+const CLI = join(ROOT, 'packages/cli/bin/void-machine.mjs');
 const hash = (body: string | Buffer) => createHash('sha256').update(body).digest('hex');
 function put(root: string, path: string, body: string) {
   mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -52,7 +52,7 @@ describe('installed cheatsheet consumer contract', () => {
     expect(unpacked.status, unpacked.stderr).toBe(0);
     const consumer = join(root, 'consumer');
     mkdirSync(consumer);
-    const binary = join(root, 'package/bin/void-harness.mjs');
+    const binary = join(root, 'package/bin/void-machine.mjs');
     const json = run(consumer, binary);
     expect(json.status, json.stderr).toBe(0);
     expect(JSON.parse(json.stdout).entries).toEqual(JSON.parse(run(consumer).stdout).entries);

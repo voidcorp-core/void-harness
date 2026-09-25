@@ -7,6 +7,7 @@ import {
   requireCleanCheckoutStatus,
   verifyConformanceArtifact,
 } from './conformance-artifact.mjs';
+import { PRODUCT_IDENTITY } from '../../hook-runner/src/identity.js';
 
 const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 const roots: string[] = [];
@@ -14,13 +15,13 @@ const roots: string[] = [];
 function fixture(): { root: string; tarball: string } {
   const root = mkdtempSync(join(tmpdir(), 'void-conformance-artifact-'));
   roots.push(root);
-  const tarball = join(root, 'voidharness.tgz');
+  const tarball = join(root, 'consumer.tgz');
   writeFileSync(tarball, 'packed bytes');
   writeFileSync(
     `${tarball}.json`,
     `${JSON.stringify(
       createArtifactManifest(Buffer.from('packed bytes'), {
-        packageName: 'voidharness',
+        packageName: PRODUCT_IDENTITY.packageName,
         packageVersion: '3.6.0',
         sourceSha: SHA,
       }),
@@ -47,7 +48,7 @@ describe('immutable consumer artifact', () => {
 
     expect(verifyConformanceArtifact(tarball, SHA)).toMatchObject({
       schemaVersion: 1,
-      packageName: 'voidharness',
+      packageName: PRODUCT_IDENTITY.packageName,
       packageVersion: '3.6.0',
       sourceSha: SHA,
       tarballSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
@@ -65,7 +66,7 @@ describe('immutable consumer artifact', () => {
 
   it('rejects an artifact path without a regular parent directory', () => {
     const { root } = fixture();
-    const missing = join(root, 'missing', 'voidharness.tgz');
+    const missing = join(root, 'missing', 'consumer.tgz');
     mkdirSync(join(root, 'other'));
     expect(() => verifyConformanceArtifact(missing, SHA)).toThrow(/artifact|tarball/i);
   });

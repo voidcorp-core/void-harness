@@ -67,7 +67,7 @@ jobs:
 
       - name: Security baseline
         run: >
-          npx --yes voidharness security scan
+          npx --yes voidmachine security scan
           --mode ${{ inputs.mode || 'team' }}
           ${{ inputs.prelaunch && '--prelaunch' || '' }}
           --json

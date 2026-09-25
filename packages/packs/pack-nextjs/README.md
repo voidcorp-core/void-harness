@@ -1,6 +1,6 @@
 # `@voidcorp/pack-nextjs`
 
-Next.js 16 conventions for the [void-harness](https://github.com/voidcorp-core/void-harness). Marketplace plugin name: `harness-nextjs`.
+Next.js 16 conventions for the [void-harness](https://github.com/voidcorp-core/void-machine). Marketplace plugin name: `harness-nextjs`.
 
 ## Two delivery channels
 
@@ -39,7 +39,7 @@ Pack-specific skills (extending core skills with Next.js context) and hooks (e.g
 
 ```bash
 # Via the void-harness CLI (accepts pack-nextjs, harness-nextjs, or nextjs)
-npx voidharness init --pack pack-monorepo --pack pack-nextjs
+npx voidmachine init --pack pack-monorepo --pack pack-nextjs
 ```
 
 The CLI enables both plugins and wires their Claude / Codex modules into the consumer's CLAUDE.md / AGENTS.md.

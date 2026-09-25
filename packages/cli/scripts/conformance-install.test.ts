@@ -8,10 +8,10 @@ describe('one package installation proof across runtime consumers', () => {
     const exercises: string[] = [];
     const durations = await exerciseInstalledRuntimes(async () => {
       installations += 1;
-      return '/package/node_modules/voidharness/bin/void-harness.mjs';
+      return '/package/node_modules/pkg/bin/cli.mjs';
     }, async (bin: string, runtime: string) => {
       exercises.push(runtime);
-      expect(bin).toBe('/package/node_modules/voidharness/bin/void-harness.mjs');
+      expect(bin).toBe('/package/node_modules/pkg/bin/cli.mjs');
       return 12;
     });
     expect(installations).toBe(1);

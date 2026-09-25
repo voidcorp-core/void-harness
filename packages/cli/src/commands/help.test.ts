@@ -3,6 +3,7 @@
 // invariants keep it honest against the single source of truth in packs.ts.
 
 import { describe, expect, it, vi } from 'vitest';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { printHelp } from './help.js';
 import { CORE_PLUGIN_NAME, PACKS } from '../lib/packs.js';
 
@@ -35,11 +36,11 @@ describe('printHelp', () => {
 
   it('leads with the public account-free npx install (supersedes marketplace-only, 2026-07-21)', () => {
     // Distribution is now public MIT, npx-primary; the CLI is the consumer entry point.
-    expect(capture()).toContain('npx voidharness init');
+    expect(capture()).toContain(`npx ${PRODUCT_IDENTITY.packageName} init`);
   });
 
   it('points at the self-hosted marketplace repo as the optional secondary channel', () => {
-    expect(capture()).toContain('voidcorp-core/void-harness');
+    expect(capture()).toContain(PRODUCT_IDENTITY.repositorySlug);
   });
 
   it('exposes conflict-free decision authoring', () => {

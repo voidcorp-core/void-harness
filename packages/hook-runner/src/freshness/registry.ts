@@ -9,8 +9,10 @@
 // honestly (a rate-limit must never read like an unpublished package, and neither
 // must ever read like "you are up to date").
 
+import { PRODUCT_IDENTITY } from '../identity.js';
+
 export const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
-export const NPM_PACKAGE = 'voidharness';
+export const NPM_PACKAGE = PRODUCT_IDENTITY.packageName;
 const DEFAULT_TIMEOUT_MS = 1_500;
 
 /** Only the environment keys npm itself uses. Kept explicit so nothing else leaks in. */

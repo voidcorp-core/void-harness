@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { describe, expect, it } from 'vitest';
 import { INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
 import { planHydrate, verificationLines } from './hydrate.js';
@@ -28,7 +29,14 @@ describe('planHydrate', () => {
   it('hands back the exact command that selects the right version', () => {
     // npx already resolves versions; adding a fetch here would buy a network
     // surface and partial-failure modes for nothing.
-    expect(planHydrate(manifest('2.5.1'), '2.6.0').fix).toBe('npx voidharness@2.5.1 hydrate');
+    expect(planHydrate(manifest('4.1.0'), '4.2.0').fix).toBe(`npx ${PRODUCT_IDENTITY.packageName}@4.1.0 hydrate`);
+  });
+
+  it('names the package an older release was published under, which a rename does not move', () => {
+    for (const former of PRODUCT_IDENTITY.formerPackages) {
+      const version = `${former.lastMajor}.5.1`;
+      expect(planHydrate(manifest(version), '9.0.0').fix).toBe(`npx ${former.name}@${version} hydrate`);
+    }
   });
 
   it('says a project has never recorded what it expects, and how to record it', () => {

@@ -30,9 +30,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EXPECTED_REPOSITORY: voidcorp-core/void-harness
+  EXPECTED_REPOSITORY: voidcorp-core/void-machine
   EXPECTED_OWNER: voidcorp-core
-  EXPECTED_NAME: void-harness
+  EXPECTED_NAME: void-machine
   EXPECTED_REF: refs/heads/develop
   EXPECTED_HEAD: develop
   EXPECTED_BASE: main

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import type { CheckResult } from './prerequisites.js';
 import { judgeLayout, judgeProjectSkills, type LayoutObservation } from './void-hygiene.js';
 
@@ -63,7 +64,7 @@ describe('judgeLayout', () => {
 
     expect(check?.status).toBe('fail');
     expect(check?.message).toContain('3 file(s)');
-    expect(check?.fix).toBe('npx voidharness@2.5.1 hydrate — it restores and proves every file');
+    expect(check?.fix).toBe(`npx ${PRODUCT_IDENTITY.packageFor('2.5.1')}@2.5.1 hydrate — it restores and proves every file`);
   });
 
   // A count sends the reader to rehash eighty files by hand to find the one that

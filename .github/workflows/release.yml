@@ -78,7 +78,7 @@ jobs:
       contents: read
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || needs.release-please.outputs.tag_name }}
-      EXPECTED_REPOSITORY: voidcorp-core/void-harness
+      EXPECTED_REPOSITORY: voidcorp-core/void-machine
       CONTROL_ROOT: ${{ github.workspace }}/release-control
       RELEASE_TREE: ${{ github.workspace }}/release-tree
     outputs:
@@ -88,7 +88,7 @@ jobs:
       tarball_name: ${{ steps.prepare.outputs.tarball_name }}
       sha256: ${{ steps.prepare.outputs.sha256 }}
       integrity: ${{ steps.prepare.outputs.integrity }}
-      artifact_name: voidharness-release-${{ steps.resolve.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+      artifact_name: npm-release-${{ steps.resolve.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
     steps:
@@ -146,15 +146,15 @@ jobs:
       - name: Pack the final npm tarball exactly once
         working-directory: release-tree
         env:
-          ARTIFACT_DIR: ${{ runner.temp }}/voidharness-release
+          ARTIFACT_DIR: ${{ runner.temp }}/npm-release
         run: |
           mkdir -p "$ARTIFACT_DIR"
-          pnpm --filter voidharness pack --pack-destination "$ARTIFACT_DIR"
+          pnpm --filter ./packages/cli pack --pack-destination "$ARTIFACT_DIR"
 
       - name: Bind package identity and byte integrity
         id: prepare
         env:
-          ARTIFACT_DIR: ${{ runner.temp }}/voidharness-release
+          ARTIFACT_DIR: ${{ runner.temp }}/npm-release
           RELEASE_COMMIT: ${{ steps.resolve.outputs.release_commit }}
         run: node release-control/scripts/prepare-release-artifact.mjs prepare
 
@@ -162,7 +162,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: voidharness-release-${{ steps.resolve.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: npm-release-${{ steps.resolve.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ steps.prepare.outputs.tarball_path }}
             ${{ steps.prepare.outputs.manifest_path }}
@@ -180,7 +180,7 @@ jobs:
     outputs:
       publication_mode: ${{ steps.registry.outputs.state }}
     concurrency:
-      group: npm-voidharness-publish
+      group: npm-release-publish
       cancel-in-progress: false
     environment: npm-publish
     permissions:
@@ -188,7 +188,8 @@ jobs:
       actions: read
       id-token: write
     env:
-      EXPECTED_REPOSITORY: voidcorp-core/void-harness
+      EXPECTED_REPOSITORY: voidcorp-core/void-machine
+      EXPECTED_PACKAGE: voidmachine
       MINIMUM_NPM_VERSION: 11.5.1
       MAX_CLASSIFICATION_ATTEMPTS: 3
       MAX_PUBLICATION_ATTEMPTS: 12
@@ -263,7 +264,7 @@ jobs:
           artifact-ids: ${{ needs.validate-release.outputs.artifact_id }}
           path: ${{ runner.temp }}/validated-release
           github-token: ${{ github.token }}
-          repository: voidcorp-core/void-harness
+          repository: ${{ env.EXPECTED_REPOSITORY }}
           run-id: ${{ github.run_id }}
           merge-multiple: true
 
@@ -295,7 +296,7 @@ jobs:
             releaseTag: process.env.RELEASE_TAG,
             version: process.env.RELEASE_VERSION,
             releaseCommit: process.env.RELEASE_COMMIT,
-            packageName: 'voidharness',
+            packageName: process.env.EXPECTED_PACKAGE,
             tarballName: process.env.TARBALL_NAME,
             bytes: tarball.length,
             sha256: createHash('sha256').update(tarball).digest('hex'),
@@ -310,7 +311,7 @@ jobs:
             'tar', ['-xOf', tarballPath, 'package/package.json'], { encoding: 'utf8' },
           ));
           if (
-            packageManifest.name !== 'voidharness' ||
+            packageManifest.name !== process.env.EXPECTED_PACKAGE ||
             packageManifest.version !== process.env.RELEASE_VERSION
           ) {
             fail('embedded package identity mismatch');
@@ -330,7 +331,7 @@ jobs:
 
           query_registry() {
             set +e
-            npm view "voidharness@$RELEASE_VERSION" dist --json > "$REGISTRY_RESPONSE" 2> "$REGISTRY_ERROR"
+            npm view "$EXPECTED_PACKAGE@$RELEASE_VERSION" dist --json > "$REGISTRY_RESPONSE" 2> "$REGISTRY_ERROR"
             npm_view_status=$?
             set -e
             NPM_VIEW_STATUS="$npm_view_status" node --input-type=module <<'NODE'
@@ -429,6 +430,8 @@ jobs:
     permissions:
       contents: read
     env:
+      EXPECTED_REPOSITORY: voidcorp-core/void-machine
+      EXPECTED_PACKAGE: voidmachine
       VERIFIED_NPM_VERSION: 11.12.1
       MINIMUM_GH_VERSION: 2.97.0
       RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
@@ -464,14 +467,14 @@ jobs:
           VERIFY_ROOT: ${{ runner.temp }}/publication-verification
           NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
           SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
-          TARBALL_PATH: ${{ runner.temp }}/publication-verification/voidharness-${{ needs.validate-release.outputs.version }}.tgz
+          TARBALL_PATH: ${{ runner.temp }}/publication-verification/${{ env.EXPECTED_PACKAGE }}-${{ needs.validate-release.outputs.version }}.tgz
         run: |
           set -euo pipefail
           mkdir -p "$VERIFY_ROOT"
           cd "$VERIFY_ROOT"
           npm init --yes
-          npm install "voidharness@$RELEASE_VERSION" --ignore-scripts --package-lock=false
-          npm pack "voidharness@$RELEASE_VERSION" --ignore-scripts --pack-destination "$VERIFY_ROOT"
+          npm install "$EXPECTED_PACKAGE@$RELEASE_VERSION" --ignore-scripts --package-lock=false
+          npm pack "$EXPECTED_PACKAGE@$RELEASE_VERSION" --ignore-scripts --pack-destination "$VERIFY_ROOT"
           npm audit signatures --json --include-attestations > "$NPM_AUDIT_PATH"
           node "$GITHUB_WORKSPACE/release-control/scripts/verify-release-publication.mjs" extract
 
@@ -480,7 +483,7 @@ jobs:
           NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
           SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
           GH_VERIFICATION_PATH: ${{ runner.temp }}/publication-verification/gh-verification.json
-          TARBALL_PATH: ${{ runner.temp }}/publication-verification/voidharness-${{ needs.validate-release.outputs.version }}.tgz
+          TARBALL_PATH: ${{ runner.temp }}/publication-verification/${{ env.EXPECTED_PACKAGE }}-${{ needs.validate-release.outputs.version }}.tgz
           PRODUCER_WORKFLOW_HEAD_SHA: ${{ steps.provenance.outputs.workflow_head_sha }}
           PRODUCER_RUN_ID: ${{ steps.provenance.outputs.run_id }}
           PRODUCER_RUN_ATTEMPT: ${{ steps.provenance.outputs.run_attempt }}
@@ -488,8 +491,8 @@ jobs:
           set -euo pipefail
           gh attestation verify "$TARBALL_PATH" \
             --bundle "$SLSA_BUNDLE_PATH" \
-            --repo voidcorp-core/void-harness \
-            --signer-workflow voidcorp-core/void-harness/.github/workflows/release.yml \
+            --repo "$EXPECTED_REPOSITORY" \
+            --signer-workflow "$EXPECTED_REPOSITORY/.github/workflows/release.yml" \
             --source-ref refs/heads/main \
             --source-digest "${{ steps.provenance.outputs.workflow_head_sha }}" \
             --signer-digest "${{ steps.provenance.outputs.workflow_head_sha }}" \

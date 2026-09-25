@@ -43,6 +43,8 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             scripts/independent-review-check.mjs
+            scripts/product-identity.mjs
+            packages/core/data/identity.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:

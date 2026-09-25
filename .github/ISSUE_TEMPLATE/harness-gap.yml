@@ -50,4 +50,4 @@ body:
     id: runtime
     attributes:
       label: Runtime and version
-      placeholder: "Claude Code, voidharness 2.0.2"
+      placeholder: "Claude Code, voidmachine 4.0.0"

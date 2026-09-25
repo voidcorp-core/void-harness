@@ -1,6 +1,6 @@
 # Void Machine (private workspace)
 
-Private Machine foundation. Any future distribution uses the existing voidharness
+Private Machine foundation. Any future distribution uses the existing voidmachine
 CLI; the former A5 cutover is deferred under the clean-sheet mandate. No separate
 publication, controller, provider or coordinator API.
 

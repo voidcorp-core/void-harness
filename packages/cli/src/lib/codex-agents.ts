@@ -4,6 +4,7 @@
 // as a skill: skills teach the current context, agents provide fresh context.
 
 import { existsSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { lstat, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findCoreSource } from './paths.js';
@@ -144,7 +145,7 @@ export function describeSpecialistDrift(
   );
   const reinstallWithThis = `reinstall them with this CLI: \`${reinstall}\``;
   const repair = newer
-    ? 'this CLI is older than the install: upgrade voidharness to the release that installed'
+    ? `this CLI is older than the install: upgrade ${PRODUCT_IDENTITY.packageName} to the release that installed`
       + ` them, or ${reinstallWithThis}`
     : reinstallWithThis;
   return `native specialists do not match this CLI: ${named.join(', ')}; ${repair}`;

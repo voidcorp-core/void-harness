@@ -6,6 +6,7 @@ import {
   resolveNpmPublicationProvenance,
   verifyPublicationProvenance,
 } from '../../scripts/release-provenance-contract.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const RELEASE_COMMIT = 'a'.repeat(40);
 const WORKFLOW_HEAD_SHA = 'b'.repeat(40);
@@ -27,13 +28,13 @@ const CURRENT_PRODUCER: Producer = {
 };
 
 function invocation(producer: Producer) {
-  return `https://github.com/voidcorp-core/void-harness/actions/runs/${producer.runId}/attempts/${producer.runAttempt}`;
+  return `https://github.com/${PRODUCT_IDENTITY.repositorySlug}/actions/runs/${producer.runId}/attempts/${producer.runAttempt}`;
 }
 
 function statement(producer = CURRENT_PRODUCER) {
   return {
     _type: 'https://in-toto.io/Statement/v1',
-    subject: [{ name: 'pkg:npm/voidharness@3.4.0', digest: { sha512: SHA512 } }],
+    subject: [{ name: `pkg:npm/${PRODUCT_IDENTITY.packageName}@3.4.0`, digest: { sha512: SHA512 } }],
     predicateType: 'https://slsa.dev/provenance/v1',
     predicate: {
       buildDefinition: {
@@ -41,13 +42,13 @@ function statement(producer = CURRENT_PRODUCER) {
         externalParameters: {
           workflow: {
             ref: 'refs/heads/main',
-            repository: 'https://github.com/voidcorp-core/void-harness',
+            repository: `https://github.com/${PRODUCT_IDENTITY.repositorySlug}`,
             path: '.github/workflows/release.yml',
           },
         },
         resolvedDependencies: [
           {
-            uri: 'git+https://github.com/voidcorp-core/void-harness@refs/heads/main',
+            uri: `git+https://github.com/${PRODUCT_IDENTITY.repositorySlug}@refs/heads/main`,
             digest: { gitCommit: producer.workflowHeadSha },
           },
         ],
@@ -76,7 +77,7 @@ function fixture(producer = CURRENT_PRODUCER) {
     missing: [],
     verified: [
       {
-        name: 'voidharness',
+        name: PRODUCT_IDENTITY.packageName,
         version: '3.4.0',
         registry: 'https://registry.npmjs.org/',
         attestationBundles: [
@@ -91,13 +92,13 @@ function fixture(producer = CURRENT_PRODUCER) {
         signature: {
           certificate: {
             issuer: 'https://token.actions.githubusercontent.com',
-            githubWorkflowRepository: 'voidcorp-core/void-harness',
+            githubWorkflowRepository: PRODUCT_IDENTITY.repositorySlug,
             githubWorkflowRef: 'refs/heads/main',
             buildSignerURI:
-              'https://github.com/voidcorp-core/void-harness/.github/workflows/release.yml@refs/heads/main',
+              `https://github.com/${PRODUCT_IDENTITY.repositorySlug}/.github/workflows/release.yml@refs/heads/main`,
             buildSignerDigest: producer.workflowHeadSha,
             runnerEnvironment: 'github-hosted',
-            sourceRepositoryURI: 'https://github.com/voidcorp-core/void-harness',
+            sourceRepositoryURI: `https://github.com/${PRODUCT_IDENTITY.repositorySlug}`,
             sourceRepositoryDigest: producer.workflowHeadSha,
             sourceRepositoryRef: 'refs/heads/main',
             runInvocationURI: invocation(producer),
@@ -114,7 +115,7 @@ function fixture(producer = CURRENT_PRODUCER) {
 }
 
 const expected = {
-  packageName: 'voidharness',
+  packageName: PRODUCT_IDENTITY.packageName,
   version: '3.4.0',
   sha512: SHA512,
   releaseCommit: RELEASE_COMMIT,
@@ -141,7 +142,7 @@ describe('published npm provenance', () => {
   it('accepts one cryptographically verified statement bound to this run', () => {
     const { npmAudit, ghVerification } = fixture();
     expect(verifyPublicationProvenance({ npmAudit, ghVerification, expected })).toEqual({
-      packageName: 'voidharness',
+      packageName: PRODUCT_IDENTITY.packageName,
       version: '3.4.0',
       releaseCommit: RELEASE_COMMIT,
       publicationMode: 'new',
@@ -224,11 +225,11 @@ describe('published npm provenance', () => {
     }],
     ['run', (value: ReturnType<typeof fixture>) => {
       value.ghVerification[0].verificationResult.signature.certificate.runInvocationURI =
-        'https://github.com/voidcorp-core/void-harness/actions/runs/1/attempts/2';
+        `https://github.com/${PRODUCT_IDENTITY.repositorySlug}/actions/runs/1/attempts/2`;
     }],
     ['attempt', (value: ReturnType<typeof fixture>) => {
       value.ghVerification[0].verificationResult.statement.predicate.runDetails.metadata.invocationId =
-        `https://github.com/voidcorp-core/void-harness/actions/runs/${RUN_ID}/attempts/1`;
+        `https://github.com/${PRODUCT_IDENTITY.repositorySlug}/actions/runs/${RUN_ID}/attempts/1`;
     }],
     ['digest', (value: ReturnType<typeof fixture>) => {
       value.ghVerification[0].verificationResult.statement.subject[0].digest.sha512 =
@@ -250,7 +251,7 @@ describe('published npm provenance', () => {
     expect(() => verifyPublicationProvenance({ ...duplicate, expected })).toThrow(/one.*verified/i);
 
     const invalid = fixture();
-    invalid.npmAudit.invalid.push({ name: 'voidharness', version: '3.4.0' });
+    invalid.npmAudit.invalid.push({ name: PRODUCT_IDENTITY.packageName, version: '3.4.0' });
     expect(() => verifyPublicationProvenance({ ...invalid, expected })).toThrow(/invalid/i);
   });
 });

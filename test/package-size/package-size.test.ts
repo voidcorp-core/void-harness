@@ -6,33 +6,34 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script, no types
 import { judge, formatBytes, PACKAGE_LIMITS } from '../../scripts/check-package-size.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 describe('judge', () => {
   it('passes a package under its ceiling', () => {
-    const verdict = judge([{ package: 'voidharness', bytes: 700_000 }]);
+    const verdict = judge([{ package: PRODUCT_IDENTITY.packageName, bytes: 700_000 }]);
 
     expect(verdict.ok).toBe(true);
     expect(verdict.failures).toEqual([]);
   });
 
   it('passes a package exactly at its ceiling, which is a limit and not a wall', () => {
-    const limit = PACKAGE_LIMITS['voidharness'];
-    const verdict = judge([{ package: 'voidharness', bytes: limit }]);
+    const limit = PACKAGE_LIMITS[PRODUCT_IDENTITY.packageName];
+    const verdict = judge([{ package: PRODUCT_IDENTITY.packageName, bytes: limit }]);
 
     expect(verdict.ok).toBe(true);
   });
 
   it('fails one byte over, so the ceiling means what it says', () => {
-    const limit = PACKAGE_LIMITS['voidharness'];
-    const verdict = judge([{ package: 'voidharness', bytes: limit + 1 }]);
+    const limit = PACKAGE_LIMITS[PRODUCT_IDENTITY.packageName];
+    const verdict = judge([{ package: PRODUCT_IDENTITY.packageName, bytes: limit + 1 }]);
 
     expect(verdict.ok).toBe(false);
     expect(verdict.failures).toHaveLength(1);
   });
 
   it('reports the measurement, the ceiling, and the overshoot', () => {
-    const limit = PACKAGE_LIMITS['voidharness'];
-    const [failure] = judge([{ package: 'voidharness', bytes: limit + 50_000 }]).failures;
+    const limit = PACKAGE_LIMITS[PRODUCT_IDENTITY.packageName];
+    const [failure] = judge([{ package: PRODUCT_IDENTITY.packageName, bytes: limit + 50_000 }]).failures;
 
     expect(failure.measured).toBe(limit + 50_000);
     expect(failure.limit).toBe(limit);
@@ -44,7 +45,7 @@ describe('judge', () => {
 
   it('judges every package, not just the first that breaches', () => {
     const verdict = judge([
-      { package: 'voidharness', bytes: PACKAGE_LIMITS['voidharness'] + 1 },
+      { package: PRODUCT_IDENTITY.packageName, bytes: PACKAGE_LIMITS[PRODUCT_IDENTITY.packageName] + 1 },
       { package: '@voidcorp/harness-graph', bytes: PACKAGE_LIMITS['@voidcorp/harness-graph'] + 1 },
     ]);
 
@@ -61,7 +62,7 @@ describe('judge', () => {
   });
 
   it('fails a package that could not be measured instead of passing in silence', () => {
-    const verdict = judge([{ package: 'voidharness', bytes: undefined, error: 'pnpm pack failed' }]);
+    const verdict = judge([{ package: PRODUCT_IDENTITY.packageName, bytes: undefined, error: 'pnpm pack failed' }]);
 
     expect(verdict.ok).toBe(false);
     expect(verdict.failures[0].nextAction).toMatch(/pnpm pack/i);
