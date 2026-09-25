@@ -1,3 +1,4 @@
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 import { renderHtml } from './html.js';
 import { installationText, type CheatSheet } from './document.js';
 export type { CheatSheet } from './document.js';
@@ -13,7 +14,7 @@ export function renderDocument(document: CheatSheet, format: 'html' | 'markdown'
   if (format === 'json') return `${JSON.stringify(document, undefined, 2)}\n`;
   if (format === 'html') return renderHtml(document);
   return [
-    '# void-harness cheat sheet', '', installationText[document.installation], '',
+    `# ${PRODUCT_COMMAND} cheat sheet`, '', installationText[document.installation], '',
     'Specialist roles and their agent implementations are linked entries of the same capability.', '',
     ...document.entries.flatMap(entry => [
       `## ${markdown(entry.name)}`, '',

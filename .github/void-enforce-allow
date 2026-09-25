@@ -1,5 +1,5 @@
 # void-enforce allowlist — path globs (one per line) exempt from the floor.
-# The committed, reviewed equivalent of the local VOID_HARNESS_ALLOW_SECRET_EDIT
+# The committed, reviewed equivalent of the local VOID_MACHINE_ALLOW_SECRET_EDIT
 # override. Use sparingly; a diff touching an allowlisted path is NOT floor-scanned,
 # so treat those paths as security-sensitive in review.
 #

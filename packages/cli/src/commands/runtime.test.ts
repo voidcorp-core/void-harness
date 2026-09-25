@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 // process on refusal, so it is exercised as a binary, the way a user meets it.
 // What is pinned here is the entry surface: what it says about a project it has
 // not been installed into, and what it reports about the runtimes it finds.
-const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-harness.mjs');
+const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-machine.mjs');
 
 function run(root: string, ...args: readonly string[]): { code: number; out: string } {
   const result = spawnSync(process.execPath, [CLI, 'runtime', ...args], {
@@ -36,6 +36,6 @@ describe('runtime', () => {
     const { code, out } = run(mkdtempSync(join(tmpdir(), 'void-runtime-')), 'add', 'codex');
 
     expect(code).toBe(2);
-    expect(out).toMatch(/void-harness init/);
+    expect(out).toMatch(/void-machine init/);
   });
 });

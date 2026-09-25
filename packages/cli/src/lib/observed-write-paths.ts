@@ -40,6 +40,7 @@
 import {
   DERIVED_LOAD_BEARING,
   MACHINE_ENTRIES,
+  PRODUCT_COMMAND,
   VOID_DIR,
   VOID_MACHINE_DIR,
   VOID_PREVIOUS_MACHINE_DIR,
@@ -113,7 +114,7 @@ export interface ObservedPathObservation {
 const CHECK_NAME = 'void observed';
 
 const FIX =
-  'void-harness update — it moves observed state under .void/machine/, which the managed '
+  `${PRODUCT_COMMAND} update — it moves observed state under .void/machine/, which the managed `
   + 'block ignores; a path that must stay where it is needs its own .gitignore line';
 
 /**

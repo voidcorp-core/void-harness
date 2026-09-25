@@ -207,7 +207,7 @@ This skill is the daily floor. Escalate to `void-security-audit` for:
 - Pre-launch security gate
 - Incident response
 
-The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a diff and routes the security pass to `void-security-audit`; `void-security-audit` runs the phase-driven deep audit.
+The `doctrine-critic` agent (in void-machine) flags trust-boundary code in a diff and routes the security pass to `void-security-audit`; `void-security-audit` runs the phase-driven deep audit.
 
 ---
 

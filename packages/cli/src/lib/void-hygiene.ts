@@ -12,7 +12,7 @@ import {
   judgeKeptTracked,
   type KeptTrackedObservation,
 } from './kept-tracked-paths.js';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import {
   judgeObservedIgnore,
   type ObservedPathObservation,
@@ -112,7 +112,7 @@ function layoutCheck(observation: LayoutObservation): CheckResult {
   return fail(
     name,
     `${observation.pending.length} observed path(s) still at the old location: ${observation.pending.join(', ')}`,
-    'void-harness update — it moves them under .void/machine/ and never overwrites',
+    `${PRODUCT_COMMAND} update — it moves them under .void/machine/ and never overwrites`,
   );
 }
 
@@ -126,7 +126,7 @@ function ignoreCheck(observation: LayoutObservation): CheckResult {
     : fail(
         name,
         '.void/machine/ is NOT ignored, so telemetry and run journals would be committed',
-        'void-harness update — it writes the managed block; check no later rule re-includes .void/',
+        `${PRODUCT_COMMAND} update — it writes the managed block; check no later rule re-includes .void/`,
       );
 }
 
@@ -176,11 +176,11 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
       ok: true,
       status: 'advisory',
       message: 'no install manifest — another checkout cannot prove it restored the same assets',
-      fix: 'void-harness init writes it; commit .void/install-manifest.json',
+      fix: `${PRODUCT_COMMAND} init writes it; commit .void/install-manifest.json`,
     };
   }
   if (manifest.kind === 'unreadable') {
-    return fail(name, 'the install manifest is present but not readable', 'restore it from git, or re-run void-harness init');
+    return fail(name, 'the install manifest is present but not readable', `restore it from git, or re-run ${PRODUCT_COMMAND} init`);
   }
   // Drift is a real failure: the working tree claims a version it does not hold.
   if ((manifest.drifted ?? 0) > 0) {
@@ -225,11 +225,11 @@ function receiptCheck(observation: LayoutObservation): CheckResult {
       ok: true,
       status: 'advisory',
       message: 'no install receipt — nothing records which assets this machine wrote',
-      fix: 'void-harness update writes one; a marketplace install records none',
+      fix: `${PRODUCT_COMMAND} update writes one; a marketplace install records none`,
     };
   }
   if (receipt.kind === 'unreadable') {
-    return unknown(name, 'the install receipt is present but not readable', 'void-harness update rewrites it');
+    return unknown(name, 'the install receipt is present but not readable', `${PRODUCT_COMMAND} update rewrites it`);
   }
   const version = receipt.version ?? 'unknown';
   const missingTotal = receipt.missingTotal ?? 0;
@@ -266,7 +266,7 @@ function derivedCheck(observation: LayoutObservation): CheckResult {
     ok: true,
     status: 'advisory',
     message: `git tracks ${observation.trackedDerivedCount} file(s) that \`hydrate\` restores from the manifest`,
-    fix: 'void-harness update --untrack-derived (keeps the files on disk, drops them from the index)',
+    fix: `${PRODUCT_COMMAND} update --untrack-derived (keeps the files on disk, drops them from the index)`,
   };
 }
 

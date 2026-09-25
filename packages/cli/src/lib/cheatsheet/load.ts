@@ -6,6 +6,7 @@ import { findCoreSource } from '../paths.js';
 import { loadSpecialists, MAX_SPECIALIST_FILE_BYTES } from '../specialists/load.js';
 import { projectCatalog, type CatalogEntry, type HookWiring } from './catalog.js';
 import { requireData } from './read.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 const manifestSchema = z.object({ hooks: z.record(z.string().max(100), z.array(z.object({
   matcher: z.string().max(500).optional(),
@@ -35,7 +36,7 @@ export async function loadCatalog(sourceRoot?: string): Promise<readonly Catalog
   const commands: CatalogEntry[] = Object.entries(COMMAND_CATALOG).map(([name, command]) => ({
     id: `command:${name}`, name, type: 'command', pack: 'core', runtimes: ['cli'],
     description: command.help.map(row => row.description).join(' '),
-    invocations: command.help.map(row => ({ runtime: 'cli', text: `void-harness ${row.signature}` })),
+    invocations: command.help.map(row => ({ runtime: 'cli', text: `${PRODUCT_COMMAND} ${row.signature}` })),
     triggers: ['Explicit CLI invocation.'], relatedIds: [],
   }));
   const initial = projectCatalog(input, specialists, [], commands);

@@ -43,6 +43,7 @@ import {
   subgraphOf,
   testsFor,
 } from '@voidcorp/harness-graph/project';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 import { loadProjectKnowledge } from './project-knowledge.js';
 
 const FILE_ID_PREFIX = 'project:file:';
@@ -189,12 +190,12 @@ export function projectQueryArity(
       ? undefined
       : {
           problem: 'path needs two files: where to start and where to end',
-          fix: 'void-harness graph path <from> <to>',
+          fix: `${PRODUCT_COMMAND} graph path <from> <to>`,
         };
   }
   return targetCount > 0
     ? undefined
-    : { problem: `${name} needs a file to answer about`, fix: `void-harness graph ${name} <file>` };
+    : { problem: `${name} needs a file to answer about`, fix: `${PRODUCT_COMMAND} graph ${name} <file>` };
 }
 
 /** Repository-relative POSIX path for a target, or the reason it is refused. */

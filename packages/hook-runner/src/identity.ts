@@ -191,6 +191,10 @@ export function parseProductIdentity(value: unknown): ProductIdentity {
 
 export const PRODUCT_IDENTITY: ProductIdentity = parseProductIdentity(document);
 
+/** The command every message tells a person to run: never a deprecated one, which would answer
+ * the advice with a deprecation notice. */
+export const PRODUCT_COMMAND: string = PRODUCT_IDENTITY.commands.primary;
+
 /**
  * The one place a product setting is read from the environment. `name` is the part after the
  * prefix (`NO_TRIM` for `VOID_MACHINE_NO_TRIM`). The current prefix wins whenever it is set, even

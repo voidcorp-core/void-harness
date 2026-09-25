@@ -26,13 +26,14 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prefixedTokens } from './build-skill-references.mjs';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOGUE = resolve(ROOT, 'packages/core/data/model.json');
 
 /**
  * A namespaced skill name, core (`harness:tdd`) or pack (`harness-server:x`), in
- * prose or as a slash command, but never the `void-harness:` marker.
+ * prose or as a slash command, but never one of the product's own `<name>:` markers.
  *
  * This used to be how a reference was written. It is now what a reference must
  * never be: the namespace exists only under a Claude Code marketplace plugin,
@@ -80,7 +81,8 @@ export function extractReferences(text) {
  */
 export function extractPluginReferences(description) {
   return prefixedTokens(typeof description === 'string' ? description : '')
-    .filter((name) => name !== 'void-harness');
+    .filter((name) => name !== PRODUCT_IDENTITY.commands.primary
+      && !PRODUCT_IDENTITY.commands.deprecated.includes(name));
 }
 
 /**

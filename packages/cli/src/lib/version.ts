@@ -1,4 +1,4 @@
-// Minimal semver comparison for void-harness. Plugin versions in this
+// Minimal semver comparison for void-machine. Plugin versions in this
 // marketplace are M.m.p with optional leading ^/~ in declared ranges, so a
 // full semver parser would be overkill. Pre-release tags and metadata are
 // intentionally unsupported — if we adopt them, swap this for `semver`.

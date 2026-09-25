@@ -315,7 +315,7 @@ export function renderResumeContext(bundle: ResumeBundle): string {
     'clear-unreconciled',
   ]);
   const required = [
-    '[void-harness resume]',
+    '[void-machine resume]',
     `Project: ${bundle.project.name}`,
     `Context continuity: ${bundle.continuity.status}`,
     ...(bundle.continuity.status === 'degraded'

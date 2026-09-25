@@ -1,7 +1,7 @@
 {
   "name": "voidmachine",
   "version": "3.8.0",
-  "description": "void-harness CLI — install an opinionated engineering doctrine on any project; render deterministic project health. Run via `npx voidmachine`; command: void-machine (alias vm; void-harness is deprecated).",
+  "description": "void-machine CLI — install an opinionated engineering doctrine on any project; render deterministic project health. Run via `npx voidmachine`; command: void-machine (alias vm).",
   "license": "MIT",
   "author": "Folpe @ VoidCorp",
   "homepage": "https://github.com/voidcorp-core/void-machine#readme",
@@ -22,7 +22,7 @@
     "code-quality",
     "tdd",
     "doctrine",
-    "void-harness"
+    "void-machine"
   ],
   "type": "module",
   "bin": {

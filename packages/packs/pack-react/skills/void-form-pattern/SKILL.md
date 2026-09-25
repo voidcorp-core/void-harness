@@ -1,11 +1,11 @@
 ---
 name: void-form-pattern
-description: "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action."
+description: "Build forms with react-hook-form + Zod resolver (void-machine default): validation, error UX, submit flow with Server Actions. Composes with server-action."
 ---
 
 # form-pattern
 
-Use when building any form with > 1 field, any field with validation, or any submit that triggers a mutation. The default in void-harness is **react-hook-form** + **Zod resolver** for client-side controlled forms, paired with **Server Actions** on submit.
+Use when building any form with > 1 field, any field with validation, or any submit that triggers a mutation. The default in void-machine is **react-hook-form** + **Zod resolver** for client-side controlled forms, paired with **Server Actions** on submit.
 
 For a single-field action (search input, toggle, "delete" button), use a Server Action directly — no library needed.
 

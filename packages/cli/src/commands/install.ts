@@ -1,11 +1,11 @@
-// `void-harness install --global` — install the void harness as a
+// `void-machine install --global` — install Void Machine as a
 // Claude Code plugin at the user-global level: ~/.claude-plugin/plugins/void/.
 //
-// This is the ESCAPE HATCH. The recommended flow is `void-harness init`
+// This is the ESCAPE HATCH. The recommended flow is `void-machine init`
 // which installs the same plugin locally inside <cwd>/.claude/plugins/.
 
 import { existsSync } from 'node:fs';
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -58,13 +58,13 @@ export async function install(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
 
   if (!opts.global) {
-    console.error(`void-harness install requires --global.`);
+    console.error(`${PRODUCT_COMMAND} install requires --global.`);
     console.error(``);
     console.error(`The default install is per-project. Run:`);
-    console.error(`  void-harness init`);
+    console.error(`  ${PRODUCT_COMMAND} init`);
     console.error(``);
     console.error(`If you really want a global install (rare), run:`);
-    console.error(`  void-harness install --global`);
+    console.error(`  ${PRODUCT_COMMAND} install --global`);
     process.exit(2);
   }
 
@@ -75,7 +75,7 @@ export async function install(args: readonly string[]): Promise<void> {
 
   const pluginRoot = join(homedir(), '.claude', 'plugins', PLUGIN_NAME);
 
-  console.log(`void-harness install --global`);
+  console.log(`${PRODUCT_COMMAND} install --global`);
   console.log(`  source : ${sourceRoot}`);
   console.log(`  plugin : ${pluginRoot}`);
   if (opts.dryRun) console.log(`  mode   : dry-run (no changes)`);
@@ -100,7 +100,7 @@ export async function install(args: readonly string[]): Promise<void> {
 
   console.log(`done.`);
   console.log(``);
-  console.log(`Note: per-project layout is still preferred. Use 'void-harness init' in any project where you want isolation, pinning, or team sharing.`);
+  console.log(`Note: per-project layout is still preferred. Use '${PRODUCT_COMMAND} init' in any project where you want isolation, pinning, or team sharing.`);
 }
 
 async function writeManifest(pluginRoot: string, core: CoreManifest): Promise<void> {

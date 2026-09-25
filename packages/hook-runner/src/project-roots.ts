@@ -1,7 +1,7 @@
 // The two roots a command runs against, and why they are not one.
 //
 // A command reads and writes code in the WORK TREE: the directory it was run
-// in. It also reads what `void-harness init` installed -- `.claude/agents`,
+// in. It also reads what `void-machine init` installed -- `.claude/agents`,
 // `.claude/skills`, `.void/installed`, the hook bundle -- and that is a
 // property of the REPOSITORY, exactly like the git config or the
 // `info/exclude` file that hides those assets from git. In the main checkout

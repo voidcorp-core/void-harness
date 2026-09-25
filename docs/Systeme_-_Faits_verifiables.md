@@ -69,7 +69,7 @@ Les fichiers de hook préfixés par `_` sont exclus du plafond de la règle 5. P
 ### Autres règles écrites dans CLAUDE.md
 
 - Toute convention ajoutée dans un commit doit être reflétée dans `docs/*.md` dans le même commit.
-- Toute décision non évidente doit exister comme fichier dédié créé par `void-harness decisions new` ; les enregistrements `accepted` sont immuables et une modification les supersede.
+- Toute décision non évidente doit exister comme fichier dédié créé par `void-machine decisions new` ; les enregistrements `accepted` sont immuables et une modification les supersede.
 - `docs/DECISIONS.md` est déclaré page d'atterrissage figée.
 - Les versions ne sont pas éditées à la main ; `release-please` les bump et `pnpm version:check` échoue en cas de dérive.
 - `AGENTS.md` est le miroir de `CLAUDE.md` ; toute modification de l'un doit être portée dans l'autre dans le même commit.

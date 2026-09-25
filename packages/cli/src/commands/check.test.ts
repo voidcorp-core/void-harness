@@ -85,7 +85,7 @@ async function checkFrom(cwd: string, remote: CheckRemote = marketplaceAhead()):
 
 /** The lines that prescribe a command. */
 function remedies(out: string): readonly string[] {
-  return out.split('\n').filter((line) => /void-harness (update|init)/.test(line));
+  return out.split('\n').filter((line) => /void-machine (update|init)/.test(line));
 }
 
 /** Strip the directory each remedy names, so two reports of one install compare equal. */
@@ -148,7 +148,7 @@ describe('check from a linked worktree', () => {
     const fromWorktree = await checkFrom(linked);
 
     const named = remedies(fromWorktree);
-    expect(named.some((remedy) => remedy.includes('void-harness init'))).toBe(true);
+    expect(named.some((remedy) => remedy.includes('void-machine init'))).toBe(true);
     for (const remedy of named) expect(remedy).toContain(`in ${realpathSync(main)}: `);
   });
 
@@ -165,7 +165,7 @@ describe('check from a linked worktree', () => {
 
     expect(fromWorktree).toContain('drift');
     const named = remedies(fromWorktree);
-    expect(named.some((remedy) => remedy.includes('void-harness init'))).toBe(true);
+    expect(named.some((remedy) => remedy.includes('void-machine init'))).toBe(true);
     for (const remedy of named) expect(remedy).toContain(`in ${realpathSync(main)}: `);
   });
 

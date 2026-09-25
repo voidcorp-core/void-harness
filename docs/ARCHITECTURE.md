@@ -3,7 +3,7 @@
 ## Topology
 
 ```
-void-harness/
+void-machine/
 ├── packages/
 │   ├── cli/                       # voidmachine
 │   │   ├── src/commands/          # install, add, update, doctor, init
@@ -49,7 +49,7 @@ has three answers:
 | level | delete it and | committed |
 |---|---|---|
 | the top of `.void/` | the project loses a decision | yes |
-| `installed/` | `void-harness install` restores it byte for byte | no |
+| `installed/` | `void-machine install` restores it byte for byte | no |
 | `machine/` | nothing is lost | no |
 
 **Everything at the top of `.void/` is committed; the two subdirectories are
@@ -166,16 +166,16 @@ runtime state or installation-root resolution above.
 
 ADRs are an append-only data model, not a generated document:
 
-- `void-harness decisions new` creates one exclusively-owned file with a UUID
+- `void-machine decisions new` creates one exclusively-owned file with a UUID
   identity; concurrent workers never allocate a shared counter or index.
-- `void-harness decisions check` validates the schema, unique identities,
+- `void-machine decisions check` validates the schema, unique identities,
   supersession links and cycles. In CI, `DECISIONS_BASE` also rejects edits,
   renames or deletions of accepted records. Its only edit exception is a
   repository-local path substitution with unchanged frontmatter, headings,
   structure and surrounding prose, and an existing root-confined target.
 - Decision loading is root-confined, rejects symlinks and bounds each record to
   256 KiB before parsing.
-- `void-harness decisions render --format markdown|json` produces a read-only
+- `void-machine decisions render --format markdown|json` produces a read-only
   projection on stdout. It computes effective supersession from inbound
   `supersedes` links, preserves the declared status, and names every replacing
   record. It never commits or rewrites a shared artifact.
@@ -243,7 +243,7 @@ Rules:
   boundary. Repeated seeded stress runs in the scheduled test-certification workflow on an
   ephemeral Linux runner and emits exact-SHA reports; it is deliberately outside the laptop edit
   loop and ordinary pull-request critical path.
-- **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
+- **Runtimes are added a posteriori without friction**: `void-machine runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
   from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
@@ -353,7 +353,7 @@ ticket or resume-point flow and does not need a programme descriptor.
 ### Session update proposal
 
 For a local installation behind the cached published version, `freshnessRelay` supplies
-SessionStart model context asking the agent to offer `void-harness update` once near its
+SessionStart model context asking the agent to offer `void-machine update` once near its
 first reply. The offer explains that update writes project files and links the public
 [release notes](https://github.com/voidcorp-core/void-machine/releases) for possible breaking
 changes. Execution requires explicit human permission, including during autonomous work.
@@ -406,7 +406,7 @@ existing global cold-start and no-op-versus-Node wall budgets remain owned by
 
 ### Installed capability discovery
 
-`void-harness cheatsheet` owns the consumer discovery projection in the CLI's
+`void-machine cheatsheet` owns the consumer discovery projection in the CLI's
 `lib/cheatsheet/` boundary. The shipped graph and specialist contracts provide
 canonical identities; `lib/command-catalog.ts` supplies the same metadata to
 dispatch, help and discovery. The handler map is exhaustive over its keys.
@@ -429,7 +429,7 @@ See [the discovery projection decision](decisions-log/2026-09-13-installed-disco
 
 ### Source self-host boundary
 
-`void-harness self-host sync` is the only supported dogfood compiler for this
+`void-machine self-host sync` is the only supported dogfood compiler for this
 meta-repository. It hashes bounded, symlink-free current inputs, builds the hook
 runner and a disposable runtime-adapter worker directly from TypeScript, then
 wires `.void/machine/generated/.staging-*` through that current-source worker. The
@@ -755,7 +755,7 @@ and unresolved references produce source diagnostics without inventing entities.
 The declarative YAML adapter uses the existing yaml dependency and explicit bounded
 validators inside the graph package, never CLI parsing code. Declaration extraction is
 stored in the existing cache and its new extraction version invalidates older entries.
-`void-harness why <file>` always observes that incremental builder, preserving current
+`void-machine why <file>` always observes that incremental builder, preserving current
 diagnostics even when `.void/knowledge.json` already exists; it never writes that artifact.
 It renders decisions, invariants and declared verification evidence with provenance,
 explicit absence and partial/degraded caveats. Traversal uses the existing 500-node,
@@ -770,7 +770,7 @@ different claims and only one is safe to act on. `impact` walks dependents and c
 `dynamic-imports` exactly like `imports`, since a dropped dynamic edge under-reports impact. A
 Git-proven rename is followed forward from the retired path, so a caller holding a pre-rename path is
 told what the file became rather than that nothing depends on it. The CLI surface
-(`void-harness graph <query> <file>`, backed by `packages/cli/src/lib/project-graph-store.ts`) takes
+(`void-machine graph <query> <file>`, backed by `packages/cli/src/lib/project-graph-store.ts`) takes
 and answers in repository-relative paths, refuses a target outside the project root, renders owners
 by label because an owner id is hashed when the name is not id-safe, and prints an explicit source
 fallback naming the count, codes, and paths extraction left out whenever the build is `partial` or
@@ -783,8 +783,8 @@ so a query regression cannot hide behind extraction cost.
 ProjectGraph is exposed from `@voidcorp/harness-graph/project`, keeping its
 TypeScript runtime adapter out of the legacy single-file CatalogGraph bundle.
 The project snapshot can also be materialized as the versioned `.void/knowledge.json` artifact
-with `void-harness graph project-build` and checked against a fresh build with
-`void-harness graph project-check`. The artifact is a validated projection carrying the snapshot
+with `void-machine graph project-build` and checked against a fresh build with
+`void-machine graph project-check`. The artifact is a validated projection carrying the snapshot
 root hash and build state; project graph queries read it when valid, while missing, corrupt, or
 unknown artifacts trigger a rebuild. It is distinct from `.void/machine/`, whose observation cache
 is disposable and never becomes an authority. The freshness check measures the generated file so
@@ -1013,13 +1013,13 @@ loop is capped at two rounds. Missing input
 hashes, missing or mismatched contract versions, malformed, wrong-role, duplicate, timed-out, stale,
 or degraded specialist evidence cannot produce `verified`; persistent blockers end `blocked`.
 `void-implement` is the human-readable conductor. It obtains the applicable IDs from
-`void-harness mission dispatch`; it never owns a local role list. The CLI compiles a fresh canonical
+`void-machine mission dispatch`; it never owns a local role list. The CLI compiles a fresh canonical
 plan at controller-owned mission start, persists an integrity-bound minimal routing snapshot, and
 materializes only the controller's next action. Pre-implementation hashes stay bound to that
 snapshot; post-implementation hashes follow the current diff. Codex consumes each envelope with
 native `spawn_agent`; Claude Code with native `Agent`.
 
-`void-harness mission` exposes the operator lifecycle:
+`void-machine mission` exposes the operator lifecycle:
 
 - `start --title ... --ticket ... [--mode team|fortress]` creates the
   controller-owned run and binds its canonical ticket path, ticket-content hash and routing
@@ -1213,7 +1213,7 @@ behavioral proof plus real local use. Each runtime carries independent `installe
 cap-69 on a red failure-predicate, pending dimensions excluded, confidence band, impact-ranked next
 actions — see DECISIONS.md 2026-07-21). Both are pure: no I/O, no clock, no model call.
 
-`void-harness status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
+`void-machine status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
 certification + model + telemetry, executes each detected adapter's bounded local postconditions,
 calls the pure core, renders the terminal surface, and persists
 `.void/machine/status.json` plus a `.void/machine/history/<ts>.json` snapshot (both git-ignored, per-project runtime
@@ -1243,7 +1243,7 @@ the records carry the reasoning at each step.**
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
 | `project` | the project authors it; the harness never overwrites what the project wrote | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/program.md`, `.claude/settings.json` | tracked |
-| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
+| `derived` | `void-machine init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
 | `observed` | this machine's history; meaningless in another checkout | `machine/runs/`, `machine/cache/`, `machine/receipts/`, `machine/status.json`, `machine/retired/*.jsonl` | never |
 
 `.void/PROJECT-DOCTRINE.md` is the one `project` file `init` may rewrite, and only
@@ -1337,7 +1337,7 @@ ignored, so "ignored" here already means "ignored and not in the index", which i
 the only harmful state.
 
 An ignore rule has no effect on a path already in the index, so an existing
-project needs an explicit untrack. `void-harness update --untrack-derived` does
+project needs an explicit untrack. `void-machine update --untrack-derived` does
 it in one command — files stay on disk, the index forgets them. It is opt-in and
 never implied: rewriting a project's index is the project's call, not a side
 effect of updating. `doctor` reports the count as **advisory** (nothing is
@@ -1359,7 +1359,7 @@ Same shape, opposite lifecycles — the ownership axis applied one level up. The
 manifest carries an **exact** version plus a sha256 per file, is written by `init`
 into the same transaction as everything else, and is committed.
 
-`void-harness hydrate` restores from it under two rules:
+`void-machine hydrate` restores from it under two rules:
 
 1. **It refuses to run unless the CLI is the version the manifest names**, and
    prints `npx <package>@<version> hydrate`, where `<package>` is the name that version
@@ -1383,7 +1383,7 @@ just cannot prove another checkout got the same bytes).
 
 ## .void/config.json (consumer-side)
 
-Generated by `void-harness init`. Lives at `.void/config.json` in the consumer project.
+Generated by `void-machine init`. Lives at `.void/config.json` in the consumer project.
 
 The `packs` field pins the **marketplace plugins** that were enabled, keyed
 `@voidcorp/<plugin-name>` (the plugin name, e.g. `harness-nextjs`, scoped under
@@ -1455,7 +1455,7 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 Maintainer reference checks also inspect descriptions in core, mirrored and pack
 `plugin.json` manifests. Explicit `void-` skill names resolve against the live
 catalogue; ordinary English prose, pack names and the exact product name
-`void-harness` are not skill references. Historical decisions and plans remain
+`void-machine` are not skill references. Historical decisions and plans remain
 outside this live-description check.
 
 Roadmap (documented intent, not yet wired): skill front-matter schema check,
@@ -1486,14 +1486,14 @@ requires.
   voidcorp-core/void-machine/.github/workflows/enforce.yml@main`). GitHub does not
   redirect `uses:` after a repository rename, so `doctor` reports a call to a
   former slug as broken rather than adopted.
-- `.github/workflows/void-enforce.yml` — void-harness's own dogfood, using the
+- `.github/workflows/void-enforce.yml` — void-machine's own dogfood, using the
   *local* composite so a check change is validated by the same PR that makes it.
 
 **Fail-closed** is the invariant (the #62-64 class): a missing prerequisite, an
 unresolvable base ref, a missing merge-base, or any git error is an explicit red
 check, never a silent green. Escape hatch: `.github/void-enforce-allow` lists
 path globs the driver skips (each skip logged) — the committed, reviewable
-equivalent of the local `VOID_HARNESS_ALLOW_SECRET_EDIT` override, for files
+equivalent of the local `VOID_MACHINE_ALLOW_SECRET_EDIT` override, for files
 legitimately named like a secret store.
 An exact generated artifact may also be exempt only when its authored sources
 remain scanned and a deterministic freshness gate verifies the artifact in the
@@ -1501,7 +1501,7 @@ same CI. This repository applies that rule to the single-file consumer graph
 bundle, whose size exceeds the bounded hook protocol; `graph:check-bundle`
 proves its source/model correspondence. Broad generated-directory globs remain
 forbidden.
-`void-harness doctor` reports (advisory, never blocking) whether a project has
+`void-machine doctor` reports (advisory, never blocking) whether a project has
 adopted the workflow. v1 replays three checks: sensitive-path, secret-content,
 boundary-direction. `boundary-direction` reads each package's own
 `package.json`: an import of a workspace package the importer declares is

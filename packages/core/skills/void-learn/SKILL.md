@@ -43,7 +43,7 @@ Then decide the scope with one question: **"If I started a new unrelated project
 ```
 This could go two places:
   1. .void/PROJECT-DOCTRINE.md (this project only)
-  2. the harness itself (universal — a GitHub issue on void-harness)
+  2. the harness itself (universal — a GitHub issue on void-machine)
 Which scope did you mean?
 ```
 
@@ -146,7 +146,7 @@ The tracker **is** the triage zone: taking the issue promotes it, closing it dec
 
 ### Outbound audit (obsolescence detection)
 
-The obsolescence side runs from the CLI, not from prose here: `void-harness audit` (and `--all-projects` / `--push`, #72) reads canonical `.void/runs/*/events.jsonl` journals plus legacy history and reports skills that are active / stale / never-fired, plus expensive/should-have-fired via `void-graph`. This skill's job in audit mode is to **interpret** that report and, per proposal, draft a deprecation/fusion PR — hand-authored, HITL. The audit never removes a skill, edits a SKILL.md, or touches doctrine automatically.
+The obsolescence side runs from the CLI, not from prose here: `void-machine audit` (and `--all-projects` / `--push`, #72) reads canonical `.void/runs/*/events.jsonl` journals plus legacy history and reports skills that are active / stale / never-fired, plus expensive/should-have-fired via `void-graph`. This skill's job in audit mode is to **interpret** that report and, per proposal, draft a deprecation/fusion PR — hand-authored, HITL. The audit never removes a skill, edits a SKILL.md, or touches doctrine automatically.
 
 ---
 

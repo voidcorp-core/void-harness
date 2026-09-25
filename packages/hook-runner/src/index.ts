@@ -90,6 +90,7 @@ export {
   type ManagedMarkers,
   type MarkerPair,
   parseProductIdentity,
+  PRODUCT_COMMAND,
   PRODUCT_IDENTITY,
   type ProductIdentity,
   productSetting,

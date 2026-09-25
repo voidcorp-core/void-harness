@@ -2,7 +2,7 @@
   "name": "@voidcorp/hook-runner",
   "version": "0.0.0",
   "private": true,
-  "description": "Portable Node hook adapter and sequenced event writer for void-harness.",
+  "description": "Portable Node hook adapter and sequenced event writer for void-machine.",
   "license": "MIT",
   "type": "module",
   "exports": {

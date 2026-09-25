@@ -1,4 +1,4 @@
-# Reusable workflow: the void-harness enforcement floor for CONSUMER repos.
+# Reusable workflow: the void-machine enforcement floor for CONSUMER repos.
 #
 # Adopt it with five lines in your own repo (.github/workflows/void-enforce.yml):
 #

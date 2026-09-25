@@ -37,7 +37,7 @@ only proves that the first run happened.
 ## What these numbers do not cover
 
 **Queries are not the cost of asking a question.** Every query here runs against a snapshot already
-in memory. A `void-harness graph <query>` invocation first opens the store, which builds or
+in memory. A `void-machine graph <query>` invocation first opens the store, which builds or
 revalidates the ProjectGraph, and that is where the wall-clock goes. On this repository (1,638
 indexed files) on 2026-08-05, one CLI invocation measured ~3.5 s, of which the queries above are
 single-digit milliseconds.

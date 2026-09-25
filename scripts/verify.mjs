@@ -480,7 +480,7 @@ function selectedFor(options) {
 
 function usage() {
   return [
-    'void-harness verify - run the canonical proof gates.',
+    'void-machine verify - run the canonical proof gates.',
     '',
     '  pnpm verify                 required gates',
     '  pnpm verify --artifacts     generated-artifact gates',

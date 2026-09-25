@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copy the void-harness core (skills/agents/hooks) into the CLI package
+// Copy the void-machine core (skills/agents/hooks) into the CLI package
 // at publish time so the published npm tarball is self-sufficient.
 //
 // Source: ../core/claude/  (monorepo sibling)

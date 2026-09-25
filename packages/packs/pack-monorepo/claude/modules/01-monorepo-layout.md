@@ -1,6 +1,6 @@
 # Monorepo layout (`@voidcorp/pack-monorepo`)
 
-This repository is a Turborepo workspace following the void-harness `pack-monorepo` conventions.
+This repository is a Turborepo workspace following the void-machine `pack-monorepo` conventions.
 
 ## Topology
 
@@ -59,7 +59,7 @@ Composes with `void-hexagonal-architecture` (ports + adapters), `void-domain-dri
 - Server Actions live in `apps/<app>/src/actions/`, NEVER in packages.
 - No em dashes, no emojis in code / docs / commits.
 
-## Composition with void-harness skills
+## Composition with void-machine skills
 
 - **`void-hexagonal-architecture`** — port direction + adapter thinness enforced via the layout.
 - **`void-tdd`** — paths default to `apps/*/src/**` business code; spikes in `apps/*/scripts/spike-*`.

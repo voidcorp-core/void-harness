@@ -1,4 +1,4 @@
-// Detect whether the CLI is being run *inside the void-harness source repo*
+// Detect whether the CLI is being run *inside the void-machine source repo*
 // (the meta-repo that produces the harness) rather than a project consuming it.
 //
 // `init` and `doctor` target consumers. Run against the source they misbehave:
@@ -11,12 +11,14 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 /**
- * True when `root` is the void-harness source repo itself. Keyed on the root
- * package.json `name` **and** the `packages/{cli,core}` workspace layout, so a
- * consumer that merely vendors a `.void/` dir — or happens to share a name — is
- * never mistaken for the source. Any read/parse error resolves to `false`: an
+ * True when `root` is the void-machine source repo itself. Keyed on the root
+ * package.json `name` (the private workspace root kept its original name through
+ * the rename) **and** the `packages/{cli,core}` workspace layout, so a consumer
+ * that merely vendors a `.void/` dir — or happens to share a name — is never
+ * mistaken for the source. Any read/parse error resolves to `false`: an
  * unreadable root can't be the source repo we're protecting.
  */
 export function isHarnessSourceRepo(root: string): boolean {
@@ -35,7 +37,7 @@ export type SelfRepoDoctorTarget =
   | { readonly kind: 'consumer' }
   | {
       readonly kind: 'self-host';
-      readonly command: 'void-harness self-host sync';
+      readonly command: string;
     };
 
 /**
@@ -46,6 +48,6 @@ export function selfRepoDoctorTarget(root: string): SelfRepoDoctorTarget {
   if (!isHarnessSourceRepo(root)) return { kind: 'consumer' };
   return {
     kind: 'self-host',
-    command: 'void-harness self-host sync',
+    command: `${PRODUCT_COMMAND} self-host sync`,
   };
 }

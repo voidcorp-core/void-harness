@@ -74,7 +74,7 @@ describe('judgeObservedIgnore', () => {
     expect(check.ok).toBe(false);
     expect(check.message).toContain('.void/outputs');
     expect(check.message).toMatch(/would commit/);
-    expect(check.fix).toContain('void-harness update');
+    expect(check.fix).toContain('void-machine update');
   });
 
   it('reports a fact it could not measure as unknown, never as a defect', () => {

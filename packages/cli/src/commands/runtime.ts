@@ -1,8 +1,8 @@
-// `void-harness runtime <list|add>` — inspect and grow the set of agent runtimes
+// `void-machine runtime <list|add>` — inspect and grow the set of agent runtimes
 // a project targets, a posteriori and without friction.
 //
 // The archetype: you `init` with Claude, work for weeks, then decide to add
-// Codex. `void-harness runtime add codex` wires exactly Codex's layer (its safety
+// Codex. `void-machine runtime add codex` wires exactly Codex's layer (its safety
 // floor + AGENTS.md) and touches nothing Claude. Idempotent, adapter-driven —
 // the command never branches on a runtime name.
 
@@ -19,12 +19,13 @@ import { detectRuntimes, parseRuntimeArg, type Runtime } from '../lib/runtime.js
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
 import { commitFileTransaction } from '../lib/transaction.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export async function runtime(args: readonly string[]): Promise<void> {
   const [sub, ...rest] = args;
   if (sub === undefined || sub === 'list' || sub === 'ls') return runtimeList();
   if (sub === 'add') return runtimeAdd(rest);
-  p.log.error(`Unknown subcommand '${sub}'. Usage: void-harness runtime <list | add <claude|codex>>`);
+  p.log.error(`Unknown subcommand '${sub}'. Usage: ${PRODUCT_COMMAND} runtime <list | add <claude|codex>>`);
   process.exit(2);
 }
 
@@ -41,7 +42,7 @@ function runtimeList(): void {
     line(`${mark}  ${c.dim(adapter.id.padEnd(10))}${adapter.label.padEnd(16)}${state}`);
   }
   blank();
-  footer(`add one with ${c.bold('void-harness runtime add <claude|codex>')}`);
+  footer(`add one with ${c.bold(`${PRODUCT_COMMAND} runtime add <claude|codex>`)}`);
 }
 
 async function runtimeAdd(rest: readonly string[]): Promise<void> {
@@ -60,12 +61,12 @@ async function runtimeAdd(rest: readonly string[]): Promise<void> {
     process.exit(2);
   }
   if (requested.length === 0) {
-    p.log.error('Usage: void-harness runtime add <claude|codex>');
+    p.log.error(`Usage: ${PRODUCT_COMMAND} runtime add <claude|codex>`);
     process.exit(2);
   }
 
   if (!existsSync(join(projectRoot, '.void', 'config.json'))) {
-    p.log.error('No .void/config.json — run `void-harness init` first, then add runtimes.');
+    p.log.error(`No .void/config.json — run \`${PRODUCT_COMMAND} init\` first, then add runtimes.`);
     process.exit(2);
   }
 
@@ -139,7 +140,7 @@ async function runtimeAdd(rest: readonly string[]): Promise<void> {
     const label = `${i + 1}. ${item}`;
     line(`  ${failed ? c.red(label) : c.dim(label)}`);
   });
-  footer(`${c.bold('void-harness doctor')} to verify`);
+  footer(`${c.bold(`${PRODUCT_COMMAND} doctor`)} to verify`);
 }
 
 /** The packs already active in the project, read from .void/config.json. */

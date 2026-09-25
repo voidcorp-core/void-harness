@@ -1,8 +1,8 @@
-// `void-harness adoption` — tier-1 adoption telemetry: PULL public npm + GitHub stats. Zero
+// `void-machine adoption` — tier-1 adoption telemetry: PULL public npm + GitHub stats. Zero
 // phone-home (nothing on a user's machine reports anything; this maintainer command fetches public
 // aggregates). Answers "who downloads" without any opt-in or account. See DECISIONS.md (2026-07-21).
 
-import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
 export const NPM_PKG = PRODUCT_IDENTITY.packageName;
@@ -52,7 +52,7 @@ interface Fetched {
 async function fetchJson(url: string): Promise<Fetched> {
   let res: Response;
   try {
-    res = await fetch(url, { headers: { 'user-agent': 'void-harness' } });
+    res = await fetch(url, { headers: { 'user-agent': `${PRODUCT_COMMAND}` } });
   } catch {
     return { reason: 'network error' };
   }

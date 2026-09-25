@@ -5,7 +5,7 @@ Claude Code et Codex), croisé avec la doc officielle des hooks des deux runtime
 Tout ce qui est affirmé ici a été vérifié dans le code ou dans la doc officielle, aux références
 données. Ne re-dérive pas ces faits.
 
-Dans `void-harness`. Lis `CLAUDE.md` et `.void/PROJECT-DOCTRINE.md` d'abord.
+Dans `void-machine`. Lis `CLAUDE.md` et `.void/PROJECT-DOCTRINE.md` d'abord.
 Un point = un `void-brainstorm`. Ne les enchaîne pas dans une seule session.
 
 Deux briefs détaillés existent déjà et complètent cette liste :
@@ -149,7 +149,7 @@ mode autonome est une politique distincte qui décide d'injecter une continuatio
 preuves, des portes et des limites. Chez nous `.void/active.md` et `void-autopilot` mélangent
 les deux.
 
-**Ce qui n'est probablement pas transposable** : le daemon. void-harness ne possède pas le
+**Ce qui n'est probablement pas transposable** : le daemon. void-machine ne possède pas le
 runtime, il s'y installe. Ne pars pas là-dessus sans avoir montré ce qu'un harnais peut en faire.
 
 ---

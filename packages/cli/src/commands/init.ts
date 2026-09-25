@@ -1,4 +1,4 @@
-// `void-harness init` — wire the current project to the void-harness Claude
+// `void-machine init` — wire the current project to the void-machine Claude
 // Code marketplace and activate the requested plugins.
 //
 // What this command does (idempotent):
@@ -6,9 +6,9 @@
 //   2. Copy PHILOSOPHY.md into .void/installed/ (managed, restorable)
 //   3. Seed .void/PROJECT-DOCTRINE.md from the template, or refresh it while
 //      the project has still never written into it
-//   4. Merge `.claude/settings.json` with `extraKnownMarketplaces.void-harness`
+//   4. Merge `.claude/settings.json` with `extraKnownMarketplaces.void-machine`
 //      pointing to the GitHub repo, and `enabledPlugins` for the chosen packs
-//   5. Patch CLAUDE.md (and its Codex sister AGENTS.md) with the void-harness
+//   5. Patch CLAUDE.md (and its Codex sister AGENTS.md) with the void-machine
 //      block (doctrine imports + skill summary)
 //
 // This command does NOT copy skills/agents/hooks — Claude Code fetches the
@@ -19,7 +19,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { stripManagedBlock } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, stripManagedBlock } from '@voidcorp/hook-runner';
 import { PROJECT_DOCTRINE_PATH } from '../lib/co-owned.js';
 import { observeKeptTracked, writeExcludeBlock } from '../lib/git-exclude.js';
 import { isUntouchedSinceInstall, readInstallManifest, sha256Of } from '../lib/install-manifest.js';
@@ -239,7 +239,7 @@ export async function init(args: readonly string[]): Promise<void> {
   banner('init');
   meta('project', projectRoot);
 
-  // Guard: never wire the void-harness source repo as if it were a consumer.
+  // Guard: never wire the void-machine source repo as if it were a consumer.
   // init overwrites the canonical CLAUDE.md / AGENTS.md and drops doctrine files
   // at the repo root — corrupting the source of truth. Refuse by default; --force
   // is the deliberate "I know, I'm dogfooding the installer here" escape hatch.
@@ -250,7 +250,7 @@ export async function init(args: readonly string[]): Promise<void> {
   });
   if (verdict === 'refuse') {
     blank();
-    p.log.error('This is the void-harness source repo — init would overwrite the canonical CLAUDE.md and doctrine files.');
+    p.log.error(`This is the ${PRODUCT_COMMAND} source repo — init would overwrite the canonical CLAUDE.md and doctrine files.`);
     p.log.message('To install/test the harness, run init in a consumer project. To do it here anyway, pass --force.');
     process.exit(2);
   }

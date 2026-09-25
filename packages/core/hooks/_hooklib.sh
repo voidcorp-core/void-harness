@@ -125,12 +125,12 @@ hooklib_edits() {
 
 # hooklib_require_jq [name]: a content-scanning hook cannot verify an edit
 # without jq. Rather than fail OPEN (the #63 bug), block once with an explicit,
-# actionable message. jq is a documented prerequisite (void-harness doctor).
+# actionable message. jq is a documented prerequisite (void-machine doctor).
 hooklib_require_jq() {
   [[ "${HOOK_JQ:-0}" == 1 ]] && return 0
   printf '%s: jq is required to inspect edit content but is not installed.\n' "${1:-hook}" >&2
   printf 'Blocking rather than silently skipping enforcement. Install jq\n' >&2
-  printf '(e.g. brew install jq) or run: void-harness doctor.\n' >&2
+  printf '(e.g. brew install jq) or run: void-machine doctor.\n' >&2
   exit 2
 }
 

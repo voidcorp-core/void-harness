@@ -60,7 +60,7 @@ describe('isHarnessSourceRepo', () => {
 
     expect(selfRepoDoctorTarget(root)).toEqual({
       kind: 'self-host',
-      command: 'void-harness self-host sync',
+      command: 'void-machine self-host sync',
     });
   });
 });

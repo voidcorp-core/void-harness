@@ -1,6 +1,6 @@
 # graph-studio
 
-Interactive 3D view of the void-harness component graph (the maintainer/structure
+Interactive 3D view of the void-machine component graph (the maintainer/structure
 surface, spec §7), rendered as a **holographic HUD console** (JARVIS / Iron Man /
 Alita): bloom-lit neon nodes in a fogged void, an ambient particle field, a lock-on
 reticle, glassmorphic panels, and a boot sequence. Renders
@@ -62,12 +62,12 @@ into `src/generated/`. The browser bundle is a pure renderer of those blobs.
 
 ## Live layer (P2)
 
-The live layer connects to a separate `void-harness graph live` process (data-only
+The live layer connects to a separate `void-machine graph live` process (data-only
 SSE server; the studio stays a static app). Start the server in the repo root, then
 run the studio pointing at it:
 
 ```bash
-void-harness graph live                 # prints a one-shot authenticated local URL
+void-machine graph live                 # prints a one-shot authenticated local URL
 VITE_LIVE_URL=http://localhost:4317 pnpm --filter @voidcorp/graph-studio dev
 ```
 

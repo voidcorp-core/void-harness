@@ -1,6 +1,6 @@
 Sources for `void-implement` skill (see `docs/plans/skill-audits/void-implement.md` for full audit):
 
-- Original void-harness composition skill. No single external source: it is the
+- Original void-machine composition skill. No single external source: it is the
   canonical "execute one ticket end-to-end" conductor that the harness lacked.
 - The former backlog-autopilot skill, retired at the 2026-07-30 cutover, carried
   an INLINE per-ticket cycle (plan -> TDD -> static UX/UI pass -> ...). That

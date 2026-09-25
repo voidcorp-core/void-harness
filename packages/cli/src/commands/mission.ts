@@ -1,6 +1,6 @@
 // tdd-cover: e2e packages/cli/src/commands/mission.test.ts
 import { createHash, randomUUID } from 'node:crypto';
-import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
   type CanonicalEvent,
   canonicalJsonHash,
@@ -249,7 +249,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     if (new Set(names).size !== names.length) return invalid('duplicate evidence option', 'provide each option once');
     const error = validateOptions(options,
       subcommand === 'evidence-event' ? ['--id', '--input', '--status'] : ['--id', '--input'], ['--json']);
-    if (error !== undefined) return invalid(error, 'void-harness mission --help');
+    if (error !== undefined) return invalid(error, `${PRODUCT_COMMAND} mission --help`);
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
     const inputPath = valueAfter(options, '--input');
@@ -267,7 +267,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       return invalid('duplicate recovery option', 'provide each recovery option once');
     }
     const error = validateOptions(options, ['--id', '--input'], ['--json']);
-    if (error !== undefined) return invalid(error, 'void-harness mission recover --help');
+    if (error !== undefined) return invalid(error, `${PRODUCT_COMMAND} mission recover --help`);
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
     const inputPath = valueAfter(options, '--input');
@@ -286,7 +286,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       ['--json'],
     );
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission start --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission start --help`);
     }
     const title = valueAfter(options, '--title')?.trim();
     if (
@@ -339,7 +339,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     }
     const optionError = validateOptions(options, ['--ticket'], ['--json']);
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission plan --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission plan --help`);
     }
     const ticketPath = valueAfter(options, '--ticket');
     if (ticketPath === undefined) {
@@ -360,7 +360,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       ['--json'],
     );
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission dispatch --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission dispatch --help`);
     }
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
@@ -380,7 +380,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       ['--json'],
     );
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission writer-event --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission writer-event --help`);
     }
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
@@ -396,7 +396,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     }
     const optionError = validateOptions(options, ['--id', '--reason'], ['--json']);
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission close --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission close --help`);
     }
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
@@ -424,7 +424,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       ['--json'],
     );
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission specialist-event --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission specialist-event --help`);
     }
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
@@ -454,14 +454,14 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       ['--shell', '--json'],
     );
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission verify --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission verify --help`);
     }
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
     if (divider === -1 || command.length === 0) {
       return invalid(
         'verify requires a command after --',
-        'void-harness mission verify --id <id> -- <command...>',
+        `${PRODUCT_COMMAND} mission verify --id <id> -- <command...>`,
       );
     }
     const shell = options.includes('--shell');
@@ -483,12 +483,12 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     if (divider !== -1) {
       return invalid(
         `${subcommand} does not accept a command`,
-        `void-harness mission ${subcommand} --id <id>`,
+        `${PRODUCT_COMMAND} mission ${subcommand} --id <id>`,
       );
     }
     const optionError = validateOptions(options, ['--id'], ['--json']);
     if (optionError !== undefined) {
-      return invalid(optionError, `void-harness mission ${subcommand} --help`);
+      return invalid(optionError, `${PRODUCT_COMMAND} mission ${subcommand} --help`);
     }
     const missionId = missionIdFrom(options);
     if (typeof missionId !== 'string') return missionId;
@@ -508,7 +508,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       ['--apply', '--json'],
     );
     if (optionError !== undefined) {
-      return invalid(optionError, 'void-harness mission prune --help');
+      return invalid(optionError, `${PRODUCT_COMMAND} mission prune --help`);
     }
     const rawDays = valueAfter(options, '--older-than');
     const olderThanDays = rawDays === undefined ? Number.NaN : Number(rawDays);
@@ -1204,7 +1204,7 @@ export function missionRecoveryExitCode(
 }
 
 function usage(): string {
-  return `void-harness mission
+  return `${PRODUCT_COMMAND} mission
 
   mission start --title <title> [--ticket <markdown-file>] [--mode fast|team|fortress] [--json]
   mission plan --ticket <markdown-file> [--json]

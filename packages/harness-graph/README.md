@@ -1,6 +1,6 @@
 # @voidcorp/harness-graph
 
-The semantic graph kernel for void-harness. CatalogGraph, MissionGraph,
+The semantic graph kernel for void-machine. CatalogGraph, MissionGraph,
 EvidenceGraph, and ProjectGraph share a strict node-link envelope at
 `schemaVersion: 3`. The source catalog still produces `model.json` as a read-only
 v1 projection so existing analyzers and Graph Studio migrate without a flag day.
@@ -219,17 +219,17 @@ Generated file. Do not edit by hand.
 Regenerate after any harness change:
 
 ```
-void-harness graph build
+void-machine graph build
 ```
 
 Then commit `catalog.v3.json` and its generated `model.json` compatibility
-projection. The CI drift gate (`void-harness graph check`) fails if either
+projection. The CI drift gate (`void-machine graph check`) fails if either
 artifact diverges from a fresh validated build.
 
 ## Audit
 
 ```
-void-harness graph audit
+void-machine graph audit
 ```
 
 `broken-route` findings block CI. `orphan` and `overlap` findings are advisory
@@ -238,7 +238,7 @@ void-harness graph audit
 ## Live (P2)
 
 ```
-void-harness graph live [--port 4317] [--log <legacy-or-canonical.jsonl>] [--history-max 5000]
+void-machine graph live [--port 4317] [--log <legacy-or-canonical.jsonl>] [--history-max 5000]
 ```
 
 Serves `/catalog.v3.json`, the `/model.json` v1 projection, and a reconnectable SSE projection of canonical mission events
@@ -250,7 +250,7 @@ connect through `VITE_LIVE_URL` after the local auth exchange.
 ## Behavior (M8)
 
 ```
-void-harness graph behavior [--since <days>] [--log <path>]
+void-machine graph behavior [--since <days>] [--log <path>]
 ```
 
 Reads the accumulated activation log and reports, advisory (HITL, never blocks):

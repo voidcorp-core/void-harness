@@ -21,7 +21,7 @@ If you're tempted to skip rate limit "because it's internal" — wrong. The trus
 
 ## Default presets
 
-Per action class, here are the void-harness defaults. Deviate with explicit justification in a code comment.
+Per action class, here are the void-machine defaults. Deviate with explicit justification in a code comment.
 
 | Action class | Window / Max | Key | Why |
 |---|---|---|---|
@@ -55,7 +55,7 @@ Pick one strategy per app, stick with it. The differences in practice:
 - **Sliding window**: smoother, no boundary spike. Use for cost-sensitive limits (LLM, uploads).
 - **Token bucket**: allows burst then refill. Use when "burst is OK but sustained is not" (search-as-you-type, real-time API).
 
-The void-harness default is **sliding window** via Upstash Redis or Vercel KV (`@upstash/ratelimit`). Token bucket only when burst is the intended UX.
+The void-machine default is **sliding window** via Upstash Redis or Vercel KV (`@upstash/ratelimit`). Token bucket only when burst is the intended UX.
 
 ## Implementation (Upstash example, no wrapper)
 

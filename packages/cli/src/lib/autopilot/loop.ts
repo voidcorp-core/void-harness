@@ -34,6 +34,7 @@ import {
   type SharedStateReading,
 } from './shared-state.js';
 import { sameBranch } from './branch-identity.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 /** A tracker scope larger than this is a backlog dump, not a loop observation. */
 export const TRACKED_TICKETS_MAX = 256;
@@ -426,7 +427,7 @@ export function parseStopSignal(text: string | undefined): StopSignal {
     'AUTOPILOT_INPUT',
     'the stop signal is unreadable',
     `the stop file holds ${JSON.stringify(value.slice(0, 40))}, not \`drain\` or \`now\``,
-    'write it with `void-harness autopilot stop --drain` or `--now`, or delete the file',
+    `write it with \`${PRODUCT_COMMAND} autopilot stop --drain\` or \`--now\`, or delete the file`,
   );
 }
 

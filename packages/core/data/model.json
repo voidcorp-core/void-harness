@@ -1062,7 +1062,7 @@
       "type": "skill"
     },
     {
-      "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
+      "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-machine convention groups by trust boundary, not by visual section.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1272,7 +1272,7 @@
       "type": "skill"
     },
     {
-      "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
+      "description": "Build forms with react-hook-form + Zod resolver (void-machine default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1763,7 +1763,7 @@
         }
       ],
       "id": "skill:void-checkpoint",
-      "lines": 225,
+      "lines": 227,
       "name": "void-checkpoint",
       "owner": "folpe",
       "pack": null,
@@ -1772,7 +1772,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-checkpoint/SKILL.md",
-      "staticTokens": 2813,
+      "staticTokens": 2858,
       "type": "skill"
     },
     {
@@ -2015,7 +2015,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-doctor/SKILL.md",
-      "staticTokens": 782,
+      "staticTokens": 783,
       "type": "skill"
     },
     {

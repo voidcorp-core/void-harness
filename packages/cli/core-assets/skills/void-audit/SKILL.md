@@ -1,7 +1,7 @@
 ---
 name: void-audit
 description: Run the outbound audit over local mission events and surface skills that never fire, upstream deprecations and matrix conflicts, as proposals a human disposes of.
-allowed-tools: Bash(void-harness:*) Bash(npx:*)
+allowed-tools: Bash(void-machine:*) Bash(npx:*)
 ---
 
 # void-audit
@@ -25,7 +25,7 @@ release, when there is appetite to actually remove something.
 ## Run it
 
 ```
-void-harness audit
+void-machine audit
 ```
 
 Or `npx voidmachine audit` when the CLI is not on PATH.

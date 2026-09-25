@@ -47,7 +47,7 @@ describe('parseDecisionsArgs', () => {
       code: 'DECISIONS_USAGE',
       problem: 'missing required option --slug',
       cause: 'decisions new requires a stable readable filename slug',
-      fix: 'void-harness decisions new --title <title> --slug <slug>',
+      fix: 'void-machine decisions new --title <title> --slug <slug>',
     });
   });
 
@@ -64,7 +64,7 @@ describe('parseDecisionsArgs', () => {
       code: 'DECISIONS_USAGE',
       problem: 'missing value for --title',
       cause: '--title requires a value',
-      fix: 'void-harness decisions new --help',
+      fix: 'void-machine decisions new --help',
     });
   });
 
@@ -74,7 +74,7 @@ describe('parseDecisionsArgs', () => {
       code: 'DECISIONS_USAGE',
       problem: "unknown option '--bsae'",
       cause: 'decisions check does not support this option',
-      fix: 'void-harness decisions check --help',
+      fix: 'void-machine decisions check --help',
     });
   });
 

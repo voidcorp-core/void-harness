@@ -13,7 +13,7 @@ Types describe truth. The compiler runs first. `any` is banned. `as` is rejected
 
 ## tsconfig baseline (mandatory)
 
-Every consumer's `tsconfig.json` extends the void-harness strict baseline, shipped as `tsconfig.strict.json` inside the `@voidcorp/pack-monorepo` pack. The `@voidcorp/*` packs are workspace packages, not yet published to npm — the `extends` below resolves once the pack is installed in the workspace (do not assume a bare npm install resolves it):
+Every consumer's `tsconfig.json` extends the void-machine strict baseline, shipped as `tsconfig.strict.json` inside the `@voidcorp/pack-monorepo` pack. The `@voidcorp/*` packs are workspace packages, not yet published to npm — the `extends` below resolves once the pack is installed in the workspace (do not assume a bare npm install resolves it):
 
 ```json
 {

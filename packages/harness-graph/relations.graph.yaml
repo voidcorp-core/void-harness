@@ -1,7 +1,7 @@
 # Declared semantic edges — routing / composition / conflict.
 # These cannot be derived mechanically from file metadata.
 # Every edge carries evidence: the verbatim phrase that justifies it.
-# Regenerate model.json after editing: `void-harness graph build`.
+# Regenerate model.json after editing: `void-machine graph build`.
 # Allowed kinds: routes-to, composes, conflicts, overlaps, companion-of, invokes, extends, enforces
 # (enforces = a hook enforcing a skill's doctrine, e.g. no-any-grep enforces typescript-strict).
 edges:

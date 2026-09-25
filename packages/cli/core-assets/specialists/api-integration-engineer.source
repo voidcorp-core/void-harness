@@ -1,7 +1,7 @@
 Sources:
 - OpenAPI Specification: https://spec.openapis.org/oas/latest.html
 - Semantic Versioning 2.0.0: https://semver.org/
-- void-harness API and interface doctrine: packages/core/skills/api-and-interface-design/SKILL.md
+- void-machine API and interface doctrine: packages/core/skills/api-and-interface-design/SKILL.md
 
 Adapted:
 - Kept language-neutral contract discovery, minimal stable surfaces, validation, explicit failures, compatibility, and consumer migration.

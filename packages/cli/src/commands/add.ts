@@ -1,4 +1,4 @@
-// `void-harness add <pack-name>` — activate an additional pack. Updates:
+// `void-machine add <pack-name>` — activate an additional pack. Updates:
 //   1. .claude/settings.json (enabledPlugins)
 //   2. .void/config.json (packs section — same source of truth as init)
 //   3. whichever doctrine docs exist (CLAUDE.md / AGENTS.md), refreshed per-runtime
@@ -23,11 +23,12 @@ import {
   writeSettings,
 } from '../lib/settings.js';
 import { init } from './init.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 
 export async function add(args: readonly string[]): Promise<void> {
   if (args.length === 0) {
-    p.log.error(`Usage: void-harness add <pack-name>`);
+    p.log.error(`Usage: ${PRODUCT_COMMAND} add <pack-name>`);
     p.log.info(`Available: ${PACKS.map((pk) => pk.name).join(', ')}`);
     process.exit(2);
   }
@@ -138,7 +139,7 @@ async function syncVoidConfig(
   const pin = resolveEffectivePin(config, resolved ? `^${resolved}` : undefined);
   if (pin === undefined) {
     p.log.warn(
-      `core version unresolved (could not derive from marketplace): '${addedPacks.join(', ')}' activated in settings only. Run void-harness update once it is reachable to pin it.`,
+      `core version unresolved (could not derive from marketplace): '${addedPacks.join(', ')}' activated in settings only. Run ${PRODUCT_COMMAND} update once it is reachable to pin it.`,
     );
     return;
   }

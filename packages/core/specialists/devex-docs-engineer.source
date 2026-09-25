@@ -1,7 +1,7 @@
 Sources:
 - Google technical writing courses: https://developers.google.com/tech-writing
 - Command Line Interface Guidelines: https://clig.dev/
-- void-harness devex-audit doctrine: packages/core/skills/devex-audit/SKILL.md
+- void-machine devex-audit doctrine: packages/core/skills/devex-audit/SKILL.md
 
 Adapted:
 - Kept measured first success, progressive disclosure, discoverability, recoverable errors, accurate examples, and upgrade guidance.

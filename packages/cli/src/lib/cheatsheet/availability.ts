@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { relative } from 'node:path';
-import { voidReadPath } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, voidReadPath } from '@voidcorp/hook-runner';
 import { z } from 'zod';
 import { configSchema } from '../config-schema.js';
 import { configPackDirs } from '../packs.js';
@@ -92,7 +92,7 @@ export function availability(entry: CatalogEntry, evidence: LocalEvidence): read
     if (entry.runtimes.length === 0) return fact('unknown', 'Runtime support is not declared.');
     if (!entry.runtimes.includes(runtime)) return fact('unsupported', 'Not declared for this runtime.');
     if (evidence.installation === 'unknown') return fact('unknown', 'Installation evidence is missing, unreadable or invalid.');
-    if (evidence.installation === 'absent') return fact('absent', 'No local installation evidence. Run void-harness init to install.');
+    if (evidence.installation === 'absent') return fact('absent', `No local installation evidence. Run ${PRODUCT_COMMAND} init to install.`);
     if (!evidence.runtimes.includes(runtime)) return fact('absent', 'This runtime is not in the installation receipt.');
     if (entry.pack !== 'core' && !evidence.packs.includes(entry.pack)) return fact('inactive-pack', 'The pack is not enabled in project configuration.');
     if (!evidence.localSource) return fact('unknown', 'Marketplace cache availability is outside this project snapshot.');

@@ -206,7 +206,7 @@ describe('hooklib scalar and content extraction', () => {
     const result = run('hooklib_read; hooklib_require_jq test-hook', noJqPath);
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toMatch(/jq is required[\s\S]*Blocking[\s\S]*void-harness doctor/);
+    expect(result.stderr).toMatch(/jq is required[\s\S]*Blocking[\s\S]*void-machine doctor/);
   });
 });
 

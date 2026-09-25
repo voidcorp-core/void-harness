@@ -1,4 +1,4 @@
-// `void-harness check` — compare local plugin versions and (optionally) the
+// `void-machine check` — compare local plugin versions and (optionally) the
 // PHILOSOPHY.md doctrine against the remote marketplace at HEAD.
 
 import { existsSync } from 'node:fs';
@@ -15,6 +15,7 @@ import {
 } from '../lib/remote.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 
 interface LocalConfig {
@@ -78,7 +79,7 @@ export async function check(args: readonly string[], options: CheckOptions = {})
   if (drift > 0) {
     footer(
       `${c.yellow(`${drift} plugin${drift > 1 ? 's' : ''} behind`)} ${glyph.emdash} run ${where}${c.bold(
-        'void-harness update',
+        `${PRODUCT_COMMAND} update`,
       )} ${c.dim('(refreshes the plugin cache + bumps the pins this check measures), then restart Claude Code')}`,
     );
   } else {
@@ -172,7 +173,7 @@ async function reportDoctrineDrift(
     ? migrated
     : join(installRoot, '.void', 'PHILOSOPHY.md');
   if (!existsSync(localPath)) {
-    status(`PHILOSOPHY.md missing locally — run ${where}\`void-harness init\` to install.`, 'warn');
+    status(`PHILOSOPHY.md missing locally — run ${where}\`${PRODUCT_COMMAND} init\` to install.`, 'warn');
     return;
   }
   const localText = await readFile(localPath, 'utf8');
@@ -188,7 +189,7 @@ async function reportDoctrineDrift(
   const localLines = localText.split('\n').length;
   const remoteLines = fetched.value.split('\n').length;
   status(
-    `PHILOSOPHY.md drift (local ${localLines}L, remote ${remoteLines}L) — run ${where}\`void-harness init\` to overwrite`,
+    `PHILOSOPHY.md drift (local ${localLines}L, remote ${remoteLines}L) — run ${where}\`${PRODUCT_COMMAND} init\` to overwrite`,
     'warn',
   );
 }

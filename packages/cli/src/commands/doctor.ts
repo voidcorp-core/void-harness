@@ -1,11 +1,11 @@
-// `void-harness doctor` — health-check the project's harness setup.
+// `void-machine doctor` — health-check the project's harness setup.
 //
 // Verifies:
 //   1. .void/config.json valid JSON
 //   2. .void/PHILOSOPHY.md + .void/PROJECT-DOCTRINE.md present
-//   3. .claude/settings.json has extraKnownMarketplaces.void-harness + at
+//   3. .claude/settings.json has extraKnownMarketplaces.void-machine + at
 //      least harness@voidcorp in enabledPlugins
-//   4. CLAUDE.md contains the void-harness block
+//   4. CLAUDE.md contains the void-machine block
 //   5. gh CLI is available and authenticated (required for the optional
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
@@ -13,7 +13,13 @@ import { execFileSync } from 'node:child_process';
 import { type Dirent, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isMachineEntry, pendingMigrations, resolveFreshness, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
+import {
+  isMachineEntry,
+  pendingMigrations,
+  PRODUCT_COMMAND,
+  resolveFreshness,
+  VOID_MACHINE_DIR,
+} from '@voidcorp/hook-runner';
 import { autopilotPreflight } from '../lib/autopilot/preflight.js';
 import { LEGACY_PROGRAM_PATHS, PROGRAM_PATH, programPath, readProgramDescriptor } from '../lib/autopilot/program.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
@@ -146,7 +152,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
   const configPath = join(root, '.void', 'config.json');
   if (!existsSync(configPath)) {
-    checks.push({ name: 'project config', ok: false, message: '.void/config.json missing', fix: 'void-harness init' });
+    checks.push({ name: 'project config', ok: false, message: '.void/config.json missing', fix: `${PRODUCT_COMMAND} init` });
   } else {
     try {
       parsedConfig = JSON.parse(await readFile(configPath, 'utf8'));
@@ -188,7 +194,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     checks.push({ name: 'doctrine files', ok: true, message: 'PHILOSOPHY.md + PROJECT-DOCTRINE.md present' });
   } else {
     const missing = [!havePhilo && 'PHILOSOPHY.md', !haveDoctrine && 'PROJECT-DOCTRINE.md'].filter(Boolean).join(', ');
-    checks.push({ name: 'doctrine files', ok: false, message: `missing: ${missing}`, fix: 'void-harness init' });
+    checks.push({ name: 'doctrine files', ok: false, message: `missing: ${missing}`, fix: `${PRODUCT_COMMAND} init` });
   }
 
   // Runtime-specific health: each DETECTED runtime's adapter verifies its own
@@ -207,7 +213,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
       name: 'runtimes',
       ok: false,
       message: 'no agent runtime wired (no CLAUDE.md/.claude or AGENTS.md/.codex)',
-      fix: 'void-harness init, or void-harness runtime add <claude|codex>',
+      fix: `${PRODUCT_COMMAND} init, or ${PRODUCT_COMMAND} runtime add <claude|codex>`,
     });
   }
   for (const adapter of detected) {
@@ -229,7 +235,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
       ].join(' '),
       ...(inspection.evidence.fired === true
         ? {}
-        : { fix: `void-harness runtime add ${adapter.id}` }),
+        : { fix: `${PRODUCT_COMMAND} runtime add ${adapter.id}` }),
     });
   }
 
@@ -258,7 +264,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
           name: 'packs coherence',
           ok: false,
           message: issues.join('; '),
-          fix: 'void-harness init to reconcile local pack assets',
+          fix: `${PRODUCT_COMMAND} init to reconcile local pack assets`,
         });
   } else if (claudeDetected && configReadable && existsSync(settingsPathFor(root))) {
     const settings = await readSettings(settingsPathFor(root));
@@ -270,7 +276,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
         name: 'packs coherence',
         ok: false,
         message: issues.join('; '),
-        fix: 'void-harness add/remove <pack> to realign, or edit .void/config.json',
+        fix: `${PRODUCT_COMMAND} add/remove <pack> to realign, or edit .void/config.json`,
       });
     }
   }
@@ -364,7 +370,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
       status: 'advisory',
       message: finding.detail,
       ...(finding.hasRepair
-        ? { fix: conformance.blocked ?? 'void-harness doctor --fix' }
+        ? { fix: conformance.blocked ?? `${PRODUCT_COMMAND} doctor --fix` }
         : {}),
     });
   }
@@ -519,7 +525,7 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
     return {
       name: 'remote versions',
       ok: true,
-      message: `${drifted.length} plugins behind — run \`void-harness check\` for details`,
+      message: `${drifted.length} plugins behind — run \`${PRODUCT_COMMAND} check\` for details`,
       fix: '/plugin marketplace update (inside Claude Code)',
     };
   }

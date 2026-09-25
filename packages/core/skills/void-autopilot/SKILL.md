@@ -51,7 +51,7 @@ the `autopilot` block, so there is nothing to ask: not which ticket, not which p
 
 That file is also the consent, and consent is never inferred. An absent `.void/program.md`, a
 `status` other than `executing`, an `autopilot` block that is missing or unreadable, or
-`autopilot.enabled: false` all mean the same thing -- say so and stop. `void-harness autopilot next`
+`autopilot.enabled: false` all mean the same thing -- say so and stop. `void-machine autopilot next`
 refuses the same cases; inventing a target claims tickets nobody agreed to hand over.
 
 ---
@@ -126,11 +126,11 @@ instruction the orchestrator follows.
 
 ## Orchestrator
 
-The loop is one question asked again and again: `void-harness autopilot next --json`, with the
+The loop is one question asked again and again: `void-machine autopilot next --json`, with the
 tracker state on stdin. The command reads the programme, GitHub, the shared git state and the stop
 signal itself; GitHub is the authority on a merge, so no agent reports it.
 
-What you pipe in is the tracker as you observed it -- `void-harness autopilot --help` gives the
+What you pipe in is the tracker as you observed it -- `void-machine autopilot --help` gives the
 shape: `schemaVersion: 1`, the curator's `queue`, every ticket in scope with its provider status,
 `humanWait`, pull request, branch, footprint and the raw `readiness` attached to it, the `recent`
 outcomes of this run, the `liveWorkers` you actually have, and `quota` (`low` once the runtime
@@ -145,8 +145,8 @@ Act on each returned action, then ask again:
 | `wait` | nothing; the reason says who is working |
 | `hand-back-to-worker` | give the ticket back to its worker, alive or respawned in the same worktree, with the reason and the pull request; a respawned worker resumes its mission (see Respawning) |
 | `mark-human-wait` | record it in `recent` with its `reason`, which `recent` requires and the recap repeats, put the decision's `humanWaitLabel` on the ticket, comment the reason and detail, free the slot; keep reporting its pull request and footprint, which hold its ground until that pull request merges or closes |
-| `enable-auto-merge` | `void-harness autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head and reads GitHub back; never `gh pr merge --auto` by hand, never `--admin` |
-| `disable-auto-merge` | `void-harness autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it turns its auto-merge off, then takes it out of the merge queue, and fails while GitHub still shows either; never `gh pr merge --disable-auto` alone, which leaves a queued pull request in the queue |
+| `enable-auto-merge` | `void-machine autopilot arm --ticket <id> --pr <n> --head <headSha>`: it records the head, arms on exactly that head and reads GitHub back; never `gh pr merge --auto` by hand, never `--admin` |
+| `disable-auto-merge` | `void-machine autopilot disarm --pr <n>`, before the action that follows it for the same ticket; it turns its auto-merge off, then takes it out of the merge queue, and fails while GitHub still shows either; never `gh pr merge --disable-auto` alone, which leaves a queued pull request in the queue |
 | `rerun-review-check` | `gh run rerun <run> --failed`: the review job failed on this head without posting a verdict, a crash or an output it refused; twice at most per run, then `review-check-reruns-exhausted` |
 | `requeue` | the same command, to put an ejected head back in the queue; the kernel bounds how often |
 | `drain` | take nothing new; keep acting on the tickets in flight |
@@ -168,7 +168,7 @@ presentation shows the loop; it never grants a permission, a proof or a merge.
 worktree and its branch, its progress in its mission journal, `.void/machine/runs/<mission>/events.jsonl`
 under the installation root, which is the main checkout and not the worktree. It finds its mission
 as the open one whose `mission.json` carries the ticket id as its title, runs
-`void-harness mission resume --id <mission> --json` and acts on the recovery decision it prints,
+`void-machine mission resume --id <mission> --json` and acts on the recovery decision it prints,
 then goes on with `mission dispatch`. `resume` records itself once per checkpoint; it exits 1 while
 the mission waits and refuses a closed one, and neither is answered by opening a new mission: the
 worker reports it. When the worktree is gone, recreate it from the branch. When the branch the
@@ -226,7 +226,7 @@ ticket whose state is ambiguous goes to a human rather than being relaunched.
 **Judgments live on the pull request.** The reviewer's verdict and a worker's conflict class are
 comments carrying a machine block: two HTML comment markers around a fenced JSON value. The verdict
 is posted only by the review job, beside its check; `next` believes the job's latest verdict on the
-head only when that check agrees with it, and a block anyone else posts is text. The conflict class is the block `void-harness autopilot judgment conflict-class`
+head only when that check agrees with it, and a block anyone else posts is text. The conflict class is the block `void-machine autopilot judgment conflict-class`
 prints for the JSON on its stdin. `next` reads both from GitHub and admits them again, so the
 tracker you pipe in never carries them and a restart loses nothing.
 
@@ -312,13 +312,13 @@ nothing readable says so.
 
 ## Stopping
 
-**Drain.** Requested by a person (`void-harness autopilot stop --drain`, from any pane) or reached
+**Drain.** Requested by a person (`void-machine autopilot stop --drain`, from any pane) or reached
 on its own: nothing ready or preparable, quota low, or three tickets in a row handed to a human
 (a pull request waiting only for a human merge gate is not one).
 The loop takes nothing new, carries the tickets in flight to a merge or a human wait, closes its
 agents, cleans the merged worktrees, and writes the recap.
 
-**Now.** `void-harness autopilot stop --now`. Everything freezes, a merge GitHub would run on its
+**Now.** `void-machine autopilot stop --now`. Everything freezes, a merge GitHub would run on its
 own included: `next` returns a `disable-auto-merge` for every armed pull request, then `freeze`.
 Run the disarms, then stop. When `next` cannot read what is armed, or a disarm fails, it does not
 pretend to have frozen: disarm by hand what it names and tell the person. Nothing is lost: the

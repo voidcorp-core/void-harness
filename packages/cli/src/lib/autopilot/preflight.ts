@@ -21,6 +21,7 @@
 // misconfiguration that did not exist (#193).
 
 import type { CheckResult } from '../prerequisites.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export interface ParsedProgram {
   readonly status?: string;
@@ -238,7 +239,7 @@ function adapterCheck(observation: AutopilotObservation): CheckResult {
     return fail(
       name,
       'no runtime adapter detected, so no worker could be spawned',
-      'wire a runtime with `void-harness runtime add claude` or `codex`',
+      `wire a runtime with \`${PRODUCT_COMMAND} runtime add claude\` or \`codex\``,
     );
   }
   return pass(name, `${usable.join(', ')} adapter(s)`);

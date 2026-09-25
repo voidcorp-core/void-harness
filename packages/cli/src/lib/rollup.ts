@@ -5,7 +5,7 @@
 // drafting only, with the actual push gated in the command layer.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { legacyVoidPath, voidMachinePath } from '@voidcorp/hook-runner';
+import { legacyVoidPath, PRODUCT_COMMAND, voidMachinePath } from '@voidcorp/hook-runner';
 import { loadCanonicalEventBody } from './graph-io.js';
 
 /**
@@ -69,7 +69,7 @@ export function dedupeKey(f: RollupFinding): string {
 export function findingToIssue(f: RollupFinding): IssueDraft {
   const title = `[harness-audit] ${f.type}: ${f.component}`;
   const body = [
-    'Auto-detected by the cross-project rollup audit (`void-harness audit --push`).',
+    `Auto-detected by the cross-project rollup audit (\`${PRODUCT_COMMAND} audit --push\`).`,
     '',
     `- type: ${f.type}`,
     `- component: ${f.component}`,

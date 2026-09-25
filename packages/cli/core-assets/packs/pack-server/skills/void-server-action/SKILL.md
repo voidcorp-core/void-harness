@@ -5,7 +5,7 @@ description: "Create a Next.js 16 Server Action with the void trust-boundary che
 
 # server-action
 
-Use when adding any `'use server'` function (in Next.js, Hono, or any Server Action-capable runtime) following the void-harness `pack-server` conventions. Server Actions cross a trust boundary — the input came from a browser. Treat them like HTTP handlers, not like internal function calls.
+Use when adding any `'use server'` function (in Next.js, Hono, or any Server Action-capable runtime) following the void-machine `pack-server` conventions. Server Actions cross a trust boundary — the input came from a browser. Treat them like HTTP handlers, not like internal function calls.
 
 If the function is **not** marked `'use server'` (it's a normal service function in `src/services/`), use `void-tdd` directly and skip this skill.
 
@@ -97,7 +97,7 @@ export async function cancelSubscription(raw: unknown) {
 
 ## Optional: `defineAction` helper
 
-If your project repeats the 5 layers in every action (it will), DRY them into a `defineAction` helper. This is a project-side convention many void-harness monorepos add in `@repo/auth` or `@repo/server`:
+If your project repeats the 5 layers in every action (it will), DRY them into a `defineAction` helper. This is a project-side convention many void-machine monorepos add in `@repo/auth` or `@repo/server`:
 
 ```ts
 // Equivalent action using a project-side defineAction helper

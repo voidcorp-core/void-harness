@@ -82,7 +82,7 @@ describe('observeResume', () => {
 
     const observed = observeResume(root, Date.parse('2026-08-26T12:00:00Z'));
 
-    expect(observed.context).toContain('[void-harness resume]');
+    expect(observed.context).toContain('[void-machine resume]');
     expect(observed.context).toContain('Program: portable-resume');
     expect(observed.context).toContain('Progress: github at voidcorp/repo');
     expect(observed.context).toContain('Objective: Wire portable resume hooks.');

@@ -11,7 +11,7 @@ detectors:
     names: []
     pathSegments: []
 sources:
-  - title: void-harness repository
+  - title: void-machine repository
     url: https://github.com/voidcorp-core/void-machine
 reviewedAt: 2026-07-27
 expiresAfterDays: 180

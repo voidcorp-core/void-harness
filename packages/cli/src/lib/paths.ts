@@ -1,4 +1,4 @@
-// Locate the void-harness `packages/core` source tree (after the marketplace
+// Locate the void-machine `packages/core` source tree (after the marketplace
 // restructure of 2026-05-30). Used by the CLI for read-only operations like
 // listing available skills/hooks; the actual plugin installation is now done
 // by Claude Code via the marketplace mechanism (see init.ts).

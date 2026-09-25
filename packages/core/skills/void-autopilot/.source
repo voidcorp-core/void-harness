@@ -1,6 +1,6 @@
 Sources for `void-autopilot` (see `docs/plans/skill-audits/void-autopilot.md` for the audit):
 
-- void-harness `backlog-autopilot`, then the cluster engine that replaced it (this repo) — the
+- void-machine `backlog-autopilot`, then the cluster engine that replaced it (this repo) — the
   attended parallel burst, its worktree isolation and its footprint collisions. The continuous
   loop keeps the isolation and the collisions, and drops the integration pull request, its
   reconciliation and its grant.

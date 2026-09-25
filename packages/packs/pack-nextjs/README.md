@@ -1,6 +1,6 @@
 # `@voidcorp/pack-nextjs`
 
-Next.js 16 conventions for the [void-harness](https://github.com/voidcorp-core/void-machine). Marketplace plugin name: `harness-nextjs`.
+Next.js 16 conventions for the [void-machine](https://github.com/voidcorp-core/void-machine). Marketplace plugin name: `harness-nextjs`.
 
 ## Two delivery channels
 
@@ -38,7 +38,7 @@ Pack-specific skills (extending core skills with Next.js context) and hooks (e.g
 ## Install
 
 ```bash
-# Via the void-harness CLI (accepts pack-nextjs, harness-nextjs, or nextjs)
+# Via the void-machine CLI (accepts pack-nextjs, harness-nextjs, or nextjs)
 npx voidmachine init --pack pack-monorepo --pack pack-nextjs
 ```
 

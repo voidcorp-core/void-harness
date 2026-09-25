@@ -2,12 +2,12 @@ import { loadCatalog } from '../lib/cheatsheet/load.js';
 import { availability, readLocalEvidence } from '../lib/cheatsheet/availability.js';
 import { resolveProjectRoots } from '../lib/project-roots.js';
 import { renderDocument, type CheatSheet } from '../lib/cheatsheet/render.js';
-import { discoverProjectRoot, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { discoverProjectRoot, PRODUCT_COMMAND, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 
 export async function cheatsheet(args: readonly string[]): Promise<void> {
   const format = args.length === 0 ? 'html' : args.length === 2 && args[0] === '--format' ? args[1] : undefined;
   if (format !== 'json' && format !== 'html' && format !== 'markdown') {
-    process.stderr.write('Usage: void-harness cheatsheet [--format html|markdown|json]\n');
+    process.stderr.write(`Usage: ${PRODUCT_COMMAND} cheatsheet [--format html|markdown|json]\n`);
     process.exitCode = 2;
     return;
   }

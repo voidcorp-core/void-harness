@@ -1,6 +1,6 @@
 # Index des idées Linear du dépôt source
 
-**Maintenance du dépôt source void-harness uniquement.** Ni commande, ni index,
+**Maintenance du dépôt source void-machine uniquement.** Ni commande, ni index,
 ni accès Linear ne sont installés chez les consommateurs. Le workspace racine est
 privé ; les scripts restent hors des packages, plugins et assets distribués.
 

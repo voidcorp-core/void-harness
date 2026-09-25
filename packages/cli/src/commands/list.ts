@@ -1,8 +1,9 @@
-// `void-harness list` — show active and available plugins for the current project.
+// `void-machine list` — show active and available plugins for the current project.
 
 import { CORE_PLUGIN_NAME, enabledPluginsKey, MARKETPLACE_NAME, PACKS } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { banner, blank, c, footer, glyph, line, meta, row } from '../lib/render.js';
+import { PRODUCT_COMMAND } from '@voidcorp/hook-runner';
 
 export async function list(_args: readonly string[]): Promise<void> {
   const projectRoot = process.cwd();
@@ -33,6 +34,6 @@ export async function list(_args: readonly string[]): Promise<void> {
   }
 
   footer(
-    `${c.dim('add')} ${c.bold('void-harness add <name>')} ${c.dim(`${glyph.emdash} remove with`)} ${c.bold('rm <name>')}`,
+    `${c.dim('add')} ${c.bold(`${PRODUCT_COMMAND} add <name>`)} ${c.dim(`${glyph.emdash} remove with`)} ${c.bold('rm <name>')}`,
   );
 }

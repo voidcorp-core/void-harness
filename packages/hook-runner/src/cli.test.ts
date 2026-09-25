@@ -514,9 +514,9 @@ describe('the upgrade prompt the session banner carries', () => {
       join(root, '.void', 'machine', 'receipts', 'install-v1.json'),
       JSON.stringify({ schemaVersion: 1, version: '0.17.0', source: 'local', runtimes: ['claude'], files: [] }),
     );
-    mkdirSync(join(cache, 'void-harness'), { recursive: true });
+    mkdirSync(join(cache, 'void-machine'), { recursive: true });
     writeFileSync(
-      join(cache, 'void-harness', 'freshness.json'),
+      join(cache, 'void-machine', 'freshness.json'),
       JSON.stringify({ latest: '2.1.0', checkedAt: Date.now() }),
     );
     return { root, cache };
@@ -535,14 +535,14 @@ describe('the upgrade prompt the session banner carries', () => {
 
     expect(out).toContain('0.17.0');
     expect(out).toContain('2.1.0');
-    expect(out).toContain('void-harness update');
+    expect(out).toContain('void-machine update');
     expect(out.toLowerCase()).toContain('tell the user');
   });
 
   it('says nothing at all when the install is current', () => {
     const { root, cache } = staleProject();
     writeFileSync(
-      join(cache, 'void-harness', 'freshness.json'),
+      join(cache, 'void-machine', 'freshness.json'),
       JSON.stringify({ latest: '0.17.0', checkedAt: Date.now() }),
     );
 

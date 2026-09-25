@@ -1,6 +1,6 @@
 Sources:
 - Google engineering practices, code review: https://google.github.io/eng-practices/review/reviewer/
-- void-harness code-review doctrine: packages/core/skills/code-review/SKILL.md
+- void-machine code-review doctrine: packages/core/skills/code-review/SKILL.md
 
 Adapted:
 - Kept correctness-first, evidence-backed findings, bounded change scope, maintainability, and clear blocker severity.

@@ -1173,6 +1173,7 @@ function parseProductIdentity(value) {
   };
 }
 var PRODUCT_IDENTITY = parseProductIdentity(identity_default);
+var PRODUCT_COMMAND = PRODUCT_IDENTITY.commands.primary;
 function productSetting(env, name, identity = PRODUCT_IDENTITY) {
   for (const prefix of [identity.environment.prefix, ...identity.environment.deprecated]) {
     const value = env[`${prefix}${name}`];
@@ -1480,7 +1481,7 @@ function cacheFilePath(env) {
   const xdg = env["XDG_CACHE_HOME"]?.trim();
   const home = env["HOME"]?.trim();
   const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join4(home, ".cache") : void 0;
-  return base === void 0 ? void 0 : join4(base, "void-harness", "freshness.json");
+  return base === void 0 ? void 0 : join4(base, `${PRODUCT_COMMAND}`, "freshness.json");
 }
 function parseEntry(raw) {
   let json;
@@ -1629,7 +1630,7 @@ async function fetchLatestVersion(options = {}) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(url, {
-      headers: { "user-agent": "void-harness" },
+      headers: { "user-agent": `${PRODUCT_COMMAND}` },
       signal: controller.signal
     });
     if (!res.ok) {
@@ -1692,7 +1693,7 @@ async function resolveFreshness(options) {
 function freshnessRelay(freshness, source2) {
   if (freshness.verdict !== "behind" || source2 !== "local") return void 0;
   const { installed, latest } = freshness;
-  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and offer to run \`void-harness update\`. Explain that update writes project files and link the release notes for possible breaking changes: ${PRODUCT_IDENTITY.repositoryUrl}/releases. Wait for explicit human permission before running it, even in autonomous mode. If the user declines or does not reply, continue the task without updating. Do not repeat the offer later in this session.`;
+  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and offer to run \`${PRODUCT_COMMAND} update\`. Explain that update writes project files and link the release notes for possible breaking changes: ${PRODUCT_IDENTITY.repositoryUrl}/releases. Wait for explicit human permission before running it, even in autonomous mode. If the user declines or does not reply, continue the task without updating. Do not repeat the offer later in this session.`;
 }
 
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync9, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
@@ -1722,7 +1723,7 @@ var VOID_OWNERSHIP = Object.freeze({
   // current autopilot writes to `machine/autopilot/`. So there is no writer to
   // redirect, only a classification that was wrong.
   "autonomous-runs": "project",
-  // Derived: `void-harness install` re-materializes these, byte for byte from a
+  // Derived: `void-machine install` re-materializes these, byte for byte from a
   // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
   // their absence degrades the agent rather than breaking the project.
   "PHILOSOPHY.md": "derived",
@@ -2092,7 +2093,7 @@ function withSuccessor(name) {
 var MAX_NAMED = 5;
 function invocationAlert(resolution, liveness) {
   if (resolution.ok && liveness.ok) return void 0;
-  const lines = ["void-harness, invocation surface:"];
+  const lines = [`${PRODUCT_COMMAND}, invocation surface:`];
   if (!resolution.ok) {
     const named = resolution.unresolved.slice(0, MAX_NAMED).map(withSuccessor).join(", ");
     const rest = resolution.unresolved.length - MAX_NAMED;
@@ -2106,7 +2107,7 @@ function invocationAlert(resolution, liveness) {
       `  no skill fired in the last ${liveness.missions} working missions (${liveness.toolCalls} tool calls)`
     );
   }
-  lines.push("  run `void-harness doctor` for the detail");
+  lines.push(`  run \`${PRODUCT_COMMAND} doctor\` for the detail`);
   return lines.join("\n");
 }
 var WORKING_MISSION_CALLS = 20;
@@ -2185,7 +2186,7 @@ function auditCheckpoint(input) {
 
 function sessionStartOutput(version, notice, invocationAlert2, resumeContext) {
   const installed = version.trim() === "" ? "unknown" : version.trim();
-  const base = `void-harness ${installed} is active. Non-negotiable floor: never edit secrets or keys; never hand-edit lockfiles; regenerate them via the package manager for requested dependency changes; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`;
+  const base = `${PRODUCT_COMMAND} ${installed} is active. Non-negotiable floor: never edit secrets or keys; never hand-edit lockfiles; regenerate them via the package manager for requested dependency changes; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`${PRODUCT_COMMAND} doctor\` if runtime health is uncertain.`;
   const suffix = notice === void 0 || notice.trim() === "" ? "" : ` ${notice.trim()}`;
   const alert = invocationAlert2 === void 0 || invocationAlert2.trim() === "" ? "" : `
 ${invocationAlert2.trim()}`;
@@ -2803,7 +2804,7 @@ function renderResumeContext(bundle) {
     "clear-unreconciled"
   ]);
   const required = [
-    "[void-harness resume]",
+    "[void-machine resume]",
     `Project: ${bundle.project.name}`,
     `Context continuity: ${bundle.continuity.status}`,
     ...bundle.continuity.status === "degraded" ? ["Reconstruct context before any mutation."] : [],
@@ -5371,7 +5372,7 @@ async function runLifecycle(input) {
       status: audit.status,
       details: { reasons: [...audit.reasons] },
       ...audit.reasons.length === 0 ? {} : {
-        diagnostic: `void-harness SessionEnd audit: ${audit.reasons.join(", ")}
+        diagnostic: `${PRODUCT_COMMAND} SessionEnd audit: ${audit.reasons.join(", ")}
 `
       }
     };

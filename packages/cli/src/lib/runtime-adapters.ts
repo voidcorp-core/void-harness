@@ -28,7 +28,7 @@ import { existsSync } from 'node:fs';
 import { lstat, readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { voidReadPath, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
+import { PRODUCT_COMMAND, PRODUCT_IDENTITY, voidReadPath } from '@voidcorp/hook-runner';
 import type { SpecialistRuntimeCapability } from '@voidcorp/mission-engine';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import { docFileFor, hasHarnessBlock, patchRuntimeDoc } from './claude-md.js';
@@ -226,7 +226,7 @@ function smokeCheck(runtime: Runtime, fired: boolean | null, detail: string): Ch
     ok: fired === true,
     ...(fired === null ? { status: 'unknown' as const } : {}),
     message: fired === null ? `unknown: ${detail}` : detail,
-    ...(fired === true ? {} : { fix: `void-harness runtime add ${runtime}` }),
+    ...(fired === true ? {} : { fix: `${PRODUCT_COMMAND} runtime add ${runtime}` }),
   };
 }
 
@@ -234,12 +234,12 @@ async function docBlockCheck(root: string, runtime: Runtime): Promise<CheckResul
   const file = docFileFor(runtime);
   const path = join(root, file);
   if (!existsSync(path)) {
-    return { name: file, ok: false, message: 'missing', fix: `void-harness runtime add ${runtime}` };
+    return { name: file, ok: false, message: 'missing', fix: `${PRODUCT_COMMAND} runtime add ${runtime}` };
   }
   const text = await readFile(path, 'utf8');
   return hasHarnessBlock(text)
-    ? { name: file, ok: true, message: 'void-harness block present' }
-    : { name: file, ok: false, message: 'void-harness block missing', fix: `void-harness runtime add ${runtime}` };
+    ? { name: file, ok: true, message: `${PRODUCT_COMMAND} block present` }
+    : { name: file, ok: false, message: `${PRODUCT_COMMAND} block missing`, fix: `${PRODUCT_COMMAND} runtime add ${runtime}` };
 }
 
 async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<CheckResult> {
@@ -267,8 +267,8 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
     return {
       name: 'claude agents',
       ok: false,
-      message: describeSpecialistDrift(drifts, 'void-harness runtime add claude'),
-      fix: 'void-harness runtime add claude',
+      message: describeSpecialistDrift(drifts, `${PRODUCT_COMMAND} runtime add claude`),
+      fix: `${PRODUCT_COMMAND} runtime add claude`,
     };
   }
   // Plain pass, no advisory. This reported a degradation that does not exist:
@@ -319,7 +319,7 @@ const claudeAdapter: RuntimeAdapter = {
       ];
       if (ctx.pinVersion === undefined) {
         nextSteps.push(
-          'FAILED: core version could not be resolved from the marketplace — once it is reachable, run void-harness update to pin it',
+          `FAILED: core version could not be resolved from the marketplace — once it is reachable, run ${PRODUCT_COMMAND} update to pin it`,
         );
       }
     }
@@ -382,7 +382,7 @@ const claudeAdapter: RuntimeAdapter = {
     const settingsPath = settingsPathFor(root);
     let localSettings = false;
     if (!existsSync(settingsPath)) {
-      checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: 'void-harness runtime add claude' });
+      checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: `${PRODUCT_COMMAND} runtime add claude` });
     } else {
       const settings = await readSettings(settingsPath);
       const markets = settings.extraKnownMarketplaces ?? {};
@@ -400,7 +400,7 @@ const claudeAdapter: RuntimeAdapter = {
           !hasMarketplace && `extraKnownMarketplaces.${MARKETPLACE_NAME}`,
           !hasCore && `enabledPlugins["${enabledPluginsKey(CORE_PLUGIN_NAME)}"]`,
         ].filter(Boolean).join(', ');
-        checks.push({ name: 'settings.json', ok: false, message: `missing: ${missing}`, fix: 'void-harness runtime add claude' });
+        checks.push({ name: 'settings.json', ok: false, message: `missing: ${missing}`, fix: `${PRODUCT_COMMAND} runtime add claude` });
       }
     }
     checks.push(await docBlockCheck(root, 'claude'));
@@ -421,13 +421,13 @@ const claudeAdapter: RuntimeAdapter = {
       }
       const syntaxIssue = syntaxWorkerHealth(join(root, '.void', 'hooks'));
       checks.push({ name: 'syntax worker', ok: syntaxIssue === undefined,
-        message: syntaxIssue ?? 'worker matches the installed hook', fix: 'void-harness update' });
+        message: syntaxIssue ?? 'worker matches the installed hook', fix: `${PRODUCT_COMMAND} update` });
       checks.push({
         name: 'local assets',
         ok: installed,
         message: installed ? 'installed skills, agents and executable hooks present'
           : 'configured project-local installation is incomplete',
-        fix: 'void-harness update',
+        fix: `${PRODUCT_COMMAND} update`,
       });
     } else {
       const cacheRoot = options?.claudeCacheRoot
@@ -551,13 +551,13 @@ const codexAdapter: RuntimeAdapter = {
         name: 'codex floor',
         ok: floor.ok,
         message: floor.detail,
-        ...(floor.ok ? {} : { fix: 'void-harness runtime add codex' }),
+        ...(floor.ok ? {} : { fix: `${PRODUCT_COMMAND} runtime add codex` }),
       },
       {
         name: 'codex skills',
         ok: skills.ok,
         message: skills.detail,
-        ...(skills.ok ? {} : { fix: 'void-harness runtime add codex' }),
+        ...(skills.ok ? {} : { fix: `${PRODUCT_COMMAND} runtime add codex` }),
       },
       {
         name: 'codex agents',
@@ -566,7 +566,7 @@ const codexAdapter: RuntimeAdapter = {
         message: specialists.ok
           ? `${specialists.detail}; team degraded because parent sandbox overrides can weaken read-only`
           : specialists.detail,
-        ...(specialists.ok ? {} : { fix: 'void-harness runtime add codex' }),
+        ...(specialists.ok ? {} : { fix: `${PRODUCT_COMMAND} runtime add codex` }),
       },
       doc,
     ];
