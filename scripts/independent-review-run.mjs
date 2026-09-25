@@ -5,10 +5,11 @@
 // the workflow and this script come from the base branch, the pull request head
 // is checked out beside them and read, never executed, and Claude reviews it
 // with read-only tools. The verdict is published as a check run named
-// `independent-review` on the head SHA, created with the job's `GITHUB_TOKEN`,
-// hence by the GitHub Actions app, the only source branch protection accepts
-// for that check. No key exists anywhere to steal: a token with write access
-// can post a comment or a commit status, never a check run as that app.
+// `independent-review` on the head SHA, created with a token of the review App,
+// a GitHub App of its own whose key lives in an environment limited to the
+// default branch, where this workflow runs. Branch protection accepts the check
+// from that App alone; the GitHub Actions app would not do, since any workflow's
+// GITHUB_TOKEN is one of its tokens.
 //
 // `start` decides whether this head is reviewed and opens the check; `finish`
 // admits what the reviewer returned, posts it as the verdict comment the loop
@@ -162,13 +163,27 @@ export function roundOf(bodies, headSha) {
   return previousBlocking(bodies, headSha) === undefined ? 1 : 2;
 }
 
-function gh(args, input) {
-  return execFileSync('gh', args, { encoding: 'utf8', timeout: 60_000, input });
+function gh(args, input, token = process.env.GH_TOKEN) {
+  return execFileSync('gh', args, {
+    encoding: 'utf8', timeout: 60_000, input, env: { ...process.env, GH_TOKEN: token },
+  });
 }
 
+/** A REST call with the job's token: comments and reads. */
 function api(method, path, body) {
   const args = ['api', '--method', method, path, '--input', '-'];
   return JSON.parse(gh(args, JSON.stringify(body ?? {})) || '{}');
+}
+
+/**
+ * A REST call as the review App (CHECKS_TOKEN): the check branch protection
+ * requires from it, which no other token can create under its identity.
+ */
+function checksApi(method, path, body) {
+  const token = process.env.CHECKS_TOKEN;
+  if (!token) throw new Error('independent-review: CHECKS_TOKEN, the review App token, is unset');
+  const args = ['api', '--method', method, path, '--input', '-'];
+  return JSON.parse(gh(args, JSON.stringify(body ?? {}), token) || '{}');
 }
 
 /** The comments this job posted on a pull request: only the Actions bot's count. */
@@ -196,17 +211,17 @@ function start() {
   const check = { name: REVIEW_CHECK_NAME, head_sha: decision.headSha, details_url: runUrl() };
   if (decision.kind === 'exempt') {
     const outcome = { title: 'Release back-merge', summary: 'Its commits are the release a person merged; no review is due.' };
-    api('POST', path, { ...check, status: 'completed', conclusion: 'success', output: outcome });
+    checksApi('POST', path, { ...check, status: 'completed', conclusion: 'success', output: outcome });
   } else if (decision.kind === 'fork') {
     const outcome = { title: 'Pull request from a fork', summary: 'A stranger\'s head is reviewed by a person, not by this job.' };
-    api('POST', path, { ...check, status: 'completed', conclusion: 'failure', output: outcome });
+    checksApi('POST', path, { ...check, status: 'completed', conclusion: 'failure', output: outcome });
   } else if (decision.kind === 'review') {
     const previous = previousBlocking(botComments(repository, decision.number), decision.headSha);
     mkdirSync('review', { recursive: true });
     if (previous !== undefined) {
       writeFileSync('review/previous-blocking.json', `${JSON.stringify(previous, undefined, 2)}\n`);
     }
-    const created = api('POST', path, { ...check, status: 'in_progress' });
+    const created = checksApi('POST', path, { ...check, status: 'in_progress' });
     output('check_run_id', String(created.id));
   }
   output('review', decision.kind === 'review' ? 'true' : 'false');
@@ -226,7 +241,7 @@ function finish() {
     api('POST', `repos/${repository}/issues/${number}/comments`, { body: renderVerdictComment(admission.verdict) });
   }
   const { conclusion, title, summary } = conclusionOf(admission);
-  api('PATCH', `repos/${repository}/check-runs/${checkRunId}`, {
+  checksApi('PATCH', `repos/${repository}/check-runs/${checkRunId}`, {
     status: 'completed', conclusion, output: { title, summary },
   });
   if (process.env.GITHUB_STEP_SUMMARY) {

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { promotionAuthority } from '../../scripts/promotion-authority.mjs';
 
 // The pull request shape is the one promotion.yml asks GitHub for, per
-// integration commit: the head's check suites from the GitHub Actions app,
+// integration commit: the head's check suites from the review App,
 // each with its `independent-review` check runs.
 const sha = (digit: string): string => digit.repeat(40);
 const HEAD = sha('a');

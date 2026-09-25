@@ -204,12 +204,14 @@ hand-back, a human wait and an immediate stop all come with the disarm. Disarm f
 pull request into the base on `pull_request_target`: GitHub runs its workflow, scripts and
 instructions from the default branch, which only a person merges into, so a change to the review
 takes effect once promoted there; the head is read as data and never run, and the verdict becomes the
-`independent-review` check on that head. The merge queue does not believe that check, which any
-workflow of the repository could create: it lets a pull request through only on a successful run
-of that workflow, run from the default branch, for that exact head. No key or secret for it lives on this
-machine, so neither a worker nor a compromised dependency it runs can forge an approval. The job
-reviews with the `CLAUDE_CODE_OAUTH_TOKEN` secret of the `independent-review` environment, whose
-deployment branch policy admits the default branch alone.
+`independent-review` check on that head, posted by the review App, a GitHub App holding the Checks
+permission alone. Branch protection requires the check from that App, so the same name from any
+workflow's `GITHUB_TOKEN` does not count. For each merge group, `independent-review-queue.yml`, on
+`workflow_run` of `ci` and also from the default branch, posts the App's check on the group commit
+once every head of the group carries it. No key or secret for it lives on this machine, so neither a
+worker nor a compromised dependency it runs can forge an approval: the App's key and the
+`CLAUDE_CODE_OAUTH_TOKEN` live in the `independent-review` environment, whose deployment branch
+policy admits the default branch alone.
 
 **No state lives in the session.** Who holds which ticket comes from the tracker (status, assignee,
 pull request link, the human-wait label); the rest comes from GitHub. The label is the one every

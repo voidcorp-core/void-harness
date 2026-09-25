@@ -1,37 +1,44 @@
-# Required check `independent-review` in the merge queue of develop.
+# Required check `independent-review` on the commit the merge queue tests.
 #
-# The queue tests a synthetic group commit nobody reviewed, so this job proves
-# that every pull request of the group has a successful run of the review
-# workflow (independent-review.yml) for its own head, run from the default
-# branch, main, which is where GitHub takes the review workflow from. It does
-# not believe the `independent-review` check on the head: any workflow of the
-# repository runs as GitHub Actions and could create one. It reviews nothing.
+# A merge group is a synthetic commit nobody reviewed. This workflow runs on
+# `workflow_run` of `ci`, which every merge group triggers, so GitHub runs it from
+# the default branch, main, whose environment holds the review App's key. It
+# rebuilds the group from that run, requires every pull request of the group to
+# carry a successful `independent-review` check from the review App on its own
+# head, and posts the verdict on the group commit as the App, which is the
+# check branch protection requires there too.
 #
-# Its own workflow, triggered by `merge_group` alone: in a workflow that also ran
-# on pull requests, a job skipped under this required name would report success.
-# The script comes from the base branch, so a pull request cannot rewrite it.
-# https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group
+# Not a `merge_group` workflow: GitHub runs that one from the group commit,
+# which the pull request can edit, and a main-only secret is out of its reach.
+# https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run
 name: independent-review-queue
 
+# As soon as the group's CI starts: the verdict does not wait for it.
 on:
-  merge_group:
-    types: [checks_requested]
-    branches: [develop]
+  workflow_run:
+    workflows: [ci]
+    types: [requested]
 
 permissions: {}
 
+concurrency:
+  group: independent-review-queue-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
 jobs:
-  independent-review:
+  verify:
+    # Every other ci run is a pull request or a push, which the review job covers.
+    if: ${{ github.event.workflow_run.event == 'merge_group' }}
+    environment: independent-review
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
-      actions: read
       contents: read
+      checks: read
       pull-requests: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event.merge_group.base_ref }}
           persist-credentials: false
           fetch-depth: 0
           sparse-checkout: |
@@ -40,7 +47,16 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
-      - name: Verify the review of every head the group merges
+      - name: Mint the review App token, allowed to write checks and nothing else
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          permission-checks: write
+      - name: Verify the review of every head the group merges, and post the verdict
         env:
           GH_TOKEN: ${{ github.token }}
+          CHECKS_TOKEN: ${{ steps.app.outputs.token }}
+          REVIEW_APP_ID: ${{ vars.REVIEW_APP_ID }}
         run: node scripts/independent-review-check.mjs
