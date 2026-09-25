@@ -50,7 +50,7 @@ function example(command: string, note: string): void {
 
 export function printHelp(): void {
   blank();
-  write(`  ${c.accent(glyph.arrow)} ${brand(`${PRODUCT_COMMAND}`)}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
+  write(`  ${c.accent(glyph.arrow)} ${brand(PRODUCT_COMMAND)}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
   write(`  ${c.muted(glyph.dash.repeat(Math.min(termWidth(), 88) - 2))}\n`);
   write(`  ${c.muted('Public & MIT. Install free, account-free — no account, no key:')}\n`);
   const npx = `npx ${PRODUCT_IDENTITY.packageName}`;

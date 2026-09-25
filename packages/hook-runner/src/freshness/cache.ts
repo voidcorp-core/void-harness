@@ -36,7 +36,7 @@ export function cacheFilePath(env: CacheEnvironment): string | undefined {
   const xdg = env['XDG_CACHE_HOME']?.trim();
   const home = env['HOME']?.trim();
   const base = xdg !== undefined && xdg !== '' ? xdg : home !== undefined && home !== '' ? join(home, '.cache') : undefined;
-  return base === undefined ? undefined : join(base, `${PRODUCT_COMMAND}`, 'freshness.json');
+  return base === undefined ? undefined : join(base, PRODUCT_COMMAND, 'freshness.json');
 }
 
 function parseEntry(raw: string): FreshnessCacheEntry | undefined {

@@ -52,7 +52,7 @@ interface Fetched {
 async function fetchJson(url: string): Promise<Fetched> {
   let res: Response;
   try {
-    res = await fetch(url, { headers: { 'user-agent': `${PRODUCT_COMMAND}` } });
+    res = await fetch(url, { headers: { 'user-agent': PRODUCT_COMMAND } });
   } catch {
     return { reason: 'network error' };
   }

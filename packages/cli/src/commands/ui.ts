@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/cli/src/lib/ui/server.test.ts
 // `void-machine ui` — serve the projects view on localhost, then stop.
 //
 // Not a daemon, on purpose. A resident process adds a lifecycle to supervise, a

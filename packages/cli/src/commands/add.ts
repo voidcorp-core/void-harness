@@ -1,3 +1,4 @@
+// tdd-cover: e2e test/cli/add-remove-parity.test.ts
 // `void-machine add <pack-name>` — activate an additional pack. Updates:
 //   1. .claude/settings.json (enabledPlugins)
 //   2. .void/config.json (packs section — same source of truth as init)

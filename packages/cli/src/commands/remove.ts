@@ -1,3 +1,4 @@
+// tdd-cover: e2e test/cli/add-remove-parity.test.ts
 // `void-machine remove <pack-name>` — deactivate a pack. Updates:
 //   1. .claude/settings.json (enabledPlugins — delete the key)
 //   2. .void/config.json (packs section — delete the pin)

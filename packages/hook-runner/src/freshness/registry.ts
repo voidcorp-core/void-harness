@@ -109,7 +109,7 @@ export async function fetchLatestVersion(options: FetchLatestOptions = {}): Prom
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(url, {
-      headers: { 'user-agent': `${PRODUCT_COMMAND}` },
+      headers: { 'user-agent': PRODUCT_COMMAND },
       signal: controller.signal,
     });
     if (!res.ok) {

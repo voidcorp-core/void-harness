@@ -1,3 +1,4 @@
+// tdd-cover: e2e apps/graph-studio/src/data/load.test.ts
 import { indexCost } from './data/cost.js';
 import { resolveStudioBoot } from './data/load.js';
 import { createGraph } from './render/graph.js';
