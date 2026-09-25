@@ -504,7 +504,7 @@
     },
     {
       "path": ".codex/hooks.json",
-      "sha256": "99881f64910ff9e3547776b405081e0c613ef01755ecf718f3b871b354cce115"
+      "sha256": "af23a339f41bb85828bc0a41a0f2f73f7dbf4d088e7c8e9af5bb56f321dc6b95"
     },
     {
       "path": ".gitignore",
@@ -524,7 +524,7 @@
     },
     {
       "path": ".void/installed/PHILOSOPHY.md",
-      "sha256": "ebb15d52313a27c07de20956a7f8eef6f1e114fd8b9695e19a6dfbcf719f56f5"
+      "sha256": "24365a6bdfcba8f1bf96c9213d01478b92165aef2d06bd539b36f6a1e82b5310"
     },
     {
       "path": ".void/PROJECT-DOCTRINE.md",
@@ -532,11 +532,11 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "d6a20fc580caf6c85016c3a9661c218b9781298c89cad0444d44cf039c6ce4e9"
+      "sha256": "df3f9795670f700bf574758b436119808a75a5c7630bb428685cb7fe3ebc7a7b"
     },
     {
       "path": "CLAUDE.md",
-      "sha256": "066db6e2a5058d44b1fe42bb927953488a590808ad508f5d7b32216a4cf42dd5"
+      "sha256": "8e378394f7ed0116cb7a4b563b5ff088746f05841ad1fca13543e7e243a64616"
     }
   ],
   "projectDoctrineTemplateSha256": "fb469eb88cc780a7359748683652cd268909037fff6762dadbede4994e20c3bc"
