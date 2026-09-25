@@ -45,7 +45,10 @@ export interface AutopilotOwnership {
 
 export interface AutopilotConfig {
   readonly schemaVersion: 1;
-  /** Ceiling on one cluster, 1..4. */
+  /**
+   * Tickets the continuous loop keeps in flight at once, 1..4: one worker and
+   * one pull request each. The name predates the loop, from the cluster engine.
+   */
   readonly clusterSize: number;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
