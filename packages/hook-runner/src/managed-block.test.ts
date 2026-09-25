@@ -27,6 +27,14 @@ describe('replaceManagedBlock', () => {
     expect(replaced).toBe(`a\n${BLOCK}\nb\n\nc\n`);
   });
 
+  // Blocks nested inside a kept block belong to it: comparing against a span already dropped would
+  // let the second nested one survive and resurrect the tail of the outer block after the new one.
+  it('treats every block nested inside a kept one as part of it', () => {
+    const inner = '<!-- new:begin -->B<!-- new:end -->';
+    const text = `<!-- old:begin -->A${inner}C${inner.replace('B', 'D')}E<!-- old:end -->F`;
+    expect(replaceManagedBlock(text, MARKERS, BLOCK)).toBe(`${BLOCK}F`);
+  });
+
   it('answers undefined when no recognized block is complete', () => {
     expect(replaceManagedBlock('no block\n', MARKERS, BLOCK)).toBeUndefined();
     expect(replaceManagedBlock('<!-- old:end -->\n<!-- old:begin -->\n', MARKERS, BLOCK)).toBeUndefined();

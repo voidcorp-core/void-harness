@@ -25,8 +25,12 @@ function spans(text: string, markers: ManagedMarkers): readonly Span[] {
       cursor = close + pair.end.length;
     }
   }
-  const ordered = found.sort((left, right) => left.start - right.start);
-  return ordered.filter((span, index) => index === 0 || span.start >= (ordered[index - 1]?.end ?? 0));
+  // A span that starts inside the last one kept is part of it, however many came between.
+  const kept: Span[] = [];
+  for (const span of found.sort((left, right) => left.start - right.start)) {
+    if (span.start >= (kept.at(-1)?.end ?? 0)) kept.push(span);
+  }
+  return kept;
 }
 
 /** True when the text carries a complete block under the current or a former name. */

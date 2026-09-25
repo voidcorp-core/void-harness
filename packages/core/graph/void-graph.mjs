@@ -22776,7 +22776,7 @@ function visibleLen(s) {
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 function banner(cmd, version) {
-  const left = `  ${c.accent(glyph.arrow)} ${brand(`${PRODUCT_COMMAND}`)}  ${c.muted(cmd)}`;
+  const left = `  ${c.accent(glyph.arrow)} ${brand(PRODUCT_COMMAND)}  ${c.muted(cmd)}`;
   if (version) {
     const w = termWidth();
     const right = c.muted(`v${version}`);
