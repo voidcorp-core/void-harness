@@ -11,17 +11,21 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { hasManagedBlock, PRODUCT_IDENTITY, replaceManagedBlock } from '@voidcorp/hook-runner';
 import { MARKETPLACE_NAME, MARKETPLACE_REPO, type PackDescriptor } from './packs.js';
 import type { Runtime } from './runtime.js';
 import type { InstallSource } from './runtime-assets.js';
 
-const BEGIN_MARKER = '<!-- void-harness:begin -->';
-const END_MARKER = '<!-- void-harness:end -->';
+// Written under the current name; a block from before a rename is still found and replaced.
+const MARKERS = PRODUCT_IDENTITY.markers.agentDoc;
+const COMMAND = PRODUCT_IDENTITY.commands.primary;
 
 export type { Runtime };
 
-/** The delimiter that marks a doc as carrying the harness block (doctor reads this). */
-export const HARNESS_BLOCK_MARKER = BEGIN_MARKER;
+/** True when the doc carries the harness block, under the current or a former name (doctor). */
+export function hasHarnessBlock(text: string): boolean {
+  return hasManagedBlock(text, MARKERS);
+}
 
 /** The doctrine doc a runtime owns: Claude Code reads CLAUDE.md, Codex reads AGENTS.md. */
 export function docFileFor(runtime: Runtime): string {
@@ -62,9 +66,9 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     ? `Every skill is invoked by its name: \`${prefixed ? '/harness:void-implement' : '/void-implement'}\`, \`${prefixed ? '/harness:void-tdd' : '/void-tdd'}\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`
     : `Every skill is invoked by its name: \`$void-implement\`, \`$void-tdd\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`;
   return [
-    BEGIN_MARKER,
+    MARKERS.current.begin,
     '',
-    `## void-harness (managed by \`void-harness init\`)`,
+    `## Void Machine (managed by \`${COMMAND} init\`)`,
     '',
     // Provenance, and only when it is true. The default path copies bundled
     // assets and never contacts a marketplace, so naming one there teaches the
@@ -81,7 +85,7 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     '',
     ...imports,
     '',
-    `\`PHILOSOPHY.md\` is the universal void-harness doctrine (managed — overwritten on init). \`PROJECT-DOCTRINE.md\` holds project-specific rules: context, ADRs, in-flight decisions (yours; init never overwrites what you have written in it).`,
+    `\`PHILOSOPHY.md\` is the universal Void Machine doctrine (managed — overwritten on init). \`PROJECT-DOCTRINE.md\` holds project-specific rules: context, ADRs, in-flight decisions (yours; init never overwrites what you have written in it).`,
     '',
     captureLine,
     '',
@@ -97,18 +101,15 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
       + 'preserve the work. This does not authorize another remote merge, deployment, history rewrite, or changes '
       + 'to shared Git state by commit-only workers. Runtime sandbox and approval controls still apply; never bypass them.',
     '',
-    `Run \`void-harness doctor\` to verify the install.`,
+    `Run \`${COMMAND} doctor\` to verify the install.`,
     '',
-    END_MARKER,
+    MARKERS.current.end,
   ].join('\n');
 }
 
 function patchHarnessBlock(original: string, block: string): string {
-  if (original.includes(BEGIN_MARKER) && original.includes(END_MARKER)) {
-    const beginIdx = original.indexOf(BEGIN_MARKER);
-    const endIdx = original.indexOf(END_MARKER) + END_MARKER.length;
-    return original.slice(0, beginIdx) + block + original.slice(endIdx);
-  }
+  const replaced = replaceManagedBlock(original, MARKERS, block);
+  if (replaced !== undefined) return replaced;
   const lines = original.split('\n');
   const headerIdx = lines.findIndex((l) => l.startsWith('# '));
   if (headerIdx >= 0) {
@@ -142,7 +143,7 @@ async function patchDoc(
   const patched = patchHarnessBlock(original, block);
   if (patched === original) return 'unchanged';
   await writeFile(target, patched);
-  return original.includes(BEGIN_MARKER) ? 'updated' : 'patched';
+  return hasHarnessBlock(original) ? 'updated' : 'patched';
 }
 
 /** Patch the doctrine doc a runtime owns (CLAUDE.md with @imports, AGENTS.md with pointers). */

@@ -7,11 +7,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  type MechanicalContextState,
-  mergeMechanicalContextBlock,
-} from '@voidcorp/mission-engine/session';
+import type { MechanicalContextState } from '@voidcorp/mission-engine/session';
 import { afterEach, describe, expect, it } from 'vitest';
+import { mergeMechanicalContextBlock } from './checkpoint-codec.js';
 import { observeResume } from './resume-observer.js';
 
 const roots: string[] = [];

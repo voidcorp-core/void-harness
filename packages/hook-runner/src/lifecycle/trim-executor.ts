@@ -17,6 +17,7 @@ import {
   extractToolOutput,
   planOutputTrim,
 } from './trim.js';
+import { productSetting } from '../identity.js';
 
 export interface TrimExecution extends LifecycleExecution {
   readonly output?: {
@@ -55,7 +56,7 @@ export function executeTrim(
   root: string,
   env: Environment,
 ): TrimExecution {
-  if (env['VOID_HARNESS_NO_TRIM'] === '1') {
+  if (productSetting(env, 'NO_TRIM') === '1') {
     return { status: 'skipped', details: { reason: 'disabled' } };
   }
   const extracted = extractToolOutput(rawInput);
@@ -63,7 +64,7 @@ export function executeTrim(
     return { status: 'skipped', details: { reason: 'output-not-applicable' } };
   }
   const thresholdBytes = boundedInteger(
-    env['VOID_HARNESS_TRIM_BYTES'],
+    productSetting(env, 'TRIM_BYTES'),
     12_000,
     1,
     10 * 1024 * 1024,

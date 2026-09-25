@@ -5,6 +5,7 @@ import {
   record,
 } from './executor-shared.js';
 import { voidReadPath } from '../void-layout.js';
+import { productSetting } from '../identity.js';
 
 /** Where the harness in this project came from. Undetermined when the version was
  * forced through the environment or when nothing readable was found — in which case
@@ -26,7 +27,7 @@ function readVersion(path: string): string | undefined {
 /** Resolve the installed version together with the channel it came from, in one
  * pass over the same candidates, so the two can never disagree. */
 export function resolveInstall(root: string, env: Environment): ResolvedInstall {
-  const explicit = env['VOID_HARNESS_VERSION'];
+  const explicit = productSetting(env, 'VERSION');
   if (explicit !== undefined && VERSION_SHAPE.test(explicit)) {
     return { version: explicit, source: undefined };
   }

@@ -600,6 +600,25 @@ before any checkout, from the workflow file of the protected branch, and a fork 
 file compares its own `github.repository` against a slug it does not have. Each installed command
 is a bin file named after it; a deprecated one runs the same CLI with one line on stderr.
 
+The same source names what the product writes into a consumer's files and reads from their
+environment, because a release cannot rewrite what an older one left there. `markers` derives the
+begin and end of each managed block (CLAUDE.md and AGENTS.md, `.gitignore` and
+`.git/info/exclude`, the mechanical block of `.void/machine/checkpoint.md`) for the current
+namespace and every former one; `environment` names the current settings prefix and the former
+ones. Every write uses the current name, every read accepts any of them:
+
+- `managed-block.ts` (hook-runner) is the only finder of a managed block. It puts the new block
+  where the first recognized one stands and drops any other, so an update from a release that used
+  a former name converges on one block, never two.
+- The mission engine parses the checkpoint without owning a brand: `checkpointCodec(markers)` is
+  bound once to the identity in `lifecycle/checkpoint-codec.ts`, and the CLI reads through it.
+- `productSetting(env, name)` is the only reader of a product setting. `VOID_MACHINE_<NAME>` wins
+  whenever it is set; `VOID_HARNESS_<NAME>` is read only when it is absent.
+
+Mission event sources (`void-harness:mission.*`) are a wire format written into every run journal
+and compared on read, not a name a person reads; they keep their value (see the brand dual-read
+decision).
+
 ## Inter-plugin contracts (the core-hub model)
 
 The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`void-brainstorm`, `void-plan`, `void-ticket`, `void-tdd`, ...) rather than reimplementing them or dangling a pointer at an external runtime skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.

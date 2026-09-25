@@ -56,16 +56,17 @@ describe('sync-agent-docs.sh — structure mode', () => {
   // authors to parity. Judging generated headings makes the gate fire on a
   // correct install, which is how it stopped a commit the first time this repo
   // installed its own harness.
-  it('ignores headings inside the installer-managed block', () => {
+  // The block of a 3.x install and the block of the current one are both the installer's.
+  it.each(['void-machine', 'void-harness'])('ignores headings inside the installer-managed %s block', (namespace) => {
     const managed = (heading: string) =>
-      `<!-- void-harness:begin -->\n\n## void-harness (managed)\n\n### ${heading}\n\n<!-- void-harness:end -->\n`;
+      `<!-- ${namespace}:begin -->\n\n## Managed\n\n### ${heading}\n\n<!-- ${namespace}:end -->\n`;
     const claude = `# CLAUDE.md\n\n${managed('Doctrine — loaded into every session')}\n## Meta-rules\nx\n`;
     const agents = `# AGENTS.md\n\n${managed('Doctrine — read at the start of every session')}\n## Meta-rules\ny\n`;
     expect(structure(claude, agents)).toBe(0);
   });
 
   it('still catches drift in authored headings outside the managed block', () => {
-    const block = '<!-- void-harness:begin -->\n\n## void-harness (managed)\n\n<!-- void-harness:end -->\n';
+    const block = '<!-- void-machine:begin -->\n\n## Managed\n\n<!-- void-machine:end -->\n';
     const claude = `# CLAUDE.md\n\n${block}\n## Authored section\nx\n## Meta-rules\nx\n`;
     const agents = `# AGENTS.md\n\n${block}\n## Meta-rules\ny\n`;
     expect(structure(claude, agents)).toBe(1);

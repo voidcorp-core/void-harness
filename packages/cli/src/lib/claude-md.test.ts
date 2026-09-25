@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { harnessBlock, patchClaudeMd, patchAgentsMd, patchExistingRuntimeDocs } from './claude-md.js';
+import { harnessBlock, hasHarnessBlock, patchClaudeMd, patchAgentsMd, patchExistingRuntimeDocs } from './claude-md.js';
 
 const input = { enabledPlugins: ['harness'], enabledPacks: [] as never[] };
 
@@ -110,7 +110,36 @@ describe('patchClaudeMd / patchAgentsMd', () => {
     expect(await patchAgentsMd(dir, input)).toBe('patched');
     const out = readFileSync(join(dir, 'AGENTS.md'), 'utf8');
     expect(out).toContain('keep me');
-    expect(out).toContain('void-harness (managed');
+    expect(out).toContain('Void Machine (managed by `void-machine init`)');
+  });
+
+  // Every project installed by 3.x carries the block under the former name. The update after the
+  // rename must replace it where it stands; appending a second block would leave the old one,
+  // never refreshed again, telling the agent to run a deprecated command forever.
+  it.each(['CLAUDE.md', 'AGENTS.md'] as const)('takes over the 3.x block of %s in place', async (file) => {
+    const legacy = [
+      `# ${file}`, '', 'Before.', '',
+      '<!-- void-harness:begin -->', '', '## void-harness (managed by `void-harness init`)', '',
+      'Run `void-harness doctor` to verify the install.', '', '<!-- void-harness:end -->', '',
+      '## My rules', 'keep me', '',
+    ].join('\n');
+    writeFileSync(join(dir, file), legacy);
+    const patch = file === 'CLAUDE.md' ? patchClaudeMd : patchAgentsMd;
+    expect(await patch(dir, input)).toBe('updated');
+    const out = readFileSync(join(dir, file), 'utf8');
+    expect(out).not.toContain('void-harness');
+    expect(out.match(/<!-- void-machine:begin -->/g)).toHaveLength(1);
+    expect(out.indexOf('Before.')).toBeLessThan(out.indexOf('<!-- void-machine:begin -->'));
+    expect(out.indexOf('<!-- void-machine:end -->')).toBeLessThan(out.indexOf('## My rules\nkeep me'));
+    expect(await patch(dir, input)).toBe('unchanged');
+  });
+});
+
+describe('hasHarnessBlock', () => {
+  it('recognizes the block under the current and the former name', () => {
+    expect(hasHarnessBlock('<!-- void-machine:begin -->\nx\n<!-- void-machine:end -->')).toBe(true);
+    expect(hasHarnessBlock('<!-- void-harness:begin -->\nx\n<!-- void-harness:end -->')).toBe(true);
+    expect(hasHarnessBlock('# nothing here')).toBe(false);
   });
 });
 

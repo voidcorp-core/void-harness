@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advanceMechanicalContext,
-  evaluateContextMeasurement,
-  type MechanicalContextState,
   mergeMechanicalContextBlock,
   parseCheckpoint,
   parseMechanicalContextBlock,
   renderMechanicalContextBlock,
+} from '../test/checkpoint-markers.js';
+import {
+  advanceMechanicalContext,
+  evaluateContextMeasurement,
+  type MechanicalContextState,
 } from './checkpoint.js';
 
 /**
@@ -217,12 +219,39 @@ describe('mechanical context block', () => {
     expect(second.ok).toBe(true);
     if (!second.ok) return;
 
-    expect(second.value.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+    expect(second.value.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
     expect(second.value).toContain('## Objective\n\nKeep me.');
     expect(parseMechanicalContextBlock(second.value)).toEqual({
       status: 'valid',
       state: replacement,
     });
+  });
+
+  // A 3.x install wrote the block under the former brand. The first write after the upgrade must
+  // take it over where it stands: a second block would make every later read ambiguous, and the
+  // resume state it carries is the only record of the interrupted work.
+  it('reads a block written under the former name and rewrites it in place under the current one', () => {
+    const current = renderMechanicalContextBlock(MECHANICAL);
+    const former = current.replaceAll('void-machine:', 'void-harness:');
+    const raw = `## Objective\n\nKeep me.\n\n${former}\n\n## Notes\n\nAfter.\n`;
+    expect(parseMechanicalContextBlock(raw)).toEqual({ status: 'valid', state: MECHANICAL });
+    expect(parseCheckpoint(raw).objective).toBe('Keep me.');
+
+    const merged = mergeMechanicalContextBlock(raw, { ...MECHANICAL, workRevision: 5 });
+    expect(merged.ok).toBe(true);
+    if (!merged.ok) return;
+    expect(merged.value).not.toContain('void-harness:');
+    expect(merged.value.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
+    expect(merged.value).toBe(raw.replace(former, renderMechanicalContextBlock({ ...MECHANICAL, workRevision: 5 })));
+  });
+
+  it.each([
+    ['one block under each name', (block: string) => `${block}\n${block.replaceAll('void-machine:', 'void-harness:')}\n`],
+    ['a begin and an end of different names', (block: string) => block.replace('void-machine:context-continuity:end', 'void-harness:context-continuity:end')],
+  ])('refuses %s as ambiguous', (_label, build) => {
+    const raw = build(renderMechanicalContextBlock(MECHANICAL));
+    expect(parseMechanicalContextBlock(raw)).toEqual({ status: 'invalid', reason: 'ambiguous' });
+    expect(mergeMechanicalContextBlock(raw, MECHANICAL)).toEqual({ ok: false, error: 'ambiguous-mechanical-block' });
   });
 
   it.each([

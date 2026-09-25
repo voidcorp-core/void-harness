@@ -13,6 +13,7 @@ import {
   minimalEnvironment,
   nearestTsconfigs,
 } from './typecheck.js';
+import { productSetting } from '../identity.js';
 
 function runGit(
   root: string,
@@ -98,7 +99,7 @@ export function executeTypecheck(
     };
   }
   const timeout = boundedInteger(
-    env['VOID_HARNESS_TYPECHECK_TIMEOUT_MS'],
+    productSetting(env, 'TYPECHECK_TIMEOUT_MS'),
     45_000,
     100,
     120_000,

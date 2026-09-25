@@ -349,7 +349,17 @@ describe('the ignore rule', () => {
 
     expect(patched).toContain('.void/local/');
     expect(patched).not.toContain('.void/OLD/');
-    expect(patched.match(/void-harness:begin/g)).toHaveLength(1);
+    expect(patched.match(/void-machine:begin/g)).toHaveLength(1);
+  });
+
+  it('takes over a block a 3.x install wrote under the former name, in place', () => {
+    const former = patchGitignore('node_modules\n').replaceAll('void-machine:', 'void-harness:');
+    const patched = patchGitignore(`${former}dist/\n`);
+
+    expect(patched).not.toContain('void-harness:');
+    expect(patched.match(/void-machine:begin/g)).toHaveLength(1);
+    expect(patched.startsWith('node_modules\n')).toBe(true);
+    expect(patched.endsWith('dist/\n')).toBe(true);
   });
 
   it('never touches rules the project wrote itself', () => {
@@ -371,9 +381,14 @@ describe('taking the block back out of a project .gitignore', () => {
   it('removes the managed block and leaves every project rule standing', () => {
     const stripped = stripManagedBlock(patchGitignore('node_modules\ndist/\n.env\n'));
 
-    expect(stripped).not.toContain('void-harness:begin');
+    expect(stripped).not.toContain('void-machine:begin');
     expect(stripped).not.toContain('.void/machine/');
     for (const rule of ['node_modules', 'dist/', '.env']) expect(stripped).toContain(rule);
+  });
+
+  it('removes a block written under the former name just the same', () => {
+    const former = patchGitignore('node_modules\n').replaceAll('void-machine:', 'void-harness:');
+    expect(stripManagedBlock(`${former}\n.env\n`)).toBe('node_modules\n.env\n');
   });
 
   it('returns a file that never had the block byte for byte', () => {

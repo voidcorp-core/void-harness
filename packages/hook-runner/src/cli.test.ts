@@ -308,7 +308,7 @@ describe('lifecycle context', () => {
       );
       expect(compact.status).toBe(0);
       expect(readFileSync(join(root, '.void', 'machine', 'checkpoint.md'), 'utf8')).toContain(
-        'void-harness:context-continuity:begin',
+        'void-machine:context-continuity:begin',
       );
 
       const resume = spawnSync(
@@ -369,7 +369,7 @@ describe('lifecycle context', () => {
       const concurrent = readFileSync(checkpoint, 'utf8');
       const admitted = paths.filter((path) => concurrent.includes(path));
       expect(admitted.length).toBeGreaterThanOrEqual(1);
-      expect(concurrent.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+      expect(concurrent.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
       expect(concurrent).toContain('Serialize stale recovery.');
       expect(concurrent.match(/bounded context /g)).toHaveLength(25_000);
       expect(existsSync(orphanClaim)).toBe(false);
@@ -408,7 +408,7 @@ describe('lifecycle context', () => {
       expect(recovered).toContain('src/first.ts');
       expect(recovered).toContain('src/second.ts');
       expect(recovered).toContain('src/third.ts');
-      expect(recovered.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+      expect(recovered.match(/void-machine:context-continuity:begin/g)).toHaveLength(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

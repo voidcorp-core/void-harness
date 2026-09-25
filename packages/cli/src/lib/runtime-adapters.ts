@@ -31,7 +31,7 @@ import { join } from 'node:path';
 import { voidReadPath, PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import type { SpecialistRuntimeCapability } from '@voidcorp/mission-engine';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
-import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
+import { docFileFor, hasHarnessBlock, patchRuntimeDoc } from './claude-md.js';
 import {
   CODEX_AGENTS_DIR,
   canonicalSpecialistContracts,
@@ -237,7 +237,7 @@ async function docBlockCheck(root: string, runtime: Runtime): Promise<CheckResul
     return { name: file, ok: false, message: 'missing', fix: `void-harness runtime add ${runtime}` };
   }
   const text = await readFile(path, 'utf8');
-  return text.includes(HARNESS_BLOCK_MARKER)
+  return hasHarnessBlock(text)
     ? { name: file, ok: true, message: 'void-harness block present' }
     : { name: file, ok: false, message: 'void-harness block missing', fix: `void-harness runtime add ${runtime}` };
 }

@@ -40,6 +40,7 @@ import type {
   NormalizedEdit,
   RuleVerdict,
 } from './types.js';
+import { productSetting } from '../identity.js';
 
 export const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 // CI scans complete added artifacts, including the bundled compiler. This is
@@ -378,7 +379,7 @@ export function evaluateRule(
   const env = options.env ?? process.env;
   if (rule === 'dangerous-command') {
     if (call.tool !== 'Bash' && call.tool !== 'shell') return allow();
-    if (env['VOID_HARNESS_ALLOW_DANGEROUS'] === '1') return allow('OVERRIDE', 'one-shot override');
+    if (productSetting(env, 'ALLOW_DANGEROUS') === '1') return allow('OVERRIDE', 'one-shot override');
     return dangerousCommand(call.command);
   }
   if (
@@ -391,7 +392,7 @@ export function evaluateRule(
     return allow();
   }
   if (rule === 'protected-file') {
-    if (env['VOID_HARNESS_ALLOW_SECRET_EDIT'] === '1') return allow('OVERRIDE', 'one-shot override');
+    if (productSetting(env, 'ALLOW_SECRET_EDIT') === '1') return allow('OVERRIDE', 'one-shot override');
     // Manifest ownership prohibits tool writes, not reviewed installer commits.
     // Committed diffs still receive lexical protected-path and content checks.
     const ownership = options.source === 'checked-out' ? {} : { root: options.root };
