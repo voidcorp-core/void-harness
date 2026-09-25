@@ -13,6 +13,7 @@
 //      non-zero on any drift. "Hydrated" is a proof, not a claim.
 
 import { existsSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -62,7 +63,7 @@ export function planHydrate(
     return {
       kind: 'version-mismatch',
       message: `this project expects harness ${manifest.version}; you are running ${runningVersion}`,
-      fix: `npx voidharness@${manifest.version} hydrate`,
+      fix: `npx ${PRODUCT_IDENTITY.packageFor(manifest.version)}@${manifest.version} hydrate`,
     };
   }
   return { kind: 'hydrate', message: `manifest ${manifest.version}, ${manifest.files.length} file(s) to restore` };

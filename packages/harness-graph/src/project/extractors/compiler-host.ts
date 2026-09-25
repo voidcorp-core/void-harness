@@ -11,7 +11,7 @@
 // So the compiler is resolved from the analysed project, at runtime, through a
 // port. The port is what makes the decision testable without a filesystem, and
 // what keeps the published CLI free of a runtime dependency on `typescript`:
-// bundling it would add megabytes and break the offline `npx voidharness`
+// bundling it would add megabytes and break the offline `npx`
 // install that `test/cli/self-contained.test.ts` exists to protect.
 //
 // When the project has no compiler, that is reported and named. It is never

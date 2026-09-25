@@ -43,6 +43,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 /** The check the review job publishes on a pull request head, and the one protection requires. */
 export const REVIEW_CHECK_NAME = 'independent-review';
@@ -53,7 +54,7 @@ export const REVIEW_CHECK_NAME = 'independent-review';
 const GITHUB_ACTIONS_APP_ID = 15368;
 
 export const BACK_MERGE = {
-  repository: 'voidcorp-core/void-harness',
+  repository: PRODUCT_IDENTITY.repositorySlug,
   head: 'chore/back-merge-main',
   base: 'develop',
   main: 'main',

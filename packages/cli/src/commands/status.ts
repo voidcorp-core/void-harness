@@ -28,7 +28,7 @@ import { banner, blank, c, footer, line } from '../lib/render.js';
 import { freshnessNotice, resolveFreshness } from '@voidcorp/hook-runner';
 import { readInstallReceipt } from '../lib/receipts.js';
 
-// dist/main.js -> the package root (packages/cli in the monorepo, node_modules/voidharness once published).
+// dist/main.js -> the package root (packages/cli in the monorepo, node_modules/<package> once published).
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Candidate paths for a shipped data artifact, in priority order: the monorepo source

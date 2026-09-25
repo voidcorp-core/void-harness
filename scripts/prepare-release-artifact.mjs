@@ -13,6 +13,7 @@ import {
   createReleaseArtifactManifest,
   parseReleaseTag,
 } from './release-artifact-contract.mjs';
+import { PRODUCT_IDENTITY } from './product-identity.mjs';
 
 function requiredEnv(name) {
   const value = process.env[name];
@@ -39,7 +40,7 @@ function resolveRelease() {
   const releaseTag = requiredEnv('RELEASE_TAG');
   const version = parseReleaseTag(releaseTag);
   const repository = requiredEnv('EXPECTED_REPOSITORY');
-  if (repository !== 'voidcorp-core/void-harness') {
+  if (repository !== PRODUCT_IDENTITY.repositorySlug) {
     throw new Error('release repository identity is not canonical');
   }
   const controlRoot = resolve(requiredEnv('CONTROL_ROOT'));

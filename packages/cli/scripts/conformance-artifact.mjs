@@ -13,6 +13,7 @@ import {
 } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRODUCT_IDENTITY } from '../../../scripts/product-identity.mjs';
 import {
   packageManagerCommand,
   requireConformanceExit,
@@ -42,8 +43,8 @@ function artifactBytes(value) {
 }
 
 function requireIdentity(identity) {
-  if (identity?.packageName !== 'voidharness') {
-    fail('package name must be voidharness');
+  if (identity?.packageName !== PRODUCT_IDENTITY.packageName) {
+    fail(`package name must be ${PRODUCT_IDENTITY.packageName}`);
   }
   if (typeof identity.packageVersion !== 'string' || !VERSION.test(identity.packageVersion)) {
     fail('package version must be an explicit semantic version');
@@ -161,7 +162,7 @@ export async function packConformanceArtifact(outputDirectory) {
   }
   const destination = resolve(outputDirectory);
   if (existsSync(destination)) fail(`output already exists: ${destination}`);
-  const tarball = join(destination, 'voidharness.tgz');
+  const tarball = join(destination, 'consumer.tgz');
   const manifestPath = `${tarball}.json`;
   await requireCleanCheckout('before');
   const sourceSha = await gitText(['rev-parse', '--verify', 'HEAD']);
@@ -174,7 +175,7 @@ export async function packConformanceArtifact(outputDirectory) {
       args: [
         ...pnpm.prefixArguments,
         '--filter',
-        'voidharness',
+        './packages/cli',
         'pack',
         '--pack-destination',
         temporary,
@@ -191,11 +192,11 @@ export async function packConformanceArtifact(outputDirectory) {
     if (names.length !== 1) fail('pack must produce exactly one tarball');
     const bytes = await readFile(join(temporary, names[0]));
     const manifest = createArtifactManifest(bytes, await packageIdentity(sourceSha));
-    await writeFile(join(temporary, 'voidharness.tgz.json'), `${JSON.stringify(manifest, null, 2)}\n`, {
+    await writeFile(join(temporary, 'consumer.tgz.json'), `${JSON.stringify(manifest, null, 2)}\n`, {
       flag: 'wx',
     });
-    await rename(join(temporary, names[0]), join(temporary, 'voidharness.tgz'));
-    verifyConformanceArtifact(join(temporary, 'voidharness.tgz'), sourceSha);
+    await rename(join(temporary, names[0]), join(temporary, 'consumer.tgz'));
+    verifyConformanceArtifact(join(temporary, 'consumer.tgz'), sourceSha);
     await rename(temporary, destination);
     return { manifest, manifestPath, tarball };
   } finally {

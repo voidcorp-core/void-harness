@@ -1,6 +1,6 @@
-# `voidharness`
+# `voidmachine`
 
-CLI for the [void-harness](https://github.com/voidcorp-core/void-harness): register the marketplace, enable the `harness` core plugin plus the stack packs a project needs, and health-check the setup.
+CLI for the [void-harness](https://github.com/voidcorp-core/void-machine): register the marketplace, enable the `harness` core plugin plus the stack packs a project needs, and health-check the setup.
 
 ## Quick start
 
@@ -8,11 +8,11 @@ CLI for the [void-harness](https://github.com/voidcorp-core/void-harness): regis
 # In any project: register the marketplace, enable core + the packs you pick,
 # scaffold .void/config.json, and patch CLAUDE.md / AGENTS.md.
 cd my-project
-npx voidharness init                          # core only
-npx voidharness init --pack pack-nextjs --pack pack-monorepo
+npx voidmachine init                          # core only
+npx voidmachine init --pack pack-nextjs --pack pack-monorepo
 
 # Verify the setup (offline-friendly)
-npx voidharness doctor
+npx voidmachine doctor
 ```
 
 Pack names accept any form: `pack-nextjs`, `harness-nextjs`, or `nextjs`.
@@ -63,7 +63,7 @@ Sets up the current project:
 - Patches `CLAUDE.md` / `AGENTS.md` (sister docs, cross-referenced)
 
 ```
-npx voidharness init [--pack <name>...] [--all-packs] [--force]
+npx voidmachine init [--pack <name>...] [--all-packs] [--force]
 ```
 
 After `init`, restart Claude Code; skills appear as `/harness:<name>` and `/void-<pack>:<name>`.
@@ -73,8 +73,8 @@ After `init`, restart Claude Code; skills appear as `/harness:<name>` and `/void
 Enable or disable a pack on an already-initialized project (updates `.claude/settings.json` and `.void/config.json`).
 
 ```
-npx voidharness add pack-nextjs
-npx voidharness remove pack-nextjs
+npx voidmachine add pack-nextjs
+npx voidmachine remove pack-nextjs
 ```
 
 ### `doctor`
@@ -82,7 +82,7 @@ npx voidharness remove pack-nextjs
 Health-check: `.void/config.json` validity, marketplace + plugins registered in `.claude/settings.json`, the CLAUDE.md block, `jq` (required by the hooks), and version drift against the marketplace HEAD. `--no-remote` runs fully offline. Exit `0` if all checks pass, `1` otherwise.
 
 ```
-npx voidharness doctor [--no-remote]
+npx voidmachine doctor [--no-remote]
 ```
 
 ### `list` / `check` / `update`
@@ -96,9 +96,9 @@ index. Existing decision directories are preserved; new projects default to
 `docs/decisions/`.
 
 ```bash
-npx voidharness decisions new --title "Use X" --slug use-x
-npx voidharness decisions check [--base <git-ref>]
-npx voidharness decisions render --format markdown|json
+npx voidmachine decisions new --title "Use X" --slug use-x
+npx voidmachine decisions check [--base <git-ref>]
+npx voidmachine decisions render --format markdown|json
 ```
 
 Accepted decision content is immutable. Reverse it with a new record and
@@ -112,7 +112,7 @@ and identify the records that supersede an older decision.
 Escape hatch (rare): installs the `harness` plugin at the user-global level (`~/.claude-plugin/plugins/harness/`) instead of per-project. The recommended flow is `init`.
 
 ```
-npx voidharness install --global [--dry-run]
+npx voidmachine install --global [--dry-run]
 ```
 
 ### `help`

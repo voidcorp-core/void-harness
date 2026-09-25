@@ -144,7 +144,7 @@ describe('patchExistingRuntimeDocs (per-runtime, add/remove)', () => {
 
 // The block is read by the model at every session, in every consuming project.
 // A line naming a marketplace is a fact about how the harness got there, and on
-// the default path it did not: `npx voidharness init` copies bundled assets and
+// the default path it did not: `npx <package> init` copies bundled assets and
 // never contacts a marketplace. Stating it anyway teaches the model a channel
 // that does not exist here, which is how a skill ends up invoked under a
 // namespace that cannot resolve.

@@ -36,7 +36,7 @@ const CATALOGUE = resolve(ROOT, 'packages/core/data/model.json');
  *
  * This used to be how a reference was written. It is now what a reference must
  * never be: the namespace exists only under a Claude Code marketplace plugin,
- * and `npx voidharness` — the primary channel — lands every skill flat in
+ * and the npm package — the primary channel — lands every skill flat in
  * `.claude/skills/`, where the namespaced call returns Unknown skill.
  */
 const NAMESPACED = /(?<!void-)\bharness(?:-[a-z]+)?:([a-z0-9]+(?:-[a-z0-9]+)*)/g;

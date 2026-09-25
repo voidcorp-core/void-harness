@@ -4,7 +4,7 @@ The harness improves from real project usage, never auto-applied. Two directions
 
 ## Inbound (consumer project → harness)
 
-While coding in a consumer project, when you perceive "the harness should have X", file it **directly as a GitHub issue** on `voidcorp-core/void-harness`. There is no per-project `proposed/` queue and no `feedback push` step: the issue tracker is the native triage primitive — visible across all consumers, labelable, linkable, closeable — and a per-repo markdown queue was a strictly worse reimplementation of it.
+While coding in a consumer project, when you perceive "the harness should have X", file it **directly as a GitHub issue** on `voidcorp-core/void-machine`. There is no per-project `proposed/` queue and no `feedback push` step: the issue tracker is the native triage primitive — visible across all consumers, labelable, linkable, closeable — and a per-repo markdown queue was a strictly worse reimplementation of it.
 
 ### The filing bar
 
@@ -20,7 +20,7 @@ Calibrate against the ADR sweep behind issue #34: a full audit that rejected eve
 Draft the issue, confirm it with the user, then open it with `gh`:
 
 ```bash
-gh issue create --repo voidcorp-core/void-harness \
+gh issue create --repo voidcorp-core/void-machine \
   --title "<area>: <concise gap>" \
   --label enhancement \
   --body "<5-15 lines: what happened, evidence, source context, what would unblock me>"
@@ -58,7 +58,7 @@ update` retires at most 10,000 obsolete `~/.void/projects/*.path` files per invo
 recursively removes that directory.
 
 - `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every discovered project before classifying, so the gates actually clear.
-- `void-harness audit --push` files only evidence-eligible proposals as GitHub issues on `voidcorp-core/void-harness`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
+- `void-harness audit --push` files only evidence-eligible proposals as GitHub issues on `voidcorp-core/void-machine`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
 
 ## HITL is absolute
 

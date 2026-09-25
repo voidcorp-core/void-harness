@@ -11,6 +11,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PRODUCT_IDENTITY } from '../../../scripts/product-identity.mjs';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   assertCanonicalHookReplay,
@@ -198,9 +199,9 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
   const bin = join(
     fixture,
     'node_modules',
-    'voidharness',
+    PRODUCT_IDENTITY.packageName,
     'bin',
-    'void-harness.mjs',
+    `${PRODUCT_IDENTITY.commands.primary}.mjs`,
   );
   await requireRegularFile(bin, `${mode} installed CLI`);
   await writeFile(join(fixture, 'example.py'), 'print("safe")\n', 'utf8');

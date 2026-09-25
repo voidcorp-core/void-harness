@@ -2006,7 +2006,7 @@
         }
       ],
       "id": "skill:void-doctor",
-      "lines": 82,
+      "lines": 83,
       "name": "void-doctor",
       "owner": "folpe",
       "pack": null,
@@ -2015,7 +2015,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-doctor/SKILL.md",
-      "staticTokens": 765,
+      "staticTokens": 782,
       "type": "skill"
     },
     {

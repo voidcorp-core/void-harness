@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { promotionAuthority } from '../../scripts/promotion-authority.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 // The pull request shape is the one promotion.yml asks GitHub for, per
 // integration commit: the head's check suites from the review App,
@@ -37,7 +38,7 @@ function pull(overrides: Pull = {}): Pull {
     mergedAt: '2026-09-23T10:05:00Z',
     mergeCommit: { oid: INTEGRATION },
     mergedBy: { login: 'folpe' },
-    headRepository: { nameWithOwner: 'voidcorp-core/void-harness' },
+    headRepository: { nameWithOwner: PRODUCT_IDENTITY.repositorySlug },
     headRepositoryOwner: { login: 'voidcorp-core' },
     timelineItems: { nodes: [], pageInfo: { hasNextPage: false } },
     ...verdictOn(HEAD, undefined),

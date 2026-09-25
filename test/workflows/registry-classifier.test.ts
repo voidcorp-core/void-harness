@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RELEASE = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
@@ -81,7 +82,7 @@ describe('inline npm registry classifier', () => {
       stdout: {
         integrity: INTEGRITY,
         attestations: {
-          url: 'https://registry.npmjs.org/-/npm/v1/attestations/voidharness@3.4.0',
+          url: `https://registry.npmjs.org/-/npm/v1/attestations/${PRODUCT_IDENTITY.packageName}@3.4.0`,
           provenance: { predicateType: 'https://slsa.dev/provenance/v1' },
         },
       },

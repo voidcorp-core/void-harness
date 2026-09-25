@@ -5,7 +5,7 @@
     {
       "sourceId": "machine-readme",
       "title": "Machine foundation",
-      "text": "Private Machine foundation. Any future distribution uses the existing voidharness CLI; the former A5 cutover is deferred under the clean-sheet mandate."
+      "text": "Private Machine foundation. Any future distribution uses the existing voidmachine CLI; the former A5 cutover is deferred under the clean-sheet mandate."
     },
     {
       "sourceId": "m1-boundary",

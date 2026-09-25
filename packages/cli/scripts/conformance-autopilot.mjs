@@ -20,6 +20,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PRODUCT_IDENTITY } from '../../../scripts/product-identity.mjs';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import { assertPortableConsumerSkill } from './conformance-autopilot-lib.mjs';
 import {
@@ -65,7 +66,7 @@ try {
     });
     requireConformanceExit(installed, `autopilot conformance ${runtime} install`);
 
-    const bin = join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
+    const bin = join(fixture, 'node_modules', PRODUCT_IDENTITY.packageName, 'bin', `${PRODUCT_IDENTITY.commands.primary}.mjs`);
     const init = await runConformanceProcess({
       command: process.execPath,
       args: [bin, 'init', '--runtime', runtime, '--no-interactive'],

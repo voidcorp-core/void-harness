@@ -28,7 +28,7 @@ release, when there is appetite to actually remove something.
 void-harness audit
 ```
 
-Or `npx voidharness audit` when the CLI is not on PATH.
+Or `npx voidmachine audit` when the CLI is not on PATH.
 
 It reads local mission events from `.void/machine/runs/<mission-id>/events.jsonl`, written by the
 activation meter, plus read-only legacy usage logs. Everything is local; nothing is sent

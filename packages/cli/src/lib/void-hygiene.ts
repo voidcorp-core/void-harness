@@ -12,6 +12,7 @@ import {
   judgeKeptTracked,
   type KeptTrackedObservation,
 } from './kept-tracked-paths.js';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import {
   judgeObservedIgnore,
   type ObservedPathObservation,
@@ -188,7 +189,7 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
     return fail(
       name,
       `${manifest.drifted} file(s) differ from manifest ${manifest.version ?? 'unknown'}${named}`,
-      `npx voidharness@${manifest.version ?? 'x.y.z'} hydrate — it restores and proves every file`,
+      `npx ${PRODUCT_IDENTITY.packageFor(manifest.version ?? 'x.y.z')}@${manifest.version ?? 'x.y.z'} hydrate — it restores and proves every file`,
     );
   }
   // A co-owned file carrying project edits is not drift, and is not an advisory
@@ -232,7 +233,7 @@ function receiptCheck(observation: LayoutObservation): CheckResult {
   }
   const version = receipt.version ?? 'unknown';
   const missingTotal = receipt.missingTotal ?? 0;
-  const fix = `npx voidharness@${version} update — it rewrites every recorded asset`;
+  const fix = `npx ${PRODUCT_IDENTITY.packageFor(version)}@${version} update — it rewrites every recorded asset`;
   if (missingTotal === 0) return pass(name, `every file receipt ${version} recorded is on disk`);
   const example = receipt.missing?.[0];
   const shown = example === undefined ? '' : `, for example ${example}`;

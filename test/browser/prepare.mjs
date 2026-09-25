@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { PRODUCT_IDENTITY } from '../../scripts/product-identity.mjs';
 import { conformanceArtifactFromEnvironment } from '../../packages/cli/scripts/conformance-artifact.mjs';
 import {
   conformanceFixtureEnvironment,
@@ -26,7 +27,7 @@ await runConformanceStep('browser fixture package install', {
   cwd: installation,
   env: conformanceFixtureEnvironment(installation),
 });
-const bin = join(installation, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
+const bin = join(installation, 'node_modules', PRODUCT_IDENTITY.packageName, 'bin', `${PRODUCT_IDENTITY.commands.primary}.mjs`);
 const documents = {};
 for (const name of ['absent', 'installed']) {
   const cwd = join(root, name);

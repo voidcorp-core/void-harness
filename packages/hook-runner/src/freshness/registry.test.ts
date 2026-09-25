@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_REGISTRY, distTagsUrl, fetchLatestVersion, parseLatestTag, resolveRegistry } from './registry.js';
+import { PRODUCT_IDENTITY } from '../identity.js';
 
 const ok = (body: unknown): typeof fetch =>
   vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
@@ -48,8 +49,8 @@ describe('resolveRegistry', () => {
 
 describe('distTagsUrl', () => {
   it('targets the small dist-tags document, not the full package document', () => {
-    expect(distTagsUrl(DEFAULT_REGISTRY, 'voidharness')).toBe(
-      'https://registry.npmjs.org/-/package/voidharness/dist-tags',
+    expect(distTagsUrl(DEFAULT_REGISTRY, 'examplepkg')).toBe(
+      'https://registry.npmjs.org/-/package/examplepkg/dist-tags',
     );
   });
 
@@ -76,6 +77,12 @@ describe('parseLatestTag', () => {
 });
 
 describe('fetchLatestVersion', () => {
+  it('asks the registry about the package named by the product identity', async () => {
+    const fetchImpl = ok({ latest: '2.1.0' });
+    await fetchLatestVersion({ fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledWith(distTagsUrl(DEFAULT_REGISTRY, PRODUCT_IDENTITY.packageName), expect.anything());
+  });
+
   it('returns the published version on a healthy response', async () => {
     await expect(fetchLatestVersion({ fetchImpl: ok({ latest: '2.1.0' }) })).resolves.toEqual({
       latest: '2.1.0',

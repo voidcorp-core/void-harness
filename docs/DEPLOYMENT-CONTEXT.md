@@ -137,7 +137,7 @@ no tarball (`docs/ARCHITECTURE.md`). **The image is a new channel for Machine**,
 replacement for an existing one: built in CI from the repository, pinned by digest,
 published to a registry with a provenance attestation.
 
-npm carries a different product, the harness (`npx voidharness`), which wires an agent
+npm carries a different product, the harness (`npx voidmachine`), which wires an agent
 runtime into a developer's own project. The question to settle with Folpe is about that
 product alone: whether installing the harness into one's own project stays a promise of
 the open-source repository, or whether the harness only reaches people inside an instance.

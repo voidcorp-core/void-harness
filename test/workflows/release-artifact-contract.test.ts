@@ -7,6 +7,7 @@ import {
   verifyArtifactMetadata,
   verifyReleaseArtifact,
 } from '../../scripts/release-artifact-contract.mjs';
+import { PRODUCT_IDENTITY } from '../../packages/hook-runner/src/identity.js';
 
 const RELEASE_COMMIT = 'a'.repeat(40);
 const WORKFLOW_HEAD_SHA = 'e'.repeat(40);
@@ -16,8 +17,8 @@ function manifestFor(bytes = TARBALL) {
   return createReleaseArtifactManifest({
     releaseTag: 'v3.4.0',
     releaseCommit: RELEASE_COMMIT,
-    packageManifest: { name: 'voidharness', version: '3.4.0' },
-    tarballNames: ['voidharness-3.4.0.tgz'],
+    packageManifest: { name: PRODUCT_IDENTITY.packageName, version: '3.4.0' },
+    tarballNames: [`${PRODUCT_IDENTITY.packageName}-3.4.0.tgz`],
     tarballBytes: bytes,
   });
 }
@@ -35,14 +36,14 @@ describe('release artifact identity', () => {
       verifyArtifactMetadata({
         artifact: {
           id: 4242,
-          name: 'voidharness-release-3.4.0-987-2',
+          name: 'npm-release-3.4.0-987-2',
           digest: `sha256:${'b'.repeat(64)}`,
           expired: false,
           workflow_run: { id: 987, head_sha: WORKFLOW_HEAD_SHA },
         },
         expected: {
           id: '4242',
-          name: 'voidharness-release-3.4.0-987-2',
+          name: 'npm-release-3.4.0-987-2',
           digest: 'b'.repeat(64),
           workflowRunId: '987',
           workflowHeadSha: WORKFLOW_HEAD_SHA,
@@ -61,7 +62,7 @@ describe('release artifact identity', () => {
   ])('rejects artifact metadata with the wrong %s', (_name, mutation, error) => {
     const artifact = {
       id: 4242,
-      name: 'voidharness-release-3.4.0-987-2',
+      name: 'npm-release-3.4.0-987-2',
       digest: `sha256:${'b'.repeat(64)}`,
       expired: false,
       workflow_run: { id: 987, head_sha: WORKFLOW_HEAD_SHA },
@@ -73,7 +74,7 @@ describe('release artifact identity', () => {
         artifact,
         expected: {
           id: '4242',
-          name: 'voidharness-release-3.4.0-987-2',
+          name: 'npm-release-3.4.0-987-2',
           digest: 'b'.repeat(64),
           workflowRunId: '987',
           workflowHeadSha: WORKFLOW_HEAD_SHA,
@@ -103,8 +104,8 @@ describe('release artifact identity', () => {
       releaseTag: 'v3.4.0',
       version: '3.4.0',
       releaseCommit: RELEASE_COMMIT,
-      packageName: 'voidharness',
-      tarballName: 'voidharness-3.4.0.tgz',
+      packageName: PRODUCT_IDENTITY.packageName,
+      tarballName: `${PRODUCT_IDENTITY.packageName}-3.4.0.tgz`,
       bytes: TARBALL.length,
     });
   });
@@ -114,8 +115,8 @@ describe('release artifact identity', () => {
       createReleaseArtifactManifest({
         releaseTag: 'v3.4.0',
         releaseCommit: RELEASE_COMMIT,
-        packageManifest: { name: 'voidharness', version: '3.4.0' },
-        tarballNames: ['voidharness-3.4.0.tgz', 'other.tgz'],
+        packageManifest: { name: PRODUCT_IDENTITY.packageName, version: '3.4.0' },
+        tarballNames: [`${PRODUCT_IDENTITY.packageName}-3.4.0.tgz`, 'other.tgz'],
         tarballBytes: TARBALL,
       }),
     ).toThrow(/exactly one tarball/i);
@@ -141,7 +142,7 @@ describe('release artifact identity', () => {
         manifest,
         tarballName: manifest.tarballName,
         tarballBytes: Buffer.from('corrupted'),
-        packageManifest: { name: 'voidharness', version: '3.4.0' },
+        packageManifest: { name: PRODUCT_IDENTITY.packageName, version: '3.4.0' },
       }),
     ).toThrow(/digest/i);
   });

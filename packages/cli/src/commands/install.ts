@@ -5,6 +5,7 @@
 // which installs the same plugin locally inside <cwd>/.claude/plugins/.
 
 import { existsSync } from 'node:fs';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -26,7 +27,7 @@ function parseArgs(args: readonly string[]): InstallOptions {
 const PLUGIN_NAME = 'harness';
 const FALLBACK_VERSION = '0.0.0';
 
-interface CoreManifest {
+export interface CoreManifest {
   readonly version: string;
   readonly hooks?: unknown;
 }
@@ -107,20 +108,24 @@ async function writeManifest(pluginRoot: string, core: CoreManifest): Promise<vo
   const manifestPath = join(manifestDir, 'plugin.json');
   await mkdir(manifestDir, { recursive: true });
 
-  // Mirror the source manifest's hook wiring verbatim. The source hook commands
-  // already use ${CLAUDE_PLUGIN_ROOT}, which resolves under the global plugin
-  // root, so no rewriting is needed and the global install can never lag behind
-  // the committed plugin.json.
-  const manifest = {
+  await writeFile(manifestPath, `${JSON.stringify(globalPluginManifest(core), null, 2)}\n`);
+}
+
+/**
+ * The global plugin's manifest. It mirrors the source manifest's hook wiring
+ * verbatim: the source hook commands already use ${CLAUDE_PLUGIN_ROOT}, which
+ * resolves under the global plugin root, so no rewriting is needed and the
+ * global install can never lag behind the committed plugin.json.
+ */
+export function globalPluginManifest(core: CoreManifest): Record<string, unknown> {
+  return {
     name: PLUGIN_NAME,
     version: core.version,
     description: 'VoidCorp craftsman harness — opinionated skills, agents, and hooks for Claude Code projects.',
     author: { name: 'VoidCorp', email: 'florent.pellegrin@voidcorp.io' },
-    homepage: 'https://github.com/voidcorp-core/void-harness',
+    homepage: PRODUCT_IDENTITY.repositoryUrl,
     license: 'MIT',
     keywords: ['voidcorp', 'craftsman', 'tdd', 'tigerstyle', 'harness'],
     ...(core.hooks !== undefined ? { hooks: core.hooks } : {}),
   };
-
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }

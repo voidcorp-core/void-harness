@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report privately through GitHub's **[Security Advisories](https://github.com/voidcorp-core/void-harness/security/advisories/new)**, not a public issue.
+Report privately through GitHub's **[Security Advisories](https://github.com/voidcorp-core/void-machine/security/advisories/new)**, not a public issue.
 
 Expect an acknowledgement within 72 hours. If a fix is warranted you will be credited in the advisory unless you ask otherwise.
 

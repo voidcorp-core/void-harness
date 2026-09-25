@@ -1,4 +1,5 @@
 import { COMMAND_CATALOG } from '../lib/command-catalog.js';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 // `void-harness help` / no-args — the command reference, rendered through the
 // shared render layer so the front door wears the same "void" identity as every
 // other command (a plain template string used to read as an afterthought).
@@ -52,9 +53,10 @@ export function printHelp(): void {
   write(`  ${c.accent(glyph.arrow)} ${brand('void-harness')}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
   write(`  ${c.muted(glyph.dash.repeat(Math.min(termWidth(), 88) - 2))}\n`);
   write(`  ${c.muted('Public & MIT. Install free, account-free — no account, no key:')}\n`);
-  write(`  ${c.accent2('npx voidharness init')}    ${c.muted('# wire the current project')}\n`);
-  write(`  ${c.accent2('npx voidharness status')}  ${c.muted('# deterministic, offline health')}\n`);
-  write(`  ${c.muted('on pnpm? use')} ${c.muted('pnpm dlx voidharness …')} ${c.muted('to silence npm config warnings.')}\n`);
+  const npx = `npx ${PRODUCT_IDENTITY.packageName}`;
+  write(`  ${c.accent2(`${npx} init`)}    ${c.muted('# wire the current project')}\n`);
+  write(`  ${c.accent2(`${npx} status`)}  ${c.muted('# deterministic, offline health')}\n`);
+  write(`  ${c.muted('on pnpm? use')} ${c.muted(`pnpm dlx ${PRODUCT_IDENTITY.packageName} …`)} ${c.muted('to silence npm config warnings.')}\n`);
 
   heading('Commands');
   for (const command of Object.values(COMMAND_CATALOG)) {

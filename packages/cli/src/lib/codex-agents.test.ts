@@ -203,7 +203,7 @@ describe('wireCodexAgents', () => {
   });
 
   it('says the CLI is the stale side when the install carries a newer contract', async () => {
-    // A project installed by a newer voidharness, then read by an older CLI:
+    // A project installed by a newer CLI release, then read by an older CLI:
     // reinstalling with the older CLI is one repair, upgrading the CLI the other.
     const project = tmp('void-codex-agenthealth-');
     await wireCodexAgents(project, CORE_ROOT);

@@ -13,7 +13,7 @@ describe('Autopilot consumer skill portability', () => {
 
   it('rejects executable and linked dependencies on the harness monorepo', () => {
     expect(() =>
-      assertPortableConsumerSkill('Run `node packages/cli/bin/void-harness.mjs status`.\n'),
+      assertPortableConsumerSkill('Run `node packages/cli/bin/void-machine.mjs status`.\n'),
     ).toThrow(/packages\/cli/);
     expect(() =>
       assertPortableConsumerSkill('[internal rule](../../../packages/core/skills/void-tdd/SKILL.md)'),

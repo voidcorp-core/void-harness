@@ -86,3 +86,4 @@ export { readNpmrc } from './freshness/npmrc.js';
 // than repeating the names. A rule the runner knows and no runtime invokes is a
 // rule that never runs, and a hand-written list cannot catch that.
 export { RULE_NAMES, governingSkill } from './enforcement/governing-skill.js';
+export { parseProductIdentity, PRODUCT_IDENTITY, type ProductIdentity } from './identity.js';

@@ -8,6 +8,7 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
+import { PRODUCT_IDENTITY } from '@voidcorp/hook-runner';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -64,7 +65,7 @@ const HARNESS_SOURCE_FIXTURE: Readonly<Record<string, string>> = {
   'pnpm-lock.yaml': 'lockfileVersion: 9.0\n',
   'AGENTS.md': '# Agents\n',
   'CLAUDE.md': '# Claude\n',
-  'packages/cli/package.json': `${JSON.stringify({ name: 'voidharness' })}\n`,
+  'packages/cli/package.json': `${JSON.stringify({ name: PRODUCT_IDENTITY.packageName })}\n`,
   'packages/cli/src/index.ts': 'export const cli = true;\n',
   'packages/hook-runner/src/cli.ts': 'export const hook = true;\n',
   'packages/hook-runner/scripts/build-runtime.mjs': 'export const builder = true;\n',

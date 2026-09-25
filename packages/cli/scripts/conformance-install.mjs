@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRODUCT_IDENTITY } from '../../../scripts/product-identity.mjs';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   conformanceFixtureEnvironment,
@@ -40,7 +41,26 @@ async function installPackage(temporary, tarball) {
     fixture,
     environment,
   );
-  return join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
+  return join(fixture, 'node_modules', PRODUCT_IDENTITY.packageName, 'bin', `${PRODUCT_IDENTITY.commands.primary}.mjs`);
+}
+
+// `npx <package>` resolves the command from the package manifest, not from a
+// path: with several bin files, npm runs only the one named after the package.
+// Every other step here calls the installed bin directly and cannot see that.
+async function execByPackageName(temporary, tarball) {
+  const fixture = join(temporary, 'exec');
+  await mkdir(join(fixture, 'tmp'), { recursive: true });
+  const npm = packageManagerCommand('npm');
+  const result = await run(
+    'package exec',
+    npm.executable,
+    [...npm.prefixArguments, 'exec', '--offline', '--yes', '--', `file:${tarball}`, '--version'],
+    fixture,
+    conformanceFixtureEnvironment(fixture),
+  );
+  if (!/\d+\.\d+\.\d+/.test(result.stdout)) {
+    throw new Error(`install conformance package exec printed no version: ${result.stdout.trim()}`);
+  }
 }
 
 const CUSTOM_DOCTRINE = '# Project rules\r\n\r\n- Preserve accents: dépôt, and this custom rule.\r\n';
@@ -167,6 +187,7 @@ async function main() {
       () => installPackage(temporary, tarball),
       (bin, runtime) => exerciseRuntime(temporary, bin, runtime),
     );
+    await execByPackageName(temporary, tarball);
     durations.sort((left, right) => left - right);
     const medianMs = Math.round(durations[Math.floor(durations.length / 2)] ?? 0);
     process.stdout.write(

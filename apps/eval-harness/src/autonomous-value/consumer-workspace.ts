@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { git } from '../sandbox.js';
 import type { CellWorkspace, CellWorkspaceFactory } from './runner.js';
 import type { CleanupEvidence } from './evidence.js';
+import identity from '../../../../packages/core/data/identity.json' with { type: 'json' };
 
 const MAX_FIXTURE_FILES = 256;
 const MAX_FIXTURE_BYTES = 4 * 1024 * 1024;
@@ -86,7 +87,7 @@ export function buildConsumerArtifactInstallInvocation(packageDirectory: string)
   return {
     command: 'node',
     args: [
-      join(packageDirectory, 'package', 'bin', 'void-harness.mjs'),
+      join(packageDirectory, 'package', 'bin', `${identity.commands.primary}.mjs`),
       'init',
       '--runtime',
       'codex',
