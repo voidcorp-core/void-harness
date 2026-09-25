@@ -5,6 +5,11 @@ import identity from '../../../../packages/core/data/identity.json' with { type:
 
 const GITHUB_BASE = `https://github.com/${identity.repository.owner}/${identity.repository.name}/blob/main/`;
 
+/** The repository page of a node's source file, on the default branch. */
+export function sourceUrl(source: string): string {
+  return `${GITHUB_BASE}${source}`;
+}
+
 function edgesFor(model: GraphModel, id: string): string[] {
   return model.edges
     .filter((e) => e.from === id || e.to === id)
@@ -69,7 +74,7 @@ export function renderPanel(
   host.append(edgesTitle, ul);
 
   const link = document.createElement('a');
-  link.href = `${GITHUB_BASE}${node.source}`;
+  link.href = sourceUrl(node.source);
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
   link.textContent = node.source;
