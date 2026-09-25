@@ -229,11 +229,6 @@ describe('former brands outside the identity source', () => {
       why: 'the architecture names the settings alias and the wire format it deliberately keeps',
     },
     {
-      path: /^(\.void\/program\.md|docs\/LINEAR-INDEX\.md)$/,
-      token: /voidcorp\/DEV\/void harness|\(Void Harness\)/g,
-      why: 'the Linear project is still named Void Harness; the tracker adapter resolves it by that name',
-    },
-    {
       path: /^packages\/cli\/package\.json$/,
       token: /"void-harness": "\.\/bin\/void-harness\.mjs"/g,
       why: 'the deprecated command keeps its own bin so the notice knows how it was invoked',

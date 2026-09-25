@@ -6,7 +6,7 @@ plan: docs/plans/2026-09-25-release-4-stabilization-plan.md
 spec: docs/specs/2026-09-22-autopilot-native-loop.md
 progress:
   provider: linear
-  scope: voidcorp/DEV/void harness
+  scope: voidcorp/DEV/void machine
   # Selection belongs to the curator, which reads the project and the tracker;
   # the continuous loop never reads this list. It bounds a resume that names no
   # unit: the plan's order, the release gate held by a person.

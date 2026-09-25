@@ -17,7 +17,7 @@ sa session, puis la commande de rendu ci-dessous. Il n’existe aucun service de
 surveillance en arrière-plan.
 
 1. Vérifier le projet par son identifiant
-   `e17b2f59-54b2-46aa-bb69-0c21434819f3` (Void Harness).
+   `e17b2f59-54b2-46aa-bb69-0c21434819f3` (Void Machine).
    Un nom ressemblant ne suffit pas. Ne jamais changer de projet en cas d’échec.
 2. Pour un relevé complet, appeler `list_issues` sur ce projet sans filtre
    d’état, d’assignation ou de date ; parcourir toutes les pages.
