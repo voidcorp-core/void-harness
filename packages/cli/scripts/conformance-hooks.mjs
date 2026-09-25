@@ -47,7 +47,11 @@ async function run(command, args, options) {
     timeoutMs: options.timeoutMs,
     windowsVerbatimArguments: options.verbatim,
   });
-  return requireConformanceExit(result, 'hook conformance command', expectedCodes);
+  return requireConformanceExit(
+    result,
+    `hook conformance ${options.label ?? 'command'} [${[command, ...args].join(' ')}]`,
+    expectedCodes,
+  );
 }
 
 async function requireRegularFile(path, label) {
@@ -191,6 +195,7 @@ async function exerciseCodexManifest(fixture, mode) {
     for (const [index, launcher] of blockLaunchers.entries()) {
       const label = `codex ${launcher.shell} in ${cwd === fixture ? 'root' : 'subdirectory'}`;
       const blocked = await run(launcher.command, launcher.args, {
+        label: `${label} block`,
         cwd,
         env,
         input: blockInput,
@@ -201,6 +206,7 @@ async function exerciseCodexManifest(fixture, mode) {
       requireDiagnostic(blocked, /DANGEROUS_COMMAND/, `${label} blocked command`);
       const allow = allowLaunchers[index];
       await run(allow.command, allow.args, {
+        label: `${label} allow`,
         cwd,
         env,
         input: JSON.stringify(payload),

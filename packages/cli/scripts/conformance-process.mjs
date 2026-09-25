@@ -174,8 +174,11 @@ export function requireConformanceExit(result, label, expectedCodes = [0]) {
   const detail = safeConformanceDiagnostic(
     `${result.stdout}\n${result.stderr}`.trim(),
   );
+  const outcome = result.outcome.kind === 'exited'
+    ? `exited with code ${result.outcome.code}, expected ${expectedCodes.join(' or ')}`
+    : result.outcome.kind;
   throw new Error([
-    `${label}: ${result.outcome.kind}`,
+    `${label}: ${outcome}`,
     detail === '' ? undefined : detail,
   ].filter(Boolean).join('\n'));
 }
