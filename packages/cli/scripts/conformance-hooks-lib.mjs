@@ -4,6 +4,46 @@ const MODES = Object.freeze({
   both: Object.freeze(['claude', 'codex']),
 });
 
+function posixLauncher(shell, command, flag, line) {
+  return { shell, command, args: [flag, line], verbatim: false };
+}
+
+function powershellLauncher(shell, command, line) {
+  return { shell, command, args: ['-NoProfile', '-Command', line], verbatim: false };
+}
+
+/**
+ * Every way Codex can launch a hook command line on this platform, taken from
+ * its source (codex-rs/hooks/src/engine/command_runner.rs `build_command`,
+ * codex-rs/core/src/shell.rs `derive_exec_args`). With a session shell it runs
+ * `<shell> -c` or `<powershell> -NoProfile -Command`; without one it falls back
+ * to `$SHELL -lc` on POSIX and to `%COMSPEC% /C` on Windows, passing the line as
+ * one raw quoted argument. `verbatim` reproduces that raw argument. A cmd
+ * session shell (`cmd /c`) takes the same raw path: `build_command` switches to
+ * `raw_arg` whenever an argument is `/c`, so one cmd launcher covers both.
+ */
+export function codexHookLaunchers(platform, line, env) {
+  if (platform === 'win32') {
+    return [
+      {
+        shell: 'cmd',
+        command: env.ComSpec ?? env.COMSPEC ?? 'cmd.exe',
+        args: ['/C', `"${line}"`],
+        verbatim: true,
+      },
+      powershellLauncher('powershell', 'powershell.exe', line),
+      powershellLauncher('pwsh', 'pwsh', line),
+    ];
+  }
+  const launchers = [
+    posixLauncher('sh', '/bin/sh', '-c', line),
+    posixLauncher('sh login', '/bin/sh', '-lc', line),
+    posixLauncher('bash', 'bash', '-c', line),
+  ];
+  if (platform === 'darwin') launchers.push(posixLauncher('zsh', '/bin/zsh', '-c', line));
+  return launchers;
+}
+
 export function runtimesForMode(mode) {
   const runtimes = MODES[mode];
   if (runtimes === undefined) {

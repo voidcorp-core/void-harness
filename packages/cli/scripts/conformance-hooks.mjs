@@ -15,6 +15,7 @@ import { PRODUCT_IDENTITY } from '../../../scripts/product-identity.mjs';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   assertCanonicalHookReplay,
+  codexHookLaunchers,
   runtimesForMode,
 } from './conformance-hooks-lib.mjs';
 import {
@@ -25,6 +26,7 @@ import {
 } from './conformance-process.mjs';
 
 const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+const DANGEROUS_COMMAND = 'rm -rf /';
 const HOOK_TIMEOUT_MS = 5_000;
 
 function requireDiagnostic(result, pattern, label) {
@@ -43,6 +45,7 @@ async function run(command, args, options) {
     env: options.env,
     input: options.input,
     timeoutMs: options.timeoutMs,
+    windowsVerbatimArguments: options.verbatim,
   });
   return requireConformanceExit(result, 'hook conformance command', expectedCodes);
 }
@@ -117,7 +120,7 @@ async function exerciseRuntime(runner, fixture, missionId, runtime) {
       input: JSON.stringify({
         ...payload,
         tool_name: runtime === 'claude' ? 'Bash' : 'shell',
-        tool_input: { command: 'rm -rf /' },
+        tool_input: { command: DANGEROUS_COMMAND },
       }),
       expectedCodes: [2],
       timeoutMs: HOOK_TIMEOUT_MS,
@@ -152,6 +155,61 @@ async function exerciseRuntime(runner, fixture, missionId, runtime) {
     /HOOK_RUNNER_FAILED: HOOK_INPUT_TOO_LARGE/,
     `${runtime} oversized input`,
   );
+}
+
+function manifestCommand(manifest, suffix) {
+  const command = Object.values(manifest.hooks)
+    .flatMap((groups) => groups.flatMap((group) => group.hooks))
+    .map((hook) => hook.command)
+    .find((candidate) => candidate.endsWith(suffix));
+  if (command === undefined) throw new Error(`hook conformance manifest lacks ${suffix}`);
+  return command;
+}
+
+// Runs the installed .codex/hooks.json commands the way Codex launches them,
+// from the project root and from a subdirectory, with no project-root variable:
+// the command itself must find the runner (DEV-918).
+async function exerciseCodexManifest(fixture, mode) {
+  const manifest = JSON.parse(await readFile(join(fixture, '.codex', 'hooks.json'), 'utf8'));
+  const blockCommand = manifestCommand(manifest, ' enforce dangerous-command codex');
+  const allowCommand = manifestCommand(manifest, ' enforce no-console codex');
+  const nested = join(fixture, 'src', 'nested');
+  await mkdir(nested, { recursive: true });
+  const env = conformanceFixtureEnvironment(fixture, {
+    VOID_AGENT_RUNTIME: 'codex',
+    VOID_MISSION_ID: `mis_conformance_launch_${mode}`,
+  });
+  const payload = payloadFor('codex', fixture);
+  const blockInput = JSON.stringify({
+    ...payload,
+    tool_name: 'shell',
+    tool_input: { command: DANGEROUS_COMMAND },
+  });
+  const blockLaunchers = codexHookLaunchers(process.platform, blockCommand, env);
+  const allowLaunchers = codexHookLaunchers(process.platform, allowCommand, env);
+  for (const cwd of [fixture, nested]) {
+    for (const [index, launcher] of blockLaunchers.entries()) {
+      const label = `codex ${launcher.shell} in ${cwd === fixture ? 'root' : 'subdirectory'}`;
+      const blocked = await run(launcher.command, launcher.args, {
+        cwd,
+        env,
+        input: blockInput,
+        expectedCodes: [2],
+        timeoutMs: HOOK_TIMEOUT_MS,
+        verbatim: launcher.verbatim,
+      });
+      requireDiagnostic(blocked, /DANGEROUS_COMMAND/, `${label} blocked command`);
+      const allow = allowLaunchers[index];
+      await run(allow.command, allow.args, {
+        cwd,
+        env,
+        input: JSON.stringify(payload),
+        timeoutMs: HOOK_TIMEOUT_MS,
+        verbatim: allow.verbatim,
+      });
+    }
+  }
+  return blockLaunchers.map((launcher) => launcher.shell);
 }
 
 async function assertBrokenWiring(bin, fixture, mode, env) {
@@ -228,6 +286,8 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
     runtimes,
   });
 
+  const shells = runtimes.includes('codex') ? await exerciseCodexManifest(fixture, mode) : [];
+
   await run(process.execPath, [bin, 'doctor', '--no-remote'], {
     cwd: fixture,
     env,
@@ -237,6 +297,7 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
     cwd: fixture,
     env,
   });
+  return shells;
 }
 
 const npm = packageManagerCommand('npm');
@@ -245,11 +306,15 @@ try {
   const { manifest, tarball } = await conformanceArtifactFromEnvironment();
   const npmCache = join(temporary, 'npm-cache');
   await mkdir(npmCache, { recursive: true });
+  const codexShells = new Set();
   for (const mode of ['claude', 'codex', 'both']) {
-    await exerciseFixture(temporary, tarball, npmCache, mode);
+    for (const shell of await exerciseFixture(temporary, tarball, npmCache, mode)) {
+      codexShells.add(shell);
+    }
   }
   process.stdout.write(
-    `hook conformance passed (${process.platform}) for ${manifest.sourceSha}: claude, codex, both\n`,
+    `hook conformance passed (${process.platform}) for ${manifest.sourceSha}: claude, codex, both; `
+      + `codex manifest from root and subdirectory via ${[...codexShells].join(', ')}\n`,
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

@@ -112,6 +112,7 @@ export function runConformanceProcess(options) {
       shell: false,
       stdio: ['pipe', 'pipe', captureStderr ? 'pipe' : 'ignore'],
       windowsHide: true,
+      windowsVerbatimArguments: options.windowsVerbatimArguments === true,
     });
     const stdout = [];
     const stderr = [];

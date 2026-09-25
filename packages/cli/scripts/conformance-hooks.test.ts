@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertCanonicalHookReplay,
+  codexHookLaunchers,
   runtimesForMode,
 } from './conformance-hooks-lib.mjs';
 
@@ -85,5 +86,52 @@ describe('hook conformance replay', () => {
         runtimes,
       }),
     ).toThrow(issue);
+  });
+});
+
+// Mirrors codex-rs/hooks/src/engine/command_runner.rs (build_command) and
+// codex-rs/core/src/shell.rs (derive_exec_args): the session shell with -c or
+// -NoProfile -Command, else $SHELL -lc or %COMSPEC% /C with the raw quoted line.
+describe('Codex hook launchers', () => {
+  const line = 'node -e "x" enforce dangerous-command codex';
+
+  it('runs POSIX hooks through sh and bash, as the session shell or the login fallback', () => {
+    expect(codexHookLaunchers('linux', line, {})).toEqual([
+      { shell: 'sh', command: '/bin/sh', args: ['-c', line], verbatim: false },
+      { shell: 'sh login', command: '/bin/sh', args: ['-lc', line], verbatim: false },
+      { shell: 'bash', command: 'bash', args: ['-c', line], verbatim: false },
+    ]);
+  });
+
+  it('adds zsh, the macOS default session shell', () => {
+    expect(codexHookLaunchers('darwin', line, {}).map((launcher) => launcher.shell)).toEqual([
+      'sh',
+      'sh login',
+      'bash',
+      'zsh',
+    ]);
+  });
+
+  it('runs Windows hooks through raw-quoted cmd.exe and through both PowerShells', () => {
+    const env = { ComSpec: 'C:\\Windows\\system32\\cmd.exe' };
+    expect(codexHookLaunchers('win32', line, env)).toEqual([
+      {
+        shell: 'cmd',
+        command: 'C:\\Windows\\system32\\cmd.exe',
+        args: ['/C', `"${line}"`],
+        verbatim: true,
+      },
+      {
+        shell: 'powershell',
+        command: 'powershell.exe',
+        args: ['-NoProfile', '-Command', line],
+        verbatim: false,
+      },
+      { shell: 'pwsh', command: 'pwsh', args: ['-NoProfile', '-Command', line], verbatim: false },
+    ]);
+  });
+
+  it('falls back to cmd.exe when ComSpec is unset', () => {
+    expect(codexHookLaunchers('win32', line, {})[0]?.command).toBe('cmd.exe');
   });
 });
