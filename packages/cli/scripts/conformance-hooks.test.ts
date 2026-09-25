@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertCanonicalHookReplay,
+  codexDenialReason,
   codexHookLaunchers,
+  codexHookTimeoutMs,
   runtimesForMode,
 } from './conformance-hooks-lib.mjs';
 
@@ -133,5 +135,41 @@ describe('Codex hook launchers', () => {
 
   it('falls back to cmd.exe when ComSpec is unset', () => {
     expect(codexHookLaunchers('win32', line, {})[0]?.command).toBe('cmd.exe');
+  });
+});
+
+// Mirrors how Codex reads a PreToolUse hook that exited 0 (openai/codex
+// hooks/src/engine/output_parser.rs and schema.rs): unknown fields make the
+// output invalid, and an invalid output is a failed hook, not a refusal.
+describe('Codex denial', () => {
+  const denial = (reason: unknown, extra: Record<string, unknown> = {}): string =>
+    `${JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: reason,
+        ...extra,
+      },
+    })}\n`;
+
+  it('reads the reason of a well-formed denial', () => {
+    expect(codexDenialReason(denial('DANGEROUS_COMMAND: no'))).toBe('DANGEROUS_COMMAND: no');
+  });
+
+  it.each([
+    ['no output', ''],
+    ['plain text', 'DANGEROUS_COMMAND: no\n'],
+    ['an allow decision', denial('ok').replace('deny', 'allow')],
+    ['an unknown field', denial('no', { extra: true })],
+    ['an empty reason', denial('  ')],
+    ['another event', denial('no').replace('PreToolUse', 'PostToolUse')],
+    ['a legacy decision', '{"decision":"block","reason":"no"}\n'],
+  ])('finds no refusal in %s', (_label, stdout) => {
+    expect(codexDenialReason(stdout)).toBeUndefined();
+  });
+
+  it('bounds each launch by the timeout Codex gives the hook, 600 s unless declared', () => {
+    expect(codexHookTimeoutMs({ command: 'node' })).toBe(600_000);
+    expect(codexHookTimeoutMs({ command: 'node', timeout: 30 })).toBe(30_000);
   });
 });

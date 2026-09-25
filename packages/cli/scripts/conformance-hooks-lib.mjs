@@ -44,6 +44,53 @@ export function codexHookLaunchers(platform, line, env) {
   return launchers;
 }
 
+// Codex's default PreToolUse timeout (hooks/src/engine/discovery.rs
+// `normalize_command_hook`). Codex kills a hook at this bound and lets the call
+// through, so it is the bound a launch is held to, not a tighter guess.
+const CODEX_PRE_TOOL_USE_TIMEOUT_SEC = 600;
+
+export function codexHookTimeoutMs(hook) {
+  const seconds = typeof hook.timeout === 'number' && hook.timeout >= 1
+    ? hook.timeout
+    : CODEX_PRE_TOOL_USE_TIMEOUT_SEC;
+  return seconds * 1000;
+}
+
+function isRecord(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasExactly(value, keys) {
+  const actual = Object.keys(value).sort();
+  return actual.length === keys.length && keys.every((key, index) => key === actual[index]);
+}
+
+/**
+ * The reason of the refusal a Codex PreToolUse hook wrote on stdout, or
+ * undefined when Codex would not read it as one. Mirrors the parse Codex applies
+ * to a hook that exited 0 (hooks/src/engine/output_parser.rs `parse_pre_tool_use`,
+ * schema.rs `deny_unknown_fields`), restricted to the one shape the floor emits.
+ */
+export function codexDenialReason(stdout) {
+  const trimmed = stdout.trim();
+  if (trimmed === '') return undefined;
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(parsed) || !hasExactly(parsed, ['hookSpecificOutput'])) return undefined;
+  const output = parsed.hookSpecificOutput;
+  const keys = ['hookEventName', 'permissionDecision', 'permissionDecisionReason'];
+  if (!isRecord(output) || !hasExactly(output, keys)) return undefined;
+  if (output.hookEventName !== 'PreToolUse' || output.permissionDecision !== 'deny') {
+    return undefined;
+  }
+  const reason = output.permissionDecisionReason;
+  return typeof reason === 'string' && reason.trim() !== '' ? reason.trim() : undefined;
+}
+
 export function runtimesForMode(mode) {
   const runtimes = MODES[mode];
   if (runtimes === undefined) {
