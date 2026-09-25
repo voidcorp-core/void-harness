@@ -3,7 +3,7 @@ schemaVersion: 1
 id: "adr:15621dc7-b7fa-47a0-9633-6e15df7885c5"
 createdAt: "2026-09-25T09:21:51.060Z"
 title: "The product identity has one source; workflow guards keep a literal the contract test holds to it"
-status: proposed
+status: accepted
 deciders: ["folpe"]
 supersedes: []
 ---
