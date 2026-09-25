@@ -1481,7 +1481,7 @@ function cacheFilePath(env) {
   const xdg = env["XDG_CACHE_HOME"]?.trim();
   const home = env["HOME"]?.trim();
   const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join4(home, ".cache") : void 0;
-  return base === void 0 ? void 0 : join4(base, `${PRODUCT_COMMAND}`, "freshness.json");
+  return base === void 0 ? void 0 : join4(base, PRODUCT_COMMAND, "freshness.json");
 }
 function parseEntry(raw) {
   let json;
@@ -1630,7 +1630,7 @@ async function fetchLatestVersion(options = {}) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(url, {
-      headers: { "user-agent": `${PRODUCT_COMMAND}` },
+      headers: { "user-agent": PRODUCT_COMMAND },
       signal: controller.signal
     });
     if (!res.ok) {
