@@ -5,9 +5,8 @@
 //
 // Three ways hold, and nothing else:
 // - its head SHA carries a successful `independent-review` check run from the
-//   GitHub Actions app, the review the required check demanded before it
-//   could merge (the review job's own on a head since DEV-877, the job that
-//   verified a signed verdict before it), whoever merged
+//   review App, the review the required check demanded before it could merge
+//   (promotion.yml filters the check suites by that App's id), whoever merged
 //   it and whatever its timeline says: `gh pr merge --auto` on a pull request
 //   already mergeable merges at once and records no AutoMergeEnabledEvent;
 // - the named human merged it by hand, with no automatic merge ever armed;
