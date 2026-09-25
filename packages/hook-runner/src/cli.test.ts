@@ -210,6 +210,56 @@ describe('enforce', () => {
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('HOOK_INPUT_REJECTED:');
   });
+
+  // Codex runs a hook through the session shell, PowerShell by default on
+  // Windows, and `powershell -Command` turns every non-zero exit into 1, which
+  // Codex reads as a failed hook, not a refusal. The one decision every shell
+  // carries is exit 0 with the documented PreToolUse JSON on stdout.
+  function enforceCodex(rule: string, input: string): { code: number; stdout: string } {
+    const result = spawnSync(process.execPath, [hook, 'enforce', rule, 'codex'], {
+      input,
+      encoding: 'utf8',
+      env: { ...process.env, VOID_PROJECT_ROOT: workspace },
+    });
+    return { code: result.status ?? -1, stdout: result.stdout ?? '' };
+  }
+
+  // Codex rejects unknown fields, so the denial is compared whole.
+  function expectCodexDenial(stdout: string, reason: string): void {
+    expect(JSON.parse(stdout)).toEqual({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: expect.stringContaining(reason),
+      },
+    });
+  }
+
+  it('refuses a Codex tool call with a denial every shell passes through intact', () => {
+    const { code, stdout } = enforceCodex(
+      'no-any',
+      JSON.stringify(write('src/café.ts', 'const a: any = 1;')),
+    );
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/^[\x20-\x7e]*\n$/);
+    expectCodexDenial(stdout, 'TYPESCRIPT_ANY:');
+    expectCodexDenial(stdout, 'src/café.ts');
+  });
+
+  it('refuses a Codex payload it cannot parse through the same denial', () => {
+    const { code, stdout } = enforceCodex('no-any', 'not json');
+    expect(code).toBe(0);
+    expectCodexDenial(stdout, 'HOOK_INPUT_REJECTED:');
+  });
+
+  it('lets a clean Codex tool call through without any decision', () => {
+    const { code, stdout } = enforceCodex(
+      'no-any',
+      JSON.stringify(write('src/x.ts', 'const a: number = 1;')),
+    );
+    expect(code).toBe(0);
+    expect(stdout).toBe('');
+  });
 });
 
 describe('lifecycle context', () => {
