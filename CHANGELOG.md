@@ -1,5 +1,158 @@
 # Changelog
 
+## [4.0.0](https://github.com/voidcorp-core/void-machine/compare/v3.8.0...v4.0.0) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* the npm package is voidmachine and the vh command is removed; void-harness remains as a deprecated alias. The first release under the new name must be a major (4.0.0), which packageFor relies on to tell voidharness releases from voidmachine ones.
+* **review:** the repository needs the review App, the variables REVIEW_APP_CLIENT_ID and REVIEW_APP_ID, the environment secret REVIEW_APP_PRIVATE_KEY, and the required check pinned to that App.
+* **autopilot:** `void-harness autopilot review-key` and `verdict` are removed; the loop believes only the review job's check and comment.
+* **review:** the review is no longer posted from the orchestration checkout; the repository needs a CLAUDE_CODE_OAUTH_TOKEN secret.
+* **autopilot:** the cluster subcommands of `void-harness autopilot` are removed; a programme's `chainBudget` is no longer read.
+* **hooks:** the review-verdict-write hook is no longer installed; a consumer relying on it for hand-written verdicts relies on the signed verdict check instead.
+* **cli:** the voidharness package no longer installs a void-machine executable and VOID_MACHINE_BIN is no longer read. Use void-harness doctor. Reinstalling voidharness@3.8.0 restores the launcher; it wrote no data, so nothing needs migrating either way.
+* **engines:** voidharness, @voidcorp/harness-graph, @voidcorp/pack-monorepo and @voidcorp/pack-nextjs now declare engines.node >=24.15.0. On Node 22 npm warns at install, and a consumer with engine-strict=true can no longer install; upgrade to Node 24 LTS or later.
+* **worktrees:** autopilot orchestrate requires schemaVersion 2 observations and returns absolute worktree paths. Legacy inputs are explicitly refused; post-merge cleanup requires a fresh request with ticket-specific evidence.
+
+### Features
+
+* **autopilot:** continuous loop with signed review verdicts and native merging ([75df335](https://github.com/voidcorp-core/void-machine/commit/75df335453876b07e7ea0f2999d48280b6106087))
+* **autopilot:** decide the continuous loop from Linear and GitHub state ([0c17c60](https://github.com/voidcorp-core/void-machine/commit/0c17c60ac5845671fe802c6c501c31b86edc2350))
+* **autopilot:** disarm an auto-merge the loop can no longer vouch for ([3b5ba24](https://github.com/voidcorp-core/void-machine/commit/3b5ba24fa12a90b653fff30885819479203edd63))
+* **autopilot:** fingerprint shared repository state around each unit ([65a0f71](https://github.com/voidcorp-core/void-machine/commit/65a0f71f5cf8230d3f1c9136d2d1951adda14c59))
+* **autopilot:** name every cause that sends a ticket to a human ([bbb0bc2](https://github.com/voidcorp-core/void-machine/commit/bbb0bc2da5eea77eaae2667dd6c0771c97831b98))
+* **autopilot:** name the one label that marks a ticket for a human ([fb067f9](https://github.com/voidcorp-core/void-machine/commit/fb067f9f6eb4137fb232b93c7b4268e80cccfb29))
+* **autopilot:** never merge a change to the machinery that judges merges ([9679c6d](https://github.com/voidcorp-core/void-machine/commit/9679c6dccf8b05dc6769ebe0f73d05fb0f5ebc47))
+* **autopilot:** prove a review verdict with a seal only the reviewer holds ([caff9ba](https://github.com/voidcorp-core/void-machine/commit/caff9ba8057ebb94a11c196d4306a7cd8e9e33b5))
+* **autopilot:** read verdicts and conflict classes from the pull request ([d8eef19](https://github.com/voidcorp-core/void-machine/commit/d8eef1990d2e4fb587e97b6d9f1d3d8870383365))
+* **autopilot:** run a continuous loop with a dedicated curator ([3125ef4](https://github.com/voidcorp-core/void-machine/commit/3125ef48d5bb4a10407de796bae336f1a3e3c959))
+* **autopilot:** sign review verdicts so the required check refuses a forged one ([5d649db](https://github.com/voidcorp-core/void-machine/commit/5d649db3df920de9fbd8fdcc3c5ed0108fc1ce3d))
+* **autopilot:** validate every agent judgment before acting ([0010cfa](https://github.com/voidcorp-core/void-machine/commit/0010cfa1250e62eda454f9c9d115fd61ccb8474f))
+* **autopilot:** write a review verdict through one command only ([9393d41](https://github.com/voidcorp-core/void-machine/commit/9393d41e7faa99b73fe080c61782492f50b75b5a))
+* **brand:** name the product Void Machine in every message and live doc ([35e2406](https://github.com/voidcorp-core/void-machine/commit/35e24062672a963fe4ac29bc7e858c5baa1cfdf0))
+* **brand:** name the product Void Machine, and migrate what 3.x wrote ([149162f](https://github.com/voidcorp-core/void-machine/commit/149162ff856b47a9515e12deb9142121bd9e02fc))
+* **ci:** accept an automatic merge into develop that carries its verdict ([5cbc4eb](https://github.com/voidcorp-core/void-machine/commit/5cbc4ebb129bf3b46889b9c5f86ee8ed8961bf76))
+* **ci:** exempt the release back-merge from the review verdict ([b3afd37](https://github.com/voidcorp-core/void-machine/commit/b3afd37143d399a1f42b2994dffb7feff40bdc2e))
+* **ci:** isolate consumer dependency audits from quality ([842b2a7](https://github.com/voidcorp-core/void-machine/commit/842b2a79cf4b2328ef3e4d52fda2374a3e013457))
+* **ci:** isolate consumer dependency audits from quality ([29cade1](https://github.com/voidcorp-core/void-machine/commit/29cade1f0fec4ad2ef33c7275ab154a359f4131b))
+* **ci:** make auto-merge the default way into develop, never into main ([deaa5b2](https://github.com/voidcorp-core/void-machine/commit/deaa5b2049e37e937662221415eeb9cfd7c2afe7))
+* **ci:** publish the public key that proves a review verdict ([f85d86c](https://github.com/voidcorp-core/void-machine/commit/f85d86ca9478a8dec819172512633a035b2530c8))
+* **ci:** publish the public key that proves a review verdict ([f204352](https://github.com/voidcorp-core/void-machine/commit/f204352e6815873bcdcd3c7cdcf3a20813c04d04))
+* **cli:** expose the continuous loop decisions ([682e790](https://github.com/voidcorp-core/void-machine/commit/682e790506e75ccc098d1ebb5aeb3b8ff9727430))
+* **cli:** stop publishing the void-machine launcher ([762435a](https://github.com/voidcorp-core/void-machine/commit/762435aac6a057dcd761f1f85dc252d4beac67b2))
+* **graph:** analyse projects that expose the TypeScript 6 compiler API ([83b8d66](https://github.com/voidcorp-core/void-machine/commit/83b8d66f478f815e34755f2f387ea27912f4d03f))
+* **graph:** explain declared decisions and clarify failed installs ([07ce0c1](https://github.com/voidcorp-core/void-machine/commit/07ce0c12714f58b1d1fd4da1e267e5f3ca44fbef))
+* **graph:** explain declared decisions and invariants with why ([2d2926a](https://github.com/voidcorp-core/void-machine/commit/2d2926a500bbc5e1673be344afeef79476276bd7))
+* **hooks:** offer session updates with explicit consent ([ecb7b1c](https://github.com/voidcorp-core/void-machine/commit/ecb7b1c537a5d12e9261c75b93619a20884093ee))
+* **hooks:** refuse a review verdict written by hand ([854447f](https://github.com/voidcorp-core/void-machine/commit/854447f7a34e2efb9e4465635269561d0d19dd87))
+* **identity:** read managed blocks and settings under every former brand ([4ab3963](https://github.com/voidcorp-core/void-machine/commit/4ab3963e73d6c2ad7c04d4ad39a19403cb19999e))
+* **machine:** admit step values with a parser instead of a predicate ([150db10](https://github.com/voidcorp-core/void-machine/commit/150db10ee57035f9b339c8ee8d30e3e2a4f9db35))
+* **machine:** generalize durable mission lifecycle ([764d361](https://github.com/voidcorp-core/void-machine/commit/764d36156a0915cd8c33b26927edcf984ff872f0))
+* **machine:** implement bounded sourced-note relay ([edeb6d1](https://github.com/voidcorp-core/void-machine/commit/edeb6d12388fcbd1a788fec071f0f3d3c799711d))
+* **machine:** implement read-only TypeScript doctor ([7d8ac31](https://github.com/voidcorp-core/void-machine/commit/7d8ac314a4cbdec35f8d4cca2c84128fa164c323))
+* **machine:** keep the observed cost of a result that returns after cancellation ([af8fba6](https://github.com/voidcorp-core/void-machine/commit/af8fba6fb72d13af70058d653b0685a627bd8f0a))
+* **machine:** record a refused live result as a terminal rejection ([be14ecf](https://github.com/voidcorp-core/void-machine/commit/be14ecf8f72393e6c48da8d673aebf9a1c1c8fa5))
+* **mission:** migrate declared specialist contracts without resets ([c9bc337](https://github.com/voidcorp-core/void-machine/commit/c9bc337d3599cc065639c952fc845833501c7db0))
+* rename to void-machine from a single product identity ([e79d26c](https://github.com/voidcorp-core/void-machine/commit/e79d26cfa2c0af4a5289847da76d74ac5cbd9e14))
+* **review:** post the independent-review check as a GitHub App of its own ([634e2aa](https://github.com/voidcorp-core/void-machine/commit/634e2aad059858c3e2f16466531d5178c00733fd))
+* **review:** run the independent review as a GitHub Actions job ([3c24b5f](https://github.com/voidcorp-core/void-machine/commit/3c24b5f51f8bd28b0d4f71e0523e94e32bdf7a63))
+* **void-machine:** add bounded Claude runtime adapter ([e2c1268](https://github.com/voidcorp-core/void-machine/commit/e2c126811fcaf58c575c94af1e8010b9817d038c))
+* **void-machine:** add TypeScript foundation, durable resume and cancellation ([e0e8afa](https://github.com/voidcorp-core/void-machine/commit/e0e8afa2a05efcc53d3d7f038e3c9717a69b8db1))
+* **void-machine:** cancel and abandon note missions from the journal ([34aaabb](https://github.com/voidcorp-core/void-machine/commit/34aaabbe6e63393c54377c153fb30d15f599028d))
+* **void-machine:** connect TypeScript relay to Claude runtime ([44723ad](https://github.com/voidcorp-core/void-machine/commit/44723ad08efdf3052e8210f05f25f715374a8bdb))
+* **void-machine:** resume note missions from a durable journal ([04d66b0](https://github.com/voidcorp-core/void-machine/commit/04d66b09cf9c503027caec900665698a6322476e))
+* **worktrees:** preserve ticket checkouts through observed merge ([7cd7e6d](https://github.com/voidcorp-core/void-machine/commit/7cd7e6d6252c995392303dc473354f03a0aa3a39))
+
+
+### Bug Fixes
+
+* **autopilot:** arm a merge only on a clean verdict bound to the head ([b579035](https://github.com/voidcorp-core/void-machine/commit/b579035b7323c531bf51e508f234c5be13ce2980))
+* **autopilot:** believe a verdict comment only when its status agrees ([19f53d5](https://github.com/voidcorp-core/void-machine/commit/19f53d5ad70e21684f8bbf282ff3f6592f37d42c))
+* **autopilot:** count a merge queue entry as armed, and dequeue to disarm ([b170ccb](https://github.com/voidcorp-core/void-machine/commit/b170ccbf8ed2d28b2840ceca2f5ce79571180704))
+* **autopilot:** count a merge queue entry as armed, and dequeue to disarm ([b03d17f](https://github.com/voidcorp-core/void-machine/commit/b03d17fa8f057626e99380ff0f46ce12cc0b4041))
+* **autopilot:** count review rounds on GitHub, not in the verdict ([95d0ebc](https://github.com/voidcorp-core/void-machine/commit/95d0ebcc779ce1c75f95c5c96ba38a1ed38d2e28))
+* **autopilot:** disarm before any outcome that stops watching an armed head ([f9c4f62](https://github.com/voidcorp-core/void-machine/commit/f9c4f6253896c8e95c44581f4f9d5f1956242ad8))
+* **autopilot:** fingerprint every part of Git the worktrees share ([c2ffbfa](https://github.com/voidcorp-core/void-machine/commit/c2ffbfad2c11ccc2bbaf646a5cf6ee707843bcb5))
+* **autopilot:** keep the ground of a pull request waiting for a human ([d962d72](https://github.com/voidcorp-core/void-machine/commit/d962d72413522acaa9333837f503351707bf7bf1))
+* **autopilot:** leave human merge gates out of the human-wait streak ([fa2b9c1](https://github.com/voidcorp-core/void-machine/commit/fa2b9c105359a2de1f0e94795e57706ff062e580))
+* **autopilot:** let parallel units set and drop their own upstreams ([4d33fa4](https://github.com/voidcorp-core/void-machine/commit/4d33fa48f9c7ecf4918e6ae1fadc1ee1e34ff5de))
+* **autopilot:** never arm a merge into the branch that deploys ([9f99ae2](https://github.com/voidcorp-core/void-machine/commit/9f99ae2f4dd2c8cdb4906a63ab257715110e765e))
+* **autopilot:** protect the scripts that judge a publication ([1f558fa](https://github.com/voidcorp-core/void-machine/commit/1f558fa4070fa016a07200074b183369fdef83d0))
+* **autopilot:** protect what a judging workflow runs outside .github ([571ac49](https://github.com/voidcorp-core/void-machine/commit/571ac498641d654f8737dbedb75179e9e288b4ea))
+* **autopilot:** re-queue an ejected head that still passes, twice at most ([265b268](https://github.com/voidcorp-core/void-machine/commit/265b26817dcc5d645337b0db360b808a2bcff2fb))
+* **autopilot:** re-run the review job left red under an approved head ([9d1ba64](https://github.com/voidcorp-core/void-machine/commit/9d1ba64c3a3e88a25c2281d3da3697531d0d3b7f))
+* **autopilot:** re-run the review job twice at most per run ([9d3469f](https://github.com/voidcorp-core/void-machine/commit/9d3469f935b02ec178dd5584d083efb0c1ae1f5c))
+* **autopilot:** record a unit's shared state baseline only once ([74ab287](https://github.com/voidcorp-core/void-machine/commit/74ab2876925d723a64af46767c291c90a393ad4c))
+* **autopilot:** refuse serial merges on a base that allows stale branches ([1fbe94c](https://github.com/voidcorp-core/void-machine/commit/1fbe94cc04f1c106fd7bd29efe5f4c8d478bf21a))
+* **autopilot:** refuse to handle a review secret outside the orchestration checkout ([72c8e35](https://github.com/voidcorp-core/void-machine/commit/72c8e3506a8a53acc1eed77d53c084e56f6156fe))
+* **autopilot:** resume a ready ticket that already has a branch ([96914f6](https://github.com/voidcorp-core/void-machine/commit/96914f6bc9ed2f8dcf542adae8233a1b3e98ccf2))
+* **autopilot:** see a protected file moved away, and the hooks that run here ([f3f2903](https://github.com/voidcorp-core/void-machine/commit/f3f29034cfb9dbfa70284f960e8037ea73ab6750))
+* **ci:** accept a promoted merge by the verdict on its head, whatever its timeline ([5912aeb](https://github.com/voidcorp-core/void-machine/commit/5912aebb6c0474e5f90b84f96b89bbc62daffa9b))
+* **ci:** fail a merge group walk that does not reach the base head ([e1c9f0a](https://github.com/voidcorp-core/void-machine/commit/e1c9f0a1727d729c0bf3b91d7d0c335439341d81))
+* **ci:** let the promotion audit judge merge authority through the module ([2da6b77](https://github.com/voidcorp-core/void-machine/commit/2da6b77f4e703c1357cf2c57397b232fcf3763d8))
+* **ci:** prove the back-merge's commits before exempting it ([fd3ec76](https://github.com/voidcorp-core/void-machine/commit/fd3ec7657e4d37ed9793415cee84018011e57e4d))
+* **cli:** let npx run voidmachine by its package name ([aae9ea7](https://github.com/voidcorp-core/void-machine/commit/aae9ea73a13bbc240ffef25a2b6142789a6ab567))
+* **deps:** give the repository root the TypeScript 7 tsc it tests with ([4d6b966](https://github.com/voidcorp-core/void-machine/commit/4d6b966332f36293ad3678aeb5e7b8cabfb24681))
+* **docs:** include local sync in authorized merge consent ([1efeedf](https://github.com/voidcorp-core/void-machine/commit/1efeedf1f018de907fa008b18c96fd0727d2ebfc))
+* **docs:** include local sync in authorized merge consent ([cac4151](https://github.com/voidcorp-core/void-machine/commit/cac41512f8900344d09f7d8e69526f273d72cd04))
+* **graph:** name the alias when a project resolves TypeScript 7 ([6f46511](https://github.com/voidcorp-core/void-machine/commit/6f46511f4fc5e50d687a41ae0e1f5b46e1146ea4))
+* **harness:** refresh published floor and separate process proofs ([da9a6af](https://github.com/voidcorp-core/void-machine/commit/da9a6af71fd75d96e1696198759130d0c272c299))
+* **hooks:** offer harness updates once with explicit consent ([5eb8159](https://github.com/voidcorp-core/void-machine/commit/5eb8159d3460ad07feb3837e7911b930ae7b0268))
+* **hooks:** own the isolated syntax parser ([77651b3](https://github.com/voidcorp-core/void-machine/commit/77651b31fe715c9cd6a8bfc4424e43b8754a36cb))
+* **hooks:** own the official typescript syntax worker ([44c1512](https://github.com/voidcorp-core/void-machine/commit/44c151218b1fb28124b4411cd69ba7af635518c9))
+* **hooks:** own the official TypeScript syntax worker ([7ce5a87](https://github.com/voidcorp-core/void-machine/commit/7ce5a87db8b5d15c239dcfdb3971e24f195a9cfd))
+* **hooks:** read the words a verdict write passes, and refuse what it hides ([dff2b88](https://github.com/voidcorp-core/void-machine/commit/dff2b88183f41f3a7b673271d2681454ced10929))
+* **hooks:** read what a line runs before letting it write a verdict ([a6cf7dd](https://github.com/voidcorp-core/void-machine/commit/a6cf7dd7901de9cc4a29cd294cf12417a0c918c1))
+* **hooks:** separate CI artifact and runtime input bounds ([f34118d](https://github.com/voidcorp-core/void-machine/commit/f34118dbcd85cbc6cb443c5cba3379dcc27a5c83))
+* **hooks:** separate syntax semantics from process deadline proofs ([004a8aa](https://github.com/voidcorp-core/void-machine/commit/004a8aa67b542d01d84d7edbc2cf208d186e1f7b))
+* **identity:** drop every block nested in a kept managed block ([e18e48c](https://github.com/voidcorp-core/void-machine/commit/e18e48c57ebae38d98fc66323744e0c2a3216db7))
+* **init:** describe layout repairs that survive install failure ([c6ba913](https://github.com/voidcorp-core/void-machine/commit/c6ba913f732700498ec62475be97abb57bf08709))
+* **install:** distinguish template provenance from observed doctrine ([98d108e](https://github.com/voidcorp-core/void-machine/commit/98d108e337ab5a26a6f5e130d0e0373ef49f2274))
+* **machine:** anchor doctor contracts to current sources ([c490e66](https://github.com/voidcorp-core/void-machine/commit/c490e667286681e7ad76a173d3adb120111bcfaa))
+* **machine:** announce test barriers on a loopback port, not a named socket ([89dae6f](https://github.com/voidcorp-core/void-machine/commit/89dae6f647dfe3071d44213c6206779a3e970448))
+* **machine:** keep the cost of a result that returns after an abandonment ([60c010f](https://github.com/voidcorp-core/void-machine/commit/60c010fcd47de308c3a934ca75876aa8302d6da1))
+* **machine:** refuse a second discarded result in the mission reducer ([f065006](https://github.com/voidcorp-core/void-machine/commit/f0650062ea386313b957971dbdb0ece9a0b3e138))
+* **machine:** report a discarded late result as a known stop ([22de421](https://github.com/voidcorp-core/void-machine/commit/22de421546555fc8e9dc8a9bf56885be8c4b8f2d))
+* **machine:** report a failed late-cost write as storage, not as the stop ([a459ef2](https://github.com/voidcorp-core/void-machine/commit/a459ef25f83402a2f7b4714224f6670a8868e9f8))
+* **mission:** admit bounded recovery corrections and fresh reviews ([9a106f7](https://github.com/voidcorp-core/void-machine/commit/9a106f7e9075189f7b0993c099b6418dc3e2e207))
+* **mission:** bound independent review correction batches ([6d645a7](https://github.com/voidcorp-core/void-machine/commit/6d645a716c06cc69aaf2aaf9a608e4c13ad97a18))
+* **mission:** call a broken specialist invalid, even on another version ([f939dc5](https://github.com/voidcorp-core/void-machine/commit/f939dc5f4f573816a737a572c50ce544d79dc0df))
+* **mission:** name the drifted specialist, both versions, and the repair ([e0babdf](https://github.com/voidcorp-core/void-machine/commit/e0babdf2565b1bc650a5e1c26c45817989d01f83))
+* **mission:** name the drifted specialist, both versions, and the repair ([e80551b](https://github.com/voidcorp-core/void-machine/commit/e80551b7878fb15a8389a246b429668b4efcd00f))
+* **mission:** preserve recovery across specialist migration ([0d883e6](https://github.com/voidcorp-core/void-machine/commit/0d883e6315ce99e9c628e337984fd231b676b584))
+* **mission:** preserve recovery and bound independent reviews ([0924cde](https://github.com/voidcorp-core/void-machine/commit/0924cded8a502f24fd4f16f968f1e36b8267aea9))
+* **mission:** preserve review continuity and audited recovery ([37c2068](https://github.com/voidcorp-core/void-machine/commit/37c20683fbacc3225623b47c3d3a03136b1df604))
+* **mission:** recover preparation obligations when due ([13dfac9](https://github.com/voidcorp-core/void-machine/commit/13dfac9ac0ba2ddf179c1b2c52a0d4ca96f79850))
+* **mission:** recover stopped episodes through declared migration ([b51d813](https://github.com/voidcorp-core/void-machine/commit/b51d813e9ddaed55ffd894224338e8699e010e65))
+* **mission:** respect latest review dispositions and inspectable inputs ([b0d49be](https://github.com/voidcorp-core/void-machine/commit/b0d49bede866e46397334fb50be3f0885fe16629))
+* **mission:** retain evidenced resolutions across correction batches ([1afc97e](https://github.com/voidcorp-core/void-machine/commit/1afc97ef1380d1ec0fb2f93bb1d9e221714e18e3))
+* **pack-monorepo:** document a tsconfig that compiles under TypeScript 6 and 7 ([6b2c95a](https://github.com/voidcorp-core/void-machine/commit/6b2c95a53ff02b2c7abd0752712fc3ed9a1a03e1))
+* **promotion:** keep the audit query under the GraphQL node limit ([76a6d61](https://github.com/voidcorp-core/void-machine/commit/76a6d61889d138a4c8b42be6ffbbafc15f234c53))
+* **release:** back-merge on ancestry, not on equal trees ([a7cdabf](https://github.com/voidcorp-core/void-machine/commit/a7cdabf5c360008d9a36b554a2b109fd94beafbd))
+* **release:** back-merge on ancestry, not on equal trees ([48ff751](https://github.com/voidcorp-core/void-machine/commit/48ff75164da6015139f4fecbde65e3cb89d16250))
+* **review:** anchor the review to the default branch it runs from ([8f186c5](https://github.com/voidcorp-core/void-machine/commit/8f186c5c4b72f4c7992a23577db7fb2e3c30ac44))
+* **review:** believe a run of the review workflow in the queue, not the check ([1df6c00](https://github.com/voidcorp-core/void-machine/commit/1df6c001a86c3b07332a8ea3eca6db1366b5ad32))
+* **review:** give the review enough turns to conclude on a large diff ([0cfdf19](https://github.com/voidcorp-core/void-machine/commit/0cfdf19edc242b756f629d1bd486c757fc7a994c))
+* **review:** give the review enough turns to conclude on a large diff ([98742e6](https://github.com/voidcorp-core/void-machine/commit/98742e6f63670b4c6ae8f07751b259465d5b1130))
+* **review:** keep the App token dead while the model reads the head ([912945f](https://github.com/voidcorp-core/void-machine/commit/912945ff212b1a84c28e1133fb814b322b1f3a7f))
+* **review:** promotion audit query budget, and anchor the review to the default branch ([692cb99](https://github.com/voidcorp-core/void-machine/commit/692cb99d3c5c08d4ca3832d8c66c7be99c00872a))
+* **review:** title a draft's run apart from a review of its head ([631c964](https://github.com/voidcorp-core/void-machine/commit/631c9642721180041b291d21883534da40f3161e))
+* **telemetry:** separate topology evidence from deadline policy ([64d9622](https://github.com/voidcorp-core/void-machine/commit/64d9622cac5704c75debcf97503c57a8b2bdf9a7))
+* **visual:** assess rendered scope before requiring captures ([#384](https://github.com/voidcorp-core/void-machine/issues/384)) ([b90cbde](https://github.com/voidcorp-core/void-machine/commit/b90cbdef1cac763f80042a4664121daa8310b44c))
+
+
+### Code Refactoring
+
+* **autopilot:** read the review from its check, drop the signing key ([66d63ca](https://github.com/voidcorp-core/void-machine/commit/66d63caec71cdaa14f384cda4150507dbf8f1e97))
+* **autopilot:** remove the cluster reconciliation engine ([8ceab79](https://github.com/voidcorp-core/void-machine/commit/8ceab793ab6e97503272aeee90bd1b0aec746492))
+* **hooks:** remove the review-verdict-write rule and its shell parser ([fbc6fd9](https://github.com/voidcorp-core/void-machine/commit/fbc6fd969d11b709313c71a4eea831357663e7cb))
+
+
+### Build System
+
+* **engines:** require Node 24.15 in every package ([91b5134](https://github.com/voidcorp-core/void-machine/commit/91b51344dfb18cda1486e9e8a1b20997330dca7a))
+
 ## [3.8.0](https://github.com/voidcorp-core/void-harness/compare/v3.7.1...v3.8.0) (2026-09-15)
 
 
