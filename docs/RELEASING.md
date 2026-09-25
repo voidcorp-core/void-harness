@@ -126,10 +126,12 @@ gate exists to make. The divergence is therefore a consequence of `main` being
 the gate, not a wiring mistake, and automating the repair is the honest trade.
 
 `back-merge.yml` runs on every push to `main` and opens a `main` to `develop`
-pull request when the two trees differ. It decides on content rather than on a
-commit count: a promotion leaves a merge commit on `main` that `develop` does not
-carry, so counting would open an empty pull request every time, and a robot that
-opens pull requests nobody needs gets merged without being read.
+pull request whenever `main` holds a commit `develop` does not. It decides on
+ancestry rather than on content: a promotion leaves a merge commit on `main` that
+changes no file, and deciding on content skipped it, which left the next
+promotion out of date against a `main` that requires it up to date, with no
+merge button (after #381, repaired by hand in #414). Such a pull request carries
+no change, and nobody has to read it: it merges on its own.
 
 That pull request merges itself once the required checks pass. It needs no
 review verdict, and the reason is a property of its content rather than a
