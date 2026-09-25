@@ -98,10 +98,13 @@ describe('manifests that cannot import the identity', () => {
     expect(manifest['bugs']).toEqual({ url: `${repositoryUrl}/issues` });
   });
 
+  // `npx <package>` runs the single bin, or every bin when they share one
+  // file, or else the bin named after the package; with the deprecated alias
+  // in its own file, only a bin bearing the package name keeps `npx` working.
   it('install every declared command and no other, the deprecated ones through their own entry', () => {
     const bin = readJson('packages/cli/package.json')['bin'];
     const expected = Object.fromEntries([
-      ...[commands.primary, ...commands.aliases].map((name) => [name, `./bin/${commands.primary}.mjs`]),
+      ...[packageName, commands.primary, ...commands.aliases].map((name) => [name, `./bin/${commands.primary}.mjs`]),
       ...commands.deprecated.map((name) => [name, `./bin/${name}.mjs`]),
     ]);
     expect(bin).toEqual(expected);
@@ -157,7 +160,7 @@ describe('literals outside the identity source', () => {
   it('code never spells the repository slug or the package name', () => {
     const code = files.filter((path) => CODE.test(path) && path !== SELF && !exempt(path, GENERATED));
     expect(holders(code, repositorySlug)).toEqual([]);
-    expect(code.filter((path) => new RegExp(`(?<![\\w@/-])${packageName}(?![\\w-])`).test(read(path)))).toEqual([]);
+    expect(code.filter((path) => new RegExp(`(?<![\\w@-])${packageName}(?![\\w-])`).test(read(path)))).toEqual([]);
   });
 
   it('knows at least one retired name, or this guard would pass on an empty list', () => {

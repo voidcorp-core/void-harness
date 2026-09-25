@@ -26,6 +26,7 @@
   ],
   "type": "module",
   "bin": {
+    "voidmachine": "./bin/void-machine.mjs",
     "void-machine": "./bin/void-machine.mjs",
     "vm": "./bin/void-machine.mjs",
     "void-harness": "./bin/void-harness.mjs"
