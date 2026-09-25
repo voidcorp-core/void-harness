@@ -5,7 +5,8 @@ European VPS. **Folpe set Machine's target on 25 September 2026: the same instan
 Cortex, its Postgres and Machine, and Machine runs sandboxed there, because it acts** (it
 writes code, runs commands, opens pull requests). The approved foundation plan still records
 that no topology is chosen; turning this target into an accepted decision record, with that
-plan updated in the same commit, is the first step of the unit that containerizes Machine.
+plan updated in the same commit, is the first step of the unit that containerizes Machine;
+no hosted guarantee is acquired either.
 Nothing here is built. It is written down because these constraints decide architecture,
 and a constraint nobody wrote down is one that surfaces the day it is expensive.
 
@@ -88,8 +89,8 @@ the Cortex side, on what its API can hold.
 ## What the instance imposes
 
 - One client is one compose project, `cortex-<client>`; the project name comes from the
-  file and a missing client fails the command. If Machine ships inside the instance, it
-  enters as one or more services of that same project.
+  file and a missing client fails the command. Machine, as targeted above, enters as one
+  or more services of that same project.
 - **Migrations as a one-shot service**, like Cortex's `migrate`: a container that applies
   and exits, with the main service gated on `service_completed_successfully`. A failed
   migration leaves the service stopped.
@@ -129,20 +130,22 @@ each item to be checked against the official documentation before it is written:
 - **The runtime's own sandbox inside it**: the agent runtime's command and file sandbox
   still applies within the container; the container does not replace it.
 
-## Distribution: what npm is still for
+## Distribution: two products, two channels
 
-The instance installs Machine from an image, not from `npx`. That moves the primary
-channel, and raises a question to settle with Folpe before the containerizing unit:
+Machine has never shipped through npm: `packages/void-machine` is private and ships in
+no tarball (`docs/ARCHITECTURE.md`). **The image is a new channel for Machine**, not a
+replacement for an existing one: built in CI from the repository, pinned by digest,
+published to a registry with a provenance attestation.
 
-- **The image becomes the channel for instances**: built in CI from the repository, pinned
-  by digest, published to a registry with a provenance attestation, the way npm
-  provenance works today.
-- **npm keeps a reason only if installing the harness into one's own project stays a
-  promise** of the open-source repository (`npx voidharness`). The code stays public either
-  way; the question is whether direct installation outside an instance is still offered.
-- Recommendation, to confirm: keep npm for the open-source harness as long as that promise
-  stands (it is built, and its provenance is verified), and add the image channel when
-  Machine is containerized, rather than dropping npm before the image exists.
+npm carries a different product, the harness (`npx voidharness`), which wires an agent
+runtime into a developer's own project. The question to settle with Folpe is about that
+product alone: whether installing the harness into one's own project stays a promise of
+the open-source repository, or whether the harness only reaches people inside an instance.
+The code stays public either way.
+
+Recommendation, to confirm: keep publishing the harness to npm while that promise stands
+(it is built, and its provenance is verified), and decide how the harness enters the
+instance image (from npm, pinned, or from the same build) when Machine is containerized.
 
 ## Open decisions, to settle with Folpe before the Dockerfile
 
@@ -151,7 +154,8 @@ channel, and raises a question to settle with Folpe before the containerizing un
   for the instance itself.
 - **Sandbox depth.** Hardened container alone, or a user-space kernel or micro-VM under
   it, chosen on measured cost and on what Machine is allowed to do.
-- **Distribution.** Whether npm stays alongside the image, as above.
+- **Distribution.** Whether the harness keeps its npm channel, and how it enters the
+  image, as above.
 
 - **Storage.** Machine's durable mission journal is files today. If it needs a database:
   its own role and database inside the instance's Postgres, or its own container. Cortex's
