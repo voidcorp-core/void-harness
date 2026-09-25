@@ -118,10 +118,14 @@ jobs:
           prompt: |
             Follow .github/review/prompt.md to review pull request #${{ github.event.pull_request.number }}
             at head ${{ github.event.pull_request.head.sha }}.
+          # Turns bound the cost; the job's 30 minutes bound the time. 40 turns
+          # ran out on a 166-file diff (#420: 41 turns, 4 minutes, about 1 USD)
+          # and left it with no verdict at all, so a large change could never
+          # merge. 120 keeps the worst case near 12 minutes and 3 USD.
           claude_args: >-
             --allowedTools Read,Grep,Glob
             --add-dir pr-head
-            --max-turns 40
+            --max-turns 120
             --json-schema '${{ steps.inputs.outputs.schema }}'
       - name: Mint the review App token that concludes the check
         id: app-finish

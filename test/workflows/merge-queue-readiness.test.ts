@@ -85,6 +85,7 @@ describe('independent review', () => {
     expect(review).not.toMatch(/pnpm|npm (?:ci|install)|node pr-head/);
     expect(review).toContain('--allowedTools Read,Grep,Glob');
     expect(review).toContain('--add-dir pr-head');
+    expect(review).toContain('--max-turns 120');
     expect(review).toMatch(/uses: anthropics\/claude-code-action@[0-9a-f]{40} /);
   });
 
