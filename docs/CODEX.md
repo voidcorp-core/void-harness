@@ -132,10 +132,16 @@ runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
    from the session directory to the nearest `.void/hooks/<asset>` and runs it.
    Codex launches a hook through the session shell (`sh`, `bash`, `zsh`,
    PowerShell, `cmd.exe`); the bootstrap uses none of their expansion
-   characters, so one form holds on every OS and from any subdirectory. When no
-   runner is found it exits 2 on `enforce` (fail closed) and 0 elsewhere. The
-   hook conformance runs the installed commands through each of these launchers,
-   from the root and a subdirectory, on Linux, macOS and Windows. See the
+   characters, so one form holds on every OS and from any subdirectory.
+   A Codex refusal is exit 0 with the documented PreToolUse denial on stdout
+   (`hookSpecificOutput.permissionDecision: "deny"`), never exit 2:
+   PowerShell, Codex's default shell on Windows, turns any non-zero native exit
+   into 1, which Codex reads as a failed hook and lets the call through. The
+   runner refuses that way for `enforce ... codex`, and so does the bootstrap
+   when no runner is found (fail closed); elsewhere a missing runner exits 0.
+   Claude Code keeps exit 2. The hook conformance runs the installed commands
+   through each of these launchers, from the root and a subdirectory, on Linux,
+   macOS and Windows, and reads the refusal the way Codex parses it. See the
    decision `codex-hooks-shell-neutral-bootstrap`.
 
 The one remaining human step is to **trust the project-local `.codex/` layer**

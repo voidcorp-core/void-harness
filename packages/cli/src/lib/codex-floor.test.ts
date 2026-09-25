@@ -253,10 +253,21 @@ describe('wireCodexFloor', () => {
 
     const options = { cwd: project, shell: true, input, encoding: 'utf8' } as const;
     const blocked = spawnSync(enforce ?? '', options);
-    expect(blocked.status).toBe(2);
+    // Exit 0 with a denial: the only refusal PowerShell, Codex's default shell on
+    // Windows, does not turn into a failed hook that lets the call through.
+    expect(blocked.status).toBe(0);
+    expect(blocked.stdout).toMatch(/^[\x20-\x7e]*\n$/);
+    expect(JSON.parse(blocked.stdout)).toEqual({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: expect.stringContaining('HOOK_RUNNER_MISSING'),
+      },
+    });
     expect(blocked.stderr).toContain('HOOK_RUNNER_MISSING');
     const passed = spawnSync(lifecycle ?? '', options);
     expect(passed.status).toBe(0);
+    expect(passed.stdout).toBe('');
     expect(passed.stderr).toContain('HOOK_RUNNER_MISSING');
   });
 

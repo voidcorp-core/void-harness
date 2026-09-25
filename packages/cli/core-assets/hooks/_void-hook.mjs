@@ -5245,12 +5245,34 @@ async function readStdin(ciContent) {
   }
   return Buffer.concat(chunks);
 }
-function writeVerdict(rule, verdict, write) {
-  if (verdict.code === "ALLOW" || verdict.code === "OVERRIDE") return;
+function verdictMessage(rule, verdict) {
   const evidence = verdict.evidence.length === 0 ? "" : `
 ${verdict.evidence.map((item) => `- ${item}`).join("\n")}`;
-  write(`${verdict.code}: ${withGoverningSkill(rule, verdict.message)}${evidence}
+  return `${verdict.code}: ${withGoverningSkill(rule, verdict.message)}${evidence}
+`;
+}
+function refuse(agentRuntime, reason) {
+  if (agentRuntime !== "codex") {
+    process.stderr.write(reason);
+    process.exitCode = 2;
+    return;
+  }
+  const denial = JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason.trimEnd()
+    }
+  }).replace(
+    /[\u007f-\uffff]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`
+  );
+  process.stdout.write(`${denial}
 `);
+  process.exitCode = 0;
+}
+function enforcementRuntime() {
+  return process.argv[2] === "enforce" ? runtime2(process.argv[4] ?? process.env["VOID_AGENT_RUNTIME"]) : "unknown";
 }
 function runtime2(value) {
   return value === "claude" || value === "codex" ? value : "unknown";
@@ -5442,18 +5464,27 @@ async function main() {
         projectRoot()
       );
     }
-    writeVerdict(rule, verdict, (message) => process.stderr.write(message));
-    if (!verdict.allow) process.exitCode = 2;
+    if (verdict.allow) {
+      if (verdict.code !== "ALLOW" && verdict.code !== "OVERRIDE") {
+        process.stderr.write(verdictMessage(rule, verdict));
+      }
+      return;
+    }
+    refuse(enforcementRuntime(), verdictMessage(rule, verdict));
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";
-    process.stderr.write(`HOOK_INPUT_REJECTED: ${message}
+    refuse(enforcementRuntime(), `HOOK_INPUT_REJECTED: ${message}
 `);
-    process.exitCode = 2;
   }
 }
 main().catch((error) => {
   const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";
+  if (process.argv[2] === "enforce" || process.argv[2] === "enforce-ci") {
+    refuse(enforcementRuntime(), `HOOK_RUNNER_FAILED: ${message}
+`);
+    return;
+  }
   process.stderr.write(`HOOK_RUNNER_FAILED: ${message}
 `);
-  process.exitCode = process.argv[2] === "enforce" || process.argv[2] === "enforce-ci" ? 2 : 0;
+  process.exitCode = 0;
 });

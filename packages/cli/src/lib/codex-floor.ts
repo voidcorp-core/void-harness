@@ -62,21 +62,29 @@ const LOOKUP_DEPTH_MAX = 64;
  * and no command substitution means the same thing in all five, so Node itself
  * walks up from the cwd to the nearest `.void/hooks/<asset>`. The program uses
  * no `$`, `%`, backtick, backslash, `!` or double quote, which those shells
- * would expand or end the argument on. A missing runner fails closed on
- * `enforce` and open elsewhere, the same exit policy as the runner itself.
+ * would expand or end the argument on.
+ *
+ * A missing or unloadable runner fails closed on `enforce` and open elsewhere,
+ * like the runner itself. Closed means the runner's Codex refusal: exit 0 with a
+ * PreToolUse denial on stdout, since PowerShell turns any other exit into 1 and
+ * Codex lets a call through on 1. The denial carries a fixed ASCII reason; the
+ * detail, which may hold a non-ASCII path, goes to stderr.
  */
 export function codexHookBootstrap(asset: string): string {
   if (!/^[A-Za-z0-9._-]+$/.test(asset)) throw new Error(`unsafe hook asset name: ${asset}`);
-  const fail = "process.exitCode=m==='enforce'?2:0";
   return [
-    "const f=require('fs'),p=require('path'),u=require('url'),m=process.argv[1];",
+    "const f=require('fs'),p=require('path'),u=require('url'),m=process.argv[1],",
+    'l=String.fromCharCode(10),',
+    'x=function(r,t){process.stderr.write(r+t+l);',
+    "if(m==='enforce')process.stdout.write(JSON.stringify({hookSpecificOutput:",
+    "{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:r}})+l)};",
     `let d=process.cwd(),h='',i=${LOOKUP_DEPTH_MAX};`,
     `while(i--){const c=p.join(d,'.void','hooks','${asset}');`,
     'if(f.existsSync(c)){h=c;break}const n=p.dirname(d);if(n===d)break;d=n}',
     'if(h){process.argv.splice(1,0,h);import(u.pathToFileURL(h).href).catch(function(e){',
-    `process.stderr.write('HOOK_RUNNER_FAILED: '+String(e)+String.fromCharCode(10));${fail}})}`,
-    `else{process.stderr.write('HOOK_RUNNER_MISSING: .void/hooks/${asset} not found above '`,
-    `+process.cwd()+String.fromCharCode(10));${fail}}`,
+    `x('HOOK_RUNNER_FAILED: cannot load .void/hooks/${asset}',': '+String(e))})}`,
+    `else{x('HOOK_RUNNER_MISSING: .void/hooks/${asset} not found above the session directory',`,
+    "' '+process.cwd())}",
   ].join('');
 }
 
